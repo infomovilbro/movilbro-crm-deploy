@@ -1,0 +1,97 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="ri-file-list-line"></i> Órdenes</h2>
+    <div>
+      <button class="btn btn-sm btn-outline-secondary me-1" id="toggleStats" title="Mostrar/ocultar estadísticas"><i class="ri-bar-chart-2-line"></i></button>
+      <a href="/altas" class="btn btn-primary btn-sm"><i class="ri-add-line"></i> Nueva Orden</a>
+    </div>
+  </div>
+  <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-warning"><%= error %></div><% } %>
+
+  <div class="row g-3 mb-3" id="statsRow">
+    <div class="col-md-2 col-6"><div class="stat-card" style="background:#f8f9fa;border-left:3px solid var(--primary);border-radius:10px;padding:16px;cursor:pointer;" data-filter="all"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">📊</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= orders.length %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Total</div></div></div></div></div>
+    <div class="col-md-2 col-6"><div class="stat-card" style="background:#f8f9fa;border-left:3px solid #28a745;border-radius:10px;padding:16px;cursor:pointer;" data-filter="completadas"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">✅</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= orders.filter(o => (o.status||o.estado||'').toUpperCase() === 'COMPLETED').length %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Completadas</div></div></div></div></div>
+    <div class="col-md-2 col-6"><div class="stat-card" style="background:#f8f9fa;border-left:3px solid #ffc107;border-radius:10px;padding:16px;cursor:pointer;" data-filter="pendientes"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">⏳</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= orders.filter(o => (o.status||o.estado||'').toUpperCase() === 'INITIATED' || (o.estado||'') === 'pendiente').length %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Pendientes</div></div></div></div></div>
+    <div class="col-md-2 col-6"><div class="stat-card" style="background:#f8f9fa;border-left:3px solid #fd7e14;border-radius:10px;padding:16px;cursor:pointer;" data-filter="firma"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">✍️</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= orders.filter(o => (o.status||o.estado||'').toUpperCase() === 'PENDING_SIGNATURE' || (o.status||o.estado||'').toUpperCase() === 'PENDING_CONTRACT_SIGNATURE').length %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Pend. firma</div></div></div></div></div>
+    <div class="col-md-2 col-6"><div class="stat-card" style="background:#f8f9fa;border-left:3px solid #dc3545;border-radius:10px;padding:16px;cursor:pointer;" data-filter="error-cancel"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">❌</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= orders.filter(o => (o.status||o.estado||'').toUpperCase() === 'CANCELED' || (o.status||o.estado||'').toUpperCase() === 'ERRORED').length %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Error/Cancel</div></div></div></div></div>
+    <div class="col-md-2 col-6"><div class="stat-card" style="background:#f8f9fa;border-left:3px solid #17a2b8;border-radius:10px;padding:16px;cursor:pointer;" data-filter="hoy"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">📅</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= orders.filter(o => (o.created_at || o.created ? new Date(o.created_at || o.created).toDateString() === new Date().toDateString() : false)).length %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Hoy</div></div></div></div></div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-12">
+      <div class="card"><div class="card-body">
+        <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Estado de Órdenes</h6>
+        <canvas id="chartOrders" style="height:221px;"></canvas>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="card hideable-section" data-card-id="ordenes-tabla">
+    <div class="card-header d-flex justify-content-between"><span><i class="ri-file-list-line"></i> Listado de Órdenes</span>
+      <div class="d-flex gap-2"><input class="form-control form-control-sm" style="width:200px;" placeholder="Buscar orden..."><button class="btn btn-sm btn-outline-primary"><i class="ri-filter-3-line"></i></button></div>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover">
+          <thead><tr><th>#</th><th>Cliente</th><th>Línea</th><th>Producto</th><th>Precio</th><th>Estado</th><th>Fecha</th><th></th></tr></thead>
+          <tbody>
+            <% if (!orders || orders.length === 0) { %>
+            <tr><td colspan="8" class="text-center text-muted py-4">No hay órdenes</td></tr>
+            <% } else { orders.forEach(o => { 
+              const st = (o.status || o.estado || '').toUpperCase();
+              const sc = st === 'COMPLETED' || st === 'COMPLETADA' ? 'success' : 
+                         st === 'INITIATED' || st === 'INICIADA' || st === 'PENDING' || st === 'PENDIENTE' ? 'info' :
+                         st === 'CANCELED' || st === 'CANCELADA' ? 'secondary' :
+                         st === 'ERRORED' || st === 'ERROR' ? 'danger' :
+                         st === 'PENDING_SIGNATURE' || st === 'PENDING_CONTRACT_SIGNATURE' ? 'warning' : 'primary';
+              const isHoy = (o.created_at || o.created ? new Date(o.created_at || o.created).toDateString() === new Date().toDateString() : false);
+              const fv = [];
+              if (st === 'COMPLETED') fv.push('completadas');
+              if (st === 'INITIATED' || (o.estado||'').toLowerCase() === 'pendiente') fv.push('pendientes');
+              if (st === 'PENDING_SIGNATURE' || st === 'PENDING_CONTRACT_SIGNATURE') fv.push('firma');
+              if (st === 'CANCELED' || st === 'ERRORED') fv.push('error-cancel');
+              if (isHoy) fv.push('hoy');
+            %>
+            <tr data-filter-values="<%= fv.join(' ') %>">
+              <td><a href="/aftersales/orders/<%= o.id || o.orderId %>">#<%= o.id || o.orderId || '?' %></a></td>
+              <td><%= o.customerName || o.cliente_nombre || o.name || '-' %></td>
+              <td><%= o.lineNumber || o.linea || '-' %></td>
+              <td><%= o.productName || o.products || o.producto || o.product || '-' %></td>
+              <td><%= o.price || o.precio ? (o.price || o.precio) + '€' : '-' %></td>
+              <td><span class="badge bg-<%= sc %>"><%= st %></span></td>
+              <td class="small"><%= o.created_at || o.created ? new Date(o.created_at || o.created).toLocaleDateString('es-ES') : '-' %></td>
+              <td><a href="/aftersales/orders/<%= o.id || o.orderId %>" class="btn btn-sm btn-outline-primary"><i class="ri-eye-line"></i></a></td>
+            </tr>
+            <% }); } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+document.querySelectorAll('#statsRow .stat-card').forEach(function(c) {
+  c.addEventListener('click', function() {
+    var filter = this.getAttribute('data-filter');
+    document.querySelectorAll('#statsRow .stat-card').forEach(function(x) { x.style.outline = ''; });
+    if (filter !== 'all') this.style.outline = '2px solid #495057';
+    document.querySelectorAll('table tbody tr').forEach(function(row) {
+      if (filter === 'all') { row.style.display = ''; return; }
+      if (!row.hasAttribute('data-filter-values')) { row.style.display = 'none'; return; }
+      var vals = (row.getAttribute('data-filter-values') || '').split(' ');
+      row.style.display = vals.indexOf(filter) !== -1 ? '' : 'none';
+    });
+  });
+});
+document.getElementById('toggleStats').addEventListener('click', function() {
+  var r = document.getElementById('statsRow');
+  r.style.display = r.style.display === 'none' ? '' : 'none';
+});
+
+var od = <%- JSON.stringify(orders) %>;
+var co = {};
+od.forEach(function(x) { var k = (x.status || x.estado || 'UNKNOWN').toUpperCase(); co[k] = (co[k] || 0) + 1; });
+var lo = Object.keys(co);
+new Chart(document.getElementById('chartOrders'), { type: 'bar', data: { labels: lo, datasets: [{ label: 'Órdenes', data: Object.values(co), backgroundColor: lo.map(function(s) { return s === 'COMPLETED' ? '#198754' : s === 'INITIATED' ? '#0d6efd' : (s === 'PENDING_SIGNATURE' || s === 'PENDING_CONTRACT_SIGNATURE') ? '#ffc107' : (s === 'CANCELED' || s === 'ERRORED' || s === 'ERROR') ? '#dc3545' : '#6c757d'; }), borderRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } } });
+</script>

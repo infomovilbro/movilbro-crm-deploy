@@ -1,0 +1,113 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="ri-checkbox-multiple-blank-line"></i> Procesos Individuales</h2>
+    <div>
+      <button class="btn btn-sm btn-outline-secondary" id="toggleStats" title="Mostrar/ocultar estadísticas"><i class="ri-bar-chart-2-line"></i></button>
+    </div>
+  </div>
+  <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-warning"><%= error %></div><% } %>
+  <% 
+    const totalP = processes.length;
+    const simChanges = processes.filter(p => (p.type||'').toUpperCase() === 'SIM_CHANGE').length;
+    const prodChanges = processes.filter(p => (p.type||'').toUpperCase() === 'PRODUCT_CHANGE').length;
+    const titularChanges = processes.filter(p => (p.type||'').toUpperCase() === 'TITULAR_CHANGE').length;
+    const erroredP = processes.filter(p => (p.status||'').toUpperCase() === 'ERRORED').length;
+  %>
+  <div class="row g-3 mb-3" id="statsRow">
+    <div class="col-md-2 col-6"><div class="stat-card" style="background:#f8f9fa;border-left:3px solid var(--primary);border-radius:10px;padding:16px;cursor:pointer;" data-filter="all"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">📊</span><div><div class="stat-value total-processes" style="font-size:24px;font-weight:700;color:#222;"><%= totalP %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Total</div></div></div></div></div>
+    <div class="col-md-2 col-6"><div class="stat-card" style="background:#f8f9fa;border-left:3px solid #28a745;border-radius:10px;padding:16px;cursor:pointer;" data-filter="sim"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">📱</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= simChanges %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Cambio SIM</div></div></div></div></div>
+    <div class="col-md-2 col-6"><div class="stat-card" style="background:#f8f9fa;border-left:3px solid #ffc107;border-radius:10px;padding:16px;cursor:pointer;" data-filter="producto"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">🏷️</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= prodChanges %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Cambio Producto</div></div></div></div></div>
+    <div class="col-md-2 col-6"><div class="stat-card" style="background:#f8f9fa;border-left:3px solid #17a2b8;border-radius:10px;padding:16px;cursor:pointer;" data-filter="titular"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">👤</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= titularChanges %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Cambio Titular</div></div></div></div></div>
+    <div class="col-md-2 col-6"><div class="stat-card" style="background:#f8f9fa;border-left:3px solid #dc3545;border-radius:10px;padding:16px;cursor:pointer;" data-filter="error"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">❌</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= erroredP %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Error</div></div></div></div></div>
+    <div class="col-md-2 col-6"><div class="stat-card" style="background:#f8f9fa;border-left:3px solid #6c757d;border-radius:10px;padding:16px;cursor:pointer;" data-filter="otros"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">📌</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= totalP - simChanges - prodChanges - titularChanges - erroredP %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Otros</div></div></div></div></div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-6">
+      <div class="card"><div class="card-body">
+        <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Procesos por Tipo</h6>
+        <canvas id="chartTipoProc" style="height:221px;"></canvas>
+      </div></div>
+    </div>
+    <div class="col-md-6">
+      <div class="card"><div class="card-body">
+        <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Estado de Procesos</h6>
+        <canvas id="chartEstadoProc" style="height:221px;"></canvas>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="card hideable-section" data-card-id="procesos-tabla">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover">
+          <thead><tr><th>Tipo</th><th>Cliente</th><th>Línea</th><th>Valor Anterior</th><th>Valor Nuevo</th><th>Estado</th><th>Fecha Cambio</th></tr></thead>
+          <tbody>
+            <% if (!processes || processes.length === 0) { %>
+            <tr><td colspan="7" class="text-center text-muted py-4">No hay procesos</td></tr>
+            <% } else { processes.forEach(p => { 
+              const st = (p.status||'').toUpperCase();
+              const sc = st === 'COMPLETED' ? 'success' : st === 'IN_PROGRESS' || st === 'PENDING' ? 'info' : st === 'ERRORED' ? 'danger' : st === 'CANCELED' ? 'secondary' : 'warning';
+              const typeLabels = { SIM_CHANGE: 'Cambio SIM', PRODUCT_CHANGE: 'Cambio Producto', TITULAR_CHANGE: 'Cambio Titular', CREATE_SHARED_GROUP: 'Grupo Compartido', ADD_FIXED_IP: 'IP Fija', ADD_MULTISIM: 'MultiSIM', SMS_MASSIVE: 'SMS Masivo' };
+              const pt = (p.type||'').toUpperCase();
+              const fv = [];
+              if (pt === 'SIM_CHANGE') fv.push('sim');
+              if (pt === 'PRODUCT_CHANGE') fv.push('producto');
+              if (pt === 'TITULAR_CHANGE') fv.push('titular');
+              if (st === 'ERRORED') fv.push('error');
+              if (!fv.length) fv.push('otros');
+            %>
+            <tr data-filter-values="<%= fv.join(' ') %>">
+              <td><span class="badge bg-primary"><%= typeLabels[p.type] || p.type || '-' %></span></td>
+              <td><%= p.customerName || p.name || '-' %></td>
+              <td><%= p.lineNumber || p.linea || '-' %></td>
+              <td class="small"><%= p.previousIcc || p.previous || p.anterior || '-' %></td>
+              <td class="small"><%= p.actualProductName || p.newProduct || p.nuevo || '-' %></td>
+              <td><span class="badge bg-<%= sc %>"><%= st %></span></td>
+              <td class="small"><%= p.changeDate || p.fecha_cambio ? new Date(p.changeDate || p.fecha_cambio).toLocaleDateString('es-ES') : '-' %></td>
+            </tr>
+            <% }); } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+document.querySelectorAll('#statsRow .stat-card').forEach(function(c) {
+  c.addEventListener('click', function() {
+    var filter = this.getAttribute('data-filter');
+    document.querySelectorAll('#statsRow .stat-card').forEach(function(x) { x.style.outline = ''; });
+    if (filter !== 'all') this.style.outline = '2px solid #495057';
+    document.querySelectorAll('table tbody tr').forEach(function(row) {
+      if (filter === 'all') { row.style.display = ''; return; }
+      if (!row.hasAttribute('data-filter-values')) { row.style.display = 'none'; return; }
+      var vals = (row.getAttribute('data-filter-values') || '').split(' ');
+      row.style.display = vals.indexOf(filter) !== -1 ? '' : 'none';
+    });
+  });
+});
+document.getElementById('toggleStats').addEventListener('click', function() {
+  var r = document.getElementById('statsRow');
+  r.style.display = r.style.display === 'none' ? '' : 'none';
+});
+var typeLabels = { SIM_CHANGE: 'Cambio SIM', PRODUCT_CHANGE: 'Cambio Producto', TITULAR_CHANGE: 'Cambio Titular', CREATE_SHARED_GROUP: 'Grupo Compartido', ADD_FIXED_IP: 'IP Fija', ADD_MULTISIM: 'MultiSIM', SMS_MASSIVE: 'SMS Masivo' };
+var tipoCount = {}; processes.forEach(function(p){ var t = (p.type||'OTRO').toUpperCase(); tipoCount[t] = (tipoCount[t]||0) + 1; });
+var tipoLabels = Object.keys(tipoCount).map(function(t){ return typeLabels[t]||t; });
+var coloresTipo = ['#0d6efd','#198754','#ffc107','#dc3545','#6c757d','#17a2b8','#6610f2','#fd7e14'];
+var ctx1 = document.getElementById('chartTipoProc').getContext('2d');
+new Chart(ctx1, {
+  type: 'bar',
+  data: { labels: tipoLabels, datasets: [{ label: 'Procesos', data: Object.values(tipoCount), backgroundColor: coloresTipo.slice(0, Object.keys(tipoCount).length), borderRadius: 6 }] },
+  options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } }
+});
+var statusCount = {}; processes.forEach(function(p){ var s = (p.status||'desconocido').toUpperCase(); statusCount[s] = (statusCount[s]||0) + 1; });
+var colorMap = { COMPLETED: '#198754', IN_PROGRESS: '#0d6efd', PENDING: '#ffc107', ERRORED: '#dc3545', CANCELED: '#6c757d' };
+var ctx2 = document.getElementById('chartEstadoProc').getContext('2d');
+new Chart(ctx2, {
+  type: 'bar',
+  data: { labels: Object.keys(statusCount), datasets: [{ label: 'Procesos', data: Object.values(statusCount), backgroundColor: Object.keys(statusCount).map(function(s){ return colorMap[s]||'#0d6efd'; }), borderRadius: 6 }] },
+  options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } }
+});
+</script>

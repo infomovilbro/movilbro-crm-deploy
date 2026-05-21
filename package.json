@@ -1,0 +1,32 @@
+{
+  "name": "movilbro-crm",
+  "version": "1.0.0",
+  "description": "CRM para Movilbro - Integración con API Likes Telecom",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "@sendgrid/mail": "^8.1.6",
+    "axios": "^1.7.0",
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^11.0.0",
+    "chrome-cookies-secure": "^3.0.2",
+    "connect-sqlite3": "^0.9.15",
+    "cors": "^2.8.6",
+    "dotenv": "^16.4.0",
+    "ejs": "^3.1.10",
+    "express": "^4.19.0",
+    "express-ejs-layouts": "^2.5.1",
+    "express-rate-limit": "^8.5.2",
+    "express-session": "^1.18.0",
+    "express-validator": "^7.0.0",
+    "helmet": "^8.1.0",
+    "hpp": "^0.2.3",
+    "morgan": "^1.10.0",
+    "node-cron": "^4.2.1",
+    "nodemailer": "^8.0.7",
+    "playwright": "^1.60.0"
+  }
+}

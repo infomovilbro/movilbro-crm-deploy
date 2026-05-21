@@ -1,0 +1,66 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="ri-clipboard-line"></i> Encuestas</h2>
+  </div>
+  <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-warning"><%= error %></div><% } %>
+  <% const scoreCounts = [0,0,0,0,0]; (surveys || []).forEach(s => { const sc = parseInt(s.score || s.puntuacion || s.rating || 0, 10); if (sc >= 1 && sc <= 5) scoreCounts[sc-1]++; }); %>
+  <div class="row g-3 mb-3">
+    <div class="col-md-3 col-6"><div class="stat-card"><div class="stat-value"><%= surveys.length %></div><div class="stat-label">Total</div></div></div>
+  </div>
+  <div class="row g-3 mb-4">
+    <div class="col-md-12">
+      <div class="card"><div class="card-body">
+        <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Puntuación de Encuestas</h6>
+        <canvas id="surveyScores" style="height:221px;"></canvas>
+      </div></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover">
+          <thead><tr><th>Cliente</th><th>Encuesta</th><th>Puntuación</th><th>Fecha</th><th>Estado</th></tr></thead>
+          <tbody>
+            <% if (!surveys || surveys.length === 0) { %>
+            <tr><td colspan="5" class="text-center text-muted py-4">No hay encuestas</td></tr>
+            <% } else { surveys.forEach(s => { %>
+            <tr>
+              <td><%= s.customerName || s.name || '-' %></td>
+              <td><%= s.title || s.titulo || s.name || '-' %></td>
+              <td><%= s.score || s.puntuacion || s.rating ? (s.score || s.puntuacion || s.rating) + '/5' : '-' %></td>
+              <td class="small"><%= s.date || s.fecha ? new Date(s.date || s.fecha).toLocaleDateString('es-ES') : '-' %></td>
+              <td><span class="badge bg-<%= (s.status||'').toUpperCase() === 'COMPLETED' ? 'success' : (s.status||'').toUpperCase() === 'PENDING' ? 'warning' : 'secondary' %>"><%= s.status || 'N/A' %></span></td>
+            </tr>
+            <% }); } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  new Chart(document.getElementById('surveyScores'), {
+    type: 'bar',
+    data: {
+      labels: ['1', '2', '3', '4', '5'],
+      datasets: [{
+        label: 'Encuestas',
+        data: [<%= scoreCounts.join(',') %>],
+        backgroundColor: ['#dc3545','#dc3545','#ffc107','#198754','#198754'],
+        borderRadius: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, grid: { color: '#eee' } },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+});
+</script>

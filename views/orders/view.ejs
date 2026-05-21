@@ -1,0 +1,55 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2><i class="bi bi-cart"></i> Orden #<%= orden.id %></h2>
+      <span class="text-muted"><%= new Date(orden.created_at).toLocaleString('es-ES') %></span>
+    </div>
+    <a href="/ordenes" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Volver</a>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header">Información de la Orden</div>
+        <div class="card-body">
+          <table class="table table-sm">
+            <tr><th>ID</th><td>#<%= orden.id %></td></tr>
+            <tr><th>Estado</th>
+              <td>
+                <span class="badge bg-<%= orden.estado === 'completada' ? 'success' : orden.estado === 'pendiente' ? 'warning' : orden.estado === 'cancelada' ? 'danger' : 'info' %> fs-6"><%= orden.estado %></span>
+              </td>
+            </tr>
+            <tr><th>Tipo</th><td><%= orden.tipo %></td></tr>
+            <tr><th>Producto</th><td><%= orden.producto || '-' %></td></tr>
+            <tr><th>Detalles</th><td><%= orden.detalles || '-' %></td></tr>
+            <% if (orden.likes_order_id) { %><tr><th>ID Likes</th><td><code><%= orden.likes_order_id %></code></td></tr><% } %>
+          </table>
+
+          <form method="POST" action="/ordenes/<%= orden.id %>/estado" class="mt-3">
+            <div class="input-group">
+              <select name="estado" class="form-select">
+                <option value="pendiente" <%= orden.estado === 'pendiente' ? 'selected' : '' %>>Pendiente</option>
+                <option value="en_proceso" <%= orden.estado === 'en_proceso' ? 'selected' : '' %>>En Proceso</option>
+                <option value="completada" <%= orden.estado === 'completada' ? 'selected' : '' %>>Completada</option>
+                <option value="cancelada" <%= orden.estado === 'cancelada' ? 'selected' : '' %>>Cancelada</option>
+              </select>
+              <button type="submit" class="btn btn-primary">Actualizar Estado</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header">Cliente</div>
+        <div class="card-body">
+          <table class="table table-sm">
+            <tr><th>Nombre</th><td><a href="/clientes/<%= orden.client_id %>"><%= orden.cliente_nombre %> <%= orden.cliente_apellidos || '' %></a></td></tr>
+            <tr><th>Teléfono</th><td><a href="tel:<%= orden.cliente_telefono %>"><%= orden.cliente_telefono %></a></td></tr>
+            <tr><th>Email</th><td><%= orden.cliente_email || '-' %></td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

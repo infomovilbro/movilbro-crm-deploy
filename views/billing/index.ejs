@@ -1,0 +1,180 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-receipt"></i> Facturación</h2>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newInvoiceModal"><i class="bi bi-plus-lg"></i> Nueva Factura</button>
+  </div>
+
+  <% if (success) { %><div class="alert alert-success"><%= success %></div><% } %>
+  <% if (error) { %><div class="alert alert-danger"><%= error %></div><% } %>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-3 col-6"><div class="card border-start border-warning border-4"><div class="card-body py-3"><div class="text-muted small">Pendientes</div><div class="h3 mb-0 text-warning"><%= facturas.filter(f => f.estado === 'pendiente').length %></div></div></div></div>
+    <div class="col-md-3 col-6"><div class="card border-start border-success border-4"><div class="card-body py-3"><div class="text-muted small">Pagadas</div><div class="h3 mb-0 text-success"><%= facturas.filter(f => f.estado === 'pagada').length %></div></div></div></div>
+    <div class="col-md-3 col-6"><div class="card border-start border-danger border-4"><div class="card-body py-3"><div class="text-muted small">Vencidas</div><div class="h3 mb-0 text-danger"><%= facturas.filter(f => f.estado === 'vencida').length %></div></div></div></div>
+    <div class="col-md-3 col-6"><div class="card border-start border-primary border-4"><div class="card-body py-3"><div class="text-muted small">Total €</div><div class="h3 mb-0 text-primary"><%= facturas.reduce((t,f) => t + (f.importe || 0), 0).toFixed(2) %>€</div></div></div></div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-6">
+      <div class="card"><div class="card-body">
+        <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Estado de Facturas</h6>
+        <canvas id="billingStatusChart" style="height:221px;"></canvas>
+      </div></div>
+    </div>
+    <div class="col-md-6">
+      <div class="card"><div class="card-body">
+        <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Importe por Estado</h6>
+        <canvas id="billingAmountChart" style="height:221px;"></canvas>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body p-0">
+      <table class="table table-hover mb-0">
+        <thead><tr><th>#</th><th>Cliente</th><th>Concepto</th><th>Importe</th><th>Emisión</th><th>Vencimiento</th><th>Estado</th><th></th></tr></thead>
+        <tbody>
+          <% if (facturas.length === 0) { %><tr><td colspan="8" class="text-center text-muted py-4"><i class="bi bi-inbox"></i> No hay facturas</td></tr>
+          <% } else { facturas.forEach(f => { %>
+          <tr>
+            <td>#<%= f.id %></td>
+            <td><%= f.cliente_nombre || 'Sin cliente' %></td>
+            <td><%= f.concepto %></td>
+            <td><strong><%= f.importe.toFixed(2) %>€</strong></td>
+            <td class="small"><%= f.fecha_emision ? new Date(f.fecha_emision).toLocaleDateString('es-ES') : '-' %></td>
+            <td class="small"><%= f.fecha_vencimiento ? new Date(f.fecha_vencimiento).toLocaleDateString('es-ES') : '-' %></td>
+            <td>
+              <form method="POST" action="/facturacion/<%= f.id %>/estado" class="d-inline">
+                <select name="estado" class="form-select form-select-sm d-inline" style="width:auto;" onchange="this.form.submit()">
+                  <option value="pendiente" <%= f.estado === 'pendiente' ? 'selected' : '' %>>Pendiente</option>
+                  <option value="pagada" <%= f.estado === 'pagada' ? 'selected' : '' %>>Pagada</option>
+                  <option value="vencida" <%= f.estado === 'vencida' ? 'selected' : '' %>>Vencida</option>
+                  <option value="cancelada" <%= f.estado === 'cancelada' ? 'selected' : '' %>>Cancelada</option>
+                </select>
+              </form>
+            </td>
+            <td class="text-end">
+              <button class="btn btn-sm btn-outline-secondary" title="Editar" data-bs-toggle="modal" data-bs-target="#editInvoiceModal<%= f.id %>"><i class="bi bi-pencil"></i></button>
+              <a href="/facturacion/<%= f.id %>/pdf" target="_blank" class="btn btn-sm btn-outline-danger" title="PDF"><i class="bi bi-filetype-pdf"></i></a>
+              <% if (f.stripe_payment_link) { %><a href="<%= f.stripe_payment_link %>" target="_blank" class="btn btn-sm btn-outline-primary" title="Pagar con Stripe"><i class="bi bi-credit-card"></i></a><% } else if (f.estado === 'pendiente') { %><span class="badge bg-secondary" title="Sin enlace de pago"><i class="bi bi-credit-card"></i></span><% } %>
+            </td>
+          </tr>
+          <% }); } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+<script>
+var facturasData = <%- JSON.stringify(facturas) %>;
+var pendientes = facturasData.filter(function(f) { return f.estado === 'pendiente'; }).length;
+var pagadas = facturasData.filter(function(f) { return f.estado === 'pagada'; }).length;
+var vencidas = facturasData.filter(function(f) { return f.estado === 'vencida'; }).length;
+
+var ctx1 = document.getElementById('billingStatusChart').getContext('2d');
+new Chart(ctx1, {
+  type: 'bar',
+  data: {
+    labels: ['Pendientes', 'Pagadas', 'Vencidas'],
+    datasets: [{
+      label: 'Facturas',
+      data: [pendientes, pagadas, vencidas],
+      backgroundColor: ['#ffc107', '#198754', '#dc3545'],
+      borderRadius: 6
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } }
+  }
+});
+
+var importePendientes = facturasData.reduce(function(t, f) { return f.estado === 'pendiente' ? t + (f.importe || 0) : t; }, 0);
+var importePagadas = facturasData.reduce(function(t, f) { return f.estado === 'pagada' ? t + (f.importe || 0) : t; }, 0);
+var importeVencidas = facturasData.reduce(function(t, f) { return f.estado === 'vencida' ? t + (f.importe || 0) : t; }, 0);
+
+var ctx2 = document.getElementById('billingAmountChart').getContext('2d');
+new Chart(ctx2, {
+  type: 'bar',
+  data: {
+    labels: ['Pendientes', 'Pagadas', 'Vencidas'],
+    datasets: [{
+      label: 'Importe (€)',
+      data: [importePendientes, importePagadas, importeVencidas],
+      backgroundColor: ['#ffc107', '#198754', '#dc3545'],
+      borderRadius: 6
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } }
+  }
+});
+</script>
+</section>
+
+<div class="modal fade" id="newInvoiceModal">
+  <div class="modal-dialog"><div class="modal-content">
+    <form method="POST" action="/facturacion/crear">
+      <div class="modal-header"><h5 class="modal-title">Nueva Factura</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="mb-3"><label class="form-label">Cliente *</label>
+          <select name="client_id" class="form-select" required>
+            <option value="">Seleccionar...</option>
+            <% clientes.forEach(c => { %><option value="<%= c.id %>"><%= c.nombre %> <%= c.apellidos || '' %></option><% }) %>
+          </select>
+        </div>
+        <div class="mb-3"><label class="form-label">Concepto *</label><input type="text" name="concepto" class="form-control" required></div>
+        <div class="mb-3"><label class="form-label">Importe (€) *</label><input type="number" step="0.01" name="importe" class="form-control" required></div>
+        <div class="row g-2">
+          <div class="col-md-6"><label class="form-label">Fecha emisión</label><input type="date" name="fecha_emision" class="form-control" value="<%= new Date().toISOString().split('T')[0] %>"></div>
+          <div class="col-md-6"><label class="form-label">Fecha vencimiento</label><input type="date" name="fecha_vencimiento" class="form-control"></div>
+        </div>
+        <div class="mb-3"><label class="form-label">Enlace de pago Stripe</label><input type="url" name="stripe_payment_link" class="form-control" placeholder="https://buy.stripe.com/..."></div>
+        <div class="mt-2"><label class="form-label">Estado</label>
+          <select name="estado" class="form-select">
+            <option value="pendiente">Pendiente</option>
+            <option value="pagada">Pagada</option>
+            <option value="vencida">Vencida</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Crear Factura</button>
+      </div>
+    </form>
+  </div></div>
+</div>
+
+<% facturas.forEach(f => { %>
+<div class="modal fade" id="editInvoiceModal<%= f.id %>">
+  <div class="modal-dialog"><div class="modal-content">
+    <form method="POST" action="/facturacion/<%= f.id %>/editar">
+      <div class="modal-header"><h5 class="modal-title">Editar Factura #<%= f.id %></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="mb-3"><label class="form-label">Concepto</label><input type="text" name="concepto" class="form-control" value="<%= f.concepto %>" required></div>
+        <div class="mb-3"><label class="form-label">Importe (€)</label><input type="number" step="0.01" name="importe" class="form-control" value="<%= f.importe %>" required></div>
+        <div class="row g-2">
+          <div class="col-md-6"><label class="form-label">Fecha emisión</label><input type="date" name="fecha_emision" class="form-control" value="<%= f.fecha_emision %>"></div>
+          <div class="col-md-6"><label class="form-label">Fecha vencimiento</label><input type="date" name="fecha_vencimiento" class="form-control" value="<%= f.fecha_vencimiento %>"></div>
+        </div>
+        <div class="mb-3"><label class="form-label">Enlace de pago Stripe</label><input type="url" name="stripe_payment_link" class="form-control" value="<%= f.stripe_payment_link || '' %>" placeholder="https://buy.stripe.com/..."></div>
+        <div class="mt-2"><label class="form-label">Estado</label>
+          <select name="estado" class="form-select">
+            <option value="pendiente" <%= f.estado === 'pendiente' ? 'selected' : '' %>>Pendiente</option>
+            <option value="pagada" <%= f.estado === 'pagada' ? 'selected' : '' %>>Pagada</option>
+            <option value="vencida" <%= f.estado === 'vencida' ? 'selected' : '' %>>Vencida</option>
+            <option value="cancelada" <%= f.estado === 'cancelada' ? 'selected' : '' %>>Cancelada</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Guardar cambios</button>
+      </div>
+    </form>
+  </div></div>
+</div>
+<% }); %>

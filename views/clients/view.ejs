@@ -1,0 +1,100 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-person"></i> <%= cliente.nombre %> <%= cliente.apellidos || '' %></h2>
+    <div>
+      <a href="/clientes/<%= cliente.id %>/editar" class="btn btn-warning"><i class="bi bi-pencil"></i> Editar</a>
+      <a href="/clientes" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Volver</a>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-info-circle"></i> Información del Cliente</div>
+        <div class="card-body">
+          <table class="table table-sm">
+            <tr><th>Nombre</th><td><%= cliente.nombre %> <%= cliente.apellidos || '' %></td></tr>
+            <tr><th>DNI/NIF</th><td><%= cliente.dni_nif || '-' %></td></tr>
+            <tr><th>Email</th><td><%= cliente.email ? `<a href="mailto:${cliente.email}">${cliente.email}</a>` : '-' %></td></tr>
+            <tr><th>Teléfono</th><td><%= cliente.telefono ? `<a href="tel:${cliente.telefono}">${cliente.telefono}</a>` : '-' %></td></tr>
+            <tr><th>Teléfono 2</th><td><%= cliente.telefono2 || '-' %></td></tr>
+            <tr><th>Tipo</th><td><span class="badge bg-<%= cliente.tipo_cliente === 'empresa' ? 'secondary' : 'primary' %>"><%= cliente.tipo_cliente %></span></td></tr>
+            <tr><th>Dirección</th><td><%= cliente.direccion || '-' %>, <%= cliente.ciudad %>, <%= cliente.provincia %> <%= cliente.codigo_postal %></td></tr>
+            <tr><th>Cliente desde</th><td><%= new Date(cliente.created_at).toLocaleDateString('es-ES') %></td></tr>
+            <% if (cliente.likes_customer_id) { %><tr><th>ID Likes</th><td><code><%= cliente.likes_customer_id %></code></td></tr><% } %>
+          </table>
+          <% if (cliente.notas) { %>
+            <hr><h6>Notas:</h6>
+            <p class="text-muted"><%= cliente.notas %></p>
+          <% } %>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-8">
+      <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between">
+          <span><i class="bi bi-cart"></i> Órdenes</span>
+          <a href="/ordenes/nueva" class="btn btn-sm btn-primary"><i class="bi bi-plus"></i> Nueva</a>
+        </div>
+        <div class="card-body p-0">
+          <table class="table table-hover mb-0">
+            <thead class="table-light"><tr><th>#</th><th>Tipo</th><th>Producto</th><th>Estado</th><th>Fecha</th></tr></thead>
+            <tbody>
+              <% if (ordenes.length === 0) { %><tr><td colspan="5" class="text-center text-muted py-3">Sin órdenes</td></tr><% } %>
+              <% ordenes.forEach(o => { %>
+              <tr>
+                <td><a href="/ordenes/<%= o.id %>">#<%= o.id %></a></td>
+                <td><%= o.tipo %></td>
+                <td><%= o.producto || '-' %></td>
+                <td><span class="badge bg-<%= o.estado === 'completada' ? 'success' : o.estado === 'pendiente' ? 'warning' : 'secondary' %>"><%= o.estado %></span></td>
+                <td class="small"><%= new Date(o.created_at).toLocaleDateString('es-ES') %></td>
+              </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card mb-3">
+        <div class="card-header"><i class="bi bi-tag"></i> Suscripciones</div>
+        <div class="card-body p-0">
+          <table class="table table-hover mb-0">
+            <thead class="table-light"><tr><th>Línea</th><th>Producto</th><th>Estado</th><th>Alta</th></tr></thead>
+            <tbody>
+              <% if (suscripciones.length === 0) { %><tr><td colspan="4" class="text-center text-muted py-3">Sin suscripciones</td></tr><% } %>
+              <% suscripciones.forEach(s => { %>
+              <tr>
+                <td><%= s.linea || '-' %></td>
+                <td><%= s.producto %></td>
+                <td><span class="badge bg-<%= s.estado === 'activa' ? 'success' : 'danger' %>"><%= s.estado %></span></td>
+                <td class="small"><%= new Date(s.fecha_alta || s.created_at).toLocaleDateString('es-ES') %></td>
+              </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><i class="bi bi-ticket"></i> Tickets</div>
+        <div class="card-body p-0">
+          <table class="table table-hover mb-0">
+            <thead class="table-light"><tr><th>Asunto</th><th>Prioridad</th><th>Estado</th><th>Fecha</th></tr></thead>
+            <tbody>
+              <% if (tickets.length === 0) { %><tr><td colspan="4" class="text-center text-muted py-3">Sin tickets</td></tr><% } %>
+              <% tickets.forEach(t => { %>
+              <tr>
+                <td><%= t.asunto %></td>
+                <td><span class="badge bg-<%= t.prioridad === 'alta' ? 'danger' : t.prioridad === 'baja' ? 'success' : 'warning' %>"><%= t.prioridad %></span></td>
+                <td><span class="badge bg-<%= t.estado === 'abierto' ? 'warning' : t.estado === 'cerrado' ? 'success' : 'info' %>"><%= t.estado %></span></td>
+                <td class="small"><%= new Date(t.created_at).toLocaleDateString('es-ES') %></td>
+              </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

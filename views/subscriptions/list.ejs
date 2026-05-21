@@ -1,0 +1,127 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-tag"></i> Suscripciones</h2>
+    <div>
+      <% if (apiCount > 0) { %>
+        <span class="badge bg-info me-2 fs-6"><i class="bi bi-cloud"></i> <%= apiCount %> API</span>
+      <% } %>
+      <% if (apiError) { %>
+        <span class="badge bg-warning text-dark me-2" title="<%= apiError %>"><i class="bi bi-exclamation-triangle"></i> API</span>
+      <% } %>
+      <a href="/suscripciones/nueva" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Nueva Suscripción</a>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-body py-2">
+      <form method="GET" action="/suscripciones" class="row g-2 align-items-center">
+        <div class="col-auto">
+          <label class="col-form-label fw-bold small">Filtrar por estado:</label>
+        </div>
+        <div class="col-auto">
+          <select name="estado" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">Todos</option>
+            <option value="activa" <%= estadoFilter === 'activa' ? 'selected' : '' %>>Activa</option>
+            <option value="baja" <%= estadoFilter === 'baja' ? 'selected' : '' %>>Baja</option>
+            <option value="suspendida" <%= estadoFilter === 'suspendida' ? 'selected' : '' %>>Suspendida</option>
+          </select>
+        </div>
+        <% if (estadoFilter) { %>
+        <div class="col-auto">
+          <a href="/suscripciones" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x-circle"></i> Limpiar</a>
+        </div>
+        <% } %>
+      </form>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-6">
+      <div class="card"><div class="card-body">
+        <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Estado de Suscripciones</h6>
+        <canvas id="chartEstado" style="height:221px;"></canvas>
+      </div></div>
+    </div>
+    <div class="col-md-6">
+      <div class="card"><div class="card-body">
+        <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Productos más contratados</h6>
+        <canvas id="chartProductos" style="height:221px;"></canvas>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-dark">
+            <tr>
+              <th>Cliente</th>
+              <th>Línea</th>
+              <th>Producto</th>
+              <th>Estado</th>
+              <th>Fecha Alta</th>
+              <th>Fecha Baja</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (suscripciones.length === 0) { %>
+            <tr><td colspan="7" class="text-center text-muted py-4"><i class="bi bi-inbox"></i> No hay suscripciones registradas</td></tr>
+            <% } else { %>
+              <% suscripciones.forEach(s => { %>
+              <tr class="<%= s.from_api ? 'table-info' : '' %>">
+                <td>
+                  <% if (s.client_id) { %>
+                    <a href="/clientes/<%= s.client_id %>"><%= s.cliente_nombre %> <%= s.cliente_apellidos || '' %></a>
+                  <% } else { %>
+                    <%= s.cliente_nombre || 'Sin cliente' %>
+                  <% } %>
+                  <% if (s.cliente_telefono) { %><br><small class="text-muted"><%= s.cliente_telefono %></small><% } %>
+                  <% if (s.from_api) { %><br><small class="text-info"><i class="bi bi-cloud"></i> API</small><% } %>
+                </td>
+                <td><%= s.linea || '-' %></td>
+                <td><%= s.producto %></td>
+                <td>
+                  <span class="badge bg-<%= s.estado === 'activa' ? 'success' : s.estado === 'suspendida' ? 'warning' : 'danger' %> fs-6"><%= s.estado %></span>
+                </td>
+                <td class="small"><%= s.fecha_alta ? new Date(s.fecha_alta).toLocaleDateString('es-ES') : '-' %></td>
+                <td class="small"><%= s.fecha_baja ? new Date(s.fecha_baja).toLocaleDateString('es-ES') : '-' %></td>
+                <td class="text-end">
+                  <% if (!s.from_api && s.id) { %>
+                  <form method="POST" action="/suscripciones/<%= s.id %>/estado" class="d-inline">
+                    <input type="hidden" name="fecha_baja" value="<%= new Date().toISOString() %>">
+                    <% if (s.estado === 'activa') { %>
+                    <button type="submit" name="estado" value="baja" class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Dar de baja esta suscripción?')"><i class="bi bi-x-circle"></i></button>
+                    <% } else { %>
+                    <button type="submit" name="estado" value="activa" class="btn btn-sm btn-outline-success"><i class="bi bi-check-circle"></i></button>
+                    <% } %>
+                  </form>
+                  <% } %>
+                </td>
+              </tr>
+              <% }) %>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+<script>
+var estados = {}; suscripciones.forEach(function(s) { var e = (s.estado||'desconocido').toLowerCase(); estados[e] = (estados[e]||0) + 1; });
+var ctx1 = document.getElementById('chartEstado').getContext('2d');
+new Chart(ctx1, {
+  type: 'bar',
+  data: { labels: Object.keys(estados), datasets: [{ label: 'Suscripciones', data: Object.values(estados), backgroundColor: ['#198754', '#dc3545', '#ffc107'], borderRadius: 6 }] },
+  options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } }
+});
+var prodCount = {}; suscripciones.forEach(function(s) { var p = s.producto||'Sin producto'; prodCount[p] = (prodCount[p]||0) + 1; });
+var sorted = Object.keys(prodCount).sort(function(a,b){ return prodCount[b] - prodCount[a]; }).slice(0,8);
+var ctx2 = document.getElementById('chartProductos').getContext('2d');
+new Chart(ctx2, {
+  type: 'bar',
+  data: { labels: sorted, datasets: [{ label: 'Contrataciones', data: sorted.map(function(p){ return prodCount[p]; }), backgroundColor: ['#0d6efd','#3d8bfd','#6ea8fe','#9ec5fe','#b6d4fe','#cfe2ff','#e7f1ff','#f0f6ff'], borderRadius: 6 }] },
+  options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } }
+});
+</script>
+</section>

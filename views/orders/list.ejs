@@ -1,0 +1,38 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-cart"></i> Órdenes</h2>
+    <a href="/ordenes/nueva" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Nueva Orden</a>
+  </div>
+  <div class="card">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead class="table-dark">
+            <tr><th>#</th><th>Cliente</th><th>Tipo</th><th>Producto</th><th>Estado</th><th>Fecha</th><th></th></tr>
+          </thead>
+          <tbody>
+            <% if (ordenes.length === 0) { %>
+            <tr><td colspan="7" class="text-center text-muted py-4"><i class="bi bi-inbox"></i> No hay órdenes registradas</td></tr>
+            <% } else { %>
+              <% ordenes.forEach(o => { %>
+              <tr>
+                <td>#<%= o.id %></td>
+                <td><a href="/clientes/<%= o.client_id %>"><%= o.cliente_nombre %></a></td>
+                <td><%= o.tipo %></td>
+                <td><%= o.producto || '-' %></td>
+                <td>
+                  <span class="badge bg-<%= o.estado === 'completada' ? 'success' : o.estado === 'pendiente' ? 'warning' : o.estado === 'cancelada' ? 'danger' : 'info' %>">
+                    <%= o.estado %>
+                  </span>
+                </td>
+                <td class="small"><%= new Date(o.created_at).toLocaleDateString('es-ES') %></td>
+                <td class="text-end"><a href="/ordenes/<%= o.id %>" class="btn btn-sm btn-outline-info"><i class="bi bi-eye"></i></a></td>
+              </tr>
+              <% }) %>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>

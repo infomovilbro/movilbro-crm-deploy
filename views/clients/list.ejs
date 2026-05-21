@@ -1,0 +1,146 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="ri-team-line"></i> <%= ui.moduleName.clients %></h2>
+    <div>
+      <a href="/customers/nuevo" class="btn btn-primary"><i class="ri-add-line"></i> Nuevo Cliente</a>
+    </div>
+  </div>
+
+  <div class="alert alert-info d-flex justify-content-between align-items-center">
+    <span><i class="ri-cloud-line"></i> <strong><%= apiCount %></strong> clientes remotos · <strong><%= localCount %></strong> en base de datos local</span>
+    <small class="text-muted"><i class="ri-refresh-line"></i> Sincronización automática desde API</small>
+  </div>
+
+  <form method="GET" class="mb-3">
+    <div class="input-group">
+      <input type="text" name="search" class="form-control" placeholder="Buscar por nombre, teléfono, email o DNI..." value="<%= search %>">
+      <button class="btn btn-outline-secondary" type="submit"><i class="ri-search-line"></i></button>
+      <% if (search) { %><a href="/customers" class="btn btn-outline-danger"><i class="ri-close-line"></i></a><% } %>
+    </div>
+  </form>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-6">
+      <div class="card"><div class="card-body">
+        <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Origen de Clientes</h6>
+        <canvas id="chartOrigen" style="height:221px;"></canvas>
+      </div></div>
+    </div>
+    <div class="col-md-6">
+      <div class="card"><div class="card-body">
+        <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Clientes por Tipo</h6>
+        <canvas id="chartTipo" style="height:221px;"></canvas>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead class="table-dark">
+            <tr><th>Origen</th><th>Nombre</th><th>Teléfono</th><th>Email</th><th>DNI/NIF</th><th>Estado</th><th class="text-end">Acciones</th></tr>
+          </thead>
+          <tbody>
+            <% if (clientes.length === 0) { %>
+            <tr><td colspan="7" class="text-center text-muted py-4">
+              <i class="ri-inbox-line" style="font-size:2rem;display:block;margin-bottom:8px;"></i>
+              No hay clientes. Los datos se cargarán automáticamente desde la API.
+            </td></tr>
+            <% } else { %>
+              <% clientes.forEach(c => { 
+                const phoneClean = c.telefono ? c.telefono.replace(/[^\d]/g, '') : '';
+              %>
+              <tr>
+                <td>
+                  <% if (c.origen === 'API') { %>
+                    <span class="badge bg-info"><i class="ri-cloud-line"></i> API</span>
+                  <% } else { %>
+                    <span class="badge bg-success"><i class="ri-database-line"></i> Local</span>
+                  <% } %>
+                </td>
+                <td>
+                  <% if (c.id_local) { %>
+                    <a href="/customers/<%= c.id_local %>" class="fw-bold text-decoration-none"><%= c.nombre %> <%= c.apellidos || '' %></a>
+                  <% } else { %>
+                    <span class="fw-bold"><%= c.nombre %> <%= c.apellidos || '' %></span>
+                  <% } %>
+                </td>
+                <td><%= c.telefono ? '<a href="tel:' + c.telefono + '">' + c.telefono + '</a>' : '-' %></td>
+                <td class="small"><%= c.email || '-' %></td>
+                <td><%= c.dni_nif || '-' %></td>
+                <td>
+                  <% if (c.estado) { %>
+                    <span class="badge bg-<%= c.estado === 'ACTIVE' || c.estado === 'CREATED' ? 'success' : 'warning' %>"><%= c.estado %></span>
+                  <% } else { %>
+                    <span class="badge bg-secondary">Local</span>
+                  <% } %>
+                </td>
+                <td class="text-end" style="white-space:nowrap;">
+                  <% if (c.id_local) { %>
+                    <a href="/customers/<%= c.id_local %>" class="btn btn-sm btn-outline-info" title="Ver"><i class="ri-eye-line"></i></a>
+                    <a href="/customers/<%= c.id_local %>/editar" class="btn btn-sm btn-outline-warning" title="Editar"><i class="ri-pencil-line"></i></a>
+                  <% } %>
+                  <% if (phoneClean) { %>
+                    <a href="/whatsapp?phone=<%= phoneClean %>" class="btn btn-sm btn-outline-success" target="_blank" title="WhatsApp: <%= c.telefono %>"><i class="ri-whatsapp-line"></i></a>
+                  <% } else { %>
+                    <span class="btn btn-sm btn-outline-secondary disabled" title="Sin teléfono"><i class="ri-whatsapp-line"></i></span>
+                  <% } %>
+                </td>
+              </tr>
+              <% }) %>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  new Chart(document.getElementById('chartOrigen'), {
+    type: 'bar',
+    data: {
+      labels: ['API', 'Local'],
+      datasets: [{
+        label: 'Clientes',
+        data: [<%= apiCount %>, <%= localCount %>],
+        backgroundColor: ['#0d6efd', '#198754'],
+        borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+    }
+  });
+
+  var tipos = {};
+  <% clientes.forEach(function(c) { %>
+    var t = '<%= (c.tipo || c.tipo_cliente || "Sin tipo").replace(/'/g, "\\'") %>';
+    tipos[t] = (tipos[t]||0) + 1;
+  <% }); %>
+  var tipoLabels = Object.keys(tipos);
+  var tipoData = tipoLabels.map(function(k){return tipos[k]});
+  var palette = ['#0d6efd','#198754','#ffc107','#dc3545','#6f42c1','#fd7e14','#20c997','#0dcaf0'];
+  new Chart(document.getElementById('chartTipo'), {
+    type: 'bar',
+    data: {
+      labels: tipoLabels,
+      datasets: [{
+        label: 'Clientes',
+        data: tipoData,
+        backgroundColor: tipoLabels.map(function(_,i){return palette[i%palette.length]}),
+        borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+    }
+  });
+});
+</script>

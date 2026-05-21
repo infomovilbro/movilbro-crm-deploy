@@ -1,0 +1,51 @@
+<section class="row justify-content-center">
+  <div class="col-md-8">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h2><i class="bi bi-plus-circle"></i> Nueva Orden</h2>
+      <a href="/ordenes" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Volver</a>
+    </div>
+    <% if (errors.length > 0) { %><div class="alert alert-danger"><%= errors.join(', ') %></div><% } %>
+    <div class="card">
+      <div class="card-body">
+        <form method="POST">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label">Cliente *</label>
+              <select name="client_id" class="form-select" required>
+                <option value="">Seleccionar cliente...</option>
+                <% clientes.forEach(c => { %>
+                <option value="<%= c.id %>" <%= orden.client_id == c.id ? 'selected' : '' %>><%= c.nombre %> <%= c.apellidos || '' %> - <%= c.telefono %></option>
+                <% }) %>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Tipo de orden *</label>
+              <select name="tipo" class="form-select" required>
+                <option value="">Seleccionar...</option>
+                <option value="fibra" <%= orden.tipo === 'fibra' ? 'selected' : '' %>>Fibra</option>
+                <option value="movil" <%= orden.tipo === 'movil' ? 'selected' : '' %>>Móvil</option>
+                <option value="fibra+movil" <%= orden.tipo === 'fibra+movil' ? 'selected' : '' %>>Fibra + Móvil</option>
+                <option value="portabilidad" <%= orden.tipo === 'portabilidad' ? 'selected' : '' %>>Portabilidad</option>
+                <option value="baja" <%= orden.tipo === 'baja' ? 'selected' : '' %>>Baja</option>
+                <option value="cambio_tarifa" <%= orden.tipo === 'cambio_tarifa' ? 'selected' : '' %>>Cambio de Tarifa</option>
+                <option value="otro" <%= orden.tipo === 'otro' ? 'selected' : '' %>>Otro</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Producto</label>
+              <input type="text" name="producto" class="form-control" value="<%= orden.producto || '' %>" placeholder="Ej: Fibra 600, Móvil 30GB...">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Detalles</label>
+              <textarea name="detalles" class="form-control" rows="4"><%= orden.detalles || '' %></textarea>
+            </div>
+          </div>
+          <div class="mt-4">
+            <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Crear Orden</button>
+            <a href="/ordenes" class="btn btn-outline-secondary">Cancelar</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,194 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-person-plus"></i> <%= ui.moduleName.altas %></h2>
+  </div>
+
+  <% if (success) { %><div class="alert alert-success"><i class="bi bi-check-circle"></i> <%= success %></div><% } %>
+  <% if (error) { %><div class="alert alert-danger"><i class="bi bi-exclamation-triangle"></i> <%= error %></div><% } %>
+
+  <ul class="nav nav-tabs mb-3" id="altasTab" role="tablist">
+    <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#nuevoCliente"><i class="bi bi-person-plus"></i> Nuevo Cliente</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#nuevaOrden"><i class="bi bi-cart-plus"></i> Nueva Orden</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#recientes"><i class="bi bi-clock-history"></i> Recientes</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#portabilidades"><i class="bi bi-arrow-left-right"></i> Portabilidades</button></li>
+  </ul>
+
+  <div class="tab-content">
+    <!-- NUEVO CLIENTE -->
+    <div class="tab-pane fade show active" id="nuevoCliente">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-person-plus"></i> Dar de alta un nuevo cliente</div>
+        <div class="card-body">
+          <form method="POST" action="/altas/crear-cliente">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">Nombre *</label>
+                <input type="text" name="nombre" class="form-control" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Apellidos</label>
+                <input type="text" name="apellidos" class="form-control">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Telefono *</label>
+                <input type="text" name="telefono" class="form-control" required placeholder="Ej: 612345678">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Email</label>
+                <input type="email" name="email" class="form-control" placeholder="cliente@email.com">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">DNI / NIF</label>
+                <input type="text" name="dni" class="form-control" placeholder="12345678Z">
+              </div>
+              <div class="col-md-8">
+                <label class="form-label">Direccion</label>
+                <input type="text" name="direccion" class="form-control" placeholder="Calle, numero, piso">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Ciudad</label>
+                <input type="text" name="ciudad" class="form-control" value="Antequera">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Codigo Postal</label>
+                <input type="text" name="codigo_postal" class="form-control" value="29200">
+              </div>
+            </div>
+            <div class="mt-4">
+              <button type="submit" class="btn btn-primary btn-lg"><i class="bi bi-check-lg"></i> Dar de Alta</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- NUEVA ORDEN -->
+    <div class="tab-pane fade" id="nuevaOrden">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-cart-plus"></i> Crear nueva orden / contratacion</div>
+        <div class="card-body">
+          <form method="POST" action="/altas/crear-orden">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">Cliente *</label>
+                <select name="client_id" class="form-select" required>
+                  <option value="">Seleccionar cliente...</option>
+                  <% localCustomers.forEach(c => { %>
+                  <option value="<%= c.id %>"><%= c.nombre %> <%= c.apellidos || '' %> - <%= c.telefono %></option>
+                  <% }) %>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Tipo de contratacion</label>
+                <select name="tipo" class="form-select">
+                  <option value="NUEVA_ALTA">Nueva Alta</option>
+                  <option value="PORTABILIDAD">Portabilidad</option>
+                  <option value="CAMBIO_PRODUCTO">Cambio de Producto</option>
+                  <option value="BAJA">Baja</option>
+                </select>
+              </div>
+              <div class="col-12">
+                <label class="form-label">Producto / Servicio *</label>
+                <select name="producto_id" class="form-select" required>
+                  <option value="">Seleccionar producto...</option>
+                  <% if (familias.length > 0) { familias.forEach(fam => { %>
+                  <optgroup label="<%= fam.name %>">
+                    <% (fam.items || []).forEach(p => { %>
+                    <option value="<%= p.id || p.productId %>"><%= p.productName || p.name %> <%= p.price ? '- ' + p.price + '€' : '' %></option>
+                    <% }) %>
+                  </optgroup>
+                  <% }); } else { %>
+                  <option value="">No hay productos disponibles (configura API)</option>
+                  <% } %>
+                </select>
+              </div>
+            </div>
+            <div class="mt-4">
+              <button type="submit" class="btn btn-primary btn-lg"><i class="bi bi-check-lg"></i> Crear Orden</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- RECIENTES -->
+    <div class="tab-pane fade" id="recientes">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-clock-history"></i> Altas recientes (API Likes Telecom)</div>
+        <div class="row g-3 mb-4">
+          <div class="col-md-12">
+            <div class="card"><div class="card-body">
+              <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Altas por Estado</h6>
+              <canvas id="chartAltasEstado" style="height:221px;"></canvas>
+            </div></div>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          <table class="table table-hover mb-0">
+            <thead><tr><th>Nombre</th><th>Telefono</th><th>Tipo</th><th>Estado</th><th>Fecha</th><th></th></tr></thead>
+            <tbody>
+              <% if (recientes.length === 0) { %>
+              <tr><td colspan="6" class="text-center text-muted py-4"><i class="bi bi-inbox"></i> Sin datos</td></tr>
+              <% } else { recientes.forEach(a => { %>
+              <tr>
+                <td><strong><%= a.nombre %></strong></td>
+                <td><%= a.telefono %></td>
+                <td><span class="badge bg-info"><%= a.tipo %></span></td>
+                <td><span class="badge bg-<%= a.estado === 'ACTIVE' || a.estado === 'CREATED' ? 'success' : 'warning' %>"><%= a.estado %></span></td>
+                <td class="small"><%= new Date(a.fecha).toLocaleDateString('es-ES', { day:'2-digit', month:'short', year:'numeric' }) %></td>
+                <td><a href="https://wa.me/<%= a.telefono.replace(/[^\d]/g, '') %>" target="_blank" class="btn btn-sm btn-outline-success"><i class="bi bi-whatsapp"></i></a></td>
+              </tr>
+              <% }); } %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- PORTABILIDADES -->
+    <div class="tab-pane fade" id="portabilidades">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-arrow-left-right"></i> Portabilidades registradas</div>
+        <div class="row g-3 mb-4">
+          <div class="col-md-12">
+            <div class="card"><div class="card-body">
+              <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Portabilidades por Estado</h6>
+              <canvas id="chartPortaEstado" style="height:221px;"></canvas>
+            </div></div>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          <table class="table table-hover mb-0">
+            <thead><tr><th>Cliente</th><th>Telefono</th><th>Donante</th><th>Estado</th><th>Fecha</th></tr></thead>
+            <tbody>
+              <% if (portabilidades.length === 0) { %>
+              <tr><td colspan="5" class="text-center text-muted py-4"><i class="bi bi-inbox"></i> Sin datos</td></tr>
+              <% } else { portabilidades.forEach(p => { %>
+              <tr>
+                <td><%= p.customerName || p.name || 'N/A' %></td>
+                <td><%= p.phoneNumber || p.phone || '-' %></td>
+                <td><%= p.donorOperator || '-' %></td>
+                <td><span class="badge bg-<%= p.status === 'COMPLETED' ? 'success' : p.status === 'PENDING' ? 'warning' : 'secondary' %>"><%= p.status || 'PENDING' %></span></td>
+                <td class="small"><%= p.portabilityDate || p.created ? new Date(p.portabilityDate || p.created).toLocaleDateString('es-ES') : '-' %></td>
+              </tr>
+              <% }); } %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+<script>
+var a1 = <%- JSON.stringify(recientes) %>;
+var c1 = {};
+a1.forEach(function(x) { var k = x.estado || 'UNKNOWN'; c1[k] = (c1[k] || 0) + 1; });
+var l1 = Object.keys(c1);
+new Chart(document.getElementById('chartAltasEstado'), { type: 'bar', data: { labels: l1, datasets: [{ label: 'Altas', data: Object.values(c1), backgroundColor: l1.map(function(s) { return s === 'ACTIVE' ? '#198754' : s === 'CREATED' ? '#ffc107' : s === 'ERROR' ? '#dc3545' : '#6c757d'; }), borderRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } } });
+
+var a2 = <%- JSON.stringify(portabilidades) %>;
+var c2 = {};
+a2.forEach(function(x) { var k = x.status || 'UNKNOWN'; c2[k] = (c2[k] || 0) + 1; });
+var l2 = Object.keys(c2);
+new Chart(document.getElementById('chartPortaEstado'), { type: 'bar', data: { labels: l2, datasets: [{ label: 'Portabilidades', data: Object.values(c2), backgroundColor: l2.map(function(s) { return s === 'COMPLETED' ? '#198754' : s === 'PENDING' ? '#ffc107' : s === 'CANCELED' ? '#dc3545' : '#6c757d'; }), borderRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } } });
+</script>
+</section>

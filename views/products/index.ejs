@@ -1,0 +1,218 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-box-seam"></i> Productos por familia</h2>
+    <span class="badge bg-primary fs-6"><%= grouped.reduce((t, g) => t + g.items.length, 0) %> productos</span>
+  </div>
+
+  <% if (error) { %>
+    <div class="alert alert-danger"><i class="bi bi-exclamation-triangle"></i> <%= error %></div>
+  <% } %>
+
+  <% if (grouped.length === 0 && !error) { %>
+    <div class="text-center text-muted py-5">
+      <i class="bi bi-inbox" style="font-size: 3rem;"></i>
+      <p class="mt-2">No se encontraron productos. Verifica la configuración de la API.</p>
+    </div>
+  <% } %>
+
+  <div class="card mb-4">
+    <div class="card-body py-3">
+      <div class="row g-2 align-items-center">
+        <div class="col-md-5">
+          <input type="text" class="form-control" id="searchProducto" placeholder="Buscar producto...">
+        </div>
+        <div class="col-md-3">
+          <select class="form-select" id="filterFamilia">
+            <option value="">Todas las familias</option>
+            <% grouped.forEach(g => { %>
+            <option value="<%= g.name %>"><%= g.name %></option>
+            <% }) %>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <select class="form-select" id="filterTipo">
+            <option value="">Todos los tipos</option>
+            <option value="Main">Main</option>
+            <option value="Optional">Optional</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <button class="btn btn-outline-secondary w-100" id="btnLimpiarFiltros"><i class="bi bi-x-circle"></i> Limpiar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-6">
+      <div class="card"><div class="card-body">
+        <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Productos por Familia</h6>
+        <canvas id="chartFamilia" style="height:221px;"></canvas>
+      </div></div>
+    </div>
+    <div class="col-md-6">
+      <div class="card"><div class="card-body">
+        <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Tipo de Producto</h6>
+        <canvas id="chartTipo" style="height:221px;"></canvas>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="accordion" id="familiasAccordion">
+    <% grouped.forEach((grupo, idx) => { %>
+    <div class="accordion-item">
+      <h2 class="accordion-header">
+        <button class="accordion-button <%= idx > 0 ? 'collapsed' : '' %>" type="button" data-bs-toggle="collapse" data-bs-target="#fam<%= idx %>">
+          <strong><%= grupo.name %></strong>
+          <span class="badge bg-secondary ms-2"><%= grupo.items.length %></span>
+          <%
+            const minPrice = Math.min(...grupo.items.map(p => p.price).filter(p => p > 0));
+            const maxPrice = Math.max(...grupo.items.map(p => p.price).filter(p => p > 0));
+          %>
+          <% if (minPrice && maxPrice) { %>
+            <small class="text-muted ms-3"><%= minPrice.toFixed(2) %>€ - <%= maxPrice.toFixed(2) %>€</small>
+          <% } %>
+        </button>
+      </h2>
+      <div id="fam<%= idx %>" class="accordion-collapse collapse <%= idx === 0 ? 'show' : '' %>" data-bs-parent="#familiasAccordion">
+        <div class="accordion-body p-0">
+          <table class="table table-hover mb-0 align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>Nombre</th>
+                <th>Tipo</th>
+                <th>Familia</th>
+                <th>Precio</th>
+                <th>Descripción</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% grupo.items.forEach(p => { %>
+                <tr class="producto-row" data-familia="<%= p.family || 'Otros' %>" data-tipo="<%= p.type || '' %>">
+                  <td class="fw-bold"><%= p.productName || p.name || '-' %></td>
+                  <td>
+                    <span class="badge bg-<%= p.type === 'Main' ? 'primary' : p.type === 'Optional' ? 'success' : 'secondary' %>">
+                      <%= p.type || '-' %>
+                    </span>
+                  </td>
+                  <td><%= p.family || '-' %></td>
+                  <td class="fw-bold text-primary">
+                    <% if (p.price && p.price > 0) { %>
+                      <%= p.price.toFixed(2) %>€<% if (p.isRecurringPrice) { %><small class="text-muted">/mes</small><% } %>
+                    <% } else { %>
+                      <span class="text-muted">Consultar</span>
+                    <% } %>
+                    <% if (p.commission && p.commission > 0) { %>
+                      <br><small class="text-muted">Comisión: <%= p.commission %>€</small>
+                    <% } %>
+                  </td>
+                  <td class="small text-muted"><%= p.description || p.shortDescription || '-' %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <% }) %>
+  </div>
+</section>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const searchInput = document.getElementById('searchProducto');
+  const filterFamilia = document.getElementById('filterFamilia');
+  const filterTipo = document.getElementById('filterTipo');
+  const btnLimpiar = document.getElementById('btnLimpiarFiltros');
+
+  function filtrar() {
+    const q = searchInput.value.toLowerCase().trim();
+    const fam = filterFamilia.value;
+    const tipo = filterTipo.value;
+
+    document.querySelectorAll('.producto-row').forEach(function(row) {
+      const nombre = row.querySelector('td:first-child').textContent.toLowerCase();
+      const rowFamilia = row.getAttribute('data-familia');
+      const rowTipo = row.getAttribute('data-tipo');
+      const matchTexto = !q || nombre.includes(q);
+      const matchFamilia = !fam || rowFamilia === fam;
+      const matchTipo = !tipo || rowTipo === tipo;
+      row.style.display = matchTexto && matchFamilia && matchTipo ? '' : 'none';
+    });
+
+    document.querySelectorAll('.accordion-item').forEach(function(item) {
+      const visibleRows = item.querySelectorAll('.producto-row[style*="display: none"]');
+      const totalRows = item.querySelectorAll('.producto-row');
+      if (visibleRows.length === totalRows.length && totalRows.length > 0) {
+        item.style.display = 'none';
+      } else {
+        item.style.display = '';
+      }
+    });
+  }
+
+  searchInput.addEventListener('input', filtrar);
+  filterFamilia.addEventListener('change', filtrar);
+  filterTipo.addEventListener('change', filtrar);
+
+  btnLimpiar.addEventListener('click', function() {
+    searchInput.value = '';
+    filterFamilia.value = '';
+    filterTipo.value = '';
+    filtrar();
+  });
+});
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var familias = [<% grouped.forEach(function(g,i) { %>'<%= g.name.replace(/'/g,"\\'") %>'<% if (i < grouped.length-1) { %>,<% } %><% }); %>];
+  var counts = [<% grouped.forEach(function(g,i) { %><%= g.items.length %><% if (i < grouped.length-1) { %>,<% } %><% }); %>];
+  var blueGreen = ['#0d6efd','#198754','#20c997','#0dcaf0','#3b8ea5','#2d6a4f','#40916c','#52b788'];
+  new Chart(document.getElementById('chartFamilia'), {
+    type: 'bar',
+    data: {
+      labels: familias,
+      datasets: [{
+        label: 'Productos',
+        data: counts,
+        backgroundColor: familias.map(function(_,i){return blueGreen[i%blueGreen.length]}),
+        borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+    }
+  });
+
+  var tiposProd = { Main: 0, Optional: 0, Promotion: 0 };
+  <% grouped.forEach(function(g) { %>
+    <% g.items.forEach(function(p) { %>
+      var tp = '<%= (p.type || "").replace(/'/g,"\\'") %>';
+      if (tiposProd.hasOwnProperty(tp)) tiposProd[tp]++;
+      else tiposProd['Promotion']++;
+    <% }); %>
+  <% }); %>
+  var tipoLabels = Object.keys(tiposProd);
+  var tipoData = tipoLabels.map(function(k){return tiposProd[k]});
+  new Chart(document.getElementById('chartTipo'), {
+    type: 'bar',
+    data: {
+      labels: tipoLabels,
+      datasets: [{
+        label: 'Productos',
+        data: tipoData,
+        backgroundColor: ['#0d6efd','#198754','#ffc107'],
+        borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+    }
+  });
+});
+</script>

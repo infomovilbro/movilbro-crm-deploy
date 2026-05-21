@@ -1,0 +1,98 @@
+<% layout = 'layouts/auth' %>
+<div class="text-center mb-4">
+  <img src="/img/logo.jpg" style="width:80px;height:80px;border-radius:12px;object-fit:cover;margin-bottom:8px;">
+  <h1 class="h3 mt-2"><strong><%= empresa.nombre %></strong> <span class="badge bg-warning text-dark">CRM</span></h1>
+  <p class="text-muted">Panel de gestión comercial</p>
+</div>
+<div class="card shadow">
+  <div class="card-body p-4">
+    <h4 class="card-title text-center mb-4">Iniciar Sesión</h4>
+
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div class="alert alert-danger"><%= error %></div>
+    <% } %>
+    <% if (typeof success !== 'undefined' && success) { %>
+      <div class="alert alert-success"><%= success %></div>
+    <% } %>
+    <div class="alert alert-info py-2">
+      Si eres nuevo, pídeme crear tu usuario con tu correo para acceso personal.
+    </div>
+
+    <!-- Mostrar contraseña temporal si el SMTP no está configurado -->
+    <% if (typeof mostrarPassword !== 'undefined' && mostrarPassword && typeof passwordTemporal !== 'undefined') { %>
+    <div class="alert alert-warning">
+      <strong><i class="bi bi-exclamation-triangle"></i> SMTP no configurado</strong>
+      <p class="mb-1 mt-2 small">Tu contraseña temporal es:</p>
+      <div style="background:#fff;padding:12px;border-radius:6px;text-align:center;font-size:22px;font-weight:700;letter-spacing:2px;color:#0050A1;margin:8px 0;border:2px dashed #0050A1;"><%= passwordTemporal %></div>
+      <p class="small mb-0">Guárdala. Después de iniciar sesión, configura el SMTP en el panel de administración para recibir las contraseñas por correo.</p>
+    </div>
+    <% } %>
+
+    <form method="POST" action="/auth/login" id="loginForm">
+      <div class="mb-3">
+        <label class="form-label">Correo electrónico</label>
+        <input type="email" name="email" class="form-control" value="<%= typeof email !== 'undefined' ? email : '' %>" required autofocus placeholder="tu@correo.com">
+      </div>
+      <div class="mb-3" id="passwordGroup">
+        <label class="form-label">Contraseña</label>
+        <input type="password" name="password" class="form-control" placeholder="Contraseña recibida por email">
+      </div>
+      <button type="submit" class="btn btn-primary w-100 mb-2">Entrar</button>
+    </form>
+
+    <div class="text-center">
+      <button type="button" class="btn btn-link text-decoration-none" id="btnSolicitar">
+        <i class="bi bi-envelope"></i> ¿No tienes contraseña? Solicítala aquí
+      </button>
+    </div>
+
+    <form method="POST" action="/auth/login/solicitar" id="solicitarForm" class="d-none">
+      <div class="mb-3">
+        <label class="form-label">Correo electrónico</label>
+        <input type="email" name="email" class="form-control" value="<%= typeof email !== 'undefined' ? email : '' %>" required placeholder="tu@correo.com">
+      </div>
+      <button type="submit" class="btn btn-outline-primary w-100">
+        <i class="bi bi-send"></i> Enviar contraseña a mi correo
+      </button>
+      <button type="button" class="btn btn-link text-decoration-none w-100 mt-1" id="btnVolverLogin">
+        ← Volver al inicio de sesión
+      </button>
+    </form>
+  </div>
+</div>
+<p class="text-center text-muted small mt-3">
+  &copy; 2026 <%= empresa.nombre %>. Todos los derechos reservados.
+</p>
+
+<script>
+(function() {
+  var btnSolicitar = document.getElementById('btnSolicitar');
+  var loginForm = document.getElementById('loginForm');
+  var solicitarForm = document.getElementById('solicitarForm');
+  var btnVolver = document.getElementById('btnVolverLogin');
+  var emailInputs = document.querySelectorAll('input[name="email"]');
+
+  if (btnSolicitar) {
+    btnSolicitar.addEventListener('click', function() {
+      loginForm.classList.add('d-none');
+      solicitarForm.classList.remove('d-none');
+      solicitarForm.querySelector('input[name="email"]').focus();
+    });
+  }
+  if (btnVolver) {
+    btnVolver.addEventListener('click', function() {
+      solicitarForm.classList.add('d-none');
+      loginForm.classList.remove('d-none');
+      loginForm.querySelector('input[name="email"]').focus();
+    });
+  }
+  // Sync email between forms
+  emailInputs.forEach(function(inp) {
+    inp.addEventListener('input', function() {
+      emailInputs.forEach(function(other) {
+        if (other !== inp) other.value = this.value;
+      }.bind(this));
+    });
+  });
+})();
+</script>

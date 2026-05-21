@@ -1,0 +1,40 @@
+<section class="row justify-content-center">
+  <div class="col-md-8">
+    <h2 class="mb-4"><i class="bi bi-wifi"></i> Consultar Cobertura</h2>
+    <div class="card">
+      <div class="card-body">
+        <form method="POST" action="/cobertura/consultar">
+          <div class="mb-3">
+            <label class="form-label">Dirección</label>
+            <div class="input-group">
+              <input type="text" name="direccion" class="form-control form-control-lg" placeholder="Ej: Calle Cantareros, 29, Antequera" value="<%= direccion %>" required>
+              <button type="submit" class="btn btn-primary btn-lg"><i class="bi bi-search"></i> Consultar</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <% if (error) { %>
+      <div class="alert alert-danger mt-3"><%= error %></div>
+    <% } %>
+
+    <% if (resultado) { %>
+      <div class="card mt-3 border-success">
+        <div class="card-header bg-success text-white">
+          <i class="bi bi-check-circle"></i> Resultado de Cobertura
+        </div>
+        <div class="card-body">
+          <p><strong>Dirección consultada:</strong> <%= resultado.direccion %></p>
+          <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> <%= resultado.mensaje %>
+          </div>
+          <p class="text-muted small">
+            <i class="bi bi-gear"></i> Para obtener resultados reales, configura las credenciales de la API de Likes Telecom en 
+            <a href="/configuracion">Configuración</a>.
+          </p>
+        </div>
+      </div>
+    <% } %>
+  </div>
+</section>

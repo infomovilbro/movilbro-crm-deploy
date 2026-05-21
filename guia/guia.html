@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"><title>Guía CRM Movilbro</title>
+<style>
+  body { font-family: 'Segoe UI', Arial, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; color: #333; }
+  h1 { color: #1a73e8; border-bottom: 3px solid #1a73e8; padding-bottom: 10px; }
+  h2 { color: #1a73e8; margin-top: 30px; background: #e8f0fe; padding: 8px 12px; border-radius: 5px; }
+  h3 { color: #333; margin-top: 20px; }
+  .step { background: #f8f9fa; border-left: 4px solid #1a73e8; padding: 12px 15px; margin: 10px 0; border-radius: 0 5px 5px 0; }
+  .cmd { background: #1e1e1e; color: #d4d4d4; padding: 8px 12px; border-radius: 4px; font-family: monospace; white-space: pre-wrap; }
+  .note { background: #fff3cd; border: 1px solid #ffc107; padding: 10px 12px; border-radius: 5px; margin: 10px 0; }
+  .warn { background: #f8d7da; border: 1px solid #dc3545; padding: 10px 12px; border-radius: 5px; margin: 10px 0; }
+  .ok { background: #d4edda; border: 1px solid #28a745; padding: 10px 12px; border-radius: 5px; margin: 10px 0; }
+  img.ss { max-width: 100%; border: 1px solid #ddd; border-radius: 5px; margin: 10px 0; }
+  .pagebreak { page-break-before: always; }
+</style></head>
+<body>
+
+<h1>📘 Guía Completa CRM Movilbro</h1>
+<p><strong>Cómo modificar el CRM localmente y subirlo al servidor</strong></p>
+
+<div class="note">
+<strong>URL actual:</strong> https://cold-sept-mounted-education.trycloudflare.com<br>
+<strong>URL permanente (cuando configures AlwaysData):</strong> movilbro.alwaysdata.net<br>
+<strong>IA:</strong> DeepSeek API (5M tokens gratis, ~6000 consultas gratuitas)
+</div>
+
+<!-- ============================================================ -->
+<h2 class="pagebreak">1. Requisitos</h2>
+<ul>
+  <li><strong>Node.js 20+</strong> instalado en tu PC</li>
+  <li><strong>Git</strong> (opcional, para control de versiones)</li>
+  <li><strong>Visual Studio Code</strong> (o cualquier editor de código)</li>
+  <li><strong>Cuenta en AlwaysData</strong> (gratis, sin tarjeta)</li>
+  <li><strong>API key de DeepSeek</strong> (gratis, sin tarjeta)</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2>2. Estructura del proyecto</h2>
+<div class="step">
+<strong>Ruta del proyecto:</strong> C:\Users\xtptx\Desktop\opencodemovilbro\prueba2\movilbro-crm<br>
+<strong>Archivos importantes:</strong>
+- server.js → Arranque del servidor
+- routes/ → Lógica de cada módulo
+- database.js → Base de datos SQLite
+- .env → Configuración (NO se sube a Git)
+- views/ → Plantillas EJS (HTML)
+</div>
+
+<!-- ============================================================ -->
+<h2>3. Cómo modificar el CRM</h2>
+
+<h3>3.1 Editar archivos</h3>
+<div class="step">
+Abre la carpeta en VS Code:
+<code class="cmd">code "C:\Users\xtptx\Desktop\opencodemovilbro\prueba2\movilbro-crm"</code>
+Modifica lo que necesites y guarda los cambios.
+</div>
+
+<h3>3.2 Probar en local</h3>
+<div class="step">
+Abre PowerShell y ejecuta:
+<code class="cmd">cd "C:\Users\xtptx\Desktop\opencodemovilbro\prueba2\movilbro-crm"
+$env:NODE_ENV="development"
+$env:DEEPSEEK_API_KEY="sk-28f4f9f16d0840d78b806791efcc24fd"
+$env:AI_CLOUD_ENABLED="true"
+node server.js</code>
+Abre el navegador en <strong>http://localhost:3000</strong> y prueba.
+</div>
+
+<h3>3.3 Sincronizar con Git (opcional pero recomendado)</h3>
+<div class="step">
+<code class="cmd">cd "C:\Users\xtptx\Desktop\opencodemovilbro\prueba2\movilbro-crm"
+git add .
+git commit -m "Descripción del cambio"
+git push</code>
+</div>
+
+<!-- ============================================================ -->
+<h2 class="pagebreak">4. Cómo desplegar en AlwaysData (URL fija)</h2>
+
+<h3>4.1 Crear el sitio en AlwaysData</h3>
+<div class="step">
+1. Ve a <strong>https://admin.alwaysdata.com</strong> e inicia sesión<br>
+2. Menú izquierdo → <strong>Web → Sites</strong><br>
+3. Botón <strong>"Add a site"</strong><br>
+4. Configura:<br>
+   - Type: <strong>Node.js</strong><br>
+   - Name: <strong>movilbro</strong><br>
+   - Address: <strong>movilbro.alwaysdata.net</strong><br>
+   - Command: <strong>node /www/server.js</strong><br>
+   - Node version: <strong>20</strong><br>
+5. Click <strong>"Add"</strong>
+</div>
+
+<h3>4.2 Configurar variables de entorno</h3>
+<div class="step">
+Menú izquierdo → <strong>Environment variables</strong><br>
+Añade:
+- NODE_ENV = production
+- AI_CLOUD_ENABLED = true
+- AI_SAFE_MODE = true
+- AI_WRITE_ENABLED = false
+- DEEPSEEK_API_KEY = sk-28f4f9f16d0840d78b806791efcc24fd
+- DEEPSEEK_MODEL = deepseek-chat
+- SESSION_SECRET = (el que está en tu .env)
+- COOKIE_SECRET = (el que está en tu .env)
+- ALLOWED_ORIGINS = http://localhost:3000,https://movilbro.alwaysdata.net
+- SMTP_HOST = smtp.gmail.com
+- SMTP_PORT = 587
+- SMTP_USER = infomovilbro@gmail.com
+- SMTP_PASS = (el que está en tu .env)
+</div>
+
+<h3>4.3 Subir el código por Git</h3>
+<div class="step">
+En AlwaysData, ve a <strong>Remote access → Git</strong><br>
+Sigue las instrucciones para conectar tu repositorio.<br>
+O usa FTP/SSH para subir los archivos directamente.
+</div>
+
+<h3>4.4 Subir archivos por FTP</h3>
+<div class="step">
+1. En AlwaysData: <strong>Remote access → FTP</strong><br>
+2. Crea un usuario FTP si no existe<br>
+3. Usa FileZilla o similar:<br>
+   - Servidor: ftp-movilbro.alwaysdata.net<br>
+   - Usuario: movilbro<br>
+   - Contraseña: (la que configures)<br>
+   - Puerto: 21<br>
+4. Sube todo el contenido de <strong>movilbro-crm\</strong> a la carpeta <strong>/www/</strong><br>
+5. <strong>NO subas</strong> .env, node_modules, *.db
+</div>
+
+<h3>4.5 Instalar dependencias en el servidor</h3>
+<div class="step">
+Conéctate por SSH:
+<code class="cmd">ssh movilbro@ssh-movilbro.alwaysdata.net
+cd /www
+npm install --production</code>
+</div>
+
+<h3>4.6 Iniciar el sitio</h3>
+<div class="step">
+En AlwaysData → <strong>Web → Sites</strong> → click en tu sitio → <strong>Restart</strong><br>
+Espera 10 segundos y visita <strong>https://movilbro.alwaysdata.net</strong>
+</div>
+
+<!-- ============================================================ -->
+<h2 class="pagebreak">5. Modificar el CRM después del despliegue</h2>
+
+<h3>5.1 Flujo de trabajo</h3>
+<div class="step">
+<strong>1.</strong> Edita los archivos en local<br>
+<strong>2.</strong> Prueba en http://localhost:3000<br>
+<strong>3.</strong> Sube los cambios por FTP o Git a AlwaysData<br>
+<strong>4.</strong> Ve a <strong>Web → Sites</strong> y haz click en <strong>Restart</strong><br>
+<strong>5.</strong> ¡Listo!
+</div>
+
+<div class="warn">
+<strong>Importante:</strong> No subas el archivo .env (contiene claves secretas).<br>
+Las variables de entorno se configuran directamente en el panel de AlwaysData.
+</div>
+
+<h3>5.2 Archivos que SÍ debes subir</h3>
+<div class="step">
+- server.js<br>
+- routes/ (carpeta completa)<br>
+- views/ (carpeta completa)<br>
+- public/ (carpeta completa)<br>
+- middleware/ (carpeta completa)<br>
+- database.js<br>
+- package.json<br>
+- package-lock.json<br>
+- .gitignore
+</div>
+
+<h3>5.3 Archivos que NO debes subir</h3>
+<div class="step">
+- .env (configura las vars en el panel)<br>
+- node_modules/ (ejecuta npm install en el servidor)<br>
+- *.db (la base de datos del servidor es independiente)<br>
+- *.log
+</div>
+
+<!-- ============================================================ -->
+<h2 class="pagebreak">6. Comandos útiles</h2>
+
+<h3>En local (PowerShell):</h3>
+<div class="step">
+<strong>Iniciar CRM:</strong>
+<code class="cmd">cd "C:\Users\xtptx\Desktop\opencodemovilbro\prueba2\movilbro-crm"
+node server.js</code>
+
+<strong>Iniciar con IA cloud:</strong>
+<code class="cmd">$env:AI_CLOUD_ENABLED="true"
+$env:AI_LOCAL_ENABLED="false"
+$env:DEEPSEEK_API_KEY="sk-28f4f9f16d0840d78b806791efcc24fd"
+node server.js</code>
+
+<strong>Iniciar túnel público (Cloudflare):</strong>
+<code class="cmd">cloudflared tunnel --url http://127.0.0.1:3000</code>
+
+<strong>Ver logs del CRM:</strong>
+<code class="cmd">Get-Content "$env:TEMP\crm.log" -Tail 20</code>
+</div>
+
+<!-- ============================================================ -->
+<h2>7. Seguridad</h2>
+<div class="ok">
+✅ <strong>aaa/aaa eliminado</strong> — Ya no existe el superadmin por defecto<br>
+✅ Login por email con contraseña temporal<br>
+✅ Helmet (cabeceras HTTP seguras)<br>
+✅ CORS restringido<br>
+✅ Rate limiting (anti-fuerza bruta)<br>
+✅ SQLite (sin inyección SQL gracias a prepared statements)<br>
+✅ DeepSeek API (no se exponen datos del CRM)
+</div>
+
+<div class="note">
+<strong>Primer inicio de sesión:</strong> Si es la primera vez, usa el usuario "admin" con contraseña "admin" y cámbiala inmediatamente.
+</div>
+
+<!-- ============================================================ -->
+<h2 class="pagebreak">8. Solución de problemas</h2>
+
+<h3>El CRM no arranca</h3>
+<div class="step">
+Revisa el log:
+<code class="cmd">Get-Content "$env:TEMP\crm.log" -Tail 20
+Get-Content "$env:TEMP\crm.err" -Tail 20</code>
+</div>
+
+<h3>Error 530 en Cloudflare Tunnel</h3>
+<div class="step">
+El CRM no está corriendo en puerto 3000. Inicia el CRM primero:
+<code class="cmd">node server.js</code>
+Luego inicia el túnel.
+</div>
+
+<h3>La IA no responde</h3>
+<div class="step">
+Verifica que DEEPSEEK_API_KEY esté configurada y que AI_CLOUD_ENABLED=true.
+Prueba con:
+<code class="cmd">curl https://api.deepseek.com/v1/chat/completions -H "Authorization: Bearer sk-28f4f9f16d0840d78b806791efcc24fd" -H "Content-Type: application/json" -d "{\"model\":\"deepseek-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"Hola\"}]}"</code>
+</div>
+
+<h3>CORS/CSRF bloquea peticiones</h3>
+<div class="step">
+Agrega la URL actual a ALLOWED_ORIGINS en el .env y reinicia.
+</div>
+
+<h3>Error: port already in use</h3>
+<div class="step">
+Mata el proceso anterior:
+<code class="cmd">Get-Process -Name node | Stop-Process -Force</code>
+</div>
+
+<!-- ============================================================ -->
+<h2 class="pagebreak">9. Comandos rápidos (PowerShell)</h2>
+<div class="step">
+<strong>Matar todos los procesos Node:</strong>
+<code class="cmd">Get-Process -Name node | Stop-Process -Force</code>
+
+<strong>Iniciar CRM producción:</strong>
+<code class="cmd">$env:NODE_ENV="production"; $env:AI_CLOUD_ENABLED="true"; $env:AI_LOCAL_ENABLED="false"; $env:DEEPSEEK_API_KEY="sk-28f4f9f16d0840d78b806791efcc24fd"; node "C:\Users\xtptx\Desktop\opencodemovilbro\prueba2\movilbro-crm\server.js"</code>
+
+<strong>Iniciar túnel público:</strong>
+<code class="cmd">Start-Process -FilePath "C:\Users\xtptx\cloudflared.exe" -ArgumentList "tunnel --url http://127.0.0.1:3000" -WindowStyle Hidden</code>
+
+<strong>Ver logs:</strong>
+<code class="cmd">Get-Content "$env:TEMP\crm.log" -Tail 10</code>
+
+<strong>Ver puerto 3000:</strong>
+<code class="cmd">Get-NetTCPConnection -LocalPort 3000</code>
+</div>
+
+<p style="text-align:center; margin-top:50px; color:#666;">
+<em>Guía generada el 20 de mayo de 2026</em><br>
+<strong>CRM Movilbro</strong> — Modifica en local, sube al servidor, reinicia.
+</p>
+
+</body></html>

@@ -1,0 +1,244 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-shop"></i> Panel Tienda</h2>
+    <div class="d-flex gap-2 align-items-center">
+      <small class="text-muted"><i class="bi bi-clock"></i> <%= new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) %></small>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <a href="/tienda/caja?fecha=<%= new Date().toISOString().split('T')[0] %>&tipo=ingreso" class="text-decoration-none col-md-3 col-6 stat-card-item">
+      <div class="stat-card" style="background:#f8f9fa;border-left:3px solid var(--primary);border-radius:10px;padding:16px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span style="font-size:2rem;">💰</span>
+          <div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= (cajaHoy || 0).toFixed(2) %>€</div>
+          <div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Ingresos Hoy</div></div>
+        </div>
+      </div>
+    </a>
+    <a href="/tienda/caja?fecha=<%= new Date().toISOString().split('T')[0] %>&tipo=gasto" class="text-decoration-none col-md-3 col-6 stat-card-item">
+      <div class="stat-card" style="background:#f8f9fa;border-left:3px solid #dc3545;border-radius:10px;padding:16px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span style="font-size:2rem;">📤</span>
+          <div><div class="stat-value" style="font-size:24px;font-weight:700;color:#dc3545;"><%= (gastosHoy || 0).toFixed(2) %>€</div>
+          <div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Gastos Hoy</div></div>
+        </div>
+      </div>
+    </a>
+    <a href="/tienda/agenda" class="text-decoration-none col-md-3 col-6 stat-card-item">
+      <div class="stat-card" style="background:#f8f9fa;border-left:3px solid var(--primary);border-radius:10px;padding:16px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span style="font-size:2rem;">📅</span>
+          <div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= citasHoy || 0 %></div>
+          <div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Citas Hoy</div></div>
+        </div>
+      </div>
+    </a>
+    <a href="/tienda/prepago" class="text-decoration-none col-md-3 col-6 stat-card-item">
+      <div class="stat-card" style="background:#f8f9fa;border-left:3px solid #ffc107;border-radius:10px;padding:16px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span style="font-size:2rem;">📱</span>
+          <div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= prepagoPend || 0 %></div>
+          <div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Prepago Pendientes</div></div>
+        </div>
+      </div>
+    </a>
+  </div>
+  <div class="row g-3 mb-4">
+    <a href="/tienda/inventario" class="text-decoration-none col-md-3 col-6 stat-card-item">
+      <div class="stat-card" style="background:#f8f9fa;border-left:3px solid #17a2b8;border-radius:10px;padding:16px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span style="font-size:2rem;">📦</span>
+          <div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= inventarioBajo || 0 %></div>
+          <div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Stock Bajo</div></div>
+        </div>
+      </div>
+    </a>
+    <a href="/tienda/plantilla" class="text-decoration-none col-md-3 col-6 stat-card-item">
+      <div class="stat-card" style="background:#f8f9fa;border-left:3px solid #28a745;border-radius:10px;padding:16px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span style="font-size:2rem;">👥</span>
+          <div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= plantillaActiva || 0 %></div>
+          <div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Trabajadores Activos</div></div>
+        </div>
+      </div>
+    </a>
+    <a href="/tienda/presupuestos" class="text-decoration-none col-md-3 col-6 stat-card-item">
+      <div class="stat-card" style="background:#f8f9fa;border-left:3px solid var(--primary);border-radius:10px;padding:16px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span style="font-size:2rem;">📋</span>
+          <div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= presupPend || 0 %></div>
+          <div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Presupuestos Pendientes</div></div>
+        </div>
+      </div>
+    </a>
+    <a href="/tienda/caja?fecha=<%= new Date().toISOString().split('T')[0] %>" class="text-decoration-none col-md-3 col-6 stat-card-item">
+      <div class="stat-card" style="background:#f8f9fa;border-left:3px solid #6f42c1;border-radius:10px;padding:16px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span style="font-size:2rem;">⚖️</span>
+          <div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= ((cajaHoy || 0) - (gastosHoy || 0)).toFixed(2) %>€</div>
+          <div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Saldo del Día</div></div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12"><div class="card hideable-section" data-card-id="movimientos"><div class="card-header"><i class="bi bi-cash"></i> Movimientos del Día</div><div class="card-body p-0">
+      <table class="table table-hover mb-0"><thead><tr><th>Concepto</th><th>Tipo</th><th>Importe</th><th>Método</th><th>Hora</th></tr></thead><tbody>
+      <% if (movimientosHoy.length === 0) { %><tr><td colspan="5" class="text-center text-muted py-3">Sin movimientos hoy</td></tr>
+      <% } else { movimientosHoy.forEach(m => { %>
+        <tr style="cursor:pointer;" onclick="verDetalleMovimiento('<%= m.concepto.replace(/'/g, "\\'") %>', '<%= m.tipo %>', <%= m.importe %>, '<%= m.metodo_pago %>', '<%= new Date(m.created_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) %>', '<%= m.categoria || '' %>', '<%= m.fecha %>')">
+          <td><%= m.concepto %></td>
+          <td><span class="badge bg-<%= m.tipo === 'ingreso' ? 'success' : 'danger' %>"><%= m.tipo %></span></td>
+          <td><strong class="text-<%= m.tipo === 'ingreso' ? 'success' : 'danger' %>"><%= m.tipo === 'ingreso' ? '+' : '-' %><%= Math.abs(m.importe).toFixed(2) %>€</strong></td>
+          <td><%= m.metodo_pago %></td>
+          <td class="small"><%= new Date(m.created_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) %></td>
+        </tr>
+      <% }); } %></tbody></table>
+    </div></div></div>
+  </div>
+  <div class="row g-3 mb-3">
+    <div class="col-12"><div class="card hideable-section" data-card-id="citas"><div class="card-header"><i class="bi bi-calendar-event"></i> Citas de Hoy</div><div class="card-body p-0">
+      <table class="table table-hover mb-0"><thead><tr><th>Cliente</th><th>Teléfono</th><th>Hora</th><th>Estado</th></tr></thead><tbody>
+      <% if (citasHoyList.length === 0) { %><tr><td colspan="4" class="text-center text-muted py-3">Sin citas hoy</td></tr>
+      <% } else { citasHoyList.forEach(c => { %>
+        <tr><td><%= c.cliente_nombre %></td><td><%= c.telefono || '-' %></td><td><%= c.hora ? c.hora.slice(0,5) : '-' %></td>
+        <td><span class="badge bg-<%= c.estado === 'completada' ? 'success' : c.estado === 'cancelada' ? 'danger' : 'warning' %>"><%= c.estado %></span></td></tr>
+      <% }); } %></tbody></table>
+    </div></div></div>
+  </div>
+
+  <!-- Nota Diaria -->
+  <div class="row g-3 mt-1">
+    <div class="col-12">
+      <div class="card hideable-section" data-card-id="nota-diaria">
+        <div class="card-header"><i class="bi bi-journal-text"></i> Nota Diaria</div>
+        <div class="card-body">
+          <div class="row g-2 align-items-start">
+            <div class="col">
+              <textarea id="notaDiariaIndex" class="form-control" rows="2" placeholder="Me ausento de la tienda (media hora, cambio para el cajón...)"></textarea>
+            </div>
+            <div class="col-auto">
+              <div class="input-group input-group-sm">
+                <input type="number" step="0.01" id="importeIndex" class="form-control" placeholder="0.00" style="width:75px;">
+                <button class="btn btn-success" onclick="insertarEnNota('notaDiariaIndex', '+', 'importeIndex')" title="Añadir ingreso"><i class="bi bi-plus-circle"></i></button>
+                <button class="btn btn-danger" onclick="insertarEnNota('notaDiariaIndex', '-', 'importeIndex')" title="Añadir gasto"><i class="bi bi-dash-circle"></i></button>
+                <button class="btn btn-primary" onclick="guardarNotaDiariaIndex()"><i class="bi bi-check-lg"></i></button>
+              </div>
+            </div>
+          </div>
+          <% if (notaDiaria && notaDiaria.importe > 0) { %>
+            <div class="mt-2">
+              <span class="badge bg-<%= notaDiaria.tipo === 'ingreso' ? 'success' : 'danger' %>">
+                <i class="bi bi-<%= notaDiaria.tipo === 'ingreso' ? 'arrow-up' : 'arrow-down' %>"></i>
+                <%= notaDiaria.importe.toFixed(2) %>€ (<%= notaDiaria.tipo === 'ingreso' ? 'Ingreso' : 'Gasto' %>)
+              </span>
+            </div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Modal Detalle Movimiento -->
+<div class="modal fade" id="modalDetalleMovimiento" tabindex="-1">
+  <div class="modal-dialog modal-sm modal-dialog-centered"><div class="modal-content">
+    <div class="modal-header"><h6><i class="bi bi-info-circle"></i> Detalle del Movimiento</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <table class="table table-sm table-borderless mb-0">
+        <tr><td class="text-muted">Concepto</td><td id="detalle-concepto" class="fw-bold"></td></tr>
+        <tr><td class="text-muted">Tipo</td><td><span id="detalle-tipo"></span></td></tr>
+        <tr><td class="text-muted">Importe</td><td><span id="detalle-importe"></span></td></tr>
+        <tr><td class="text-muted">Método</td><td id="detalle-metodo"></td></tr>
+        <tr><td class="text-muted">Fecha</td><td id="detalle-fecha"></td></tr>
+        <tr><td class="text-muted">Hora</td><td id="detalle-hora"></td></tr>
+        <tr><td class="text-muted">Origen</td><td id="detalle-origen"></td></tr>
+        <tr id="detalle-mes-row"><td class="text-muted">Mes (Prepago)</td><td id="detalle-mes"></td></tr>
+      </table>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
+    </div>
+  </div></div>
+</div>
+
+<script>
+// Pre-populate daily note
+(function() {
+  var ta = document.getElementById('notaDiariaIndex');
+  <% if (notaDiaria && notaDiaria.nota) { %>
+    ta.value = '<%= notaDiaria.nota.replace(/'/g, "\\'").replace(/\n/g, "\\n") %>';
+  <% } %>
+})();
+
+function insertarEnNota(id, signo, importeId) {
+  var ta = document.getElementById(id);
+  var importe = parseFloat(document.getElementById(importeId).value) || 0;
+  if (importe <= 0) { alert('Introduce un importe válido'); return; }
+  var text = signo + importe.toFixed(2) + '€';
+  var start = ta.selectionStart, end = ta.selectionEnd;
+  ta.value = ta.value.substring(0, start) + text + ta.value.substring(end);
+  ta.selectionStart = ta.selectionEnd = start + text.length;
+  document.getElementById(importeId).value = '';
+  ta.focus();
+}
+function guardarNotaDiariaIndex() {
+  var notaTxt = document.getElementById('notaDiariaIndex').value;
+  var importeVal = parseFloat(document.getElementById('importeIndex').value) || 0;
+  var body = { nota: notaTxt };
+  if (importeVal !== 0) {
+    body.importe_auto = Math.abs(importeVal);
+    body.tipo_auto = importeVal > 0 ? 'ingreso' : 'gasto';
+  }
+  fetch('/tienda/index/nota-diaria', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  }).then(function(r) {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  }).then(function(data) {
+    if (data.ok) {
+      document.getElementById('notaDiariaIndex').value = '';
+      document.getElementById('importeIndex').value = '';
+      // Reload to show the new movimiento row properly
+      location.href = '/tienda';
+    }
+  }).catch(function(e) {
+    alert('Error al guardar: ' + e.message);
+  });
+}
+
+function verDetalleMovimiento(concepto, tipo, importe, metodo, hora, categoria, fecha) {
+  // Clean up display: remove "Ingreso: " / "Nota: " / "Gasto: " prefix for cleaner view
+  var displayConcepto = concepto.replace(/^(Ingreso:|Nota:|Gasto:)\s*/, '');
+  document.getElementById('detalle-concepto').textContent = displayConcepto;
+  document.getElementById('detalle-tipo').textContent = tipo;
+  document.getElementById('detalle-tipo').className = 'badge bg-' + (tipo === 'ingreso' ? 'success' : 'danger');
+  document.getElementById('detalle-importe').textContent = (tipo === 'ingreso' ? '+' : '-') + Math.abs(importe).toFixed(2) + '\u20AC';
+  document.getElementById('detalle-importe').className = 'fw-bold text-' + (tipo === 'ingreso' ? 'success' : 'danger');
+  document.getElementById('detalle-metodo').textContent = metodo;
+  document.getElementById('detalle-hora').textContent = hora;
+  // Origen
+  var origenes = { 'nota_diaria': 'Nota Diaria', 'recarga': 'Prepago', 'gasto': 'Gasto', 'ingreso': 'Ingreso' };
+  document.getElementById('detalle-origen').textContent = origenes[categoria] || categoria || '-';
+  // Fecha formateada
+  if (fecha) {
+    var partes = fecha.split('-');
+    document.getElementById('detalle-fecha').textContent = partes[2] + '/' + partes[1] + '/' + partes[0];
+  } else {
+    document.getElementById('detalle-fecha').textContent = '-';
+  }
+  // Extract month from concepto (formats: "Prepago X - Marzo" or "Nota: ... - Marzo")
+  var mesMatch = concepto.match(/- (\w+)$/);
+  var mesTexto = mesMatch ? mesMatch[1] : '-';
+  // Check if it matches a known month name
+  var mesesNombres = /^(Enero|Febrero|Marzo|Abril|Mayo|Junio|Julio|Agosto|Septiembre|Octubre|Noviembre|Diciembre)$/i;
+  if (mesTexto !== '-' && !mesesNombres.test(mesTexto)) mesTexto = '-';
+  document.getElementById('detalle-mes').textContent = mesTexto;
+  document.getElementById('detalle-mes-row').style.display = mesTexto !== '-' ? '' : 'none';
+  new bootstrap.Modal(document.getElementById('modalDetalleMovimiento')).show();
+}
+</script>

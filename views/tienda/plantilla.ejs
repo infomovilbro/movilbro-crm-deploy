@@ -1,0 +1,437 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-people"></i> Usuarios / Trabajadores</h2>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevoUsuario"><i class="bi bi-plus-lg"></i> Nuevo Usuario</button>
+  </div>
+
+  <div class="card">
+    <div class="card-body p-0 table-responsive">
+      <table class="table table-hover mb-0" style="white-space:nowrap;">
+        <thead><tr><th>Usuario</th><th>Nombre</th><th>Email</th><th>Puesto</th><th>Rol</th><th>Estado</th><th>Permisos</th><th>Acciones</th></tr></thead>
+        <tbody>
+        <% if (trabajadores.length === 0) { %>
+          <tr><td colspan="8" class="text-center text-muted py-4"><i class="bi bi-people" style="font-size:2rem;display:block;margin-bottom:8px;"></i>No hay usuarios registrados</td></tr>
+        <% } else { trabajadores.forEach(t => { %>
+          <tr>
+            <td><%= t.username || '-' %></td>
+            <td><%= t.nombre %> <%= t.apellidos || '' %></td>
+            <td><%= t.email || '-' %></td>
+            <td><%= t.puesto || '-' %></td>
+            <td><span class="badge bg-<%= t.rol === 'admin' ? 'danger' : 'primary' %>"><%= t.rol || 'user' %></span></td>
+            <td>
+              <span class="badge bg-<%= t.activo !== 0 ? 'success' : 'secondary' %>">
+                <%= t.activo !== 0 ? 'Activo' : 'Inactivo' %>
+              </span>
+            </td>
+            <td class="small">
+              <% try { var perms = JSON.parse(t.permissions || '{}'); } catch(e) { var perms = {}; } %>
+              <% var tiendaPerms = ['dashboard','agenda','prepago','caja','presupuestos','inventario','historial','plantilla','cierres']; %>
+              <% tiendaPerms.forEach(function(s) { if (perms['tienda_'+s]) { %>
+                <span class="badge bg-info me-1"><%= s %></span>
+              <% } }) %>
+              <% if (perms['tienda']) { %><span class="badge bg-success">todo</span><% } %>
+            </td>
+            <td>
+              <button class="btn btn-sm btn-outline-primary editar-usuario" data-id="<%= t.id %>" data-username="<%= t.username || '' %>" data-nombre="<%= t.nombre %>" data-apellidos="<%= t.apellidos || '' %>" data-email="<%= t.email || '' %>" data-puesto="<%= t.puesto || '' %>" data-salario="<%= t.salario || 0 %>" data-rol="<%= t.rol || 'user' %>" data-activo="<%= t.activo !== undefined ? t.activo : 1 %>" data-permissions='<%= JSON.stringify(t.permissions || "{}") %>'><i class="bi bi-pencil"></i></button>
+              <button class="btn btn-sm btn-outline-danger eliminar-usuario" data-id="<%= t.id %>"><i class="bi bi-trash"></i></button>
+            </td>
+          </tr>
+        <% }) } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- Modal Nuevo Usuario -->
+<div class="modal fade" id="modalNuevoUsuario" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content">
+    <form id="formNuevoUsuario">
+      <div class="modal-header"><h5><i class="bi bi-person-plus"></i> Nuevo Usuario</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="row g-2 mb-2">
+          <div class="col-md-4"><label class="form-label">Usuario *</label><input type="text" name="username" class="form-control" required></div>
+          <div class="col-md-4"><label class="form-label">Contraseña *</label><input type="password" name="password" class="form-control" required></div>
+          <div class="col-md-4"><label class="form-label">Rol</label><select name="rol" class="form-select"><option value="user">Usuario</option><option value="admin">Admin</option></select></div>
+        </div>
+        <div class="row g-2 mb-2">
+          <div class="col-md-4"><label class="form-label">Nombre *</label><input type="text" name="nombre" class="form-control" required></div>
+          <div class="col-md-4"><label class="form-label">Apellidos</label><input type="text" name="apellidos" class="form-control"></div>
+          <div class="col-md-4"><label class="form-label">Email</label><input type="email" name="email" class="form-control"></div>
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col-md-4"><label class="form-label">Puesto</label><select name="puesto" class="form-select"><option value="">Seleccionar</option><option value="dependiente">Dependiente</option><option value="gerente">Gerente</option><option value="tecnico">Técnico</option><option value="administrativo">Administrativo</option></select></div>
+          <div class="col-md-4"><label class="form-label">Salario (€)</label><input type="number" step="0.01" name="salario" class="form-control" value="0"></div>
+          <div class="col-md-4"><label class="form-label">Activo</label><select name="activo" class="form-select"><option value="1">Sí</option><option value="0">No</option></select></div>
+        </div>
+
+        <h6 class="border-bottom pb-2 mb-2"><i class="bi bi-shield-lock"></i> Permisos - Panel Tienda</h6>
+        <div class="perm-section">
+          <div class="perm-group mb-1">
+            <div class="d-flex align-items-center" style="cursor:pointer;" onclick="togglePermGroup(this)">
+              <i class="bi bi-chevron-right me-2 perm-arrow"></i>
+              <input class="form-check-input me-2 perm-section-check" type="checkbox" data-section="dashboard" id="new-dashboard">
+              <label class="form-check-label fw-bold" for="new-dashboard">📊 Dashboard</label>
+            </div>
+            <div class="perm-sub ms-4 ps-2" style="display:none;border-left:2px solid #dee2e6;">
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="dashboard" name="perm_tienda_dashboard" value="1" checked><label class="form-check-label">Ver</label></div>
+            </div>
+          </div>
+          <div class="perm-group mb-1">
+            <div class="d-flex align-items-center" style="cursor:pointer;" onclick="togglePermGroup(this)">
+              <i class="bi bi-chevron-right me-2 perm-arrow"></i>
+              <input class="form-check-input me-2 perm-section-check" type="checkbox" data-section="agenda" id="new-agenda">
+              <label class="form-check-label fw-bold" for="new-agenda">📅 Agenda</label>
+            </div>
+            <div class="perm-sub ms-4 ps-2" style="display:none;border-left:2px solid #dee2e6;">
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="agenda" name="perm_tienda_agenda_ver" value="1" checked><label class="form-check-label">Ver</label></div>
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="agenda" name="perm_tienda_agenda_crear" value="1" checked><label class="form-check-label">Crear citas</label></div>
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="agenda" name="perm_tienda_agenda_editar" value="1" checked><label class="form-check-label">Editar / cambiar estado</label></div>
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="agenda" name="perm_tienda_agenda_eliminar" value="1" checked><label class="form-check-label">Eliminar</label></div>
+            </div>
+          </div>
+          <div class="perm-group mb-1">
+            <div class="d-flex align-items-center" style="cursor:pointer;" onclick="togglePermGroup(this)">
+              <i class="bi bi-chevron-right me-2 perm-arrow"></i>
+              <input class="form-check-input me-2 perm-section-check" type="checkbox" data-section="prepago" id="new-prepago">
+              <label class="form-check-label fw-bold" for="new-prepago">📱 Clientes Prepago</label>
+            </div>
+            <div class="perm-sub ms-4 ps-2" style="display:none;border-left:2px solid #dee2e6;">
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="prepago" name="perm_tienda_prepago_ver" value="1" checked><label class="form-check-label">Ver</label></div>
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="prepago" name="perm_tienda_prepago_cobrar" value="1" checked><label class="form-check-label">Cobrar / cambiar método</label></div>
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="prepago" name="perm_tienda_prepago_crear" value="1" checked><label class="form-check-label">Crear clientes</label></div>
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="prepago" name="perm_tienda_prepago_editar" value="1" checked><label class="form-check-label">Editar</label></div>
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="prepago" name="perm_tienda_prepago_eliminar" value="1" checked><label class="form-check-label">Eliminar / finalizar</label></div>
+            </div>
+          </div>
+          <div class="perm-group mb-1">
+            <div class="d-flex align-items-center" style="cursor:pointer;" onclick="togglePermGroup(this)">
+              <i class="bi bi-chevron-right me-2 perm-arrow"></i>
+              <input class="form-check-input me-2 perm-section-check" type="checkbox" data-section="caja" id="new-caja">
+              <label class="form-check-label fw-bold" for="new-caja">💰 Caja / Operaciones</label>
+            </div>
+            <div class="perm-sub ms-4 ps-2" style="display:none;border-left:2px solid #dee2e6;">
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="caja" name="perm_tienda_caja_ver" value="1" checked><label class="form-check-label">Ver</label></div>
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="caja" name="perm_tienda_caja_crear" value="1" checked><label class="form-check-label">Crear movimientos</label></div>
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="caja" name="perm_tienda_caja_eliminar" value="1" checked><label class="form-check-label">Eliminar</label></div>
+            </div>
+          </div>
+          <div class="perm-group mb-1">
+            <div class="d-flex align-items-center" style="cursor:pointer;" onclick="togglePermGroup(this)">
+              <i class="bi bi-chevron-right me-2 perm-arrow"></i>
+              <input class="form-check-input me-2 perm-section-check" type="checkbox" data-section="presupuestos" id="new-presupuestos">
+              <label class="form-check-label fw-bold" for="new-presupuestos">📋 Presupuestos</label>
+            </div>
+            <div class="perm-sub ms-4 ps-2" style="display:none;border-left:2px solid #dee2e6;">
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="presupuestos" name="perm_tienda_presupuestos_ver" value="1" checked><label class="form-check-label">Ver</label></div>
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="presupuestos" name="perm_tienda_presupuestos_crear" value="1" checked><label class="form-check-label">Crear</label></div>
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="presupuestos" name="perm_tienda_presupuestos_editar" value="1" checked><label class="form-check-label">Cambiar estado</label></div>
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="presupuestos" name="perm_tienda_presupuestos_eliminar" value="1" checked><label class="form-check-label">Eliminar</label></div>
+            </div>
+          </div>
+          <div class="perm-group mb-1">
+            <div class="d-flex align-items-center" style="cursor:pointer;" onclick="togglePermGroup(this)">
+              <i class="bi bi-chevron-right me-2 perm-arrow"></i>
+              <input class="form-check-input me-2 perm-section-check" type="checkbox" data-section="inventario" id="new-inventario">
+              <label class="form-check-label fw-bold" for="new-inventario">📦 Inventario</label>
+            </div>
+            <div class="perm-sub ms-4 ps-2" style="display:none;border-left:2px solid #dee2e6;">
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="inventario" name="perm_tienda_inventario_ver" value="1" checked><label class="form-check-label">Ver</label></div>
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="inventario" name="perm_tienda_inventario_crear" value="1" checked><label class="form-check-label">Crear productos</label></div>
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="inventario" name="perm_tienda_inventario_editar" value="1" checked><label class="form-check-label">Editar / ajustar stock</label></div>
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="inventario" name="perm_tienda_inventario_eliminar" value="1" checked><label class="form-check-label">Eliminar</label></div>
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="inventario" name="perm_tienda_inventario_devoluciones" value="1" checked><label class="form-check-label">Devoluciones</label></div>
+            </div>
+          </div>
+          <div class="perm-group mb-1">
+            <div class="d-flex align-items-center" style="cursor:pointer;" onclick="togglePermGroup(this)">
+              <i class="bi bi-chevron-right me-2 perm-arrow"></i>
+              <input class="form-check-input me-2 perm-section-check" type="checkbox" data-section="historial" id="new-historial">
+              <label class="form-check-label fw-bold" for="new-historial">⏰ Historial Día</label>
+            </div>
+            <div class="perm-sub ms-4 ps-2" style="display:none;border-left:2px solid #dee2e6;">
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="historial" name="perm_tienda_historial_ver" value="1" checked><label class="form-check-label">Ver</label></div>
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="historial" name="perm_tienda_historial_cerrar" value="1" checked><label class="form-check-label">Cerrar día</label></div>
+            </div>
+          </div>
+          <div class="perm-group mb-1">
+            <div class="d-flex align-items-center" style="cursor:pointer;" onclick="togglePermGroup(this)">
+              <i class="bi bi-chevron-right me-2 perm-arrow"></i>
+              <input class="form-check-input me-2 perm-section-check" type="checkbox" data-section="plantilla" id="new-plantilla">
+              <label class="form-check-label fw-bold" for="new-plantilla">👥 Usuarios / Trabajadores</label>
+            </div>
+            <div class="perm-sub ms-4 ps-2" style="display:none;border-left:2px solid #dee2e6;">
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="plantilla" name="perm_tienda_plantilla_ver" value="1" checked><label class="form-check-label">Ver</label></div>
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="plantilla" name="perm_tienda_plantilla_crear" value="1" checked><label class="form-check-label">Crear</label></div>
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="plantilla" name="perm_tienda_plantilla_editar" value="1" checked><label class="form-check-label">Editar</label></div>
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="plantilla" name="perm_tienda_plantilla_eliminar" value="1" checked><label class="form-check-label">Eliminar</label></div>
+            </div>
+          </div>
+          <div class="perm-group mb-1">
+            <div class="d-flex align-items-center" style="cursor:pointer;" onclick="togglePermGroup(this)">
+              <i class="bi bi-chevron-right me-2 perm-arrow"></i>
+              <input class="form-check-input me-2 perm-section-check" type="checkbox" data-section="cierres" id="new-cierres">
+              <label class="form-check-label fw-bold" for="new-cierres">🔒 Cierres</label>
+            </div>
+            <div class="perm-sub ms-4 ps-2" style="display:none;border-left:2px solid #dee2e6;">
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="cierres" name="perm_tienda_cierres_ver" value="1" checked><label class="form-check-label">Ver</label></div>
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="cierres" name="perm_tienda_cierres_crear" value="1" checked><label class="form-check-label">Crear cierre</label></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Guardar</button>
+      </div>
+    </form>
+  </div></div>
+</div>
+
+<!-- Modal Editar Usuario -->
+<div class="modal fade" id="modalEditarUsuario" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content">
+    <form id="formEditarUsuario">
+      <input type="hidden" name="id" id="edit-id">
+      <div class="modal-header"><h5><i class="bi bi-pencil"></i> Editar Usuario</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="row g-2 mb-2">
+          <div class="col-md-4"><label class="form-label">Usuario</label><input type="text" name="username" id="edit-username" class="form-control" readonly></div>
+          <div class="col-md-4"><label class="form-label">Nueva contraseña</label><input type="password" name="password" class="form-control" placeholder="Dejar vacío para mantener"></div>
+          <div class="col-md-4"><label class="form-label">Rol</label><select name="rol" id="edit-rol" class="form-select"><option value="user">Usuario</option><option value="admin">Admin</option></select></div>
+        </div>
+        <div class="row g-2 mb-2">
+          <div class="col-md-4"><label class="form-label">Nombre *</label><input type="text" name="nombre" id="edit-nombre" class="form-control" required></div>
+          <div class="col-md-4"><label class="form-label">Apellidos</label><input type="text" name="apellidos" id="edit-apellidos" class="form-control"></div>
+          <div class="col-md-4"><label class="form-label">Email</label><input type="email" name="email" id="edit-email" class="form-control"></div>
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col-md-4"><label class="form-label">Puesto</label><select name="puesto" id="edit-puesto" class="form-select"><option value="">Seleccionar</option><option value="dependiente">Dependiente</option><option value="gerente">Gerente</option><option value="tecnico">Técnico</option><option value="administrativo">Administrativo</option></select></div>
+          <div class="col-md-4"><label class="form-label">Salario (€)</label><input type="number" step="0.01" name="salario" id="edit-salario" class="form-control"></div>
+          <div class="col-md-4"><label class="form-label">Activo</label><select name="activo" id="edit-activo" class="form-select"><option value="1">Sí</option><option value="0">No</option></select></div>
+        </div>
+
+        <h6 class="border-bottom pb-2 mb-2"><i class="bi bi-shield-lock"></i> Permisos - Panel Tienda</h6>
+        <div class="perm-section">
+          <div class="perm-group mb-1">
+            <div class="d-flex align-items-center" style="cursor:pointer;" onclick="togglePermGroup(this)">
+              <i class="bi bi-chevron-right me-2 perm-arrow"></i>
+              <input class="form-check-input me-2 perm-section-check" type="checkbox" data-section="dashboard" id="edit-dashboard">
+              <label class="form-check-label fw-bold" for="edit-dashboard">📊 Dashboard</label>
+            </div>
+            <div class="perm-sub ms-4 ps-2" style="display:none;border-left:2px solid #dee2e6;">
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="dashboard" name="perm_tienda_dashboard" value="1" checked><label class="form-check-label">Ver</label></div>
+            </div>
+          </div>
+          <div class="perm-group mb-1">
+            <div class="d-flex align-items-center" style="cursor:pointer;" onclick="togglePermGroup(this)">
+              <i class="bi bi-chevron-right me-2 perm-arrow"></i>
+              <input class="form-check-input me-2 perm-section-check" type="checkbox" data-section="agenda" id="edit-agenda">
+              <label class="form-check-label fw-bold" for="edit-agenda">📅 Agenda</label>
+            </div>
+            <div class="perm-sub ms-4 ps-2" style="display:none;border-left:2px solid #dee2e6;">
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="agenda" name="perm_tienda_agenda_ver" value="1"><label class="form-check-label">Ver</label></div>
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="agenda" name="perm_tienda_agenda_crear" value="1"><label class="form-check-label">Crear citas</label></div>
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="agenda" name="perm_tienda_agenda_editar" value="1"><label class="form-check-label">Editar / cambiar estado</label></div>
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="agenda" name="perm_tienda_agenda_eliminar" value="1"><label class="form-check-label">Eliminar</label></div>
+            </div>
+          </div>
+          <div class="perm-group mb-1">
+            <div class="d-flex align-items-center" style="cursor:pointer;" onclick="togglePermGroup(this)">
+              <i class="bi bi-chevron-right me-2 perm-arrow"></i>
+              <input class="form-check-input me-2 perm-section-check" type="checkbox" data-section="prepago" id="edit-prepago">
+              <label class="form-check-label fw-bold" for="edit-prepago">📱 Clientes Prepago</label>
+            </div>
+            <div class="perm-sub ms-4 ps-2" style="display:none;border-left:2px solid #dee2e6;">
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="prepago" name="perm_tienda_prepago_ver" value="1"><label class="form-check-label">Ver</label></div>
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="prepago" name="perm_tienda_prepago_cobrar" value="1"><label class="form-check-label">Cobrar / cambiar método</label></div>
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="prepago" name="perm_tienda_prepago_crear" value="1"><label class="form-check-label">Crear clientes</label></div>
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="prepago" name="perm_tienda_prepago_editar" value="1"><label class="form-check-label">Editar</label></div>
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="prepago" name="perm_tienda_prepago_eliminar" value="1"><label class="form-check-label">Eliminar / finalizar</label></div>
+            </div>
+          </div>
+          <div class="perm-group mb-1">
+            <div class="d-flex align-items-center" style="cursor:pointer;" onclick="togglePermGroup(this)">
+              <i class="bi bi-chevron-right me-2 perm-arrow"></i>
+              <input class="form-check-input me-2 perm-section-check" type="checkbox" data-section="caja" id="edit-caja">
+              <label class="form-check-label fw-bold" for="edit-caja">💰 Caja / Operaciones</label>
+            </div>
+            <div class="perm-sub ms-4 ps-2" style="display:none;border-left:2px solid #dee2e6;">
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="caja" name="perm_tienda_caja_ver" value="1"><label class="form-check-label">Ver</label></div>
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="caja" name="perm_tienda_caja_crear" value="1"><label class="form-check-label">Crear movimientos</label></div>
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="caja" name="perm_tienda_caja_eliminar" value="1"><label class="form-check-label">Eliminar</label></div>
+            </div>
+          </div>
+          <div class="perm-group mb-1">
+            <div class="d-flex align-items-center" style="cursor:pointer;" onclick="togglePermGroup(this)">
+              <i class="bi bi-chevron-right me-2 perm-arrow"></i>
+              <input class="form-check-input me-2 perm-section-check" type="checkbox" data-section="presupuestos" id="edit-presupuestos">
+              <label class="form-check-label fw-bold" for="edit-presupuestos">📋 Presupuestos</label>
+            </div>
+            <div class="perm-sub ms-4 ps-2" style="display:none;border-left:2px solid #dee2e6;">
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="presupuestos" name="perm_tienda_presupuestos_ver" value="1"><label class="form-check-label">Ver</label></div>
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="presupuestos" name="perm_tienda_presupuestos_crear" value="1"><label class="form-check-label">Crear</label></div>
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="presupuestos" name="perm_tienda_presupuestos_editar" value="1"><label class="form-check-label">Cambiar estado</label></div>
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="presupuestos" name="perm_tienda_presupuestos_eliminar" value="1"><label class="form-check-label">Eliminar</label></div>
+            </div>
+          </div>
+          <div class="perm-group mb-1">
+            <div class="d-flex align-items-center" style="cursor:pointer;" onclick="togglePermGroup(this)">
+              <i class="bi bi-chevron-right me-2 perm-arrow"></i>
+              <input class="form-check-input me-2 perm-section-check" type="checkbox" data-section="inventario" id="edit-inventario">
+              <label class="form-check-label fw-bold" for="edit-inventario">📦 Inventario</label>
+            </div>
+            <div class="perm-sub ms-4 ps-2" style="display:none;border-left:2px solid #dee2e6;">
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="inventario" name="perm_tienda_inventario_ver" value="1"><label class="form-check-label">Ver</label></div>
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="inventario" name="perm_tienda_inventario_crear" value="1"><label class="form-check-label">Crear productos</label></div>
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="inventario" name="perm_tienda_inventario_editar" value="1"><label class="form-check-label">Editar / ajustar stock</label></div>
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="inventario" name="perm_tienda_inventario_eliminar" value="1"><label class="form-check-label">Eliminar</label></div>
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="inventario" name="perm_tienda_inventario_devoluciones" value="1"><label class="form-check-label">Devoluciones</label></div>
+            </div>
+          </div>
+          <div class="perm-group mb-1">
+            <div class="d-flex align-items-center" style="cursor:pointer;" onclick="togglePermGroup(this)">
+              <i class="bi bi-chevron-right me-2 perm-arrow"></i>
+              <input class="form-check-input me-2 perm-section-check" type="checkbox" data-section="historial" id="edit-historial">
+              <label class="form-check-label fw-bold" for="edit-historial">⏰ Historial Día</label>
+            </div>
+            <div class="perm-sub ms-4 ps-2" style="display:none;border-left:2px solid #dee2e6;">
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="historial" name="perm_tienda_historial_ver" value="1"><label class="form-check-label">Ver</label></div>
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="historial" name="perm_tienda_historial_cerrar" value="1"><label class="form-check-label">Cerrar día</label></div>
+            </div>
+          </div>
+          <div class="perm-group mb-1">
+            <div class="d-flex align-items-center" style="cursor:pointer;" onclick="togglePermGroup(this)">
+              <i class="bi bi-chevron-right me-2 perm-arrow"></i>
+              <input class="form-check-input me-2 perm-section-check" type="checkbox" data-section="plantilla" id="edit-plantilla">
+              <label class="form-check-label fw-bold" for="edit-plantilla">👥 Usuarios / Trabajadores</label>
+            </div>
+            <div class="perm-sub ms-4 ps-2" style="display:none;border-left:2px solid #dee2e6;">
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="plantilla" name="perm_tienda_plantilla_ver" value="1"><label class="form-check-label">Ver</label></div>
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="plantilla" name="perm_tienda_plantilla_crear" value="1"><label class="form-check-label">Crear</label></div>
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="plantilla" name="perm_tienda_plantilla_editar" value="1"><label class="form-check-label">Editar</label></div>
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="plantilla" name="perm_tienda_plantilla_eliminar" value="1"><label class="form-check-label">Eliminar</label></div>
+            </div>
+          </div>
+          <div class="perm-group mb-1">
+            <div class="d-flex align-items-center" style="cursor:pointer;" onclick="togglePermGroup(this)">
+              <i class="bi bi-chevron-right me-2 perm-arrow"></i>
+              <input class="form-check-input me-2 perm-section-check" type="checkbox" data-section="cierres" id="edit-cierres">
+              <label class="form-check-label fw-bold" for="edit-cierres">🔒 Cierres</label>
+            </div>
+            <div class="perm-sub ms-4 ps-2" style="display:none;border-left:2px solid #dee2e6;">
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="cierres" name="perm_tienda_cierres_ver" value="1"><label class="form-check-label">Ver</label></div>
+              <div class="form-check"><input class="form-check-input perm-action" type="checkbox" data-parent="cierres" name="perm_tienda_cierres_crear" value="1"><label class="form-check-label">Crear cierre</label></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Guardar Cambios</button>
+      </div>
+    </form>
+  </div></div>
+</div>
+
+<script>
+function togglePermGroup(el) {
+  var arrow = el.querySelector('.perm-arrow');
+  var sub = el.parentElement.querySelector('.perm-sub');
+  if (sub.style.display === 'none') {
+    sub.style.display = 'block';
+    arrow.className = 'bi bi-chevron-down me-2 perm-arrow';
+  } else {
+    sub.style.display = 'none';
+    arrow.className = 'bi bi-chevron-right me-2 perm-arrow';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  // Toggle sub-permissions when section checkbox changes
+  document.querySelectorAll('.perm-section-check').forEach(function(cb) {
+    cb.addEventListener('change', function() {
+      var section = this.dataset.section;
+      var actions = this.closest('.perm-group').querySelectorAll('.perm-action[data-parent="' + section + '"]');
+      actions.forEach(function(a) { a.checked = cb.checked; });
+    });
+  });
+
+  // Nuevo usuario
+  document.getElementById('formNuevoUsuario').addEventListener('submit', function(e) {
+    e.preventDefault();
+    var form = new FormData(this);
+    var data = {};
+    form.forEach(function(v, k) { data[k] = v; });
+    fetch('/tienda/plantilla/crear', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(data)
+    }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.ok) location.reload();
+      else alert(d.error || 'Error');
+    });
+  });
+
+  // Editar usuario - populate modal
+  document.querySelectorAll('.editar-usuario').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      document.getElementById('edit-id').value = this.dataset.id;
+      document.getElementById('edit-username').value = this.dataset.username;
+      document.getElementById('edit-nombre').value = this.dataset.nombre;
+      document.getElementById('edit-apellidos').value = this.dataset.apellidos;
+      document.getElementById('edit-email').value = this.dataset.email;
+      document.getElementById('edit-puesto').value = this.dataset.puesto;
+      document.getElementById('edit-salario').value = this.dataset.salario;
+      document.getElementById('edit-rol').value = this.dataset.rol;
+      document.getElementById('edit-activo').value = this.dataset.activo;
+      // Restore permissions checkboxes
+      try { var perms = JSON.parse(this.dataset.permissions); } catch(e) { var perms = {}; }
+      document.querySelectorAll('#formEditarUsuario [name^="perm_"]').forEach(function(cb) {
+        var key = cb.name.replace('perm_', '');
+        cb.checked = !!perms[key];
+      });
+      // Toggle section checkboxes based on actions
+      document.querySelectorAll('#formEditarUsuario .perm-section-check').forEach(function(cb) {
+        var section = cb.dataset.section;
+        var actions = cb.closest('.perm-group').querySelectorAll('.perm-action[data-parent="' + section + '"]');
+        var allChecked = true;
+        actions.forEach(function(a) { if (!a.checked) allChecked = false; });
+        cb.checked = allChecked;
+      });
+      new bootstrap.Modal(document.getElementById('modalEditarUsuario')).show();
+    });
+  });
+
+  // Editar usuario - submit
+  document.getElementById('formEditarUsuario').addEventListener('submit', function(e) {
+    e.preventDefault();
+    var form = new FormData(this);
+    var data = {};
+    form.forEach(function(v, k) { data[k] = v; });
+    fetch('/tienda/plantilla/editar', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(data)
+    }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.ok) location.reload();
+      else alert(d.error || 'Error');
+    });
+  });
+
+  // Eliminar
+  document.querySelectorAll('.eliminar-usuario').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      if (!confirm('¿Eliminar este usuario?')) return;
+      fetch('/tienda/plantilla/eliminar', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ id: parseInt(this.dataset.id) })
+      }).then(function(r) { return r.json(); }).then(function(d) {
+        if (d.ok) location.reload();
+        else alert(d.error || 'Error');
+      });
+    });
+  });
+});
+</script>

@@ -1,0 +1,209 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-bar-chart"></i> KPIs</h2>
+    <div class="d-flex gap-2 align-items-center">
+      <small class="text-muted"><i class="bi bi-arrow-repeat"></i> Datos vía API</small>
+    </div>
+  </div>
+  <div class="card mb-3 border-info">
+    <div class="card-header py-2 d-flex justify-content-between align-items-center">
+      <span><i class="bi bi-bug"></i> Diagnóstico KPI</span>
+      <small class="text-muted" id="kpiDiagTime"><%= kpiDebug && kpiDebug.generatedAt ? kpiDebug.generatedAt : '' %></small>
+    </div>
+    <div class="card-body py-2">
+      <div class="small" id="kpiDiagStatus">
+        Estado inicial: <strong><%= (kpiDebug && kpiDebug.hasStats) ? 'Datos cargados' : 'Sin datos' %></strong>
+        <% if (kpiDebug && kpiDebug.error) { %> | Error backend: <span class="text-danger"><%= kpiDebug.error %></span><% } %>
+      </div>
+      <div class="small text-danger mt-1" id="kpiDiagErrors"></div>
+    </div>
+  </div>
+  </div>
+  <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-warning"><i class="bi bi-exclamation-triangle"></i> <%= error %></div><% } %>
+
+  <% if (stats) { %>
+  <div class="row g-3 mb-4" id="kpiCardsContainer">
+    <div class="col-12"><h5><i class="ri-phone-line"></i> Resumen de Líneas</h5></div>
+    <a href="/products" class="text-decoration-none col-md-3 col-6 kpi-card stat-card-item"><div class="stat-card" style="background:#f8f9fa;border-left:3px solid var(--primary);border-radius:10px;padding:16px;"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">🌐</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= stats.linesFiber || 0 %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Fibra</div></div></div></div></a>
+    <a href="/products" class="text-decoration-none col-md-3 col-6 kpi-card stat-card-item"><div class="stat-card" style="background:#f8f9fa;border-left:3px solid #28a745;border-radius:10px;padding:16px;"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">📱</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= stats.linesMobile || 0 %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Móvil</div></div></div></div></a>
+    <a href="/products" class="text-decoration-none col-md-3 col-6 kpi-card stat-card-item"><div class="stat-card" style="background:#f8f9fa;border-left:3px solid #dc3545;border-radius:10px;padding:16px;"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">📺</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= stats.linesTV || 0 %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">TV</div></div></div></div></a>
+    <a href="/products" class="text-decoration-none col-md-3 col-6 kpi-card stat-card-item"><div class="stat-card" style="background:#f8f9fa;border-left:3px solid #ffc107;border-radius:10px;padding:16px;"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">🛰️</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= stats.linesSatellite || 0 %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Satélite</div></div></div></div></a>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-12"><h5><i class="ri-checkbox-circle-line"></i> Estado de Líneas</h5></div>
+    <a href="/customers" class="text-decoration-none col-md-3 col-6 kpi-card stat-card-item"><div class="stat-card" style="background:#f8f9fa;border-left:3px solid #28a745;border-radius:10px;padding:16px;"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">✅</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= stats.lineStatuses && stats.lineStatuses.ACTIVE ? stats.lineStatuses.ACTIVE : 0 %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Activas</div></div></div></div></a>
+    <a href="/customers" class="text-decoration-none col-md-3 col-6 kpi-card stat-card-item"><div class="stat-card" style="background:#f8f9fa;border-left:3px solid #ffc107;border-radius:10px;padding:16px;"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">⏸️</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= stats.lineStatuses && stats.lineStatuses.SUSPENDED ? stats.lineStatuses.SUSPENDED : 0 %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Suspendidas</div></div></div></div></a>
+    <a href="/customers" class="text-decoration-none col-md-3 col-6 kpi-card stat-card-item"><div class="stat-card" style="background:#f8f9fa;border-left:3px solid #dc3545;border-radius:10px;padding:16px;"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">❌</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= stats.lineStatuses && stats.lineStatuses.CANCELLED ? stats.lineStatuses.CANCELLED : 0 %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Canceladas</div></div></div></div></a>
+    <a href="/customers" class="text-decoration-none col-md-3 col-6 kpi-card stat-card-item"><div class="stat-card" style="background:#f8f9fa;border-left:3px solid var(--primary);border-radius:10px;padding:16px;"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">📞</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= stats.totalLines || 0 %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Total Líneas</div></div></div></div></a>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-12"><h5><i class="ri-arrow-left-right-line"></i> Portabilidades</h5></div>
+    <a href="/aftersales/portabilities" class="text-decoration-none col-md-3 col-6 kpi-card stat-card-item"><div class="stat-card" style="background:#f8f9fa;border-left:3px solid var(--primary);border-radius:10px;padding:16px;"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">📥</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= stats.portabilityIn || 0 %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Entrantes</div></div></div></div></a>
+    <a href="/aftersales/portabilities" class="text-decoration-none col-md-3 col-6 kpi-card stat-card-item"><div class="stat-card" style="background:#f8f9fa;border-left:3px solid #28a745;border-radius:10px;padding:16px;"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">📤</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= stats.portabilityOut || 0 %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Salientes</div></div></div></div></a>
+    <a href="/aftersales/portabilities" class="text-decoration-none col-md-3 col-6 kpi-card stat-card-item"><div class="stat-card" style="background:#f8f9fa;border-left:3px solid #dc3545;border-radius:10px;padding:16px;"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">📊</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= stats.totalPortabilities || 0 %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Total</div></div></div></div></a>
+    <a href="/aftersales/portabilities" class="text-decoration-none col-md-3 col-6 kpi-card stat-card-item"><div class="stat-card" style="background:#f8f9fa;border-left:3px solid #ffc107;border-radius:10px;padding:16px;"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">⏳</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= stats.portabilidadesPendientes || 0 %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Pendientes</div></div></div></div></a>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-12"><h5><i class="ri-stack-line"></i> Productos</h5></div>
+    <a href="/products" class="text-decoration-none col-md-3 col-6 kpi-card stat-card-item"><div class="stat-card" style="background:#f8f9fa;border-left:3px solid #17a2b8;border-radius:10px;padding:16px;"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">📋</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= stats.totalProducts || 0 %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Totales</div></div></div></div></a>
+    <a href="/products" class="text-decoration-none col-md-3 col-6 kpi-card stat-card-item"><div class="stat-card" style="background:#f8f9fa;border-left:3px solid var(--primary);border-radius:10px;padding:16px;"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">🏠</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= stats.familyCount || 0 %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Familias</div></div></div></div></a>
+    <a href="/products" class="text-decoration-none col-md-3 col-6 kpi-card stat-card-item"><div class="stat-card" style="background:#f8f9fa;border-left:3px solid #28a745;border-radius:10px;padding:16px;"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">⭐</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= stats.productTypes && stats.productTypes.Main ? stats.productTypes.Main : 0 %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Principales</div></div></div></div></a>
+    <a href="/products" class="text-decoration-none col-md-3 col-6 kpi-card stat-card-item"><div class="stat-card" style="background:#f8f9fa;border-left:3px solid #ffc107;border-radius:10px;padding:16px;"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">➕</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= stats.productTypes && stats.productTypes.Optional ? stats.productTypes.Optional : 0 %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Opcionales</div></div></div></div></a>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-12"><h5><i class="ri-dashboard-line"></i> Resumen Ejecutivo</h5></div>
+    <div class="col-md-4 col-6"><div class="stat-card" style="background:#f8f9fa;border-left:3px solid #0050A1;border-radius:10px;padding:16px;"><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= stats.clientesConLineasActivas || 0 %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Clientes con líneas activas</div></div></div>
+    <div class="col-md-4 col-6"><div class="stat-card" style="background:#f8f9fa;border-left:3px solid #0050A1;border-radius:10px;padding:16px;"><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= (stats.recurrenteTotal || 0).toFixed(2) %>€</div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Recurrente total catálogo</div></div></div>
+    <div class="col-md-4 col-12"><div class="stat-card" style="background:#f8f9fa;border-left:3px solid #0050A1;border-radius:10px;padding:16px;"><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= stats.mixTarifas ? stats.mixTarifas.length : 0 %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Mix de tarifas (top)</div></div></div>
+  </div>
+
+  <!-- Charts -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-6"><div class="card"><div class="card-header"><i class="ri-bar-chart-line"></i> Productos por familia</div><div class="card-body"><div class="chart-container" style="height:221px;"><canvas id="kpiFamilies"></canvas></div></div></div></div>
+    <div class="col-md-6"><div class="card"><div class="card-header"><i class="ri-pie-chart-line"></i> Clientes por mes</div><div class="card-body"><div class="chart-container" style="height:221px;"><canvas id="kpiTimeline"></canvas></div></div></div></div>
+  </div>
+  <div class="row g-3 mb-4">
+    <div class="col-md-4"><div class="card"><div class="card-header"><i class="ri-pie-chart-2-line"></i> Tipo producto</div><div class="card-body"><div class="chart-container" style="height:221px;"><canvas id="kpiTypes"></canvas></div></div></div></div>
+    <div class="col-md-4"><div class="card"><div class="card-header"><i class="ri-global-line"></i> Top provincias</div><div class="card-body"><div class="chart-container" style="height:221px;"><canvas id="kpiRegions"></canvas></div></div></div></div>
+    <div class="col-md-4"><div class="card"><div class="card-header"><i class="ri-arrow-left-right-line"></i> Estado portabilidades</div><div class="card-body"><div class="chart-container" style="height:221px;"><canvas id="kpiPorts"></canvas></div></div></div></div>
+  </div>
+  <div class="row g-3 mb-4">
+    <div class="col-md-6"><div class="card"><div class="card-body">
+      <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Evolución de Portabilidades</h6>
+      <canvas id="kpiPortTimeline" style="height:221px;"></canvas>
+    </div></div></div>
+    <div class="col-md-6"><div class="card"><div class="card-body">
+      <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Estado de Clientes</h6>
+      <canvas id="kpiCustStatuses" style="height:221px;"></canvas>
+    </div></div></div>
+  </div>
+  <div class="row g-3 mb-4">
+    <div class="col-12"><div class="card"><div class="card-body">
+      <h6 class="card-title"><span style="font-size:1.2rem;">📈</span> Mix de tarifas (suscripciones locales)</h6>
+      <canvas id="kpiMixTarifas" style="height:221px;"></canvas>
+    </div></div></div>
+  </div>
+  <% } %>
+</section>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var diagStatus = document.getElementById('kpiDiagStatus');
+  var diagErrors = document.getElementById('kpiDiagErrors');
+  var chartCount = 0;
+
+  function pushDiagError(msg) {
+    if (!diagErrors) return;
+    var prev = diagErrors.textContent ? (diagErrors.textContent + ' | ') : '';
+    diagErrors.textContent = prev + msg;
+  }
+
+  window.addEventListener('error', function(e) {
+    pushDiagError('JS: ' + (e.message || 'error desconocido'));
+  });
+
+  window.addEventListener('unhandledrejection', function(e) {
+    var reason = e && e.reason ? (e.reason.message || String(e.reason)) : 'promise rechazada';
+    pushDiagError('Promise: ' + reason);
+  });
+
+  <% if (stats && stats.families && stats.families.length > 0) { %>
+  try {
+    new Chart(document.getElementById('kpiFamilies'), {
+      type: 'bar',
+      data: { labels: <%= JSON.stringify(stats.families.map(x => x.name)) %>, datasets: [{ label: 'Productos', data: <%= JSON.stringify(stats.families.map(x => x.count)) %>, backgroundColor: '#6c757d', borderRadius: 6 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } }
+    });
+    chartCount++;
+  } catch(e) { console.error(e); }
+
+  <% if (stats.customerTimeline && stats.customerTimeline.length > 0) { %>
+  try {
+    new Chart(document.getElementById('kpiTimeline'), {
+      type: 'line',
+      data: { labels: <%= JSON.stringify(stats.customerTimeline.map(x => x.month)) %>, datasets: [{ label: 'Nuevos clientes', data: <%= JSON.stringify(stats.customerTimeline.map(x => x.count)) %>, borderColor: '#495057', backgroundColor: 'rgba(73,80,87,0.08)', fill: true, tension: 0.3, pointRadius: 4 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } }
+    });
+    chartCount++;
+  } catch(e) { console.error(e); }
+  <% } %>
+
+  try {
+    new Chart(document.getElementById('kpiTypes'), {
+      type: 'bar',
+      data: { labels: ['Main','Optional','Promotion'], datasets: [{ label: 'Productos', data: [<%= stats.productTypes ? stats.productTypes.Main || 0 : 0 %>,<%= stats.productTypes ? stats.productTypes.Optional || 0 : 0 %>,<%= stats.productTypes ? stats.productTypes.Promotion || 0 : 0 %>], backgroundColor: ['#0d6efd','#198754','#ffc107'], borderRadius: 6 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } }
+    });
+    chartCount++;
+  } catch(e) { console.error(e); }
+
+  try {
+    const reg = <%= JSON.stringify(stats.topRegions ? stats.topRegions.map(x => ({name:x.name,count:x.count})) : []) %>;
+    if (reg.length > 0) {
+      new Chart(document.getElementById('kpiRegions'), {
+        type: 'bar',
+        data: { labels: reg.map(x => x.name), datasets: [{ label: 'Clientes', data: reg.map(x => x.count), backgroundColor: '#6c757d', borderRadius: 4 }] },
+        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, grid: { color: '#eee' } }, y: { grid: { display: false } } } }
+      });
+      chartCount++;
+    }
+  } catch(e) { console.error(e); }
+
+  <% if (stats.portStatuses && Object.keys(stats.portStatuses).length > 0) { %>
+  try {
+    new Chart(document.getElementById('kpiPorts'), {
+      type: 'bar',
+      data: { labels: <%= JSON.stringify(Object.keys(stats.portStatuses)) %>, datasets: [{ label: 'Portabilidades', data: <%= JSON.stringify(Object.values(stats.portStatuses)) %>, backgroundColor: ['#198754','#ffc107','#0d6efd','#dc3545','#6c757d','#adb5bd'], borderRadius: 6 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } }
+    });
+    chartCount++;
+  } catch(e) { console.error(e); }
+  <% } %>
+
+  <% if (stats.portTimeline && stats.portTimeline.length > 0) { %>
+  try {
+    new Chart(document.getElementById('kpiPortTimeline'), {
+      type: 'bar',
+      data: { labels: <%= JSON.stringify(stats.portTimeline.map(x => x.month)) %>, datasets: [{ label: 'Portabilidades', data: <%= JSON.stringify(stats.portTimeline.map(x => x.count)) %>, backgroundColor: '#0d6efd', borderRadius: 6 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } }
+    });
+    chartCount++;
+  } catch(e) { console.error(e); }
+  <% } %>
+
+  <% if (stats.custStatuses && Object.keys(stats.custStatuses).length > 0) { %>
+  try {
+    new Chart(document.getElementById('kpiCustStatuses'), {
+      type: 'bar',
+      data: { labels: <%= JSON.stringify(Object.keys(stats.custStatuses)) %>, datasets: [{ label: 'Clientes', data: <%= JSON.stringify(Object.values(stats.custStatuses)) %>, backgroundColor: ['#0d6efd','#198754','#ffc107','#dc3545','#6c757d','#17a2b8'], borderRadius: 6 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } }
+    });
+    chartCount++;
+  } catch(e) { console.error(e); }
+  <% } %>
+
+  <% if (stats.mixTarifas && stats.mixTarifas.length > 0) { %>
+  try {
+    new Chart(document.getElementById('kpiMixTarifas'), {
+      type: 'bar',
+      data: { labels: <%= JSON.stringify(stats.mixTarifas.map(x => x.name)) %>, datasets: [{ label: 'Líneas', data: <%= JSON.stringify(stats.mixTarifas.map(x => x.count)) %>, backgroundColor: '#0050A1', borderRadius: 6 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } }
+    });
+    chartCount++;
+  } catch(e) { console.error(e); }
+  <% } %>
+
+  <% } %>
+
+  if (diagStatus) {
+    diagStatus.innerHTML = 'Estado inicial: <strong>Datos cargados</strong> | Gráficas renderizadas: <strong>' + chartCount + '</strong>';
+    if (chartCount === 0) {
+      pushDiagError('No se renderizó ninguna gráfica. Revisa consola y datos de API.');
+    }
+  }
+});
+</script>

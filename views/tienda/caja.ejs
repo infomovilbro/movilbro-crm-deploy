@@ -1,0 +1,107 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-cash"></i> Caja y Operaciones</h2>
+    <div class="d-flex gap-2">
+      <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCaja"><i class="bi bi-plus-lg"></i> Nuevo Movimiento</button>
+      <button class="btn btn-outline-danger" id="btnVaciarTodo"><i class="bi bi-trash3"></i> Vaciar Todo</button>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <a href="?tipo=ingreso&fecha=<%= filterDate %>" class="text-decoration-none col-md-4 stat-card-item"><div class="stat-card" style="background:#f8f9fa;border-left:3px solid #28a745;border-radius:10px;padding:16px;"><div style="display:flex;align-items:center;gap:12px;"><i class="bi bi-cash-stack text-muted" style="font-size:1.15rem;"></i><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= (ingresos || 0).toFixed(2) %>€</div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Ingresos</div></div></div></div></a>
+    <a href="?tipo=gasto&fecha=<%= filterDate %>" class="text-decoration-none col-md-4 stat-card-item"><div class="stat-card" style="background:#f8f9fa;border-left:3px solid #dc3545;border-radius:10px;padding:16px;"><div style="display:flex;align-items:center;gap:12px;"><i class="bi bi-arrow-up-right-square text-muted" style="font-size:1.15rem;"></i><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= (gastos || 0).toFixed(2) %>€</div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Gastos</div></div></div></div></a>
+    <a href="?fecha=<%= filterDate %>" class="text-decoration-none col-md-4 stat-card-item"><div class="stat-card" style="background:#f8f9fa;border-left:3px solid #6f42c1;border-radius:10px;padding:16px;"><div style="display:flex;align-items:center;gap:12px;"><i class="bi bi-calculator text-muted" style="font-size:1.15rem;"></i><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= (saldo || 0).toFixed(2) %>€</div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Saldo</div></div></div></div></a>
+  </div>
+
+  <div class="card mb-3 hideable-section" data-card-id="caja-filtro">
+    <div class="card-body py-2">
+      <form method="GET" class="row g-2 align-items-center">
+        <div class="col-auto"><label class="col-form-label"><i class="bi bi-calendar3"></i> Fecha:</label></div>
+        <div class="col-auto"><input type="date" name="fecha" class="form-control form-control-sm" value="<%= filterDate %>" onchange="this.form.submit()"></div>
+        <div class="col-auto">
+          <select name="tipo" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">Todos</option>
+            <option value="ingreso" <%= (typeof tipo !== 'undefined' && tipo === 'ingreso') ? 'selected' : '' %>>Ingresos</option>
+            <option value="gasto" <%= (typeof tipo !== 'undefined' && tipo === 'gasto') ? 'selected' : '' %>>Gastos</option>
+          </select>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card hideable-section" data-card-id="caja-movimientos">
+    <div class="card-body p-0">
+      <table class="table table-hover mb-0">
+        <thead><tr><th>Hora</th><th>Tipo</th><th>Concepto</th><th>Categoría</th><th>Importe</th><th>Método</th><th>Usuario</th><th>Acción</th></tr></thead>
+        <tbody>
+        <% if (movimientos.length === 0) { %>
+          <tr><td colspan="8" class="text-center text-muted py-4"><i class="bi bi-cash" style="font-size:2rem;display:block;margin-bottom:8px;"></i>Sin movimientos en esta fecha</td></tr>
+        <% } else { movimientos.forEach(m => { %>
+          <tr>
+            <td class="small"><%= new Date(m.created_at).toLocaleTimeString('es-ES', { hour:'2-digit', minute:'2-digit' }) %></td>
+            <td><span class="badge bg-<%= m.tipo === 'ingreso' ? 'success' : 'danger' %>"><%= m.tipo %></span></td>
+            <td><%= m.concepto %></td>
+            <td><%= m.categoria || '-' %></td>
+            <td><strong class="text-<%= m.tipo === 'ingreso' ? 'success' : 'danger' %>"><%= m.tipo === 'ingreso' ? '+' : '-' %><%= Math.abs(m.importe).toFixed(2) %>€</strong></td>
+            <td><%= m.metodo_pago %></td>
+            <td class="small"><%= m.user_name || '-' %></td>
+            <td><button class="btn btn-sm btn-outline-danger eliminar-caja" data-id="<%= m.id %>"><i class="bi bi-trash"></i></button></td>
+          </tr>
+        <% }) } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- Modal Nuevo Movimiento -->
+<div class="modal fade" id="modalCaja" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <form method="POST" action="/tienda/caja/crear">
+      <div class="modal-header"><h5><i class="bi bi-plus-circle"></i> Nuevo Movimiento</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="row g-2 mb-2">
+          <div class="col"><label class="form-label">Tipo *</label>
+            <select name="tipo" class="form-select" required>
+              <option value="ingreso">Ingreso</option>
+              <option value="gasto">Gasto</option>
+            </select>
+          </div>
+          <div class="col"><label class="form-label">Importe *</label><input type="number" step="0.01" name="importe" class="form-control" required></div>
+        </div>
+        <div class="mb-2"><label class="form-label">Concepto *</label><input type="text" name="concepto" class="form-control" required></div>
+        <div class="row g-2 mb-2">
+          <div class="col"><label class="form-label">Categoría</label><select name="categoria" class="form-select"><option value="">Sin categoría</option><option value="venta">Venta</option><option value="recarga">Recarga</option><option value="servicio">Servicio</option><option value="suministro">Suministro</option><option value="nomina">Nómina</option><option value="impuesto">Impuesto</option></select></div>
+          <div class="col"><label class="form-label">Método de pago</label><select name="metodo_pago" class="form-select"><option value="efectivo">Efectivo</option><option value="tarjeta">Tarjeta</option><option value="transferencia">Transferencia</option><option value="bizum">Bizum</option></select></div>
+        </div>
+        <div class="mb-2"><label class="form-label">Descripción</label><textarea name="descripcion" class="form-control" rows="2"></textarea></div>
+        <input type="hidden" name="fecha" value="<%= filterDate %>">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Añadir</button>
+      </div>
+    </form>
+  </div></div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var btnVaciar = document.getElementById('btnVaciarTodo');
+  if (btnVaciar) {
+    btnVaciar.addEventListener('click', function() {
+      if (!confirm('Esto eliminará TODOS los movimientos de caja. ¿Continuar?')) return;
+      fetch('/tienda/caja/vaciar-todo', { method: 'POST' })
+        .then(function() { location.reload(); });
+    });
+  }
+  document.querySelectorAll('.eliminar-caja').forEach(btn => {
+    btn.addEventListener('click', function() {
+      if (confirm('¿Eliminar este movimiento?')) {
+        fetch('/tienda/caja/eliminar', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ id: this.dataset.id }) })
+        .then(() => location.reload());
+      }
+    });
+  });
+});
+</script>

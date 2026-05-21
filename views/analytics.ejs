@@ -1,0 +1,219 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-graph-up"></i> Analítica completa</h2>
+    <small class="text-muted"><i class="bi bi-cloud-check"></i> Datos de Likes Telecom en tiempo real</small>
+  </div>
+
+  <% if (error) { %><div class="alert alert-danger"><%= error %></div><% } %>
+  <% if (!stats) { %><div class="text-center text-muted py-5"><i class="bi bi-hourglass" style="font-size:2rem;"></i><p class="mt-2">Cargando...</p></div><% } else { %>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-2 col-6"><div class="card border-start border-primary border-4"><div class="card-body py-3"><div class="text-muted small">Clientes</div><div class="h3 mb-0 text-primary"><%= stats.totalCustomers %></div></div></div></div>
+    <div class="col-md-2 col-6"><div class="card border-start border-success border-4"><div class="card-body py-3"><div class="text-muted small">Productos</div><div class="h3 mb-0 text-success"><%= stats.totalProducts %></div></div></div></div>
+    <div class="col-md-2 col-6"><div class="card border-start border-warning border-4"><div class="card-body py-3"><div class="text-muted small">Tickets</div><div class="h3 mb-0 text-warning"><%= stats.totalTickets %></div></div></div></div>
+    <div class="col-md-2 col-6"><div class="card border-start border-info border-4"><div class="card-body py-3"><div class="text-muted small">Suscripciones</div><div class="h3 mb-0 text-info"><%= stats.totalSubscriptions %></div></div></div></div>
+    <div class="col-md-2 col-6"><div class="card border-start border-danger border-4"><div class="card-body py-3"><div class="text-muted small">Líneas</div><div class="h3 mb-0 text-danger"><%= stats.totalLines %></div></div></div></div>
+    <div class="col-md-2 col-6"><div class="card border-start border-secondary border-4"><div class="card-body py-3"><div class="text-muted small">Portabilidades</div><div class="h3 mb-0 text-secondary"><%= stats.totalPortabilities %></div></div></div></div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-lg-8">
+      <div class="card"><div class="card-header"><i class="bi bi-bar-chart-fill"></i> Productos por familia</div>
+        <div class="card-body"><div class="chart-container" style="height:300px;"><canvas id="a1"></canvas></div></div></div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card"><div class="card-header"><i class="bi bi-pie-chart-fill"></i> Tipo de producto</div>
+        <div class="card-body"><div class="chart-container" style="height:300px;"><canvas id="a2"></canvas></div></div></div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-lg-6">
+      <div class="card"><div class="card-header"><i class="bi bi-currency-dollar"></i> Rango precios por familia</div>
+        <div class="card-body"><div class="chart-container" style="height:300px;"><canvas id="a3"></canvas></div></div></div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card"><div class="card-header"><i class="bi bi-people"></i> Clientes por provincia</div>
+        <div class="card-body"><div class="chart-container" style="height:300px;"><canvas id="a4"></canvas></div></div></div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-lg-4">
+      <div class="card"><div class="card-header"><i class="bi bi-calendar"></i> Clientes por mes</div>
+        <div class="card-body">
+          <% if (stats.customerTimeline && stats.customerTimeline.length > 0) { %>
+          <div class="chart-container" style="height:250px;"><canvas id="a5"></canvas></div>
+          <% } else { %><div class="text-center text-muted py-4">Sin datos</div><% } %>
+        </div></div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card"><div class="card-header"><i class="bi bi-arrow-left-right"></i> Portabilidades por mes</div>
+        <div class="card-body">
+          <% if (stats.portTimeline && stats.portTimeline.length > 0) { %>
+          <div class="chart-container" style="height:250px;"><canvas id="a6"></canvas></div>
+          <% } else { %><div class="text-center text-muted py-4">Sin datos</div><% } %>
+        </div></div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card"><div class="card-header"><i class="bi bi-tag"></i> Estado portabilidades</div>
+        <div class="card-body">
+          <% if (Object.keys(stats.portStatuses).length > 0) { %>
+          <div class="chart-container" style="height:250px;"><canvas id="a7"></canvas></div>
+          <% } else { %><div class="text-center text-muted py-4">Sin datos</div><% } %>
+        </div></div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-lg-4">
+      <div class="card"><div class="card-header"><i class="bi bi-layers"></i> Estado clientes</div>
+        <div class="card-body"><div class="chart-container" style="height:250px;"><canvas id="a8"></canvas></div></div></div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card"><div class="card-header"><i class="bi bi-file-earmark"></i> Tipo documento</div>
+        <div class="card-body"><div class="chart-container" style="height:250px;"><canvas id="a9"></canvas></div></div></div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card"><div class="card-header"><i class="bi bi-building"></i> Tipo cliente</div>
+        <div class="card-body"><div class="chart-container" style="height:250px;"><canvas id="a10"></canvas></div></div></div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <div class="card"><div class="card-header"><i class="bi bi-ticket"></i> Estado tickets</div>
+        <div class="card-body">
+          <% if (Object.keys(stats.ticketStatuses).length > 0) { %>
+          <div class="chart-container" style="height:250px;"><canvas id="a12"></canvas></div>
+          <% } else { %><div class="text-center text-muted py-4">Sin datos</div><% } %>
+        </div></div>
+    </div>
+    <div class="col-md-4">
+      <div class="card"><div class="card-header"><i class="bi bi-tag"></i> Estado suscripciones</div>
+        <div class="card-body">
+          <% if (Object.keys(stats.subStatuses).length > 0) { %>
+          <div class="chart-container" style="height:250px;"><canvas id="a13"></canvas></div>
+          <% } else { %><div class="text-center text-muted py-4">Sin datos</div><% } %>
+        </div></div>
+    </div>
+    <div class="col-md-4">
+      <div class="card"><div class="card-header"><i class="bi bi-phone"></i> Estado líneas</div>
+        <div class="card-body">
+          <% if (Object.keys(stats.lineStatuses).length > 0) { %>
+          <div class="chart-container" style="height:250px;"><canvas id="a14"></canvas></div>
+          <% } else { %><div class="text-center text-muted py-4">Sin datos</div><% } %>
+        </div></div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-lg-6">
+      <div class="card"><div class="card-header"><i class="bi bi-arrow-up-short"></i> Top operadores donantes</div>
+        <div class="card-body">
+          <% if (stats.portDonors && stats.portDonors.length > 0) { %>
+          <div class="chart-container" style="height:280px;"><canvas id="a11"></canvas></div>
+          <% } else { %><div class="text-center text-muted py-4">Sin datos</div><% } %>
+        </div></div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card"><div class="card-header"><i class="bi bi-star"></i> Top 5 productos más baratos</div>
+        <div class="card-body p-0">
+          <table class="table table-hover mb-0">
+            <thead><tr><th>Producto</th><th>Familia</th><th>Precio</th></tr></thead>
+            <tbody>
+              <% stats.cheapestMain.forEach(p => { %>
+              <tr><td><%= p.productName %></td><td><%= p.family || '-' %></td><td><strong><%= p.price.toFixed(2) %>€</strong></td></tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+        <div class="card-header mt-2"><i class="bi bi-star-fill text-warning"></i> Top 5 productos más caros</div>
+        <div class="card-body p-0">
+          <table class="table table-hover mb-0">
+            <thead><tr><th>Producto</th><th>Familia</th><th>Precio</th></tr></thead>
+            <tbody>
+              <% stats.priciestMain.forEach(p => { %>
+              <tr><td><%= p.productName %></td><td><%= p.family || '-' %></td><td><strong><%= p.price.toFixed(2) %>€</strong></td></tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-12">
+      <div class="card"><div class="card-header"><i class="bi bi-table"></i> Detalle completo de familias</div>
+        <div class="card-body p-0">
+          <table class="table table-hover mb-0">
+            <thead><tr><th>Familia</th><th>Productos</th><th>Precio min</th><th>Precio max</th><th>Precio medio</th><th></th></tr></thead>
+            <tbody>
+              <% stats.families.forEach(f => { %>
+              <tr><td><strong><%= f.name %></strong></td><td><span class="badge bg-primary"><%= f.count %></span></td>
+                <td><%= f.minPrice > 0 ? f.minPrice.toFixed(2) + '€' : '-' %></td>
+                <td><%= f.maxPrice > 0 ? f.maxPrice.toFixed(2) + '€' : '-' %></td>
+                <td><%= f.avgPrice > 0 ? f.avgPrice.toFixed(2) + '€' : '-' %></td>
+                <td><div class="progress" style="height:6px;"><div class="progress-bar" style="width:<%= (f.count / Math.max(...stats.families.map(x => x.count)) * 100) %>%"></div></div></td></tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div></div>
+    </div>
+  </div>
+  <% } %>
+</section>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  <% if (stats) { %>
+  const c = ['#0d6efd','#198754','#ffc107','#dc3545','#0dcaf0','#6610f2','#fd7e14','#20c997','#d63384','#6c757d'];
+  const famNames = <%= JSON.stringify(stats.families.map(x => x.name)) %>;
+  const famCounts = <%= JSON.stringify(stats.families.map(x => x.count)) %>;
+  const n = famNames.length;
+
+  new Chart(document.getElementById('a1'), { type: 'bar', data: { labels: famNames, datasets: [{ label: 'Productos', data: famCounts, backgroundColor: c.slice(0,n), borderRadius: 8 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } } });
+
+  new Chart(document.getElementById('a2'), { type: 'doughnut', data: { labels: ['Main','Optional','Promotion'], datasets: [{ data: [<%= stats.productTypes.Main %>,<%= stats.productTypes.Optional %>,<%= stats.productTypes.Promotion %>], backgroundColor: ['#0d6efd','#198754','#ffc107'], borderWidth: 2 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } } });
+
+  new Chart(document.getElementById('a3'), { type: 'bar', data: { labels: famNames, datasets: [{ label: 'Mínimo', data: <%= JSON.stringify(stats.families.map(x => Math.round(x.minPrice * 100) / 100)) %>, backgroundColor: '#198754', borderRadius: 4 }, { label: 'Máximo', data: <%= JSON.stringify(stats.families.map(x => Math.round(x.maxPrice * 100) / 100)) %>, backgroundColor: '#dc3545', borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } } });
+
+  new Chart(document.getElementById('a4'), { type: 'bar', data: { labels: <%= JSON.stringify(stats.topRegions.map(x => x.name)) %>, datasets: [{ label: 'Clientes', data: <%= JSON.stringify(stats.topRegions.map(x => x.count)) %>, backgroundColor: '#6610f2', borderRadius: 4 }] }, options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, grid: { color: '#eee' } }, y: { grid: { display: false } } } } });
+
+  <% if (stats.customerTimeline && stats.customerTimeline.length > 0) { %>
+  new Chart(document.getElementById('a5'), { type: 'line', data: { labels: <%= JSON.stringify(stats.customerTimeline.map(x => x.month)) %>, datasets: [{ label: 'Clientes', data: <%= JSON.stringify(stats.customerTimeline.map(x => x.count)) %>, borderColor: '#0d6efd', backgroundColor: 'rgba(13,110,253,0.08)', fill: true, tension: 0.3, pointRadius: 5, pointBackgroundColor: '#0d6efd' }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } } });
+  <% } %>
+
+  <% if (stats.portTimeline && stats.portTimeline.length > 0) { %>
+  new Chart(document.getElementById('a6'), { type: 'line', data: { labels: <%= JSON.stringify(stats.portTimeline.map(x => x.month)) %>, datasets: [{ label: 'Portabilidades', data: <%= JSON.stringify(stats.portTimeline.map(x => x.count)) %>, borderColor: '#fd7e14', backgroundColor: 'rgba(253,126,20,0.08)', fill: true, tension: 0.3, pointRadius: 5, pointBackgroundColor: '#fd7e14' }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } } });
+  <% } %>
+
+  <% if (Object.keys(stats.portStatuses).length > 0) { %>
+  const psLabels = <%= JSON.stringify(Object.keys(stats.portStatuses)) %>;
+  const psData = <%= JSON.stringify(Object.values(stats.portStatuses)) %>;
+  const psColors = psLabels.map(() => { const r = Math.floor(Math.random()*200+55).toString(16).padStart(2,'0'); const g = Math.floor(Math.random()*200+55).toString(16).padStart(2,'0'); const b = Math.floor(Math.random()*200+55).toString(16).padStart(2,'0'); return '#'+r+g+b; });
+  new Chart(document.getElementById('a7'), { type: 'doughnut', data: { labels: psLabels, datasets: [{ data: psData, backgroundColor: ['#dc3545','#ffc107','#198754','#0dcaf0','#6c757d','#6610f2','#fd7e14'], borderWidth: 2 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } } });
+  <% } %>
+
+  new Chart(document.getElementById('a8'), { type: 'doughnut', data: { labels: <%= JSON.stringify(Object.keys(stats.custStatuses)) %>, datasets: [{ data: <%= JSON.stringify(Object.values(stats.custStatuses)) %>, backgroundColor: ['#198754','#ffc107','#dc3545','#0dcaf0','#6c757d'], borderWidth: 2 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } } });
+
+  new Chart(document.getElementById('a9'), { type: 'pie', data: { labels: <%= JSON.stringify(Object.keys(stats.docTypes)) %>, datasets: [{ data: <%= JSON.stringify(Object.values(stats.docTypes)) %>, backgroundColor: c.slice(0,Object.keys(stats.docTypes).length), borderWidth: 2 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } } });
+
+  new Chart(document.getElementById('a10'), { type: 'doughnut', data: { labels: <%= JSON.stringify(Object.keys(stats.custTypes)) %>, datasets: [{ data: <%= JSON.stringify(Object.values(stats.custTypes)) %>, backgroundColor: ['#0d6efd','#198754','#ffc107'], borderWidth: 2 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } } });
+
+  <% if (stats.portDonors && stats.portDonors.length > 0) { %>
+  new Chart(document.getElementById('a11'), { type: 'bar', data: { labels: <%= JSON.stringify(stats.portDonors.map(x => x.name.length > 25 ? x.name.substring(0,25)+'...' : x.name)) %>, datasets: [{ label: 'Portabilidades', data: <%= JSON.stringify(stats.portDonors.map(x => x.count)) %>, backgroundColor: '#0d6efd', borderRadius: 4 }] }, options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, grid: { color: '#eee' } }, y: { grid: { display: false } } } } });
+  <% } %>
+
+  <% if (Object.keys(stats.ticketStatuses).length > 0) { %>
+  new Chart(document.getElementById('a12'), { type: 'doughnut', data: { labels: <%= JSON.stringify(Object.keys(stats.ticketStatuses)) %>, datasets: [{ data: <%= JSON.stringify(Object.values(stats.ticketStatuses)) %>, backgroundColor: ['#dc3545','#ffc107','#198754','#0dcaf0','#6c757d'], borderWidth: 2 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } } });
+  <% } %>
+  <% if (Object.keys(stats.subStatuses).length > 0) { %>
+  new Chart(document.getElementById('a13'), { type: 'doughnut', data: { labels: <%= JSON.stringify(Object.keys(stats.subStatuses)) %>, datasets: [{ data: <%= JSON.stringify(Object.values(stats.subStatuses)) %>, backgroundColor: ['#198754','#dc3545','#ffc107','#0dcaf0'], borderWidth: 2 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } } });
+  <% } %>
+  <% if (Object.keys(stats.lineStatuses).length > 0) { %>
+  new Chart(document.getElementById('a14'), { type: 'doughnut', data: { labels: <%= JSON.stringify(Object.keys(stats.lineStatuses)) %>, datasets: [{ data: <%= JSON.stringify(Object.values(stats.lineStatuses)) %>, backgroundColor: ['#198754','#dc3545','#ffc107','#0dcaf0','#6610f2'], borderWidth: 2 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } } });
+  <% } %>
+  <% } %>
+});
+</script>

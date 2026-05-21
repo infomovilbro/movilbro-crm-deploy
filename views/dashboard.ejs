@@ -1,0 +1,130 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-speedometer2"></i> Panel de Control</h2>
+    <div class="d-flex gap-2 align-items-center">
+      <small class="text-muted"><i class="bi bi-arrow-repeat"></i> Datos vía API</small>
+    </div>
+  </div>
+  <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-warning"><i class="bi bi-exclamation-triangle"></i> <%= error %></div><% } %>
+
+  <% if (stats) { %>
+  <div class="row g-3 mb-4" id="cardsContainer">
+    <div class="col-md-2 col-6 card-item stat-card-item" data-filter="clientes"><a href="/customers" class="text-decoration-none">
+      <div class="stat-card" style="background:#f8f9fa;border-left:3px solid var(--primary);border-radius:10px;padding:16px;"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">👥</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= stats.totalCustomers %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Clientes</div></div></div></div></a></div>
+    <div class="col-md-2 col-6 card-item stat-card-item" data-filter="productos"><a href="/products" class="text-decoration-none">
+      <div class="stat-card" style="background:#f8f9fa;border-left:3px solid var(--primary);border-radius:10px;padding:16px;"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">🏷️</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= stats.totalProducts %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Productos</div></div></div></div></a></div>
+    <div class="col-md-2 col-6 card-item stat-card-item" data-filter="tickets"><a href="/tickets" class="text-decoration-none">
+      <div class="stat-card" style="background:#f8f9fa;border-left:3px solid var(--primary);border-radius:10px;padding:16px;"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">🎫</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= stats.totalTickets %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Tickets</div></div></div></div></a></div>
+    <div class="col-md-2 col-6 card-item stat-card-item" data-filter="suscripciones"><a href="/subscriptions" class="text-decoration-none">
+      <div class="stat-card" style="background:#f8f9fa;border-left:3px solid var(--primary);border-radius:10px;padding:16px;"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">📑</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= stats.totalSubscriptions %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Suscripciones</div></div></div></div></a></div>
+    <div class="col-md-2 col-6 card-item stat-card-item" data-filter="lineas"><a href="/kpis" class="text-decoration-none">
+      <div class="stat-card" style="background:#f8f9fa;border-left:3px solid var(--primary);border-radius:10px;padding:16px;"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">📞</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= stats.totalLines %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Líneas</div></div></div></div></a></div>
+    <div class="col-md-2 col-6 card-item stat-card-item" data-filter="portabilidades"><a href="/aftersales/portabilities" class="text-decoration-none">
+      <div class="stat-card" style="background:#f8f9fa;border-left:3px solid #17a2b8;border-radius:10px;padding:16px;"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">🔄</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= stats.totalPortabilities %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Portabilidades</div></div></div></div></a></div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-3 col-6 card-item stat-card-item" data-filter="lineas-activas"><a href="/kpis" class="text-decoration-none">
+      <div class="stat-card" style="background:#f8f9fa;border-left:3px solid var(--primary);border-radius:10px;padding:16px;"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">📞</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= stats.totalLines %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Líneas totales</div></div></div></div></a></div>
+    <div class="col-md-3 col-6 card-item stat-card-item" data-filter="activas"><a href="/kpis" class="text-decoration-none">
+      <div class="stat-card" style="background:#f8f9fa;border-left:3px solid var(--primary);border-radius:10px;padding:16px;"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">✅</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= stats.lineStatuses && stats.lineStatuses.ACTIVE ? stats.lineStatuses.ACTIVE : 0 %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Líneas activas</div></div></div></div></a></div>
+    <div class="col-md-3 col-6 card-item stat-card-item" data-filter="suspendidas"><a href="/kpis" class="text-decoration-none">
+      <div class="stat-card" style="background:#f8f9fa;border-left:3px solid var(--primary);border-radius:10px;padding:16px;"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">⏸️</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= stats.lineStatuses && stats.lineStatuses.SUSPENDED ? stats.lineStatuses.SUSPENDED : 0 %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Suspendidas</div></div></div></div></a></div>
+    <div class="col-md-3 col-6 card-item stat-card-item" data-filter="canceladas"><a href="/kpis" class="text-decoration-none">
+      <div class="stat-card" style="background:#f8f9fa;border-left:3px solid var(--primary);border-radius:10px;padding:16px;"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">❌</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= stats.lineStatuses && stats.lineStatuses.CANCELLED ? stats.lineStatuses.CANCELLED : 0 %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Canceladas</div></div></div></div></a></div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-3 col-6 card-item stat-card-item" data-filter="familias"><a href="/products" class="text-decoration-none">
+      <div class="stat-card" style="background:#f8f9fa;border-left:3px solid var(--primary);border-radius:10px;padding:16px;"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">🏠</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= stats.familyCount %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Familias</div></div></div></div></a></div>
+    <div class="col-md-3 col-6 card-item stat-card-item" data-filter="port-in"><a href="/aftersales/portabilities" class="text-decoration-none">
+      <div class="stat-card" style="background:#f8f9fa;border-left:3px solid var(--primary);border-radius:10px;padding:16px;"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">📥</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= stats.portabilityIn || 0 %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Port. entrantes</div></div></div></div></a></div>
+    <div class="col-md-3 col-6 card-item stat-card-item" data-filter="port-out"><a href="/aftersales/portabilities" class="text-decoration-none">
+      <div class="stat-card" style="background:#f8f9fa;border-left:3px solid var(--primary);border-radius:10px;padding:16px;"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">📤</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= stats.portabilityOut || 0 %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Port. salientes</div></div></div></div></a></div>
+  </div>
+
+  <!-- Charts -->
+  <div class="row g-3 mb-4 hideable-section" data-card-id="charts-familias">
+    <div class="col-md-8"><div class="card"><div class="card-header"><i class="bi bi-bar-chart"></i> Productos por familia</div><div class="card-body"><div class="chart-container" style="height:280px;"><canvas id="dFamilies"></canvas></div></div></div></div>
+    <div class="col-md-4"><div class="card"><div class="card-header"><i class="bi bi-pie-chart"></i> Tipo de producto</div><div class="card-body"><div class="chart-container" style="height:280px;"><canvas id="dTypes"></canvas></div></div></div></div>
+  </div>
+
+  <!-- EVOLUCIÓN / HISTÓRICO -->
+  <div class="row g-3 mb-4 hideable-section" data-card-id="charts-evolucion">
+    <div class="col-12"><h4><i class="bi bi-graph-up"></i> Evolución</h4></div>
+    <div class="col-md-6"><div class="card"><div class="card-header"><i class="bi bi-people"></i> Evolución de Clientes</div><div class="card-body"><div class="chart-container" style="height:250px;"><canvas id="chartEvoClientes"></canvas></div></div></div></div>
+    <div class="col-md-6"><div class="card"><div class="card-header"><i class="bi bi-phone"></i> Evolución Líneas Activas</div><div class="card-body"><div class="chart-container" style="height:250px;"><canvas id="chartEvoLineas"></canvas></div></div></div></div>
+  </div>
+  <% } %>
+
+  <div class="row g-3 hideable-section" data-card-id="ultimos-registros">
+    <div class="col-md-6"><div class="card"><div class="card-header d-flex justify-content-between"><span><i class="bi bi-clock-history"></i> Últimos clientes</span><a href="/clientes" class="btn btn-sm btn-outline-primary">Ver todos</a></div><div class="card-body p-0">
+      <table class="table table-hover mb-0"><thead><tr><th>Nombre</th><th>Teléfono</th><th>Fecha</th></tr></thead><tbody>
+      <% if (ultimosClientes.length === 0) { %><tr><td colspan="3" class="text-center text-muted py-3">Sin clientes</td></tr>
+      <% } else { ultimosClientes.forEach(c => { %>
+        <tr><td><a href="/clientes/<%= c.id %>"><%= c.nombre %> <%= c.apellidos || '' %></a></td><td><%= c.telefono || '-' %></td><td class="small"><%= new Date(c.created_at).toLocaleDateString('es-ES') %></td></tr>
+      <% }); } %></tbody></table>
+    </div></div></div>
+    <div class="col-md-6"><div class="card"><div class="card-header d-flex justify-content-between"><span><i class="bi bi-cart"></i> Últimas órdenes</span><a href="/ordenes" class="btn btn-sm btn-outline-primary">Ver todas</a></div><div class="card-body p-0">
+      <table class="table table-hover mb-0"><thead><tr><th>#</th><th>Cliente</th><th>Estado</th><th>Fecha</th></tr></thead><tbody>
+      <% if (ultimasOrdenes.length === 0) { %><tr><td colspan="4" class="text-center text-muted py-3">Sin órdenes</td></tr>
+      <% } else { ultimasOrdenes.forEach(o => { %>
+        <tr><td><a href="/ordenes/<%= o.id %>">#<%= o.id %></a></td><td><%= o.cliente_nombre %></td>
+        <td><span class="badge bg-<%= o.estado === 'completada' ? 'success' : o.estado === 'pendiente' ? 'warning' : 'secondary' %>"><%= o.estado %></span></td>
+        <td class="small"><%= new Date(o.created_at).toLocaleDateString('es-ES') %></td></tr>
+      <% }); } %></tbody></table>
+    </div></div></div>
+  </div>
+</section>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  <% if (stats) { %>
+  // Productos por familia - bar chart
+  try {
+    var fN = <%= stats.families && stats.families.length > 0 ? JSON.stringify(stats.families.map(x => x.name)) : '["Sin datos"]' %>;
+    var fC = <%= stats.families && stats.families.length > 0 ? JSON.stringify(stats.families.map(x => x.count)) : '[0]' %>;
+    new Chart(document.getElementById('dFamilies'), {
+      type: 'bar',
+      data: { labels: fN, datasets: [{ label: 'Productos', data: fC, backgroundColor: '#6c757d', borderRadius: 4 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false, ticks: { maxRotation: 45 } } } } }
+    });
+  } catch(e) { console.error(e); }
+
+  // Tipo de producto - bar chart (not doughnut)
+  try {
+    var tpLabels = ['Main','Optional','Promotion'];
+    var tpData = [<%= stats.productTypes ? (stats.productTypes.Main || 0) : 0 %>,<%= stats.productTypes ? (stats.productTypes.Optional || 0) : 0 %>,<%= stats.productTypes ? (stats.productTypes.Promotion || 0) : 0 %>];
+    new Chart(document.getElementById('dTypes'), {
+      type: 'bar',
+      data: { labels: tpLabels, datasets: [{ label: 'Productos', data: tpData, backgroundColor: ['#6c757d','#adb5bd','#ced4da'], borderRadius: 4 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } }
+    });
+  } catch(e) { console.error(e); }
+
+  // Evolución de Clientes - bar chart from local DB
+  try {
+    var clLabels = <%= JSON.stringify(localClientes.map(x => x.mes)) %>;
+    var clData = <%= JSON.stringify(localClientes.map(x => x.count)) %>;
+    if (clLabels.length === 0) { clLabels = ['Sin datos']; clData = [0]; }
+    new Chart(document.getElementById('chartEvoClientes'), {
+      type: 'bar',
+      data: { labels: clLabels, datasets: [{ label: 'Clientes nuevos', data: clData, backgroundColor: '#495057', borderRadius: 4 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false, ticks: { maxRotation: 45 } } } } }
+    });
+  } catch(e) { console.error(e); }
+
+  // Evolución Líneas Activas - bar chart from local orders
+  try {
+    var olLabels = <%= JSON.stringify((localOrders || []).map(x => x.mes)) %>;
+    var olData = <%= JSON.stringify((localOrders || []).map(x => x.count)) %>;
+    if (olLabels.length === 0) { olLabels = ['Sin datos']; olData = [0]; }
+    new Chart(document.getElementById('chartEvoLineas'), {
+      type: 'bar',
+      data: { labels: olLabels, datasets: [{ label: 'Órdenes', data: olData, backgroundColor: '#6c757d', borderRadius: 4 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false, ticks: { maxRotation: 45 } } } } }
+    });
+  } catch(e) { console.error(e); }
+  <% } %>
+});
+</script>

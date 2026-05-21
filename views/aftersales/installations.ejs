@@ -1,0 +1,142 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="ri-calendar-schedule-line"></i> Instalaciones</h2>
+    <div>
+      <button class="btn btn-sm btn-outline-secondary" id="toggleStats" title="Mostrar/ocultar estadísticas"><i class="ri-bar-chart-2-line"></i></button>
+    </div>
+  </div>
+  <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-warning"><%= error %></div><% } %>
+
+  <% 
+    const total = installations.length;
+    const instToday = installations.filter(i => { 
+      const d = i.installationDate || i.fecha_instalacion; 
+      return d && new Date(d).toDateString() === new Date().toDateString();
+    }).length;
+    const scheduled = installations.filter(i => (i.status||'').toUpperCase() === 'SCHEDULED').length;
+    const pending = installations.filter(i => (i.status||'').toUpperCase() === 'PENDING_SCHEDULE' || (i.status||'').toUpperCase() === 'PENDING').length;
+  %>
+  <div class="row g-3 mb-3" id="statsRow">
+    <a href="#" class="text-decoration-none col-md-3 col-6 stat-card-item"><div class="stat-card" style="background:#f8f9fa;border-left:3px solid var(--primary);border-radius:10px;padding:16px;cursor:pointer;" data-filter="all"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">📊</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= total %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Total</div></div></div></div></a>
+    <a href="#" class="text-decoration-none col-md-3 col-6 stat-card-item"><div class="stat-card" style="background:#f8f9fa;border-left:3px solid #17a2b8;border-radius:10px;padding:16px;cursor:pointer;" data-filter="hoy"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">🔧</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= instToday %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Instalando hoy</div></div></div></div></a>
+    <a href="#" class="text-decoration-none col-md-3 col-6 stat-card-item"><div class="stat-card" style="background:#f8f9fa;border-left:3px solid #ffc107;border-radius:10px;padding:16px;cursor:pointer;" data-filter="programadas"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">📅</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= scheduled %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Programadas</div></div></div></div></a>
+    <a href="#" class="text-decoration-none col-md-3 col-6 stat-card-item"><div class="stat-card" style="background:#f8f9fa;border-left:3px solid #dc3545;border-radius:10px;padding:16px;cursor:pointer;" data-filter="pendientes"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">⏳</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= pending %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Pendientes cita</div></div></div></div></a>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-12">
+      <div class="card"><div class="card-body">
+        <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Estado de Instalaciones</h6>
+        <canvas id="chartInstalaciones" style="height:221px;"></canvas>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="card hideable-section" data-card-id="instalaciones-tabla">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover">
+          <thead><tr><th>Cliente</th><th>DNI/NIF</th><th>Dirección</th><th>Producto</th><th>Estado</th><th>Fecha Inst.</th><th></th></tr></thead>
+          <tbody>
+            <% if (!installations || installations.length === 0) { %>
+            <tr><td colspan="7" class="text-center text-muted py-4">No hay instalaciones</td></tr>
+            <% } else { installations.forEach(i => { 
+              const st = (i.status || i.estado || '').toUpperCase();
+              const sc = st === 'COMPLETED' ? 'success' : st === 'SCHEDULED' || st === 'PENDING_SCHEDULE' ? 'info' : st === 'ERRORED' ? 'danger' : st === 'CANCELED' ? 'secondary' : 'warning';
+              const isToday = (i.installationDate || i.fecha_instalacion) && new Date(i.installationDate || i.fecha_instalacion).toDateString() === new Date().toDateString();
+              const fv = [];
+              if (isToday) fv.push('hoy');
+              if (st === 'SCHEDULED') fv.push('programadas');
+              if (st === 'PENDING_SCHEDULE' || st === 'PENDING') fv.push('pendientes');
+            %>
+            <tr data-filter-values="<%= fv.join(' ') %>">
+              <td><%= i.customerName || i.cliente_nombre || i.name || '-' %></td>
+              <td><%= i.fiscalId || i.dni || '-' %></td>
+              <td class="small"><%= i.address || i.direccion || '-' %></td>
+              <td><%= i.productName || i.producto || i.product || '-' %></td>
+              <td><span class="badge bg-<%= sc %>"><%= st %></span></td>
+              <td class="small"><%= i.installationDate || i.fecha_instalacion ? new Date(i.installationDate || i.fecha_instalacion).toLocaleDateString('es-ES') : '-' %></td>
+              <td><button class="btn btn-sm btn-outline-primary ver-instalacion" data-json='<%- JSON.stringify(i).replace(/'/g,"&#39;") %>'><i class="ri-eye-line"></i></button></td>
+            </tr>
+            <% }); } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Modal Detalle Instalación -->
+<div class="modal fade" id="modalInstalacion" tabindex="-1">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header"><h5><i class="ri-calendar-schedule-line"></i> Detalle de Instalación</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body" id="instalacionDetalle">
+      <div class="text-center text-muted py-4"><i class="ri-loader-4-line ri-spin" style="font-size:2rem;"></i><br>Cargando...</div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button></div>
+  </div></div>
+</div>
+
+<script>
+document.querySelectorAll('.ver-instalacion').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    var data;
+    try { data = JSON.parse(this.getAttribute('data-json')); } catch(e) { return; }
+    if (!data) return;
+    var html = '<table class="table table-sm table-bordered mb-0"><tbody>';
+    var fields = [
+      ['Cliente', data.customerName || data.cliente_nombre || data.name],
+      ['DNI/NIF', data.fiscalId || data.dni],
+      ['Dirección', data.address || data.direccion],
+      ['Producto', data.productName || data.producto || data.product],
+      ['Estado', data.status || data.estado],
+      ['Fecha Instalación', data.installationDate || data.fecha_instalacion ? new Date(data.installationDate || data.fecha_instalacion).toLocaleDateString('es-ES') : ''],
+      ['Email', data.email],
+      ['Teléfono', data.phone || data.telefono],
+      ['Técnico', data.technician || data.tecnico || data.installer],
+      ['Notas', data.notes || data.notas || data.observations],
+      ['Creado', data.created || data.createdAt ? new Date(data.created || data.createdAt).toLocaleString('es-ES') : ''],
+      ['Actualizado', data.updated || data.updatedAt ? new Date(data.updated || data.updatedAt).toLocaleString('es-ES') : '']
+    ];
+    fields.forEach(function(f) {
+      if (f[1]) html += '<tr><td class="fw-bold" style="width:140px;">' + f[0] + '</td><td>' + f[1] + '</td></tr>';
+    });
+    html += '</tbody></table>';
+    if (data.files && data.files.length > 0) {
+      html += '<h6 class="mt-3"><i class="ri-attachment-line"></i> Archivos</h6><div class="list-group">';
+      data.files.forEach(function(f) {
+        html += '<a href="' + (f.url || '#') + '" target="_blank" class="list-group-item list-group-item-action small"><i class="ri-file-download-line"></i> ' + (f.name || 'Archivo') + '</a>';
+      });
+      html += '</div>';
+    }
+    document.getElementById('instalacionDetalle').innerHTML = html;
+    new bootstrap.Modal(document.getElementById('modalInstalacion')).show();
+  });
+});
+</script>
+
+<script>
+document.querySelectorAll('#statsRow .stat-card').forEach(function(c) {
+  c.addEventListener('click', function() {
+    var filter = this.getAttribute('data-filter');
+    document.querySelectorAll('#statsRow .stat-card').forEach(function(x) { x.style.outline = ''; });
+    if (filter !== 'all') this.style.outline = '2px solid #495057';
+    document.querySelectorAll('table tbody tr').forEach(function(row) {
+      if (filter === 'all') { row.style.display = ''; return; }
+      if (!row.hasAttribute('data-filter-values')) { row.style.display = 'none'; return; }
+      var vals = (row.getAttribute('data-filter-values') || '').split(' ');
+      row.style.display = vals.indexOf(filter) !== -1 ? '' : 'none';
+    });
+  });
+});
+document.getElementById('toggleStats').addEventListener('click', function() {
+  var r = document.getElementById('statsRow');
+  r.style.display = r.style.display === 'none' ? '' : 'none';
+});
+
+var id = <%- JSON.stringify(installations) %>;
+var ci = {};
+id.forEach(function(x) { var k = (x.status || x.estado || 'UNKNOWN').toUpperCase(); ci[k] = (ci[k] || 0) + 1; });
+var li = Object.keys(ci);
+new Chart(document.getElementById('chartInstalaciones'), { type: 'bar', data: { labels: li, datasets: [{ label: 'Instalaciones', data: Object.values(ci), backgroundColor: li.map(function(s) { return s === 'COMPLETED' ? '#198754' : s === 'SCHEDULED' ? '#0d6efd' : (s === 'PENDING' || s === 'PENDING_SCHEDULE') ? '#ffc107' : (s === 'CANCELED' || s === 'ERRORED' || s === 'ERROR') ? '#dc3545' : '#6c757d'; }), borderRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } } });
+</script>

@@ -1,0 +1,105 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="ri-arrow-left-right-line"></i> Portabilidades</h2>
+    <div>
+      <button class="btn btn-sm btn-outline-secondary me-1" id="toggleStats" title="Mostrar/ocultar estadísticas"><i class="ri-bar-chart-2-line"></i></button>
+      <a href="/altas" class="btn btn-primary btn-sm"><i class="ri-add-line"></i> Nueva Portabilidad</a>
+    </div>
+  </div>
+  <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-warning"><%= error %></div><% } %>
+
+  <div class="row g-3 mb-3" id="statsRow">
+    <div class="col-md-3 col-6"><div class="stat-card" style="background:#f8f9fa;border-left:3px solid var(--primary);border-radius:10px;padding:16px;cursor:pointer;" data-filter="all"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">📊</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= portabilities.length %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Total</div></div></div></div></div>
+    <div class="col-md-3 col-6"><div class="stat-card" style="background:#f8f9fa;border-left:3px solid #28a745;border-radius:10px;padding:16px;cursor:pointer;" data-filter="entrantes"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">📥</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= portabilities.filter(p => (p.type||'').toUpperCase() === 'IN').length %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Entrantes</div></div></div></div></div>
+    <div class="col-md-3 col-6"><div class="stat-card" style="background:#f8f9fa;border-left:3px solid #ffc107;border-radius:10px;padding:16px;cursor:pointer;" data-filter="salientes"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">📤</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= portabilities.filter(p => (p.type||'').toUpperCase() === 'OUT').length %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Salientes</div></div></div></div></div>
+    <div class="col-md-3 col-6"><div class="stat-card" style="background:#f8f9fa;border-left:3px solid #dc3545;border-radius:10px;padding:16px;cursor:pointer;" data-filter="error"><div style="display:flex;align-items:center;gap:12px;"><span style="font-size:2rem;">❌</span><div><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= portabilities.filter(p => (p.status||'').toUpperCase() === 'ERRORED').length %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Error</div></div></div></div></div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-6">
+      <div class="card"><div class="card-body">
+        <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Portabilidades por Tipo</h6>
+        <canvas id="chartTipo" style="height:221px;"></canvas>
+      </div></div>
+    </div>
+    <div class="col-md-6">
+      <div class="card"><div class="card-body">
+        <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Estado de Portabilidades</h6>
+        <canvas id="chartEstadoPort" style="height:221px;"></canvas>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="card hideable-section" data-card-id="portabilidades-tabla">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover">
+          <thead><tr><th>Tipo</th><th>Cliente</th><th>Línea</th><th>Operador Donante</th><th>Estado</th><th>Fecha Portabilidad</th><th>ICC</th></tr></thead>
+          <tbody>
+            <% if (!portabilities || portabilities.length === 0) { %>
+            <tr><td colspan="7" class="text-center text-muted py-4">No hay portabilidades</td></tr>
+            <% } else { portabilities.forEach(p => { 
+              const type = (p.type || '').toUpperCase();
+              const status = (p.status || p.estado || '').toUpperCase();
+              const typeLabel = type === 'IN' ? 'Entrante' : type === 'OUT' ? 'Saliente' : type;
+              const typeColor = type === 'IN' ? 'success' : 'danger';
+              const statusColor = status === 'COMPLETED' || status === 'COMPLETADA' ? 'success' : 
+                                  status === 'INITIATED' || status === 'INICIADA' || status === 'PENDING' ? 'info' :
+                                  status === 'ERRORED' || status === 'ERROR' ? 'danger' :
+                                  status === 'CANCELED' || status === 'CANCELADA' ? 'secondary' : 'warning';
+              const fv = [];
+              if (type === 'IN') fv.push('entrantes');
+              if (type === 'OUT') fv.push('salientes');
+              if (status === 'ERRORED') fv.push('error');
+            %>
+            <tr data-filter-values="<%= fv.join(' ') %>">
+              <td><span class="badge bg-<%= typeColor %>"><%= typeLabel %></span></td>
+              <td><%= p.customerName || p.cliente_nombre || p.name || p.nombre || '-' %></td>
+              <td><%= p.lineNumber || p.linea || p.phone || '-' %></td>
+              <td><%= p.donorOperator || p.operador_donante || '-' %></td>
+              <td><span class="badge bg-<%= statusColor %>"><%= status %></span></td>
+              <td class="small"><%= p.portabilityDate || p.fecha ? new Date(p.portabilityDate || p.fecha).toLocaleDateString('es-ES') : '-' %></td>
+              <td class="small"><%= p.icc || '-' %></td>
+            </tr>
+            <% }); } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+document.querySelectorAll('#statsRow .stat-card').forEach(function(c) {
+  c.addEventListener('click', function() {
+    var filter = this.getAttribute('data-filter');
+    document.querySelectorAll('#statsRow .stat-card').forEach(function(x) { x.style.outline = ''; });
+    if (filter !== 'all') this.style.outline = '2px solid #495057';
+    document.querySelectorAll('table tbody tr').forEach(function(row) {
+      if (filter === 'all') { row.style.display = ''; return; }
+      if (!row.hasAttribute('data-filter-values')) { row.style.display = 'none'; return; }
+      var vals = (row.getAttribute('data-filter-values') || '').split(' ');
+      row.style.display = vals.indexOf(filter) !== -1 ? '' : 'none';
+    });
+  });
+});
+document.getElementById('toggleStats').addEventListener('click', function() {
+  var r = document.getElementById('statsRow');
+  r.style.display = r.style.display === 'none' ? '' : 'none';
+});
+var entrantes = portabilities.filter(function(p){ return p.type === 'IN' || p.type === 'in'; }).length;
+var salientes = portabilities.filter(function(p){ return p.type === 'OUT' || p.type === 'out' || !p.type || p.type === 'SALIENTE'; }).length;
+var ctx1 = document.getElementById('chartTipo').getContext('2d');
+new Chart(ctx1, {
+  type: 'bar',
+  data: { labels: ['Entrantes','Salientes'], datasets: [{ label: 'Portabilidades', data: [entrantes, salientes], backgroundColor: ['#198754','#dc3545'], borderRadius: 6 }] },
+  options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } }
+});
+var estCount = {}; portabilities.forEach(function(p){ var s = (p.status||p.estado||'desconocido').toUpperCase(); estCount[s] = (estCount[s]||0) + 1; });
+var ctx2 = document.getElementById('chartEstadoPort').getContext('2d');
+new Chart(ctx2, {
+  type: 'bar',
+  data: { labels: Object.keys(estCount), datasets: [{ label: 'Portabilidades', data: Object.values(estCount), backgroundColor: Object.keys(estCount).map(function(s){ return s==='COMPLETED'?'#198754':s==='PENDING'?'#ffc107':s==='ERRORED'?'#dc3545':s==='CANCELED'?'#6c757d':'#0d6efd'; }), borderRadius: 6 }] },
+  options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } }
+});
+</script>
