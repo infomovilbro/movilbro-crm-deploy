@@ -282,11 +282,20 @@ app.get('/health', (req, res) => {
   });
 });
 app.get('/api/health', (req, res) => {
+  const smtpConfig = {
+    host: !!process.env.SMTP_HOST,
+    port: process.env.SMTP_PORT,
+    user: !!process.env.SMTP_USER,
+    pass: !!process.env.SMTP_PASS && process.env.SMTP_PASS !== 'pon_tu_app_password_aqui',
+    passLen: process.env.SMTP_PASS ? process.env.SMTP_PASS.length : 0,
+    passPlaceholder: process.env.SMTP_PASS === 'pon_tu_app_password_aqui'
+  };
   res.json({
     status: 'ok',
     uptime: process.uptime(),
     timestamp: new Date().toISOString(),
-    version: '1.0.0'
+    version: '1.0.0',
+    smtp: smtpConfig
   });
 });
 
