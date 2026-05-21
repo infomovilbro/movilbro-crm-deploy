@@ -299,6 +299,29 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// ---- DIAG - Test SMTP ----
+app.get('/api/diag/smtp', async (req, res) => {
+  const nodemailer = require('nodemailer');
+  const canSend = !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS && process.env.SMTP_PASS !== 'pon_tu_app_password_aqui');
+  const result = { canSend, error: null, verified: false };
+  if (canSend) {
+    try {
+      const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: parseInt(process.env.SMTP_PORT || '587'),
+        secure: process.env.SMTP_SECURE === 'true',
+        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+        connectionTimeout: 10000, greetingTimeout: 10000, socketTimeout: 15000
+      });
+      await transporter.verify();
+      result.verified = true;
+    } catch (e) {
+      result.error = e.message;
+    }
+  }
+  res.json(result);
+});
+
 // ---- 404 ----
 app.use((req, res) => {
   res.status(404).render('404', { title: 'Página no encontrada' });
