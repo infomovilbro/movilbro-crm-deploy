@@ -303,20 +303,25 @@ app.get('/api/health', (req, res) => {
 app.get('/api/diag/smtp', async (req, res) => {
   const nodemailer = require('nodemailer');
   const canSend = !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS && process.env.SMTP_PASS !== 'pon_tu_app_password_aqui');
-  const result = { canSend, error: null, verified: false };
+  const result = { canSend, tests: [] };
   if (canSend) {
-    try {
-      const transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: parseInt(process.env.SMTP_PORT || '587'),
-        secure: process.env.SMTP_SECURE === 'true',
-        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-        connectionTimeout: 10000, greetingTimeout: 10000, socketTimeout: 15000
-      });
-      await transporter.verify();
-      result.verified = true;
-    } catch (e) {
-      result.error = e.message;
+    const configs = [
+      { host: 'smtp.gmail.com', port: 465, secure: true, name: '465 SSL' },
+      { host: 'smtp.gmail.com', port: 587, secure: false, name: '587 STARTTLS' },
+      { host: 'smtp.gmail.com', port: 25, secure: false, name: '25 plain' },
+    ];
+    for (const cfg of configs) {
+      try {
+        const transporter = nodemailer.createTransport({
+          host: cfg.host, port: cfg.port, secure: cfg.secure,
+          auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+          connectionTimeout: 8000, greetingTimeout: 8000, socketTimeout: 10000
+        });
+        await transporter.verify();
+        result.tests.push({ ...cfg, ok: true });
+      } catch (e) {
+        result.tests.push({ ...cfg, ok: false, error: e.message });
+      }
     }
   }
   res.json(result);
