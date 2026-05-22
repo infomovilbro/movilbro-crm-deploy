@@ -1,8 +1,33 @@
 @echo off
 cd /d "%~dp0"
-echo Iniciando CRM Movilbro...
-echo Abre http://localhost:3000 en tu navegador
-echo Usuario: admin - Password: admin123
+title CRM Movilbro - Servidor Local
+echo ============================================
+echo   CRM Movilbro - Inicio Rapido
+echo ============================================
 echo.
+echo  Sitio:    http://localhost:3000
+echo  Usuario:  admin
+echo  Password: admin
+echo.
+echo  IMPORTANTE: No cierres esta ventana mientras uses el CRM
+echo.
+echo ============================================
+echo Iniciando servidor...
+echo.
+
+where node >nul 2>nul
+if %ERRORLEVEL% NEQ 0 (
+    echo ERROR: No se encuentra Node.js.
+    echo Instalalo desde https://nodejs.org
+    pause
+    exit /b 1
+)
+
 node server.js
-pause
+if %ERRORLEVEL% NEQ 0 (
+    echo.
+    echo ERROR: El servidor fallo al iniciar.
+    echo Prueba ejecutar: npm install
+    pause
+    exit /b 1
+)
