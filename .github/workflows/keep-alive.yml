@@ -1,13 +1,13 @@
-name: Keep CRM alive
+name: Keep Alive
+
 on:
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '*/14 * * * *'
   workflow_dispatch:
+
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping Render CRM
-        run: |
-          echo "Health:" && curl -sS -o /dev/null -w "%{http_code}\n" https://movilbro-crm.onrender.com/health || echo "Ping failed"
-          echo "Login:" && curl -sS -o /dev/null -w "%{http_code}\n" https://movilbro-crm.onrender.com/auth/login || echo "Ping failed"
+      - name: Ping Render server
+        run: curl -sS --max-time 60 "https://movilbro-crm.onrender.com/health" && echo " OK" || echo " FAIL"
