@@ -8,7 +8,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const cors = require('cors');
 const hpp = require('hpp');
-const https = require('https');
+
 const http = require('http');
 require('dotenv').config();
 process.env.TZ = 'Europe/Madrid';
@@ -351,21 +351,25 @@ const server = app.listen(PORT, () => {
 });
 
 // ---- AUTO KEEP-AWAKE - Evita que Render duerma el servidor ----
-const SELF_URL = isProd ? 'https://movilbro-crm.onrender.com/health' : `http://localhost:${PORT}/health`;
-const httpClient = isProd ? https : http;
+// Usamos localhost:PORT siempre (no la URL externa) para evitar problemas de SSL/ruteo
+// El servidor se hace peticiones a si mismo, no necesita salir a internet
+const SELF_PING_URL = `http://localhost:${PORT}/health`;
 
 function selfPing() {
-  httpClient.get(SELF_URL, (res) => {
-    console.log(`[KeepAwake] ${SELF_URL} -> ${res.statusCode}`);
+  http.get(SELF_PING_URL, (res) => {
+    res.resume(); // consumir la respuesta para liberar memoria
+    if (res.statusCode !== 200) {
+      console.log(`[KeepAwake] Local ping -> ${res.statusCode}`);
+    }
   }).on('error', (err) => {
-    console.log(`[KeepAwake] Error: ${err.message}`);
+    console.log(`[KeepAwake] Error local: ${err.message}`);
   });
 }
 
-// Primer ping a los 10s de arrancar, luego cada 4 minutos
+// Primer ping a los 10s de arrancar, luego cada 3 minutos
 setTimeout(selfPing, 10000);
-setInterval(selfPing, 4 * 60 * 1000);
-console.log(`[KeepAwake] Auto-ping cada 4 min a ${SELF_URL}`);
+setInterval(selfPing, 3 * 60 * 1000);
+console.log(`[KeepAwake] Auto-ping http://localhost:${PORT}/health cada 3 min`);
 
 // ---- GRACEFUL SHUTDOWN - Cerrar conexiones limpiamente ----
 function shutdown(signal) {
