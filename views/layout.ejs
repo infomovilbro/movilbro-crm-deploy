@@ -8,16 +8,36 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/nprogress@0.2.0/nprogress.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" rel="stylesheet">
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link href="/css/style.css" rel="stylesheet">
   <link rel="icon" type="image/jpeg" href="/img/logo.jpg">
   <style>
     :root {
       --sidebar-bg: <%= ui.sidebarBg %>;
+      --sidebar-hover: <%= ui.sidebarHover || '#f5f5f5' %>;
       --sidebar-active: <%= ui.sidebarActive %>;
       --primary: <%= ui.primaryColor %>;
       --primary-gradient: linear-gradient(-72.47deg, <%= ui.primaryColor %> 22.16%, <%= ui.primaryColor %>b3 76.47%);
       --primary-light: rgba(<%= parseInt(ui.primaryColor.slice(1,3),16) %>, <%= parseInt(ui.primaryColor.slice(3,5),16) %>, <%= parseInt(ui.primaryColor.slice(5,7),16) %>, 0.08);
+      --topbar-bg: <%= ui.topbarBg || '#ffffff' %>;
+      --topbar-border: <%= ui.topbarBorder || '#e8e8e8' %>;
+      --bg-body: <%= ui.bgBody || '#f4f5fa' %>;
+      --card-bg: <%= ui.cardBg || '#ffffff' %>;
+      --text-primary: <%= ui.textPrimary || '#222222' %>;
+      --text-secondary: <%= ui.textSecondary || '#6c757d' %>;
+      --border-color: <%= ui.borderColor || '#e8e8e8' %>;
+      --table-hover-bg: <%= ui.tableHoverBg || '#f8f9ff' %>;
+      --table-stripe: <%= ui.tableStripe || '#fafafa' %>;
+      --input-focus-shadow: <%= ui.inputFocusShadow || '0 0 0 2px rgba(0, 80, 161, 0.15)' %>;
+      --shadow-sm: <%= ui.shadowSm || '0 1px 3px rgba(0, 0, 0, 0.06)' %>;
+      --shadow-md: <%= ui.shadowMd || '0 3px 8px rgba(0, 0, 0, 0.08)' %>;
+      --card-radius: <%= ui.cardRadius || '10px' %>;
+      --font: <%= ui.font || "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" %>;
+      --success: <%= ui.success || '#28a745' %>;
+      --danger: <%= ui.danger || '#dc3545' %>;
+      --warning: <%= ui.warning || '#ffc107' %>;
+      --info: <%= ui.info || '#17a2b8' %>;
     }
     /* AI Chat Panel */
     .ai-chat-panel {
@@ -63,6 +83,44 @@
     .nav-group[data-group="redes"] > a.nav-group-toggle.active { border-left-color: #fff; }
     .quick-access-btn { transition: all 0.2s; }
     .quick-access-btn:hover { transform: scale(1.05); }
+
+    .ui-edit-mode [data-ui-draggable] { outline: 2px dashed rgba(13,110,253,0.35); outline-offset: 2px; }
+    .ui-edit-mode [data-ui-selected] { outline: 2px solid #ff7a00 !important; }
+    .ui-editor-fab {
+      position: fixed;
+      right: 16px;
+      bottom: 90px;
+      z-index: 11000;
+      border-radius: 999px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+    }
+    .ui-editor-panel {
+      position: fixed;
+      right: 16px;
+      bottom: 150px;
+      width: 340px;
+      max-height: 70vh;
+      overflow: auto;
+      z-index: 11000;
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+      border: 1px solid #e8e8e8;
+      display: none;
+    }
+    .ui-editor-panel.open { display: block; }
+    .ui-editor-panel .head { padding: 10px 12px; border-bottom: 1px solid #eee; font-weight: 600; }
+    .ui-editor-panel .body { padding: 10px 12px; }
+    .ui-theme-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .ui-theme-btn { border: 1px solid #ddd; border-radius: 8px; padding: 8px; cursor: pointer; background: #fff; }
+    .ui-theme-btn:hover { border-color: #999; }
+
+    body.sidebar-right #wrapper { grid-template-columns: 1fr var(--sidebar-width); }
+    body.sidebar-right .sidebar { order: 2; }
+    body.sidebar-right #page-content { order: 1; }
+    body.sidebar-bottom #wrapper { display: flex; flex-direction: column-reverse; }
+    body.sidebar-bottom .sidebar { width: 100%; height: auto; position: static; border-right: 0; border-top: 1px solid #ddd; }
+    body.sidebar-bottom .sidebar-scroll { max-height: 280px; }
   </style>
 </head>
 <body>
@@ -88,29 +146,29 @@
       <div class="sidebar-scroll">
         <ul class="sidebar-nav">
           <!-- PANEL TIENDA (grupo) - PRIMERO -->
-          <li class="nav-item nav-group <%= title === 'Panel Tienda' || title === 'Agenda Tienda' || title === 'Clientes Prepago' || title === 'Caja y Operaciones' || title === 'Presupuestos' || title === 'Inventario' || title === 'Historial del Día' || title === 'Gestión de Agentes' || title === 'Cierres' || title === 'Perfil Tienda' ? 'open' : '' %>" data-group="tienda">
-            <a class="nav-group-toggle <%= title === 'Panel Tienda' || title === 'Agenda Tienda' || title === 'Clientes Prepago' || title === 'Caja y Operaciones' || title === 'Presupuestos' || title === 'Inventario' || title === 'Historial del Día' || title === 'Gestión de Agentes' || title === 'Cierres' || title === 'Perfil Tienda' ? 'active' : '' %>" data-toggle="nav-group" href="#"><span class="emoji-icon">🏪</span><span class="nav-text">Panel Tienda</span><i class="ri-arrow-down-s-line nav-arrow"></i></a>
+          <li class="nav-item nav-group <%= title === 'Panel Tienda' || title === 'Agenda Tienda' || title === 'Clientes Prepago' || title === 'Caja y Operaciones' || title === 'Presupuestos' || title === 'Inventario' || title === 'Historial del Día' || title === 'Gestión de Agentes' || title === 'Cierres' || title === 'Perfil Tienda' ? 'open' : '' %>" data-group="tienda" data-group-key="tienda" data-ui-draggable="group">
+            <a class="nav-group-toggle <%= title === 'Panel Tienda' || title === 'Agenda Tienda' || title === 'Clientes Prepago' || title === 'Caja y Operaciones' || title === 'Presupuestos' || title === 'Inventario' || title === 'Historial del Día' || title === 'Gestión de Agentes' || title === 'Cierres' || title === 'Perfil Tienda' ? 'active' : '' %>" data-toggle="nav-group" href="#"><span class="emoji-icon" data-group-icon>🏪</span><span class="nav-text" data-group-label>Panel Tienda</span><i class="ri-arrow-down-s-line nav-arrow"></i></a>
             <ul class="nav-submenu">
-              <li><a class="<%= title === 'Panel Tienda' ? 'active' : '' %>" href="/tienda"><span class="emoji-icon">📊</span>Dashboard</a></li>
-              <li><a class="<%= title === 'Agenda Tienda' ? 'active' : '' %>" href="/tienda/agenda"><span class="emoji-icon">📅</span>Agenda</a></li>
-              <li><a class="<%= title === 'Clientes Prepago' ? 'active' : '' %>" href="/tienda/prepago"><span class="emoji-icon">📱</span>Clientes Prepago</a></li>
-              <li><a class="<%= title === 'Caja y Operaciones' ? 'active' : '' %>" href="/tienda/caja"><span class="emoji-icon">💰</span>Caja / Operaciones</a></li>
-              <li><a class="<%= title === 'Presupuestos' ? 'active' : '' %>" href="/tienda/presupuestos"><span class="emoji-icon">📋</span>Presupuestos</a></li>
-              <li><a class="<%= title === 'Inventario' ? 'active' : '' %>" href="/tienda/inventario"><span class="emoji-icon">📦</span>Inventario</a></li>
-              <li><a class="<%= title === 'Historial del Día' ? 'active' : '' %>" href="/tienda/historial-dia"><span class="emoji-icon">⏰</span>Historial Día</a></li>
-              <li><a class="<%= title === 'Gestión de Agentes' ? 'active' : '' %>" href="/tienda/agentes"><span class="emoji-icon">👥</span>Agentes</a></li>
-              <li><a class="<%= title === 'Cierres' ? 'active' : '' %>" href="/tienda/cierres"><span class="emoji-icon">🔒</span>Cierres</a></li>
-              <li><a class="<%= title === 'Perfil Tienda' ? 'active' : '' %>" href="/tienda/perfil"><span class="emoji-icon">👤</span>Perfil</a></li>
+              <li data-item-key="tienda_dashboard" data-ui-draggable="item"><a class="<%= title === 'Panel Tienda' ? 'active' : '' %>" href="/tienda"><span class="emoji-icon">📊</span>Dashboard</a></li>
+              <li data-item-key="tienda_agenda"><a class="<%= title === 'Agenda Tienda' ? 'active' : '' %>" href="/tienda/agenda"><span class="emoji-icon">📅</span>Agenda</a></li>
+              <li data-item-key="tienda_prepago"><a class="<%= title === 'Clientes Prepago' ? 'active' : '' %>" href="/tienda/prepago"><span class="emoji-icon">📱</span>Clientes Prepago</a></li>
+              <li data-item-key="tienda_caja"><a class="<%= title === 'Caja y Operaciones' ? 'active' : '' %>" href="/tienda/caja"><span class="emoji-icon">💰</span>Caja / Operaciones</a></li>
+              <li data-item-key="tienda_presupuestos"><a class="<%= title === 'Presupuestos' ? 'active' : '' %>" href="/tienda/presupuestos"><span class="emoji-icon">📋</span>Presupuestos</a></li>
+              <li data-item-key="tienda_inventario"><a class="<%= title === 'Inventario' ? 'active' : '' %>" href="/tienda/inventario"><span class="emoji-icon">📦</span>Inventario</a></li>
+              <li data-item-key="tienda_historial"><a class="<%= title === 'Historial del Día' ? 'active' : '' %>" href="/tienda/historial-dia"><span class="emoji-icon">⏰</span>Historial Día</a></li>
+              <li data-item-key="tienda_agentes"><a class="<%= title === 'Gestión de Agentes' ? 'active' : '' %>" href="/tienda/agentes"><span class="emoji-icon">👥</span>Agentes</a></li>
+              <li data-item-key="tienda_cierres"><a class="<%= title === 'Cierres' ? 'active' : '' %>" href="/tienda/cierres"><span class="emoji-icon">🔒</span>Cierres</a></li>
+              <li data-item-key="tienda_perfil"><a class="<%= title === 'Perfil Tienda' ? 'active' : '' %>" href="/tienda/perfil"><span class="emoji-icon">👤</span>Perfil</a></li>
             </ul>
           </li>
           <!-- PANEL CLIENTES (grupo) -->
-          <li class="nav-item nav-group <%= ['KPIs','Cobertura','Altas','Clientes','Suscripciones','Productos','Encuestas','Leads','Usuarios','Facturas','Pagos','Remesas','Recursos','Tickets','Configurac'].some(t => title === t || title.includes(t)) ? 'open' : '' %>" data-group="clientes">
-            <a class="nav-group-toggle <%= ['KPIs','Cobertura','Altas','Clientes','Suscripciones','Productos','Encuestas','Leads','Usuarios','Facturas','Pagos','Remesas','Recursos','Tickets','Configurac'].some(t => title === t || title.includes(t)) ? 'active' : '' %>" data-toggle="nav-group" href="#"><span class="emoji-icon">🖥️</span><span class="nav-text">Panel Clientes</span><i class="ri-arrow-down-s-line nav-arrow"></i></a>
+          <li class="nav-item nav-group <%= ['KPIs','Cobertura','Altas','Clientes','Suscripciones','Productos','Encuestas','Leads','Usuarios','Facturas','Pagos','Remesas','Recursos','Tickets','Configurac'].some(t => title === t || title.includes(t)) ? 'open' : '' %>" data-group="clientes" data-group-key="clientes" data-ui-draggable="group">
+            <a class="nav-group-toggle <%= ['KPIs','Cobertura','Altas','Clientes','Suscripciones','Productos','Encuestas','Leads','Usuarios','Facturas','Pagos','Remesas','Recursos','Tickets','Configurac'].some(t => title === t || title.includes(t)) ? 'active' : '' %>" data-toggle="nav-group" href="#"><span class="emoji-icon" data-group-icon>🖥️</span><span class="nav-text" data-group-label>Panel Clientes</span><i class="ri-arrow-down-s-line nav-arrow"></i></a>
             <ul class="nav-submenu">
-              <li><a class="<%= title === 'KPIs' ? 'active' : '' %>" href="/kpis"><span class="emoji-icon">📈</span>KPIs</a></li>
-              <li><a class="<%= title === 'Cobertura' ? 'active' : '' %>" href="/coverage"><span class="emoji-icon">📡</span>Cobertura</a></li>
+              <li data-item-key="clientes_kpis" data-ui-draggable="item"><a class="<%= title === 'KPIs' ? 'active' : '' %>" href="/kpis"><span class="emoji-icon">📈</span>KPIs</a></li>
+              <li data-item-key="clientes_coverage"><a class="<%= title === 'Cobertura' ? 'active' : '' %>" href="/coverage"><span class="emoji-icon">📡</span>Cobertura</a></li>
               <li><a class="<%= title === 'Altas' ? 'active' : '' %>" href="/altas"><span class="emoji-icon">🆕</span><%= ui.moduleName.altas %></a></li>
-              <li><a class="<%= title.includes('Cliente') ? 'active' : '' %>" href="/customers"><span class="emoji-icon">👤</span><%= ui.moduleName.clients %></a></li>
+              <li data-item-key="clientes_customers"><a class="<%= title.includes('Cliente') ? 'active' : '' %>" href="/customers"><span class="emoji-icon">👤</span><%= ui.moduleName.clients %></a></li>
               <li><a class="<%= title === 'Suscripciones' ? 'active' : '' %>" href="/subscriptions"><span class="emoji-icon">📑</span>Suscripciones</a></li>
               <li><a class="<%= title.includes('Producto') ? 'active' : '' %>" href="/products"><span class="emoji-icon">🏷️</span><%= ui.moduleName.products %></a></li>
               <li><a class="<%= title === 'Encuestas' ? 'active' : '' %>" href="/surveys"><span class="emoji-icon">📝</span>Encuestas</a></li>
@@ -120,35 +178,35 @@
               <li><a class="<%= title === 'Pagos' ? 'active' : '' %>" href="/payments"><span class="emoji-icon">💳</span>Pagos</a></li>
               <li><a class="<%= title === 'Remesas' ? 'active' : '' %>" href="/remittances"><span class="emoji-icon">🏦</span>Remesas</a></li>
               <li><a class="<%= title === 'Recursos' ? 'active' : '' %>" href="/resources"><span class="emoji-icon">📁</span>Recursos</a></li>
-              <li><a class="<%= title.includes('Ticket') ? 'active' : '' %>" href="/tickets"><span class="emoji-icon">🎫</span><%= ui.moduleName.tickets %></a></li>
-              <li><a class="<%= title.includes('Configurac') ? 'active' : '' %>" href="/settings"><span class="emoji-icon">⚙️</span><%= ui.moduleName.settings %></a></li>
+              <li data-item-key="clientes_tickets"><a class="<%= title.includes('Ticket') ? 'active' : '' %>" href="/tickets"><span class="emoji-icon">🎫</span><%= ui.moduleName.tickets %></a></li>
+              <li data-item-key="clientes_settings"><a class="<%= title.includes('Configurac') ? 'active' : '' %>" href="/settings"><span class="emoji-icon">⚙️</span><%= ui.moduleName.settings %></a></li>
             </ul>
           </li>
 
           <!-- POSTVENTA (grupo) -->
-          <li class="nav-item nav-group <%= ['Portabilidades','Instalaciones','Órdenes','Envíos','Penalizaciones','Procesos','Masivos'].some(t => title === t || title.includes(t)) ? 'open' : '' %>" data-group="postventa">
-            <a class="nav-group-toggle <%= ['Portabilidades','Instalaciones','Órdenes','Envíos','Penalizaciones','Procesos','Masivos'].some(t => title === t || title.includes(t)) ? 'active' : '' %>" data-toggle="nav-group" href="#"><span class="emoji-icon">🛠️</span><span class="nav-text">PostVenta</span><i class="ri-arrow-down-s-line nav-arrow"></i></a>
+          <li class="nav-item nav-group <%= ['Portabilidades','Instalaciones','Órdenes','Envíos','Penalizaciones','Procesos','Masivos'].some(t => title === t || title.includes(t)) ? 'open' : '' %>" data-group="postventa" data-group-key="postventa" data-ui-draggable="group">
+            <a class="nav-group-toggle <%= ['Portabilidades','Instalaciones','Órdenes','Envíos','Penalizaciones','Procesos','Masivos'].some(t => title === t || title.includes(t)) ? 'active' : '' %>" data-toggle="nav-group" href="#"><span class="emoji-icon" data-group-icon>🛠️</span><span class="nav-text" data-group-label>PostVenta</span><i class="ri-arrow-down-s-line nav-arrow"></i></a>
             <ul class="nav-submenu">
-              <li><a class="<%= title === 'Portabilidades' ? 'active' : '' %>" href="/aftersales/portabilities"><span class="emoji-icon">🔄</span>Portabilidades</a></li>
+              <li data-item-key="postventa_portabilidades" data-ui-draggable="item"><a class="<%= title === 'Portabilidades' ? 'active' : '' %>" href="/aftersales/portabilities"><span class="emoji-icon">🔄</span>Portabilidades</a></li>
               <li><a class="<%= title === 'Instalaciones' ? 'active' : '' %>" href="/aftersales/installations"><span class="emoji-icon">🔧</span>Instalaciones</a></li>
               <li><a class="<%= title === 'Órdenes' ? 'active' : '' %>" href="/aftersales/orders"><span class="emoji-icon">📄</span>Órdenes</a></li>
               <li><a class="<%= title === 'Envíos' ? 'active' : '' %>" href="/aftersales/shipments"><span class="emoji-icon">🚚</span>Envíos</a></li>
               <li><a class="<%= title === 'Penalizaciones' ? 'active' : '' %>" href="/aftersales/router-penalties"><span class="emoji-icon">⚠️</span>Penalizaciones Router</a></li>
               <li><a class="<%= title === 'Procesos' ? 'active' : '' %>" href="/aftersales/processes"><span class="emoji-icon">✅</span>Procesos Indiv.</a></li>
-              <li><a class="<%= title === 'Masivos' ? 'active' : '' %>" href="/massive-processes"><span class="emoji-icon">🗄️</span>Procesos Masivos</a></li>
+              <li data-item-key="postventa_masivos"><a class="<%= title === 'Masivos' ? 'active' : '' %>" href="/massive-processes"><span class="emoji-icon">🗄️</span>Procesos Masivos</a></li>
             </ul>
           </li>
 
         <ul class="sidebar-nav">
           <!-- REDES Y HERRAMIENTAS (grupo) -->
-          <li class="nav-item nav-group <%= ['Canales','Correo','Stripe','WhatsApp','IA'].includes(title) ? 'open' : '' %>" data-group="redes">
-            <a class="nav-group-toggle <%= ['Canales','Correo','Stripe','WhatsApp','IA'].includes(title) ? 'active' : '' %>" data-toggle="nav-group" href="#"><span class="emoji-icon">🌐</span><span class="nav-text">Redes y Herramientas</span><i class="ri-arrow-down-s-line nav-arrow"></i></a>
+          <li class="nav-item nav-group <%= ['Canales','Correo','Stripe','WhatsApp','IA'].includes(title) ? 'open' : '' %>" data-group="redes" data-group-key="redes" data-ui-draggable="group">
+            <a class="nav-group-toggle <%= ['Canales','Correo','Stripe','WhatsApp','IA'].includes(title) ? 'active' : '' %>" data-toggle="nav-group" href="#"><span class="emoji-icon" data-group-icon>🌐</span><span class="nav-text" data-group-label>Redes y Herramientas</span><i class="ri-arrow-down-s-line nav-arrow"></i></a>
             <ul class="nav-submenu">
-              <li><a class="<%= title === 'Canales' ? 'active' : '' %>" href="/channel"><span class="emoji-icon">🔗</span>Canales</a></li>
+              <li data-item-key="redes_canales" data-ui-draggable="item"><a class="<%= title === 'Canales' ? 'active' : '' %>" href="/channel"><span class="emoji-icon">🔗</span>Canales</a></li>
               <li><a class="<%= title.includes('Correo') ? 'active' : '' %>" href="/email"><span class="emoji-icon">✉️</span><%= ui.moduleName.email %></a></li>
               <li><a class="<%= title.includes('Stripe') ? 'active' : '' %>" href="/stripe"><span class="emoji-icon">💳</span><%= ui.moduleName.stripe %></a></li>
               <li><a class="<%= title.includes('WhatsApp') ? 'active' : '' %>" href="/whatsapp"><span class="emoji-icon">💬</span><%= ui.moduleName.whatsapp %></a></li>
-              <li><a class="<%= title.includes('IA') ? 'active' : '' %>" href="#" id="sidebarAiToggle"><span class="emoji-icon">🤖</span>IA</a></li>
+              <li data-item-key="redes_ia"><a class="<%= title.includes('IA') ? 'active' : '' %>" href="#" id="sidebarAiToggle"><span class="emoji-icon">🤖</span>IA</a></li>
             </ul>
           </li>
         </ul>
@@ -214,6 +272,7 @@
             <span class="d-none d-sm-inline">Cerrar día</span>
           </button>
           <!-- Quick Access -->
+          <div id="customTopButtons" class="d-flex align-items-center gap-2"></div>
           <div class="dropdown">
             <button class="btn btn-sm btn-outline-info position-relative d-flex align-items-center gap-1" data-bs-toggle="dropdown" title="Accesos rápidos" style="border-radius:20px;padding:4px 12px;">
               <i class="ri-star-line" id="qaStarIcon"></i>
@@ -250,6 +309,97 @@
   </div>
 
   <script>
+    window.__UI_NAV_CONFIG = <%- JSON.stringify(ui.navConfig || null) %>;
+    window.__UI_CUSTOM_BUTTONS = <%- JSON.stringify(ui.customButtons || []) %>;
+    window.__UI_LIVE_THEME = <%- JSON.stringify(ui.liveTheme || {}) %>;
+
+    (function applyUiEditorConfig() {
+      // Apply saved theme on page load
+      const savedTheme = window.__UI_LIVE_THEME;
+      if (savedTheme && savedTheme.sidebarBg) {
+        const root = document.documentElement;
+        const themeVars = {
+          '--sidebar-bg': savedTheme.sidebarBg,
+          '--sidebar-hover': savedTheme.sidebarHover,
+          '--sidebar-active': savedTheme.sidebarActive,
+          '--primary': savedTheme.primary,
+          '--primary-light': savedTheme.primaryLight,
+          '--primary-gradient': savedTheme.primaryGradient,
+          '--topbar-bg': savedTheme.topbarBg,
+          '--topbar-border': savedTheme.topbarBorder,
+          '--bg-body': savedTheme.bgBody,
+          '--card-bg': savedTheme.cardBg,
+          '--text-primary': savedTheme.textPrimary,
+          '--text-secondary': savedTheme.textSecondary,
+          '--border-color': savedTheme.borderColor,
+          '--table-hover-bg': savedTheme.tableHoverBg,
+          '--table-stripe': savedTheme.tableStripe,
+          '--input-focus-shadow': savedTheme.inputFocusShadow,
+          '--shadow-sm': savedTheme.shadowSm,
+          '--shadow-md': savedTheme.shadowMd,
+          '--card-radius': savedTheme.cardRadius,
+          '--font': savedTheme.font,
+          '--success': savedTheme.success,
+          '--danger': savedTheme.danger,
+          '--warning': savedTheme.warning,
+          '--info': savedTheme.info
+        };
+        Object.keys(themeVars).forEach(k => { if (themeVars[k]) root.style.setProperty(k, themeVars[k]); });
+      }
+
+      const cfg = window.__UI_NAV_CONFIG;
+      const sidebarNav = document.querySelector('.sidebar-scroll .sidebar-nav');
+      if (cfg && Array.isArray(cfg.groups) && sidebarNav) {
+        const groupMap = {};
+        document.querySelectorAll('.nav-group[data-group-key]').forEach(el => {
+          groupMap[el.getAttribute('data-group-key')] = el;
+        });
+        cfg.groups.forEach(g => {
+          const groupEl = groupMap[g.key];
+          if (!groupEl) return;
+          sidebarNav.appendChild(groupEl);
+          if (g.label) {
+            const labelEl = groupEl.querySelector('[data-group-label]');
+            if (labelEl) labelEl.textContent = g.label;
+          }
+          if (g.icon) {
+            const iconEl = groupEl.querySelector('[data-group-icon]');
+            if (iconEl) iconEl.textContent = g.icon;
+          }
+          if (Array.isArray(g.items)) {
+            const submenu = groupEl.querySelector('.nav-submenu');
+            if (submenu) {
+              const itemMap = {};
+              submenu.querySelectorAll('li[data-item-key]').forEach(li => {
+                itemMap[li.getAttribute('data-item-key')] = li;
+              });
+              g.items.forEach(key => {
+                const li = itemMap[key];
+                if (li) submenu.appendChild(li);
+              });
+            }
+          }
+        });
+      }
+
+      const topButtons = document.getElementById('customTopButtons');
+      const buttons = Array.isArray(window.__UI_CUSTOM_BUTTONS) ? window.__UI_CUSTOM_BUTTONS : [];
+      if (topButtons && buttons.length) {
+        topButtons.innerHTML = '';
+        buttons.forEach(btn => {
+          if (!btn || !btn.label || !btn.url) return;
+          const a = document.createElement('a');
+          a.href = btn.url;
+          a.className = 'btn btn-sm d-flex align-items-center gap-1';
+          a.style.borderRadius = '20px';
+          a.style.padding = '4px 12px';
+          a.classList.add(btn.style || 'btn-outline-primary');
+          a.innerHTML = (btn.icon ? `<i class="${btn.icon}"></i>` : '<i class="bi bi-link"></i>') + `<span class="d-none d-sm-inline">${btn.label}</span>`;
+          topButtons.appendChild(a);
+        });
+      }
+    })();
+
     var sidebar = document.getElementById('sidebar');
     var backdrop = document.getElementById('sidebarBackdrop');
     document.getElementById('sidebarToggle')?.addEventListener('click', function() {
@@ -583,9 +733,362 @@
     </div>
   </div>
 
+  <% if (user && user.rol === 'admin') { %>
+  <button id="uiEditorToggle" class="btn btn-primary btn-sm ui-editor-fab">
+    <i class="bi bi-magic"></i> Editar interfaz
+  </button>
+  <div id="uiEditorPanel" class="ui-editor-panel">
+    <div class="head d-flex justify-content-between align-items-center">
+      <span><i class="bi bi-sliders"></i> Modo diseñador</span>
+      <button id="uiEditorClose" class="btn btn-sm btn-light">×</button>
+    </div>
+    <div class="body">
+      <div class="form-check form-switch mb-2">
+        <input class="form-check-input" type="checkbox" id="uiEditModeSwitch">
+        <label class="form-check-label" for="uiEditModeSwitch">Activar arrastrar y editar</label>
+      </div>
+
+      <div class="mb-2">
+        <label class="form-label small mb-1">Tema moderno</label>
+        <div class="ui-theme-grid" id="uiThemeGrid"></div>
+      </div>
+
+      <div class="mb-2">
+        <label class="form-label small mb-1">Elemento seleccionado</label>
+        <input id="uiSelLabel" class="form-control form-control-sm mb-1" placeholder="Nombre">
+        <input id="uiSelIcon" class="form-control form-control-sm mb-1" placeholder="Emoji/Icono">
+        <input id="uiSelBg" type="color" class="form-control form-control-color mb-1" title="Color fondo elemento">
+        <input id="uiSelText" type="color" class="form-control form-control-color mb-1" title="Color texto elemento">
+        <button id="uiApplySel" class="btn btn-outline-primary btn-sm w-100">Aplicar al seleccionado</button>
+      </div>
+
+      <div class="mb-2">
+        <label class="form-label small mb-1">Posición barra izquierda</label>
+        <select id="uiSidebarPos" class="form-select form-select-sm">
+          <option value="left">Izquierda</option>
+          <option value="right">Derecha</option>
+          <option value="bottom">Abajo</option>
+        </select>
+      </div>
+
+      <div class="mb-2">
+        <label class="form-label small mb-1">Iconos rápidos</label>
+        <input id="uiIconSearch" class="form-control form-control-sm mb-1" placeholder="buscar icono (home, chart, user, ...)">
+        <div id="uiIconGrid" style="max-height:120px;overflow:auto;border:1px solid #eee;border-radius:8px;padding:6px;display:grid;grid-template-columns:repeat(6,1fr);gap:6px;"></div>
+      </div>
+
+      <div class="d-flex gap-2 mt-3">
+        <button id="uiSaveAll" class="btn btn-primary btn-sm flex-fill">Guardar cambios</button>
+        <button id="uiResetOriginal" class="btn btn-outline-danger btn-sm flex-fill">Restaurar original</button>
+        <button id="uiReloadPage" class="btn btn-outline-secondary btn-sm flex-fill">Recargar</button>
+      </div>
+    </div>
+  </div>
+  <% } %>
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+  <script src="/js/themes.js?v=2"></script>
   <script src="/js/app.js"></script>
+  <% if (user && user.rol === 'admin') { %>
+  <script>
+    (function() {
+      const fab = document.getElementById('uiEditorToggle');
+      const panel = document.getElementById('uiEditorPanel');
+      const closeBtn = document.getElementById('uiEditorClose');
+      const editSwitch = document.getElementById('uiEditModeSwitch');
+      const saveBtn = document.getElementById('uiSaveAll');
+      const resetBtn = document.getElementById('uiResetOriginal');
+      const reloadBtn = document.getElementById('uiReloadPage');
+      if (!fab || !panel || !editSwitch) return;
+
+      const themes = (typeof TEMAS_CRM !== 'undefined' && TEMAS_CRM.length) ? TEMAS_CRM : [
+        { name: 'Movilbro', sidebarBg: '#ffffff', sidebarActive: '#0050a1', primary: '#0050a1' }
+      ];
+
+      let selected = null;
+      let currentTheme = Object.assign({}, window.__UI_LIVE_THEME || {});
+      let liveLayout = Object.assign({ sidebarPosition: 'left', overrides: {} }, <%- JSON.stringify(ui.liveLayout || {}) %> || {});
+
+      const themeGrid = document.getElementById('uiThemeGrid');
+      if (themeGrid) {
+        themes.forEach((t) => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'ui-theme-btn text-start';
+          const preview = t.sidebarBg?.startsWith('#') ? t.sidebarBg : '#e0e0e0';
+          const preview2 = t.primary?.startsWith('#') ? t.primary : '#666';
+          b.innerHTML = `<div class="d-flex align-items-center gap-2 mb-1"><span style="display:inline-block;width:18px;height:18px;border-radius:4px;background:${preview};border:1px solid #ccc"></span><span style="display:inline-block;width:18px;height:18px;border-radius:4px;background:${preview2}"></span><span class="fw-semibold small">${t.name}</span></div><div class="small text-muted" style="font-size:10px">${t.desc || ''}</div>`;
+          b.addEventListener('click', function() { applyTheme(t); });
+          themeGrid.appendChild(b);
+        });
+      }
+
+      function applyTheme(t) {
+        currentTheme = Object.assign({}, t);
+        const root = document.documentElement;
+        const vars = {
+          '--sidebar-bg': t.sidebarBg,
+          '--sidebar-hover': t.sidebarHover,
+          '--sidebar-active': t.sidebarActive,
+          '--primary': t.primary,
+          '--primary-light': t.primaryLight,
+          '--primary-gradient': t.primaryGradient,
+          '--topbar-bg': t.topbarBg,
+          '--topbar-border': t.topbarBorder,
+          '--bg-body': t.bgBody,
+          '--card-bg': t.cardBg,
+          '--text-primary': t.textPrimary,
+          '--text-secondary': t.textSecondary,
+          '--border-color': t.borderColor,
+          '--table-hover-bg': t.tableHoverBg,
+          '--table-stripe': t.tableStripe,
+          '--input-focus-shadow': t.inputFocusShadow,
+          '--shadow-sm': t.shadowSm,
+          '--shadow-md': t.shadowMd,
+          '--card-radius': t.cardRadius,
+          '--font': t.font,
+          '--success': t.success,
+          '--danger': t.danger,
+          '--warning': t.warning,
+          '--info': t.info
+        };
+        Object.keys(vars).forEach(k => root.style.setProperty(k, vars[k]));
+      }
+
+      function applySidebarPosition(pos) {
+        document.body.classList.remove('sidebar-right', 'sidebar-bottom');
+        if (pos === 'right') document.body.classList.add('sidebar-right');
+        if (pos === 'bottom') document.body.classList.add('sidebar-bottom');
+      }
+
+      function applyOverrides() {
+        const ov = (liveLayout && liveLayout.overrides) ? liveLayout.overrides : {};
+        Object.keys(ov).forEach(key => {
+          const el = document.querySelector('[data-ui-key="' + key + '"]');
+          if (!el) return;
+          const cfg = ov[key] || {};
+          const labelEl = el.querySelector('[data-group-label]') || el.querySelector('a');
+          const iconEl = el.querySelector('[data-group-icon]') || el.querySelector('.emoji-icon');
+          if (cfg.label && labelEl) {
+            if (labelEl.matches('a')) {
+              const textNode = Array.from(labelEl.childNodes).find(n => n.nodeType === 3);
+              if (textNode) textNode.nodeValue = ' ' + cfg.label;
+            } else labelEl.textContent = cfg.label;
+          }
+          if (cfg.icon && iconEl) iconEl.textContent = cfg.icon;
+          if (cfg.bg) el.style.backgroundColor = cfg.bg;
+          if (cfg.color) el.style.color = cfg.color;
+        });
+      }
+
+      function setSelected(el) {
+        document.querySelectorAll('[data-ui-selected]').forEach(n => n.removeAttribute('data-ui-selected'));
+        selected = el;
+        if (!selected) return;
+        selected.setAttribute('data-ui-selected', '1');
+        const labelInput = document.getElementById('uiSelLabel');
+        const iconInput = document.getElementById('uiSelIcon');
+        const labelEl = selected.querySelector('[data-group-label]') || selected.querySelector('a');
+        const iconEl = selected.querySelector('[data-group-icon]') || selected.querySelector('.emoji-icon');
+        const key = selected.getAttribute('data-ui-key') || selected.getAttribute('data-group-key') || selected.getAttribute('data-item-key');
+        if (labelInput) labelInput.value = (labelEl ? labelEl.textContent.trim() : '');
+        if (iconInput) iconInput.value = (iconEl ? iconEl.textContent.trim() : '');
+        const ov = (liveLayout.overrides && key) ? (liveLayout.overrides[key] || {}) : {};
+        const bgInput = document.getElementById('uiSelBg');
+        const textInput = document.getElementById('uiSelText');
+        if (bgInput) bgInput.value = ov.bg || '#ffffff';
+        if (textInput) textInput.value = ov.color || '#111111';
+      }
+
+      function collectConfig() {
+        const sidebarNav = document.querySelector('.sidebar-scroll .sidebar-nav');
+        const groups = [];
+        if (sidebarNav) {
+          sidebarNav.querySelectorAll('.nav-group[data-group-key]').forEach(groupEl => {
+            const key = groupEl.getAttribute('data-group-key');
+            const label = (groupEl.querySelector('[data-group-label]') || {}).textContent || key;
+            const icon = (groupEl.querySelector('[data-group-icon]') || {}).textContent || '•';
+            const items = [];
+            groupEl.querySelectorAll('.nav-submenu li[data-item-key]').forEach(li => items.push(li.getAttribute('data-item-key')));
+            groups.push({ key, label: label.trim(), icon: icon.trim(), items });
+          });
+        }
+        return { groups };
+      }
+
+      function enableEditMode(on) {
+        document.body.classList.toggle('ui-edit-mode', on);
+        if (!on) {
+          document.querySelectorAll('[data-ui-selected]').forEach(n => n.removeAttribute('data-ui-selected'));
+          selected = null;
+        }
+      }
+
+      fab.addEventListener('click', function() { panel.classList.toggle('open'); });
+      closeBtn && closeBtn.addEventListener('click', function() { panel.classList.remove('open'); });
+      editSwitch.addEventListener('change', function() { enableEditMode(editSwitch.checked); });
+
+      document.getElementById('uiApplySel')?.addEventListener('click', function() {
+        if (!selected) return;
+        const label = (document.getElementById('uiSelLabel').value || '').trim();
+        const icon = (document.getElementById('uiSelIcon').value || '').trim();
+        const labelEl = selected.querySelector('[data-group-label]') || selected.querySelector('a');
+        const iconEl = selected.querySelector('[data-group-icon]') || selected.querySelector('.emoji-icon');
+        const bg = (document.getElementById('uiSelBg').value || '').trim();
+        const color = (document.getElementById('uiSelText').value || '').trim();
+        const key = selected.getAttribute('data-ui-key') || selected.getAttribute('data-group-key') || selected.getAttribute('data-item-key');
+        if (label && labelEl) {
+          if (labelEl.matches('a')) {
+            const textNode = Array.from(labelEl.childNodes).find(n => n.nodeType === 3);
+            if (textNode) textNode.nodeValue = ' ' + label;
+            else labelEl.appendChild(document.createTextNode(' ' + label));
+          } else {
+            labelEl.textContent = label;
+          }
+        }
+        if (icon && iconEl) iconEl.textContent = icon;
+        if (bg) selected.style.backgroundColor = bg;
+        if (color) selected.style.color = color;
+        if (key) {
+          if (!liveLayout.overrides) liveLayout.overrides = {};
+          liveLayout.overrides[key] = Object.assign({}, liveLayout.overrides[key] || {}, { label, icon, bg, color });
+        }
+      });
+
+      const sidebarPosSel = document.getElementById('uiSidebarPos');
+      if (sidebarPosSel) {
+        sidebarPosSel.value = liveLayout.sidebarPosition || 'left';
+        applySidebarPosition(sidebarPosSel.value);
+        sidebarPosSel.addEventListener('change', function() {
+          liveLayout.sidebarPosition = sidebarPosSel.value;
+          applySidebarPosition(sidebarPosSel.value);
+        });
+      }
+
+      const iconSet = [
+        '🏪','🖥️','🛠️','🌐','📡','📈','📦','📅','👥','💬','⚙️','🎫','🧾','💳','🔒','🔗','📋','🎯','🧠','🚀','📊','bi bi-house','bi bi-gear','bi bi-people','bi bi-broadcast','bi bi-tools','bi bi-graph-up','ri-dashboard-line','ri-tools-line','ri-team-line','ri-settings-3-line','ri-customer-service-2-line','ri-store-2-line','ri-bar-chart-box-line','ri-links-line','fa-solid fa-chart-line','fa-solid fa-users','fa-solid fa-wrench','fa-solid fa-satellite-dish','fa-solid fa-cubes','fa-solid fa-money-bill-trend-up','fa-solid fa-headset'
+      ];
+      const iconGrid = document.getElementById('uiIconGrid');
+      const iconSearch = document.getElementById('uiIconSearch');
+      function renderIconGrid(filter) {
+        if (!iconGrid) return;
+        const q = (filter || '').toLowerCase();
+        iconGrid.innerHTML = '';
+        iconSet.filter(i => !q || i.toLowerCase().includes(q)).slice(0, 300).forEach(i => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'btn btn-light btn-sm';
+          b.style.padding = '4px';
+          if (i.includes('bi ') || i.includes('ri-') || i.includes('fa-')) b.innerHTML = `<i class="${i}"></i>`;
+          else b.textContent = i;
+          b.title = i;
+          b.addEventListener('click', function() {
+            document.getElementById('uiSelIcon').value = i;
+          });
+          iconGrid.appendChild(b);
+        });
+      }
+      renderIconGrid('');
+      iconSearch && iconSearch.addEventListener('input', function() { renderIconGrid(iconSearch.value); });
+
+      document.addEventListener('click', function(e) {
+        if (!editSwitch.checked) return;
+        const target = e.target.closest('[data-ui-draggable]');
+        if (target) {
+          e.preventDefault();
+          e.stopPropagation();
+          setSelected(target);
+        }
+      }, true);
+
+      const groupsContainer = document.querySelector('.sidebar-scroll .sidebar-nav');
+      if (groupsContainer && window.Sortable) {
+        const groupSortable = Sortable.create(groupsContainer, {
+          animation: 120,
+          draggable: '.nav-group[data-group-key]',
+          handle: '.nav-group-toggle',
+          disabled: true
+        });
+        const itemSortables = [];
+        groupsContainer.querySelectorAll('.nav-submenu').forEach(sm => {
+          const itemSortable = Sortable.create(sm, {
+            group: 'sidebar-items',
+            animation: 120,
+            draggable: 'li[data-item-key]',
+            disabled: true
+          });
+          itemSortables.push(itemSortable);
+        });
+        editSwitch.addEventListener('change', function() {
+          const enabled = editSwitch.checked;
+          groupSortable.option('disabled', !enabled);
+          itemSortables.forEach(s => s.option('disabled', !enabled));
+        });
+      }
+
+      reloadBtn && reloadBtn.addEventListener('click', function() { window.location.reload(); });
+
+      saveBtn && saveBtn.addEventListener('click', async function() {
+        try {
+          const t = currentTheme;
+          const payload = {
+            navConfig: collectConfig(),
+            customButtons: Array.isArray(window.__UI_CUSTOM_BUTTONS) ? window.__UI_CUSTOM_BUTTONS : [],
+            theme: t,
+            layout: liveLayout,
+            sidebarBg: t.sidebarBg,
+            sidebarActive: t.sidebarActive,
+            primaryColor: t.primary,
+            sidebarHover: t.sidebarHover,
+            topbarBg: t.topbarBg,
+            topbarBorder: t.topbarBorder,
+            bgBody: t.bgBody,
+            cardBg: t.cardBg,
+            textPrimary: t.textPrimary,
+            textSecondary: t.textSecondary,
+            borderColor: t.borderColor,
+            tableHoverBg: t.tableHoverBg,
+            tableStripe: t.tableStripe,
+            inputFocusShadow: t.inputFocusShadow,
+            shadowSm: t.shadowSm,
+            shadowMd: t.shadowMd,
+            cardRadius: t.cardRadius,
+            font: t.font,
+            success: t.success,
+            danger: t.danger,
+            warning: t.warning,
+            info: t.info
+          };
+          const r = await fetch('/configuracion/ui-editor-save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          if (!r.ok) throw new Error('No se pudo guardar');
+          saveBtn.textContent = 'Guardado';
+          setTimeout(() => { saveBtn.textContent = 'Guardar cambios'; }, 1000);
+        } catch (e) {
+          alert('Error guardando cambios de interfaz');
+        }
+      });
+
+      applyOverrides();
+
+      resetBtn && resetBtn.addEventListener('click', async function() {
+        if (!confirm('¿Restaurar diseño original guardado?')) return;
+        try {
+          const r = await fetch('/configuracion/ui-editor-reset', { method: 'POST' });
+          if (!r.ok) throw new Error('No reset');
+          window.location.reload();
+        } catch (e) {
+          alert('No se pudo restaurar.');
+        }
+      });
+    })();
+  </script>
+  <% } %>
   <script>
     // AI Chat Widget
     (function() {
