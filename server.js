@@ -8,6 +8,8 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const cors = require('cors');
 const hpp = require('hpp');
+const https = require('https');
+const http = require('http');
 require('dotenv').config();
 process.env.TZ = 'Europe/Madrid';
 
@@ -347,6 +349,23 @@ cron.schedule('5 0 * * *', () => {
 const server = app.listen(PORT, () => {
   console.log(`CRM Movilbro iniciado en puerto ${PORT} (${isProd ? 'produccion' : 'desarrollo'})`);
 });
+
+// ---- AUTO KEEP-AWAKE - Evita que Render duerma el servidor ----
+const SELF_URL = isProd ? 'https://movilbro-crm.onrender.com/health' : `http://localhost:${PORT}/health`;
+const httpClient = isProd ? https : http;
+
+function selfPing() {
+  httpClient.get(SELF_URL, (res) => {
+    console.log(`[KeepAwake] ${SELF_URL} -> ${res.statusCode}`);
+  }).on('error', (err) => {
+    console.log(`[KeepAwake] Error: ${err.message}`);
+  });
+}
+
+// Primer ping a los 10s de arrancar, luego cada 4 minutos
+setTimeout(selfPing, 10000);
+setInterval(selfPing, 4 * 60 * 1000);
+console.log(`[KeepAwake] Auto-ping cada 4 min a ${SELF_URL}`);
 
 // ---- GRACEFUL SHUTDOWN - Cerrar conexiones limpiamente ----
 function shutdown(signal) {
