@@ -118,8 +118,8 @@
         <div class="row g-3 mb-4">
           <div class="col-md-12">
             <div class="card"><div class="card-body">
-              <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Altas por Estado</h6>
-              <canvas id="chartAltasEstado" style="height:221px;"></canvas>
+              <h6 class="card-title"><span style="font-size:1.2rem;">📈</span> Altas por Mes</h6>
+              <div id="chartAltasEstado"></div>
             </div></div>
           </div>
         </div>
@@ -134,7 +134,8 @@
                 <td><strong><%= a.nombre %></strong></td>
                 <td><%= a.telefono %></td>
                 <td><span class="badge bg-info"><%= a.tipo %></span></td>
-                <td><span class="badge bg-<%= a.estado === 'ACTIVE' || a.estado === 'CREATED' ? 'success' : 'warning' %>"><%= a.estado %></span></td>
+                <% var aStatus = (a.estado || '').toUpperCase(); %>
+                <td><span class="badge bg-<%= aStatus === 'ACTIVE' || aStatus === 'CREATED' ? 'success' : aStatus === 'ERROR' ? 'danger' : 'warning' %>"><%= aStatus === 'ACTIVE' ? 'Activo' : aStatus === 'CREATED' ? 'Creado' : aStatus === 'ERROR' ? 'Error' : a.estado %></span></td>
                 <td class="small"><%= new Date(a.fecha).toLocaleDateString('es-ES', { day:'2-digit', month:'short', year:'numeric' }) %></td>
                 <td><a href="https://wa.me/<%= a.telefono.replace(/[^\d]/g, '') %>" target="_blank" class="btn btn-sm btn-outline-success"><i class="bi bi-whatsapp"></i></a></td>
               </tr>
@@ -152,8 +153,9 @@
         <div class="row g-3 mb-4">
           <div class="col-md-12">
             <div class="card"><div class="card-body">
-              <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Portabilidades por Estado</h6>
-              <canvas id="chartPortaEstado" style="height:221px;"></canvas>
+              <h6 class="card-title"><span style="font-size:1.2rem;">📈</span> Portabilidades por Mes</h6>
+              <div id="chartPortaEstado"></div>
+              <div id="portaDetail" class="mt-2 text-center"></div>
             </div></div>
           </div>
         </div>
@@ -168,7 +170,8 @@
                 <td><%= p.customerName || p.name || 'N/A' %></td>
                 <td><%= p.phoneNumber || p.phone || '-' %></td>
                 <td><%= p.donorOperator || '-' %></td>
-                <td><span class="badge bg-<%= p.status === 'COMPLETED' ? 'success' : p.status === 'PENDING' ? 'warning' : 'secondary' %>"><%= p.status || 'PENDING' %></span></td>
+                <% var pStatus = (p.status || 'PENDING').toUpperCase(); %>
+                <td><span class="badge bg-<%= pStatus === 'COMPLETED' || pStatus === 'ACCEPTED' ? 'success' : pStatus === 'PENDING' ? 'warning' : pStatus === 'CANCELED' || pStatus === 'CANCELLED' ? 'danger' : 'success' %>"><%= pStatus === 'COMPLETED' || pStatus === 'ACCEPTED' ? 'Completada' : pStatus === 'PENDING' ? 'Pendiente' : pStatus === 'CANCELED' || pStatus === 'CANCELLED' ? 'Cancelada' : pStatus %></span></td>
                 <td class="small"><%= p.portabilityDate || p.created ? new Date(p.portabilityDate || p.created).toLocaleDateString('es-ES') : '-' %></td>
               </tr>
               <% }); } %>
@@ -179,16 +182,168 @@
     </div>
   </div>
 <script>
-var a1 = <%- JSON.stringify(recientes) %>;
-var c1 = {};
-a1.forEach(function(x) { var k = x.estado || 'UNKNOWN'; c1[k] = (c1[k] || 0) + 1; });
-var l1 = Object.keys(c1);
-new Chart(document.getElementById('chartAltasEstado'), { type: 'bar', data: { labels: l1, datasets: [{ label: 'Altas', data: Object.values(c1), backgroundColor: l1.map(function(s) { return s === 'ACTIVE' ? '#198754' : s === 'CREATED' ? '#ffc107' : s === 'ERROR' ? '#dc3545' : '#6c757d'; }), borderRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } } });
+function buildMonthlySeries(arr, dateField, label, color) {
+  // Find min and max date from data
+  var minDate = null, maxDate = null;
+  arr.forEach(function(x) {
+    var dt = x[dateField];
+    if (!dt) return;
+    var d = new Date(dt);
+    if (isNaN(d.getTime())) return;
+    if (!minDate || d < minDate) minDate = d;
+    if (!maxDate || d > maxDate) maxDate = d;
+  });
+  if (!minDate) return { labels: [], series: [{ name: label, data: [] }] };
+  // Build months from min to max
+  var months = {};
+  var startY = minDate.getFullYear(), startM = minDate.getMonth();
+  var now = new Date();
+  var totalMonths = (now.getFullYear() - startY) * 12 + (now.getMonth() - startM) + 1;
+  for (var i = 0; i < totalMonths; i++) {
+    var d = new Date(startY, startM + i, 1);
+    var key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    months[key] = { label: d.toLocaleDateString('es-ES', { month: 'short', year: '2-digit' }), count: 0 };
+  }
+  arr.forEach(function(x) {
+    var dt = x[dateField];
+    if (!dt) return;
+    var d = new Date(dt);
+    if (isNaN(d.getTime())) return;
+    var key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    if (months[key]) months[key].count++;
+  });
+  var labels = [], data = [];
+  Object.keys(months).forEach(function(k) {
+    labels.push(months[k].label);
+    data.push(months[k].count);
+  });
+  return { labels: labels, series: [{ name: label, data: data }] };
+}
 
-var a2 = <%- JSON.stringify(portabilidades) %>;
-var c2 = {};
-a2.forEach(function(x) { var k = x.status || 'UNKNOWN'; c2[k] = (c2[k] || 0) + 1; });
-var l2 = Object.keys(c2);
-new Chart(document.getElementById('chartPortaEstado'), { type: 'bar', data: { labels: l2, datasets: [{ label: 'Portabilidades', data: Object.values(c2), backgroundColor: l2.map(function(s) { return s === 'COMPLETED' ? '#198754' : s === 'PENDING' ? '#ffc107' : s === 'CANCELED' ? '#dc3545' : '#6c757d'; }), borderRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } } });
+function renderAreaChart(elId, chartData, color) {
+  var el = document.getElementById(elId);
+  if (!el) return;
+  var hasData = chartData.series[0].data.some(function(v) { return v > 0; });
+  if (!hasData) { el.innerHTML = '<div class="text-center text-muted py-5"><i class="bi bi-inbox" style="font-size:2rem;display:block;margin-bottom:8px;"></i>Sin datos disponibles</div>'; return; }
+  var opt = {
+    chart: { type: 'area', height: 221, toolbar: { show: false }, zoom: { enabled: false } },
+    colors: [color],
+    fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.3, opacityTo: 0.05 } },
+    dataLabels: { enabled: false },
+    stroke: { curve: 'smooth', width: 2 },
+    xaxis: { categories: chartData.labels, labels: { style: { fontSize: '10px' } } },
+    yaxis: { labels: { style: { fontSize: '10px' } }, show: true },
+    grid: { borderColor: '#f0f0f0' },
+    tooltip: { theme: 'light' }
+  };
+  opt.series = chartData.series;
+  new ApexCharts(el, opt).render();
+}
+
+var chartAltasRendered = false, chartPortaRendered = false;
+
+function initAltasChart() {
+  if (chartAltasRendered) return;
+  chartAltasRendered = true;
+  var a1 = <%- JSON.stringify(recientes) %>;
+  renderAreaChart('chartAltasEstado', buildMonthlySeries(a1, 'fecha', 'Altas', '#0050A1'), '#0050A1');
+}
+
+function buildPortaSeries(arr) {
+  var dateField = 'portabilityDate';
+  if (arr.length > 0 && !arr[0].portabilityDate) dateField = 'created';
+  var minDate = null;
+  arr.forEach(function(x) {
+    var dt = x[dateField]; if (!dt) return;
+    var d = new Date(dt); if (isNaN(d.getTime())) return;
+    if (!minDate || d < minDate) minDate = d;
+  });
+  if (!minDate) return { labels: [], series: [] };
+  var months = {};
+  var startY = minDate.getFullYear(), startM = minDate.getMonth();
+  var now = new Date();
+  var totalMonths = (now.getFullYear() - startY) * 12 + (now.getMonth() - startM) + 1;
+  for (var i = 0; i < totalMonths; i++) {
+    var d = new Date(startY, startM + i, 1);
+    var key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    months[key] = { label: d.toLocaleDateString('es-ES', { month: 'short', year: '2-digit' }), completadas: 0, canceladas: 0, pendientes: 0, otras: 0 };
+  }
+  var totalCompletadas = 0, totalCanceladas = 0, totalPendientes = 0, totalOtras = 0;
+  arr.forEach(function(x) {
+    var dt = x[dateField]; if (!dt) return;
+    var d = new Date(dt); if (isNaN(d.getTime())) return;
+    var key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    if (!months[key]) return;
+    var s = (x.status || '').toUpperCase();
+    if (s === 'COMPLETED' || s === 'ACCEPTED') { months[key].completadas++; totalCompletadas++; }
+    else if (s === 'CANCELED' || s === 'CANCELLED') { months[key].canceladas++; totalCanceladas++; }
+    else if (s === 'PENDING') { months[key].pendientes++; totalPendientes++; }
+    else { months[key].otras++; totalOtras++; }
+  });
+  var labels = [], compData = [], cancData = [], pendData = [];
+  Object.keys(months).forEach(function(k) {
+    labels.push(months[k].label);
+    compData.push(months[k].completadas);
+    cancData.push(months[k].canceladas);
+    pendData.push(months[k].pendientes);
+  });
+  return {
+    labels: labels,
+    series: [
+      { name: 'Completadas', data: compData },
+      { name: 'Canceladas', data: cancData },
+      { name: 'Pendientes', data: pendData }
+    ],
+    totals: { completadas: totalCompletadas, canceladas: totalCanceladas, pendientes: totalPendientes }
+  };
+}
+
+function renderPortaChart(elId, chartData) {
+  var el = document.getElementById(elId);
+  if (!el) return;
+  var hasData = chartData.series.some(function(s) { return s.data.some(function(v) { return v > 0; }); });
+  if (!hasData) { el.innerHTML = '<div class="text-center text-muted py-5"><i class="bi bi-inbox" style="font-size:2rem;display:block;margin-bottom:8px;"></i>Sin datos disponibles</div>'; return; }
+  var opt = {
+    chart: { type: 'area', height: 221, toolbar: { show: false }, zoom: { enabled: false } },
+    colors: ['#28a745', '#dc3545', '#ffc107'],
+    fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.25, opacityTo: 0.02 } },
+    dataLabels: { enabled: false },
+    stroke: { curve: 'smooth', width: 2 },
+    xaxis: { categories: chartData.labels, labels: { style: { fontSize: '10px' } } },
+    yaxis: { labels: { style: { fontSize: '10px' } }, show: true },
+    grid: { borderColor: '#f0f0f0' },
+    tooltip: { theme: 'light' },
+    legend: { position: 'top', horizontalAlign: 'right', fontSize: '11px', markers: { width: 10, height: 10, radius: 4 } }
+  };
+  opt.series = chartData.series;
+  new ApexCharts(el, opt).render();
+  // Render totals below
+  var detailEl = document.getElementById('portaDetail');
+  if (detailEl && chartData.totals) {
+    detailEl.innerHTML =
+      '<span class="badge bg-success me-2">Completadas: ' + chartData.totals.completadas + '</span>' +
+      '<span class="badge bg-danger me-2">Canceladas: ' + chartData.totals.canceladas + '</span>' +
+      '<span class="badge bg-warning text-dark">Pendientes: ' + chartData.totals.pendientes + '</span>';
+  }
+}
+
+function initPortaChart() {
+  if (chartPortaRendered) return;
+  chartPortaRendered = true;
+  var a2 = <%- JSON.stringify(portabilidades) %>;
+  renderPortaChart('chartPortaEstado', buildPortaSeries(a2));
+}
+
+// Init charts when their tab is shown (handles hidden container issue)
+document.querySelectorAll('[data-bs-toggle="tab"]').forEach(function(tab) {
+  tab.addEventListener('shown.bs.tab', function(e) {
+    if (e.target.getAttribute('data-bs-target') === '#recientes') initAltasChart();
+    if (e.target.getAttribute('data-bs-target') === '#portabilidades') initPortaChart();
+  });
+});
+
+// If tab is already active on page load
+if (document.querySelector('#recientes.tab-pane.active')) initAltasChart();
+if (document.querySelector('#portabilidades.tab-pane.active')) initPortaChart();
 </script>
 </section>

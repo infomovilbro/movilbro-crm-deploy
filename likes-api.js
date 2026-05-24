@@ -59,19 +59,32 @@ class LikesAPI {
     return [];
   }
 
+  async fetchAll(endpoint) {
+    let all = [], page = 1, hasMore = true;
+    while (hasMore && page <= 100) {
+      const sep = endpoint.includes('?') ? '&' : '?';
+      const raw = await this.request('GET', `${endpoint}${sep}page=${page}&limit=500`);
+      const items = this.extractData(raw);
+      all = all.concat(items);
+      const total = raw.total || raw.totalCount || raw.total_items || (raw.meta && raw.meta.total) || 0;
+      const perPage = raw.per_page || raw.perPage || raw.limit || (raw.meta && raw.meta.per_page) || 500;
+      const lastPage = raw.last_page || raw.pages || raw.totalPages || (raw.meta && raw.meta.last_page) || Math.ceil(total / perPage);
+      hasMore = page < lastPage && items.length > 0;
+      page++;
+    }
+    return all;
+  }
+
   async getCustomers() {
-    const data = await this.request('GET', `/customers?brand_id=${this.brandId}`);
-    return this.extractData(data);
+    return this.fetchAll(`/customers?brand_id=${this.brandId}`);
   }
 
   async getProducts() {
-    const data = await this.request('GET', `/products/brand?brand_id=${this.brandId}`);
-    return this.extractData(data);
+    return this.fetchAll(`/products/brand?brand_id=${this.brandId}`);
   }
 
   async getPortabilities() {
-    const data = await this.request('GET', `/portabilities?brand_id=${this.brandId}`);
-    return this.extractData(data);
+    return this.fetchAll(`/portabilities?brand_id=${this.brandId}`);
   }
 
   async getTickets(params = {}) {

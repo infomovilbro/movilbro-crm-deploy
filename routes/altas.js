@@ -15,9 +15,9 @@ router.get('/', requireAuth, async (req, res) => {
   try {
     const api = getApi();
     const [customers, products, portabilities] = await Promise.all([
-      api.request('GET', '/customers?brand_id=' + api.brandId).then(r => Array.isArray(r) ? r : r.customers || r.data || []),
-      api.request('GET', '/products/brand?brand_id=' + api.brandId).then(r => Array.isArray(r) ? r : r.products || r.data || []),
-      api.request('GET', '/portabilities?brand_id=' + api.brandId).then(r => Array.isArray(r) ? r : r.portabilities || r.data || [])
+      api.getCustomers(),
+      api.getProducts(),
+      api.getPortabilities()
     ]);
 
     const familias = {};
@@ -29,7 +29,7 @@ router.get('/', requireAuth, async (req, res) => {
 
     const localCustomers = db.prepare('SELECT id, nombre, apellidos, telefono, likes_customer_id FROM clients ORDER BY nombre').all();
 
-    const recientes = customers
+    const allRecientes = customers
       .filter(c => c.created)
       .map(c => ({
         id: c.id,
@@ -40,16 +40,15 @@ router.get('/', requireAuth, async (req, res) => {
         producto: '',
         fecha: c.created
       }))
-      .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
-      .slice(0, 30);
+      .sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
 
     res.render('altas/index', {
       title: 'Altas',
       familias: Object.values(familias),
       products,
       localCustomers,
-      recientes,
-      portabilidades: portabilities.slice(0, 20),
+      recientes: allRecientes,
+      portabilidades: portabilities,
       error: null,
       success: req.query.success || null
     });
