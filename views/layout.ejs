@@ -72,15 +72,7 @@
     }
     .ai-chat-input { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid #eee; }
     .emoji-icon { font-size: 1.1rem; margin-right: 6px; display: inline-block; vertical-align: middle; }
-    /* Sidebar group accent borders */
-    .nav-group[data-group="tienda"] > a.nav-group-toggle { border-left: 3px solid #28a745; }
-    .nav-group[data-group="clientes"] > a.nav-group-toggle { border-left: 3px solid #0050A1; }
-    .nav-group[data-group="postventa"] > a.nav-group-toggle { border-left: 3px solid #fd7e14; }
-    .nav-group[data-group="redes"] > a.nav-group-toggle { border-left: 3px solid #6f42c1; }
-    .nav-group[data-group="tienda"] > a.nav-group-toggle.active { border-left-color: #fff; }
-    .nav-group[data-group="clientes"] > a.nav-group-toggle.active { border-left-color: #fff; }
-    .nav-group[data-group="postventa"] > a.nav-group-toggle.active { border-left-color: #fff; }
-    .nav-group[data-group="redes"] > a.nav-group-toggle.active { border-left-color: #fff; }
+    /* Sidebar group accent borders (now handled in style.css) */
     .quick-access-btn { transition: all 0.2s; }
     .quick-access-btn:hover { transform: scale(1.05); }
 
@@ -1003,30 +995,61 @@
         }
       }, true);
 
-      const groupsContainer = document.querySelector('.sidebar-scroll .sidebar-nav');
-      if (groupsContainer && window.Sortable) {
-        const groupSortable = Sortable.create(groupsContainer, {
-          animation: 120,
-          draggable: '.nav-group[data-group-key]',
-          handle: '.nav-group-toggle',
-          disabled: true
-        });
-        const itemSortables = [];
-        groupsContainer.querySelectorAll('.nav-submenu').forEach(sm => {
-          const itemSortable = Sortable.create(sm, {
-            group: 'sidebar-items',
+      const allSortables = [];
+
+      function initDragDrop() {
+        if (!window.Sortable) return;
+
+        // Sidebar: reorder groups
+        const groupsContainer = document.querySelector('.sidebar-scroll .sidebar-nav');
+        if (groupsContainer) {
+          allSortables.push(Sortable.create(groupsContainer, {
             animation: 120,
-            draggable: 'li[data-item-key]',
+            draggable: '.nav-group[data-group-key]',
+            handle: '.nav-group-toggle',
             disabled: true
+          }));
+          // Sidebar: drag items between groups (all li items)
+          groupsContainer.querySelectorAll('.nav-submenu').forEach(sm => {
+            allSortables.push(Sortable.create(sm, {
+              group: 'sidebar-items',
+              animation: 120,
+              draggable: 'li',
+              disabled: true
+            }));
           });
-          itemSortables.push(itemSortable);
+        }
+
+        // Page: stat card rows
+        document.querySelectorAll('.row:has(.stat-card-item)').forEach(row => {
+          allSortables.push(Sortable.create(row, {
+            animation: 120,
+            draggable: '.stat-card-item',
+            disabled: true
+          }));
         });
-        editSwitch.addEventListener('change', function() {
-          const enabled = editSwitch.checked;
-          groupSortable.option('disabled', !enabled);
-          itemSortables.forEach(s => s.option('disabled', !enabled));
-        });
+
+        // Page: section rows (movimientos, citas, nota diaria, etc.)
+        const pageEl = document.querySelector('.page-container');
+        if (pageEl) {
+          allSortables.push(Sortable.create(pageEl, {
+            animation: 120,
+            draggable: '.row:has(.card.hideable-section)',
+            disabled: true
+          }));
+        }
+
+        // Toggle all with edit switch
+        editSwitch.removeEventListener('change', toggleDragDrop);
+        editSwitch.addEventListener('change', toggleDragDrop);
       }
+
+      function toggleDragDrop() {
+        const on = editSwitch.checked;
+        allSortables.forEach(s => s.option('disabled', !on));
+      }
+
+      initDragDrop();
 
       reloadBtn && reloadBtn.addEventListener('click', function() { window.location.reload(); });
 
