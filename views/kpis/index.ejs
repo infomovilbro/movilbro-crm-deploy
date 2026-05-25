@@ -1,209 +1,131 @@
 <section>
   <div class="d-flex justify-content-between align-items-center mb-3">
-    <h2><i class="bi bi-bar-chart"></i> KPIs</h2>
-    <div class="d-flex gap-2 align-items-center">
-      <small class="text-muted"><i class="bi bi-arrow-repeat"></i> Datos vía API</small>
-    </div>
-  </div>
-  <div class="card mb-3 border-info">
-    <div class="card-header py-2 d-flex justify-content-between align-items-center">
-      <span><i class="bi bi-bug"></i> Diagnóstico KPI</span>
-      <small class="text-muted" id="kpiDiagTime"><%= kpiDebug && kpiDebug.generatedAt ? kpiDebug.generatedAt : '' %></small>
-    </div>
-    <div class="card-body py-2">
-      <div class="small" id="kpiDiagStatus">
-        Estado inicial: <strong><%= (kpiDebug && kpiDebug.hasStats) ? 'Datos cargados' : 'Sin datos' %></strong>
-        <% if (kpiDebug && kpiDebug.error) { %> | Error backend: <span class="text-danger"><%= kpiDebug.error %></span><% } %>
-      </div>
-      <div class="small text-danger mt-1" id="kpiDiagErrors"></div>
-    </div>
-  </div>
+    <h5 class="mb-0"><i class="bi bi-bar-chart"></i> KPIs</h5>
+    <small class="text-muted">Última actualización: <%= new Date().toLocaleTimeString('es-ES', {hour:'2-digit',minute:'2-digit'}) %></small>
   </div>
   <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-warning"><i class="bi bi-exclamation-triangle"></i> <%= error %></div><% } %>
 
   <% if (stats) { %>
-  <div class="row g-3 mb-4" id="kpiCardsContainer">
-    <div class="col-12"><h5><i class="ri-phone-line"></i> Resumen de Líneas</h5></div>
-    <a href="/products" class="text-decoration-none col-md-3 col-6 kpi-card stat-card-item"><div class="stat-card"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle primary"><span>🌐</span></div><div><div class="stat-value"><%= stats.linesFiber || 0 %></div><div class="stat-label">Fibra</div></div></div></div></a>
-    <a href="/products" class="text-decoration-none col-md-3 col-6 kpi-card stat-card-item"><div class="stat-card"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle success"><span>📱</span></div><div><div class="stat-value"><%= stats.linesMobile || 0 %></div><div class="stat-label">Móvil</div></div></div></div></a>
-    <a href="/products" class="text-decoration-none col-md-3 col-6 kpi-card stat-card-item"><div class="stat-card"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle danger"><span>📺</span></div><div><div class="stat-value"><%= stats.linesTV || 0 %></div><div class="stat-label">TV</div></div></div></div></a>
-    <a href="/products" class="text-decoration-none col-md-3 col-6 kpi-card stat-card-item"><div class="stat-card"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle warning"><span>🛰️</span></div><div><div class="stat-value"><%= stats.linesSatellite || 0 %></div><div class="stat-label">Satélite</div></div></div></div></a>
-  </div>
+  <!-- Tabs -->
+  <ul class="nav nav-tabs mb-3" id="kpiTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="tab-general" data-bs-toggle="tab" data-bs-target="#kpiGeneral" type="button" role="tab">📊 General</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="tab-movil" data-bs-toggle="tab" data-bs-target="#kpiMovil" type="button" role="tab">📱 Móvil</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="tab-fibra" data-bs-toggle="tab" data-bs-target="#kpiFibra" type="button" role="tab">🌐 Fibra</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="tab-facturacion" data-bs-toggle="tab" data-bs-target="#kpiFacturacion" type="button" role="tab">💰 Facturación</button>
+    </li>
+  </ul>
 
-  <div class="row g-3 mb-4">
-    <div class="col-12"><h5><i class="ri-checkbox-circle-line"></i> Estado de Líneas</h5></div>
-    <a href="/customers" class="text-decoration-none col-md-3 col-6 kpi-card stat-card-item"><div class="stat-card"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle success"><span>✅</span></div><div><div class="stat-value"><%= stats.lineStatuses && stats.lineStatuses.ACTIVE ? stats.lineStatuses.ACTIVE : 0 %></div><div class="stat-label">Activas</div></div></div></div></a>
-    <a href="/customers" class="text-decoration-none col-md-3 col-6 kpi-card stat-card-item"><div class="stat-card"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle warning"><span>⏸️</span></div><div><div class="stat-value"><%= stats.lineStatuses && stats.lineStatuses.SUSPENDED ? stats.lineStatuses.SUSPENDED : 0 %></div><div class="stat-label">Suspendidas</div></div></div></div></a>
-    <a href="/customers" class="text-decoration-none col-md-3 col-6 kpi-card stat-card-item"><div class="stat-card"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle danger"><span>❌</span></div><div><div class="stat-value"><%= stats.lineStatuses && stats.lineStatuses.CANCELLED ? stats.lineStatuses.CANCELLED : 0 %></div><div class="stat-label">Canceladas</div></div></div></div></a>
-    <a href="/customers" class="text-decoration-none col-md-3 col-6 kpi-card stat-card-item"><div class="stat-card"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle primary"><span>📞</span></div><div><div class="stat-value"><%= stats.totalLines || 0 %></div><div class="stat-label">Total Líneas</div></div></div></div></a>
-  </div>
+  <div class="tab-content">
+    <!-- TAB: GENERAL -->
+    <div class="tab-pane fade show active" id="kpiGeneral" role="tabpanel">
+      <div class="row g-2 mb-3">
+        <div class="col-md-2 col-4"><div class="card"><div class="card-body p-2 text-center"><div class="fs-5 fw-bold"><%= stats.totalCustomers || 0 %></div><small class="text-muted">Clientes</small></div></div></div>
+        <div class="col-md-2 col-4"><div class="card"><div class="card-body p-2 text-center"><div class="fs-5 fw-bold"><%= stats.totalProducts || 0 %></div><small class="text-muted">Productos</small></div></div></div>
+        <div class="col-md-2 col-4"><div class="card"><div class="card-body p-2 text-center"><div class="fs-5 fw-bold"><%= stats.totalSubscriptions || 0 %></div><small class="text-muted">Suscripciones</small></div></div></div>
+        <div class="col-md-2 col-4"><div class="card"><div class="card-body p-2 text-center"><div class="fs-5 fw-bold"><%= stats.totalLines || 0 %></div><small class="text-muted">Líneas</small></div></div></div>
+        <div class="col-md-2 col-4"><div class="card"><div class="card-body p-2 text-center"><div class="fs-5 fw-bold"><%= stats.totalPortabilities || 0 %></div><small class="text-muted">Portabilidades</small></div></div></div>
+        <div class="col-md-2 col-4"><div class="card"><div class="card-body p-2 text-center"><div class="fs-5 fw-bold"><%= stats.totalTickets || 0 %></div><small class="text-muted">Tickets</small></div></div></div>
+      </div>
+      <div class="row g-2 mb-3">
+        <div class="col-md-3"><div class="card"><div class="card-body p-2"><div style="height:160px;overflow:hidden;"><canvas id="kpiFamilies"></canvas></div></div></div></div>
+        <div class="col-md-3"><div class="card"><div class="card-body p-2"><div style="height:160px;overflow:hidden;"><canvas id="kpiTimeline"></canvas></div></div></div></div>
+        <div class="col-md-3"><div class="card"><div class="card-body p-2"><div style="height:160px;overflow:hidden;"><canvas id="kpiTypes"></canvas></div></div></div></div>
+        <div class="col-md-3"><div class="card"><div class="card-body p-2"><div style="height:160px;overflow:hidden;"><canvas id="kpiCustStatuses"></canvas></div></div></div></div>
+      </div>
+      <div class="row g-2 mb-3">
+        <div class="col-md-6"><div class="card"><div class="card-body p-2"><div style="height:160px;overflow:hidden;"><canvas id="kpiRegions"></canvas></div></div></div></div>
+        <div class="col-md-6"><div class="card"><div class="card-body p-2"><div style="height:160px;overflow:hidden;"><canvas id="kpiPortTimeline"></canvas></div></div></div></div>
+      </div>
+    </div>
 
-  <div class="row g-3 mb-4">
-    <div class="col-12"><h5><i class="ri-arrow-left-right-line"></i> Portabilidades</h5></div>
-    <a href="/aftersales/portabilities" class="text-decoration-none col-md-3 col-6 kpi-card stat-card-item"><div class="stat-card"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle primary"><span>📥</span></div><div><div class="stat-value"><%= stats.portabilityIn || 0 %></div><div class="stat-label">Entrantes</div></div></div></div></a>
-    <a href="/aftersales/portabilities" class="text-decoration-none col-md-3 col-6 kpi-card stat-card-item"><div class="stat-card"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle success"><span>📤</span></div><div><div class="stat-value"><%= stats.portabilityOut || 0 %></div><div class="stat-label">Salientes</div></div></div></div></a>
-    <a href="/aftersales/portabilities" class="text-decoration-none col-md-3 col-6 kpi-card stat-card-item"><div class="stat-card"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle danger"><span>📊</span></div><div><div class="stat-value"><%= stats.totalPortabilities || 0 %></div><div class="stat-label">Total</div></div></div></div></a>
-    <a href="/aftersales/portabilities" class="text-decoration-none col-md-3 col-6 kpi-card stat-card-item"><div class="stat-card"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle warning"><span>⏳</span></div><div><div class="stat-value"><%= stats.portabilidadesPendientes || 0 %></div><div class="stat-label">Pendientes</div></div></div></div></a>
-  </div>
+    <!-- TAB: MÓVIL -->
+    <div class="tab-pane fade" id="kpiMovil" role="tabpanel">
+      <div class="row g-2 mb-3">
+        <div class="col-md-3 col-6"><div class="card"><div class="card-body p-2 text-center"><div class="fs-5 fw-bold"><%= stats.linesMobile || 0 %></div><small class="text-muted">Líneas Móvil</small></div></div></div>
+        <div class="col-md-3 col-6"><div class="card"><div class="card-body p-2 text-center"><div class="fs-5 fw-bold"><%= stats.lineStatuses && stats.lineStatuses.ACTIVE ? stats.lineStatuses.ACTIVE : 0 %></div><small class="text-muted">Activas</small></div></div></div>
+        <div class="col-md-3 col-6"><div class="card"><div class="card-body p-2 text-center"><div class="fs-5 fw-bold"><%= stats.lineStatuses && stats.lineStatuses.SUSPENDED ? stats.lineStatuses.SUSPENDED : 0 %></div><small class="text-muted">Suspendidas</small></div></div></div>
+        <div class="col-md-3 col-6"><div class="card"><div class="card-body p-2 text-center"><div class="fs-5 fw-bold"><%= stats.lineStatuses && stats.lineStatuses.CANCELLED ? stats.lineStatuses.CANCELLED : 0 %></div><small class="text-muted">Canceladas</small></div></div></div>
+      </div>
+      <div class="row g-2 mb-3">
+        <div class="col-md-6"><div class="card"><div class="card-body p-2"><div style="height:160px;overflow:hidden;"><canvas id="kpiPorts"></canvas></div></div></div></div>
+        <div class="col-md-6"><div class="card"><div class="card-body p-2"><div style="height:160px;overflow:hidden;"><canvas id="kpiMixTarifas"></canvas></div></div></div></div>
+      </div>
+    </div>
 
-  <div class="row g-3 mb-4">
-    <div class="col-12"><h5><i class="ri-stack-line"></i> Productos</h5></div>
-    <a href="/products" class="text-decoration-none col-md-3 col-6 kpi-card stat-card-item"><div class="stat-card"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle info"><span>📋</span></div><div><div class="stat-value"><%= stats.totalProducts || 0 %></div><div class="stat-label">Totales</div></div></div></div></a>
-    <a href="/products" class="text-decoration-none col-md-3 col-6 kpi-card stat-card-item"><div class="stat-card"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle primary"><span>🏠</span></div><div><div class="stat-value"><%= stats.familyCount || 0 %></div><div class="stat-label">Familias</div></div></div></div></a>
-    <a href="/products" class="text-decoration-none col-md-3 col-6 kpi-card stat-card-item"><div class="stat-card"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle success"><span>⭐</span></div><div><div class="stat-value"><%= stats.productTypes && stats.productTypes.Main ? stats.productTypes.Main : 0 %></div><div class="stat-label">Principales</div></div></div></div></a>
-    <a href="/products" class="text-decoration-none col-md-3 col-6 kpi-card stat-card-item"><div class="stat-card"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle warning"><span>➕</span></div><div><div class="stat-value"><%= stats.productTypes && stats.productTypes.Optional ? stats.productTypes.Optional : 0 %></div><div class="stat-label">Opcionales</div></div></div></div></a>
-  </div>
+    <!-- TAB: FIBRA -->
+    <div class="tab-pane fade" id="kpiFibra" role="tabpanel">
+      <div class="row g-2 mb-3">
+        <div class="col-md-3 col-6"><div class="card"><div class="card-body p-2 text-center"><div class="fs-5 fw-bold"><%= stats.linesFiber || 0 %></div><small class="text-muted">Líneas Fibra</small></div></div></div>
+        <div class="col-md-3 col-6"><div class="card"><div class="card-body p-2 text-center"><div class="fs-5 fw-bold"><%= stats.totalCustomers || 0 %></div><small class="text-muted">Clientes</small></div></div></div>
+        <div class="col-md-3 col-6"><div class="card"><div class="card-body p-2 text-center"><div class="fs-5 fw-bold"><%= stats.portabilityIn || 0 %></div><small class="text-muted">Port. Entrantes</small></div></div></div>
+        <div class="col-md-3 col-6"><div class="card"><div class="card-body p-2 text-center"><div class="fs-5 fw-bold"><%= stats.portabilityOut || 0 %></div><small class="text-muted">Port. Salientes</small></div></div></div>
+      </div>
+      <div class="row g-2 mb-3">
+        <div class="col-12"><div class="card"><div class="card-body p-2"><div style="height:160px;overflow:hidden;"><canvas id="kpiPortTimeline2"></canvas></div></div></div></div>
+      </div>
+    </div>
 
-  <div class="row g-3 mb-4">
-    <div class="col-12"><h5><i class="ri-dashboard-line"></i> Resumen Ejecutivo</h5></div>
-    <div class="col-md-4 col-6"><div class="stat-card"><div class="stat-value"><%= stats.clientesConLineasActivas || 0 %></div><div class="stat-label">Clientes con líneas activas</div></div></div>
-    <div class="col-md-4 col-6"><div class="stat-card"><div class="stat-value"><%= (stats.recurrenteTotal || 0).toFixed(2) %>€</div><div class="stat-label">Recurrente total catálogo</div></div></div>
-    <div class="col-md-4 col-12"><div class="stat-card" style="background:#f8f9fa;border-left:3px solid #0050A1;border-radius:10px;padding:16px;"><div class="stat-value" style="font-size:24px;font-weight:700;color:#222;"><%= stats.mixTarifas ? stats.mixTarifas.length : 0 %></div><div class="stat-label" style="font-size:13px;color:#6c757d;font-weight:500;">Mix de tarifas (top)</div></div></div>
-  </div>
-
-  <!-- Charts -->
-  <div class="row g-3 mb-4">
-    <div class="col-md-6"><div class="card"><div class="card-header"><i class="ri-bar-chart-line"></i> Productos por familia</div><div class="card-body"><div class="chart-container" style="height:221px;"><canvas id="kpiFamilies"></canvas></div></div></div></div>
-    <div class="col-md-6"><div class="card"><div class="card-header"><i class="ri-pie-chart-line"></i> Clientes por mes</div><div class="card-body"><div class="chart-container" style="height:221px;"><canvas id="kpiTimeline"></canvas></div></div></div></div>
-  </div>
-  <div class="row g-3 mb-4">
-    <div class="col-md-4"><div class="card"><div class="card-header"><i class="ri-pie-chart-2-line"></i> Tipo producto</div><div class="card-body"><div class="chart-container" style="height:221px;"><canvas id="kpiTypes"></canvas></div></div></div></div>
-    <div class="col-md-4"><div class="card"><div class="card-header"><i class="ri-global-line"></i> Top provincias</div><div class="card-body"><div class="chart-container" style="height:221px;"><canvas id="kpiRegions"></canvas></div></div></div></div>
-    <div class="col-md-4"><div class="card"><div class="card-header"><i class="ri-arrow-left-right-line"></i> Estado portabilidades</div><div class="card-body"><div class="chart-container" style="height:221px;"><canvas id="kpiPorts"></canvas></div></div></div></div>
-  </div>
-  <div class="row g-3 mb-4">
-    <div class="col-md-6"><div class="card"><div class="card-body">
-      <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Evolución de Portabilidades</h6>
-      <canvas id="kpiPortTimeline" style="height:221px;"></canvas>
-    </div></div></div>
-    <div class="col-md-6"><div class="card"><div class="card-body">
-      <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Estado de Clientes</h6>
-      <canvas id="kpiCustStatuses" style="height:221px;"></canvas>
-    </div></div></div>
-  </div>
-  <div class="row g-3 mb-4">
-    <div class="col-12"><div class="card"><div class="card-body">
-      <h6 class="card-title"><span style="font-size:1.2rem;">📈</span> Mix de tarifas (suscripciones locales)</h6>
-      <canvas id="kpiMixTarifas" style="height:221px;"></canvas>
-    </div></div></div>
+    <!-- TAB: FACTURACIÓN -->
+    <div class="tab-pane fade" id="kpiFacturacion" role="tabpanel">
+      <div class="row g-2 mb-3">
+        <div class="col-md-4"><div class="card"><div class="card-body p-2 text-center"><div class="fs-5 fw-bold"><%= stats.recurrenteTotal ? stats.recurrenteTotal.toFixed(2) : '0.00' %>€</div><small class="text-muted">Recurrente catálogo</small></div></div></div>
+        <div class="col-md-4"><div class="card"><div class="card-body p-2 text-center"><div class="fs-5 fw-bold"><%= stats.clientesConLineasActivas || 0 %></div><small class="text-muted">Clientes activos</small></div></div></div>
+        <div class="col-md-4"><div class="card"><div class="card-body p-2 text-center"><div class="fs-5 fw-bold"><%= stats.familyCount || 0 %></div><small class="text-muted">Familias</small></div></div></div>
+      </div>
+      <div class="row g-2 mb-3">
+        <div class="col-md-6"><div class="card"><div class="card-body p-2"><div style="height:160px;overflow:hidden;"><canvas id="kpiFamilies2"></canvas></div></div></div></div>
+        <div class="col-md-6"><div class="card"><div class="card-body p-2"><div style="height:160px;overflow:hidden;"><canvas id="kpiTypes2"></canvas></div></div></div></div>
+      </div>
+    </div>
   </div>
   <% } %>
 </section>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-  var diagStatus = document.getElementById('kpiDiagStatus');
-  var diagErrors = document.getElementById('kpiDiagErrors');
-  var chartCount = 0;
+  var opts = { responsive: true, maintainAspectRatio: false, animation: false, resizeDelay: 0 };
+  var colors = ['#0d6efd','#198754','#20c997','#0dcaf0','#ffc107','#dc3545','#6f42c1','#fd7e14'];
+  var gray = '#6c757d';
 
-  function pushDiagError(msg) {
-    if (!diagErrors) return;
-    var prev = diagErrors.textContent ? (diagErrors.textContent + ' | ') : '';
-    diagErrors.textContent = prev + msg;
+  function tryChart(id, type, labels, data, extra) {
+    try {
+      if (!labels || !labels.length) return;
+      var config = { type: type, data: { labels: labels, datasets: [{ data: data }] }, options: Object.assign({}, opts, extra || {}) };
+      if (type !== 'doughnut') {
+        config.data.datasets[0].backgroundColor = labels.map(function(_,i){ return colors[i%colors.length]; });
+        config.data.datasets[0].borderRadius = 4;
+      } else {
+        config.data.datasets[0].backgroundColor = labels.map(function(_,i){ return colors[i%colors.length]; });
+        config.data.datasets[0].borderWidth = 0;
+      }
+      new Chart(document.getElementById(id), config);
+    } catch(e) {}
   }
 
-  window.addEventListener('error', function(e) {
-    pushDiagError('JS: ' + (e.message || 'error desconocido'));
-  });
+  // General tab
+  <% if (stats && stats.families) { %>tryChart('kpiFamilies', 'bar', <%= JSON.stringify(stats.families.map(x => x.name)) %>, <%= JSON.stringify(stats.families.map(x => x.count)) %>, { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } });<% } %>
+  <% if (stats.customerTimeline) { %>tryChart('kpiTimeline', 'bar', <%= JSON.stringify(stats.customerTimeline.map(x => x.month)) %>, <%= JSON.stringify(stats.customerTimeline.map(x => x.count)) %>, { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } });<% } %>
+  <% if (stats.productTypes) { %>tryChart('kpiTypes', 'bar', ['Main','Optional','Promotion'], [<%= (stats.productTypes.Main||0) %>,<%= (stats.productTypes.Optional||0) %>,<%= (stats.productTypes.Promotion||0) %>], { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } });<% } %>
+  <% if (stats.custStatuses) { %>tryChart('kpiCustStatuses', 'doughnut', <%= JSON.stringify(Object.keys(stats.custStatuses)) %>, <%= JSON.stringify(Object.values(stats.custStatuses)) %>, { cutout: '60%', plugins: { legend: { display: false } } });<% } %>
+  <% if (stats.topRegions) { %>tryChart('kpiRegions', 'bar', <%= JSON.stringify(stats.topRegions.map(x => x.name)) %>, <%= JSON.stringify(stats.topRegions.map(x => x.count)) %>, { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, grid: { color: '#eee' } }, y: { grid: { display: false } } } });<% } %>
+  <% if (stats.portTimeline) { %>tryChart('kpiPortTimeline', 'bar', <%= JSON.stringify(stats.portTimeline.map(x => x.month)) %>, <%= JSON.stringify(stats.portTimeline.map(x => x.count)) %>, { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } });<% } %>
 
-  window.addEventListener('unhandledrejection', function(e) {
-    var reason = e && e.reason ? (e.reason.message || String(e.reason)) : 'promise rechazada';
-    pushDiagError('Promise: ' + reason);
-  });
+  <!-- Móvil tab -->
+  <% if (stats.portStatuses) { %>tryChart('kpiPorts', 'bar', <%= JSON.stringify(Object.keys(stats.portStatuses)) %>, <%= JSON.stringify(Object.values(stats.portStatuses)) %>, { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } });<% } %>
+  <% if (stats.mixTarifas) { %>tryChart('kpiMixTarifas', 'bar', <%= JSON.stringify(stats.mixTarifas.map(x => x.name)) %>, <%= JSON.stringify(stats.mixTarifas.map(x => x.count)) %>, { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } });<% } %>
 
-  <% if (stats && stats.families && stats.families.length > 0) { %>
-  try {
-    new Chart(document.getElementById('kpiFamilies'), {
-      type: 'bar',
-      data: { labels: <%= JSON.stringify(stats.families.map(x => x.name)) %>, datasets: [{ label: 'Productos', data: <%= JSON.stringify(stats.families.map(x => x.count)) %>, backgroundColor: '#6c757d', borderRadius: 6 }] },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } }
-    });
-    chartCount++;
-  } catch(e) { console.error(e); }
+  <!-- Fibra tab -->
+  <% if (stats.portTimeline) { %>tryChart('kpiPortTimeline2', 'bar', <%= JSON.stringify(stats.portTimeline.map(x => x.month)) %>, <%= JSON.stringify(stats.portTimeline.map(x => x.count)) %>, { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } });<% } %>
 
-  <% if (stats.customerTimeline && stats.customerTimeline.length > 0) { %>
-  try {
-    new Chart(document.getElementById('kpiTimeline'), {
-      type: 'line',
-      data: { labels: <%= JSON.stringify(stats.customerTimeline.map(x => x.month)) %>, datasets: [{ label: 'Nuevos clientes', data: <%= JSON.stringify(stats.customerTimeline.map(x => x.count)) %>, borderColor: '#495057', backgroundColor: 'rgba(73,80,87,0.08)', fill: true, tension: 0.3, pointRadius: 4 }] },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } }
-    });
-    chartCount++;
-  } catch(e) { console.error(e); }
-  <% } %>
-
-  try {
-    new Chart(document.getElementById('kpiTypes'), {
-      type: 'bar',
-      data: { labels: ['Main','Optional','Promotion'], datasets: [{ label: 'Productos', data: [<%= stats.productTypes ? stats.productTypes.Main || 0 : 0 %>,<%= stats.productTypes ? stats.productTypes.Optional || 0 : 0 %>,<%= stats.productTypes ? stats.productTypes.Promotion || 0 : 0 %>], backgroundColor: ['#0d6efd','#198754','#ffc107'], borderRadius: 6 }] },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } }
-    });
-    chartCount++;
-  } catch(e) { console.error(e); }
-
-  try {
-    const reg = <%= JSON.stringify(stats.topRegions ? stats.topRegions.map(x => ({name:x.name,count:x.count})) : []) %>;
-    if (reg.length > 0) {
-      new Chart(document.getElementById('kpiRegions'), {
-        type: 'bar',
-        data: { labels: reg.map(x => x.name), datasets: [{ label: 'Clientes', data: reg.map(x => x.count), backgroundColor: '#6c757d', borderRadius: 4 }] },
-        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, grid: { color: '#eee' } }, y: { grid: { display: false } } } }
-      });
-      chartCount++;
-    }
-  } catch(e) { console.error(e); }
-
-  <% if (stats.portStatuses && Object.keys(stats.portStatuses).length > 0) { %>
-  try {
-    new Chart(document.getElementById('kpiPorts'), {
-      type: 'bar',
-      data: { labels: <%= JSON.stringify(Object.keys(stats.portStatuses)) %>, datasets: [{ label: 'Portabilidades', data: <%= JSON.stringify(Object.values(stats.portStatuses)) %>, backgroundColor: ['#198754','#ffc107','#0d6efd','#dc3545','#6c757d','#adb5bd'], borderRadius: 6 }] },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } }
-    });
-    chartCount++;
-  } catch(e) { console.error(e); }
-  <% } %>
-
-  <% if (stats.portTimeline && stats.portTimeline.length > 0) { %>
-  try {
-    new Chart(document.getElementById('kpiPortTimeline'), {
-      type: 'bar',
-      data: { labels: <%= JSON.stringify(stats.portTimeline.map(x => x.month)) %>, datasets: [{ label: 'Portabilidades', data: <%= JSON.stringify(stats.portTimeline.map(x => x.count)) %>, backgroundColor: '#0d6efd', borderRadius: 6 }] },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } }
-    });
-    chartCount++;
-  } catch(e) { console.error(e); }
-  <% } %>
-
-  <% if (stats.custStatuses && Object.keys(stats.custStatuses).length > 0) { %>
-  try {
-    new Chart(document.getElementById('kpiCustStatuses'), {
-      type: 'bar',
-      data: { labels: <%= JSON.stringify(Object.keys(stats.custStatuses)) %>, datasets: [{ label: 'Clientes', data: <%= JSON.stringify(Object.values(stats.custStatuses)) %>, backgroundColor: ['#0d6efd','#198754','#ffc107','#dc3545','#6c757d','#17a2b8'], borderRadius: 6 }] },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } }
-    });
-    chartCount++;
-  } catch(e) { console.error(e); }
-  <% } %>
-
-  <% if (stats.mixTarifas && stats.mixTarifas.length > 0) { %>
-  try {
-    new Chart(document.getElementById('kpiMixTarifas'), {
-      type: 'bar',
-      data: { labels: <%= JSON.stringify(stats.mixTarifas.map(x => x.name)) %>, datasets: [{ label: 'Líneas', data: <%= JSON.stringify(stats.mixTarifas.map(x => x.count)) %>, backgroundColor: '#0050A1', borderRadius: 6 }] },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } }
-    });
-    chartCount++;
-  } catch(e) { console.error(e); }
-  <% } %>
-
-  <% } %>
-
-  if (diagStatus) {
-    diagStatus.innerHTML = 'Estado inicial: <strong>Datos cargados</strong> | Gráficas renderizadas: <strong>' + chartCount + '</strong>';
-    if (chartCount === 0) {
-      pushDiagError('No se renderizó ninguna gráfica. Revisa consola y datos de API.');
-    }
-  }
+  <!-- Facturación tab -->
+  <% if (stats.families) { %>tryChart('kpiFamilies2', 'bar', <%= JSON.stringify(stats.families.map(x => x.name)) %>, <%= JSON.stringify(stats.families.map(x => x.count)) %>, { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } });<% } %>
+  tryChart('kpiTypes2', 'bar', ['Main','Optional','Promotion'], [<%= (stats.productTypes ? stats.productTypes.Main||0 : 0) %>,<%= (stats.productTypes ? stats.productTypes.Optional||0 : 0) %>,<%= (stats.productTypes ? stats.productTypes.Promotion||0 : 0) %>], { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } });
 });
 </script>

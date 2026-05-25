@@ -10,57 +10,77 @@
 
   <div class="row g-3 mb-3" id="statsRow">
     <div class="col-md-2 col-6"><div class="stat-card" data-filter="all"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle primary"><span>📊</span></div><div><div class="stat-value"><%= orders.length %></div><div class="stat-label">Total</div></div></div></div></div>
-    <div class="col-md-2 col-6"><div class="stat-card" data-filter="completadas"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle success"><span>✅</span></div><div><div class="stat-value"><%= orders.filter(o => (o.status||o.estado||'').toUpperCase() === 'COMPLETED').length %></div><div class="stat-label">Completadas</div></div></div></div></div>
-    <div class="col-md-2 col-6"><div class="stat-card" data-filter="pendientes"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle warning"><span>⏳</span></div><div><div class="stat-value"><%= orders.filter(o => (o.status||o.estado||'').toUpperCase() === 'INITIATED' || (o.estado||'') === 'pendiente').length %></div><div class="stat-label">Pendientes</div></div></div></div></div>
-    <div class="col-md-2 col-6"><div class="stat-card" data-filter="firma"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle warning"><span>✍️</span></div><div><div class="stat-value"><%= orders.filter(o => (o.status||o.estado||'').toUpperCase() === 'PENDING_SIGNATURE' || (o.status||o.estado||'').toUpperCase() === 'PENDING_CONTRACT_SIGNATURE').length %></div><div class="stat-label">Pend. firma</div></div></div></div></div>
-    <div class="col-md-2 col-6"><div class="stat-card" data-filter="error-cancel"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle danger"><span>❌</span></div><div><div class="stat-value"><%= orders.filter(o => (o.status||o.estado||'').toUpperCase() === 'CANCELED' || (o.status||o.estado||'').toUpperCase() === 'ERRORED').length %></div><div class="stat-label">Error/Cancel</div></div></div></div></div>
-    <div class="col-md-2 col-6"><div class="stat-card" data-filter="hoy"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle info"><span>📅</span></div><div><div class="stat-value"><%= orders.filter(o => (o.created_at || o.created ? new Date(o.created_at || o.created).toDateString() === new Date().toDateString() : false)).length %></div><div class="stat-label">Hoy</div></div></div></div></div>
+    <div class="col-md-2 col-6"><div class="stat-card" data-filter="completadas"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle success"><span>✅</span></div><div><div class="stat-value"><%= orders.filter(function(o){ return (o.status||o.estado||'').toUpperCase() === 'COMPLETED'; }).length %></div><div class="stat-label">Completadas</div></div></div></div></div>
+    <div class="col-md-2 col-6"><div class="stat-card" data-filter="pendientes"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle warning"><span>⏳</span></div><div><div class="stat-value"><%= orders.filter(function(o){ var s=(o.status||o.estado||'').toUpperCase(); return s==='INITIATED'||s==='PENDING'||(o.estado||'')==='pendiente'; }).length %></div><div class="stat-label">Pendientes</div></div></div></div></div>
+    <div class="col-md-2 col-6"><div class="stat-card" data-filter="firma"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle warning"><span>✍️</span></div><div><div class="stat-value"><%= orders.filter(function(o){ var s=(o.status||o.estado||'').toUpperCase(); return s==='PENDING_SIGNATURE'||s==='PENDING_CONTRACT_SIGNATURE'; }).length %></div><div class="stat-label">Pend. firma</div></div></div></div></div>
+    <div class="col-md-2 col-6"><div class="stat-card" data-filter="error-cancel"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle danger"><span>❌</span></div><div><div class="stat-value"><%= orders.filter(function(o){ var s=(o.status||o.estado||'').toUpperCase(); return s==='CANCELED'||s==='CANCELLED'||s==='ERRORED'||s==='ERROR'; }).length %></div><div class="stat-label">Error/Cancel</div></div></div></div></div>
+    <div class="col-md-2 col-6"><div class="stat-card" data-filter="hoy"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle info"><span>📅</span></div><div><div class="stat-value"><%= orders.filter(function(o){ var d=new Date(o.created_at||o.created); return !isNaN(d.getTime())&&d.toDateString()===new Date().toDateString(); }).length %></div><div class="stat-label">Hoy</div></div></div></div></div>
   </div>
 
   <div class="row g-3 mb-4">
-    <div class="col-md-12">
-      <div class="card"><div class="card-body">
-        <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Estado de Órdenes</h6>
-        <canvas id="chartOrders" style="height:221px;"></canvas>
+    <div class="col-md-4">
+      <div class="card"><div class="card-body" style="overflow:hidden;height:150px;padding:10px;">
+        <div class="small text-muted fw-semibold">Estado de órdenes</div>
+        <canvas id="chartOrders" style="height:110px;width:100%;"></canvas>
+      </div></div>
+    </div>
+    <div class="col-md-4">
+      <div class="card"><div class="card-body" style="overflow:hidden;height:150px;padding:10px;">
+        <div class="small text-muted fw-semibold">Órdenes por mes</div>
+        <canvas id="chartOrdersMonthly" style="height:110px;width:100%;"></canvas>
+      </div></div>
+    </div>
+    <div class="col-md-4">
+      <div class="card"><div class="card-body" style="overflow:hidden;height:150px;padding:10px;">
+        <div class="small text-muted fw-semibold">Tipo de orden</div>
+        <canvas id="chartOrdersType" style="height:110px;width:100%;"></canvas>
       </div></div>
     </div>
   </div>
 
   <div class="card hideable-section" data-card-id="ordenes-tabla">
     <div class="card-header d-flex justify-content-between"><span><i class="ri-file-list-line"></i> Listado de Órdenes</span>
-      <div class="d-flex gap-2"><input class="form-control form-control-sm" style="width:200px;" placeholder="Buscar orden..."><button class="btn btn-sm btn-outline-primary"><i class="ri-filter-3-line"></i></button></div>
+      <div class="d-flex gap-2"><input class="form-control form-control-sm" style="width:200px;" placeholder="Buscar orden..." id="orderSearch"><button class="btn btn-sm btn-outline-primary" id="clearSearch"><i class="ri-close-line"></i></button></div>
     </div>
     <div class="card-body p-0">
       <div class="table-responsive">
         <table class="table table-hover">
-          <thead><tr><th>#</th><th>Cliente</th><th>Línea</th><th>Producto</th><th>Precio</th><th>Estado</th><th>Fecha</th><th></th></tr></thead>
+          <thead><tr><th>#</th><th>Cliente</th><th>Línea</th><th>Producto</th><th>Estado</th><th>Fecha</th><th></th></tr></thead>
           <tbody>
             <% if (!orders || orders.length === 0) { %>
-            <tr><td colspan="8" class="text-center text-muted py-4">No hay órdenes</td></tr>
-            <% } else { orders.forEach(o => { 
-              const st = (o.status || o.estado || '').toUpperCase();
-              const sc = st === 'COMPLETED' || st === 'COMPLETADA' ? 'success' : 
-                         st === 'INITIATED' || st === 'INICIADA' || st === 'PENDING' || st === 'PENDIENTE' ? 'info' :
-                         st === 'CANCELED' || st === 'CANCELADA' ? 'secondary' :
-                         st === 'ERRORED' || st === 'ERROR' ? 'danger' :
-                         st === 'PENDING_SIGNATURE' || st === 'PENDING_CONTRACT_SIGNATURE' ? 'warning' : 'primary';
-              const isHoy = (o.created_at || o.created ? new Date(o.created_at || o.created).toDateString() === new Date().toDateString() : false);
-              const fv = [];
+            <tr><td colspan="7" class="text-center text-muted py-4">No hay órdenes</td></tr>
+            <% } else { orders.forEach(function(o) {
+              var st = (o.status || o.estado || '').toUpperCase();
+              var sc = st === 'COMPLETED' || st === 'COMPLETADA' ? 'success' :
+                       st === 'INITIATED' || st === 'INICIADA' || st === 'PENDING' || st === 'PENDIENTE' ? 'info' :
+                       st === 'CANCELED' || st === 'CANCELLED' || st === 'CANCELADA' ? 'secondary' :
+                       st === 'ERRORED' || st === 'ERROR' ? 'danger' :
+                       st === 'PENDING_SIGNATURE' || st === 'PENDING_CONTRACT_SIGNATURE' ? 'warning' : 'primary';
+              var isHoy = (function(){ var d=new Date(o.created_at||o.created); return !isNaN(d.getTime())&&d.toDateString()===new Date().toDateString(); })();
+              var fv = [];
               if (st === 'COMPLETED') fv.push('completadas');
-              if (st === 'INITIATED' || (o.estado||'').toLowerCase() === 'pendiente') fv.push('pendientes');
+              if (st === 'INITIATED' || st === 'PENDING' || (o.estado||'').toLowerCase() === 'pendiente') fv.push('pendientes');
               if (st === 'PENDING_SIGNATURE' || st === 'PENDING_CONTRACT_SIGNATURE') fv.push('firma');
-              if (st === 'CANCELED' || st === 'ERRORED') fv.push('error-cancel');
+              if (st === 'CANCELED' || st === 'CANCELLED' || st === 'ERRORED' || st === 'ERROR') fv.push('error-cancel');
               if (isHoy) fv.push('hoy');
+              var det = (o.detalles||o.details||o.description||'').replace(/"/g,'&quot;');
+              var fechaStr = (function(){ var d=new Date(o.created_at||o.created); return isNaN(d.getTime())?'-':d.toLocaleDateString('es-ES'); })();
             %>
-            <tr data-filter-values="<%= fv.join(' ') %>">
-              <td><a href="/aftersales/orders/<%= o.id || o.orderId %>">#<%= o.id || o.orderId || '?' %></a></td>
+            <tr data-filter-values="<%= fv.join(' ') %>" style="cursor:pointer;" class="order-row"
+              data-id="<%= o.id||o.orderId||'' %>"
+              data-client="<%= (o.customerName||o.cliente_nombre||o.name||'-').replace(/"/g,'&quot;') %>"
+              data-linea="<%= (o.lineNumber||o.linea||'-').replace(/"/g,'&quot;') %>"
+              data-producto="<%= (o.productName||o.producto||o.product||'-').replace(/"/g,'&quot;') %>"
+              data-estado="<%= st %>"
+              data-detalles="<%= det %>"
+              data-fecha="<%= fechaStr %>">
+              <td>#<%= o.id || o.orderId || '?' %></td>
               <td><%= o.customerName || o.cliente_nombre || o.name || '-' %></td>
               <td><%= o.lineNumber || o.linea || '-' %></td>
-              <td><%= o.productName || o.products || o.producto || o.product || '-' %></td>
-              <td><%= o.price || o.precio ? (o.price || o.precio) + '€' : '-' %></td>
+              <td><%= o.productName || o.producto || o.product || '-' %></td>
               <td><span class="badge bg-<%= sc %>"><%= st %></span></td>
-              <td class="small"><%= o.created_at || o.created ? new Date(o.created_at || o.created).toLocaleDateString('es-ES') : '-' %></td>
-              <td><a href="/aftersales/orders/<%= o.id || o.orderId %>" class="btn btn-sm btn-outline-primary"><i class="ri-eye-line"></i></a></td>
+              <td class="small"><%= fechaStr %></td>
+              <td><a href="/aftersales/orders/<%= o.id||o.orderId||'' %>" class="btn btn-sm btn-outline-primary"><i class="ri-eye-line"></i></a></td>
             </tr>
             <% }); } %>
           </tbody>
@@ -70,28 +90,115 @@
   </div>
 </section>
 
+<div class="modal fade" id="orderDetailModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Detalle de Orden</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body" id="orderDetailBody"></div>
+    <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button></div>
+  </div></div>
+</div>
+
 <script>
-document.querySelectorAll('#statsRow .stat-card').forEach(function(c) {
-  c.addEventListener('click', function() {
-    var filter = this.getAttribute('data-filter');
-    document.querySelectorAll('#statsRow .stat-card').forEach(function(x) { x.style.outline = ''; });
-    if (filter !== 'all') this.style.outline = '2px solid #495057';
-    document.querySelectorAll('table tbody tr').forEach(function(row) {
-      if (filter === 'all') { row.style.display = ''; return; }
-      if (!row.hasAttribute('data-filter-values')) { row.style.display = 'none'; return; }
-      var vals = (row.getAttribute('data-filter-values') || '').split(' ');
-      row.style.display = vals.indexOf(filter) !== -1 ? '' : 'none';
+document.addEventListener('DOMContentLoaded', function() {
+  var orders = <%- JSON.stringify(orders) %>;
+  if (!Array.isArray(orders)) orders = [];
+  var charts = <%- JSON.stringify(typeof charts !== 'undefined' ? charts : {status:{labels:[],data:[]},monthly:{labels:[],data:[]},type:{labels:[],data:[]}}) %>;
+
+  // ---- Stat card filtering ----
+  document.querySelectorAll('#statsRow .stat-card').forEach(function(c) {
+    c.addEventListener('click', function() {
+      var filter = this.getAttribute('data-filter');
+      document.querySelectorAll('#statsRow .stat-card').forEach(function(x) { x.style.outline = ''; });
+      if (filter !== 'all') this.style.outline = '2px solid #495057';
+      document.querySelectorAll('table tbody tr').forEach(function(row) {
+        if (filter === 'all') { row.style.display = ''; return; }
+        if (!row.hasAttribute('data-filter-values')) { row.style.display = 'none'; return; }
+        var vals = (row.getAttribute('data-filter-values') || '').split(' ');
+        row.style.display = vals.indexOf(filter) !== -1 ? '' : 'none';
+      });
     });
   });
-});
-document.getElementById('toggleStats').addEventListener('click', function() {
-  var r = document.getElementById('statsRow');
-  r.style.display = r.style.display === 'none' ? '' : 'none';
-});
+  document.getElementById('toggleStats').addEventListener('click', function() {
+    var r = document.getElementById('statsRow');
+    r.style.display = r.style.display === 'none' ? '' : 'none';
+  });
 
-var od = <%- JSON.stringify(orders) %>;
-var co = {};
-od.forEach(function(x) { var k = (x.status || x.estado || 'UNKNOWN').toUpperCase(); co[k] = (co[k] || 0) + 1; });
-var lo = Object.keys(co);
-new Chart(document.getElementById('chartOrders'), { type: 'bar', data: { labels: lo, datasets: [{ label: 'Órdenes', data: Object.values(co), backgroundColor: lo.map(function(s) { return s === 'COMPLETED' ? '#198754' : s === 'INITIATED' ? '#0d6efd' : (s === 'PENDING_SIGNATURE' || s === 'PENDING_CONTRACT_SIGNATURE') ? '#ffc107' : (s === 'CANCELED' || s === 'ERRORED' || s === 'ERROR') ? '#dc3545' : '#6c757d'; }), borderRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } } });
+  // ---- Charts ----
+  var chartColors = ['#ffc107','#198754','#dc3545','#0d6efd','#6f42c1','#fd7e14','#20c997','#e83e8c'];
+
+  // Donut: Estado
+  if (charts.status && charts.status.labels.length) {
+    var ctx1 = document.getElementById('chartOrders');
+    if (ctx1) {
+      new Chart(ctx1.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+          labels: charts.status.labels,
+          datasets: [{ data: charts.status.data, backgroundColor: chartColors.slice(0, charts.status.labels.length), borderWidth: 0 }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, animation: false, resizeDelay: 0, cutout: '60%', plugins: { legend: { display: false } } }
+      });
+    }
+  }
+
+  // Bar: Órdenes por mes
+  if (charts.monthly && charts.monthly.labels.length) {
+    var ctx2 = document.getElementById('chartOrdersMonthly');
+    if (ctx2) {
+      new Chart(ctx2.getContext('2d'), {
+        type: 'bar',
+        data: { labels: charts.monthly.labels, datasets: [{ label: 'Órdenes', data: charts.monthly.data, backgroundColor: '#0d6efd', borderRadius: 4 }] },
+        options: { responsive: true, maintainAspectRatio: false, animation: false, resizeDelay: 0, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' }, ticks: { precision: 0 } }, x: { grid: { display: false }, ticks: { font: { size: 9 } } } } }
+      });
+    }
+  }
+
+  // Bar: Tipo de orden
+  if (charts.type && charts.type.labels.length) {
+    var ctx3 = document.getElementById('chartOrdersType');
+    if (ctx3) {
+      new Chart(ctx3.getContext('2d'), {
+        type: 'bar',
+        data: { labels: charts.type.labels, datasets: [{ label: 'Tipo', data: charts.type.data, backgroundColor: '#20c997', borderRadius: 4 }] },
+        options: { responsive: true, maintainAspectRatio: false, animation: false, resizeDelay: 0, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' }, ticks: { precision: 0 } }, x: { grid: { display: false }, ticks: { font: { size: 9 } } } } }
+      });
+    }
+  }
+
+  // ---- Clickable rows -> modal ----
+  document.querySelectorAll('.order-row').forEach(function(row) {
+    row.addEventListener('click', function(e) {
+      if (e.target.closest('a')) return;
+      var id = this.dataset.id;
+      var client = this.dataset.client;
+      var linea = this.dataset.linea;
+      var producto = this.dataset.producto;
+      var estado = this.dataset.estado;
+      var detalles = this.dataset.detalles;
+      var fecha = this.dataset.fecha;
+      var badgeClass = 'info';
+      if (estado === 'COMPLETED' || estado === 'COMPLETADA') badgeClass = 'success';
+      else if (estado === 'INITIATED' || estado === 'PENDING' || estado === 'PENDIENTE') badgeClass = 'info';
+      else if (estado === 'CANCELED' || estado === 'CANCELLED' || estado === 'CANCELADA') badgeClass = 'secondary';
+      else if (estado === 'ERRORED' || estado === 'ERROR') badgeClass = 'danger';
+      else if (estado === 'PENDING_SIGNATURE' || estado === 'PENDING_CONTRACT_SIGNATURE') badgeClass = 'warning';
+      document.getElementById('orderDetailBody').innerHTML =
+        '<table class="table table-sm"><tr><th>#</th><td>' + id + '</td></tr><tr><th>Cliente</th><td>' + client + '</td></tr><tr><th>Línea</th><td>' + linea + '</td></tr><tr><th>Producto</th><td>' + producto + '</td></tr><tr><th>Estado</th><td><span class="badge bg-' + badgeClass + '">' + estado + '</span></td></tr><tr><th>Detalles</th><td>' + (detalles || '-') + '</td></tr><tr><th>Fecha</th><td>' + fecha + '</td></tr></table>';
+      var modal = new bootstrap.Modal(document.getElementById('orderDetailModal'));
+      modal.show();
+    });
+  });
+
+  // ---- Search filter ----
+  document.getElementById('orderSearch').addEventListener('input', function() {
+    var q = this.value.toLowerCase();
+    document.querySelectorAll('.order-row').forEach(function(r) {
+      r.style.display = r.textContent.toLowerCase().indexOf(q) !== -1 ? '' : 'none';
+    });
+  });
+  document.getElementById('clearSearch').addEventListener('click', function() {
+    document.getElementById('orderSearch').value = '';
+    document.querySelectorAll('.order-row').forEach(function(r) { r.style.display = ''; });
+  });
+});
 </script>

@@ -22,7 +22,9 @@ class LikesAPI {
   async getToken() {
     if (tokenCache && tokenExpiry && Date.now() < tokenExpiry) return tokenCache;
     try {
-      const response = await axios.post(`${this.apiUrl}/token`, { email: this.email, password: this.password });
+      const body = { email: this.email, password: this.password };
+      if (this.brandId) body.brand = this.brandId;
+      const response = await axios.post(`${this.apiUrl}/token`, body);
       tokenCache = response.data.token || response.data.access_token;
       tokenExpiry = Date.now() + (response.data.expires_in || 3600) * 1000 - 60000;
       return tokenCache;
@@ -64,7 +66,7 @@ class LikesAPI {
     while (hasMore && page <= 100) {
       const sep = endpoint.includes('?') ? '&' : '?';
       const raw = await this.request('GET', `${endpoint}${sep}page=${page}&limit=500`);
-      const items = this.extractData(raw);
+      const items = await this.extractData(raw);
       all = all.concat(items);
       const total = raw.total || raw.totalCount || raw.total_items || (raw.meta && raw.meta.total) || 0;
       const perPage = raw.per_page || raw.perPage || raw.limit || (raw.meta && raw.meta.per_page) || 500;
@@ -190,6 +192,26 @@ class LikesAPI {
 
   async getLineInfo(lineNumber) {
     return this.request('GET', `/line?line=${lineNumber}`);
+  }
+
+  async getLineGB(lineNumber) {
+    return this.request('GET', `/line/gb?line=${encodeURIComponent(lineNumber)}`);
+  }
+
+  async changeProduct(data) {
+    return this.request('POST', '/changeProduct', data);
+  }
+
+  async addOptionalProduct(data) {
+    return this.request('POST', '/addOptionalProduct', data);
+  }
+
+  async lineChangeSim(data) {
+    return this.request('POST', '/line/changeSim', data);
+  }
+
+  async getLineCDRs(lineNumber) {
+    return this.request('GET', `/line/cdrs?line=${encodeURIComponent(lineNumber)}`);
   }
 
   async blockLine(lineNumber, blocked = true) {

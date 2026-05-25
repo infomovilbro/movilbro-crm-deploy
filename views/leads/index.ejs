@@ -10,16 +10,28 @@
     <a href="/leads" class="text-decoration-none col-md-3 col-6 stat-card-item"><div class="stat-card"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle danger"><span>❌</span></div><div><div class="stat-value"><%= leads.filter(l => (l.status||'').toUpperCase() === 'LOST').length %></div><div class="stat-label">Perdidos</div></div></div></div></a>
   </div>
   <div class="row g-3 mb-4">
-    <div class="col-md-6">
+    <div class="col-md-3">
       <div class="card"><div class="card-body">
-        <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Estado de Leads</h6>
-        <canvas id="leadsStatusChart" style="height:221px;"></canvas>
+        <h6 class="card-title"><span style="font-size:1.2rem;">🍩</span> Estado</h6>
+        <div class="chart-container" style="height:200px;overflow:hidden;"><canvas id="leadsStatusChart"></canvas></div>
       </div></div>
     </div>
-    <div class="col-md-6">
+    <div class="col-md-3">
       <div class="card"><div class="card-body">
-        <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Leads por Fuente/Origen</h6>
-        <canvas id="leadsSourceChart" style="height:221px;"></canvas>
+        <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Top 5 Fuentes</h6>
+        <div class="chart-container" style="height:200px;overflow:hidden;"><canvas id="leadsSourceChart"></canvas></div>
+      </div></div>
+    </div>
+    <div class="col-md-3">
+      <div class="card"><div class="card-body">
+        <h6 class="card-title"><span style="font-size:1.2rem;">📈</span> Leads por Mes</h6>
+        <div class="chart-container" style="height:200px;overflow:hidden;"><canvas id="leadsMonthlyChart"></canvas></div>
+      </div></div>
+    </div>
+    <div class="col-md-3">
+      <div class="card"><div class="card-body">
+        <h6 class="card-title"><span style="font-size:1.2rem;">📉</span> Tasa Conversión</h6>
+        <div class="chart-container" style="height:200px;overflow:hidden;"><canvas id="leadsConvChart"></canvas></div>
       </div></div>
     </div>
   </div>
@@ -51,59 +63,73 @@
       </div>
     </div>
   </div>
+</section>
+
+<div class="modal fade" id="chartDetailModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered modal-sm"><div class="modal-content"><div class="modal-header"><h6 class="modal-title" id="chartDetailTitle"></h6><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body p-2"><table class="table table-sm mb-0"><thead><tr><th>Etiqueta</th><th class="text-end">Valor</th></tr></thead><tbody id="chartDetailBody"></tbody></table></div></div></div></div>
+
 <script>
-var leadsData = <%- JSON.stringify(leads) %>;
-var convertidos = leadsData.filter(function(l) { return (l.status||'').toUpperCase() === 'CONVERTED'; }).length;
-var nuevos = leadsData.filter(function(l) { var s = (l.status||'').toUpperCase(); return s === 'NEW' || s === 'PENDING'; }).length;
-var perdidos = leadsData.filter(function(l) { return (l.status||'').toUpperCase() === 'LOST'; }).length;
+document.addEventListener('DOMContentLoaded', function() {
+  var stLabels = <%- JSON.stringify(charts.status.labels) %>;
+  var stData = <%- JSON.stringify(charts.status.data) %>;
+  var soLabels = <%- JSON.stringify(charts.sources.labels) %>;
+  var soData = <%- JSON.stringify(charts.sources.data) %>;
+  var moLabels = <%- JSON.stringify(charts.monthly.labels) %>;
+  var moData = <%- JSON.stringify(charts.monthly.data) %>;
+  var coLabels = <%- JSON.stringify(charts.conversion.labels) %>;
+  var coData = <%- JSON.stringify(charts.conversion.data) %>;
 
-var ctx1 = document.getElementById('leadsStatusChart').getContext('2d');
-new Chart(ctx1, {
-  type: 'bar',
-  data: {
-    labels: ['Convertidos', 'Nuevos/Pendientes', 'Perdidos'],
-    datasets: [{
-      label: 'Leads',
-      data: [convertidos, nuevos, perdidos],
-      backgroundColor: ['#198754', '#0d6efd', '#dc3545'],
-      borderRadius: 6
-    }]
-  },
-  options: {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: { legend: { display: false } },
-    scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } }
+  function makeModal(canvasId, title, labels, data) {
+    var el = document.getElementById(canvasId);
+    if (!el || labels.length === 0) return;
+    el.style.cursor = 'pointer';
+    el.addEventListener('click', function() {
+      document.getElementById('chartDetailTitle').textContent = title;
+      var tbody = document.getElementById('chartDetailBody');
+      tbody.innerHTML = '';
+      labels.forEach(function(l, i) {
+        var tr = document.createElement('tr');
+        tr.innerHTML = '<td>' + l + '</td><td class="text-end fw-bold">' + data[i] + '</td>';
+        tbody.appendChild(tr);
+      });
+      var modal = new bootstrap.Modal(document.getElementById('chartDetailModal'));
+      modal.show();
+    });
   }
-});
 
-var sourceCounts = {};
-leadsData.forEach(function(l) {
-  var src = l.source || l.origen || 'Otro';
-  sourceCounts[src] = (sourceCounts[src] || 0) + 1;
-});
-var sortedSources = Object.keys(sourceCounts).sort(function(a, b) { return sourceCounts[b] - sourceCounts[a]; });
-var top5Sources = sortedSources.slice(0, 5);
-var top5Counts = top5Sources.map(function(s) { return sourceCounts[s]; });
+  try {
+    new Chart(document.getElementById('leadsStatusChart'), {
+      type: 'doughnut',
+      data: { labels: stLabels, datasets: [{ label: 'Leads', data: stData, backgroundColor: ['#198754', '#0d6efd', '#dc3545'], borderWidth: 0 }] },
+      options: { responsive: true, maintainAspectRatio: false, animation: false, resizeDelay: 0, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, padding: 8 } } } }
+    });
+    makeModal('leadsStatusChart', 'Estado de Leads', stLabels, stData);
+  } catch(e) { console.error(e); }
 
-var ctx2 = document.getElementById('leadsSourceChart').getContext('2d');
-new Chart(ctx2, {
-  type: 'bar',
-  data: {
-    labels: top5Sources,
-    datasets: [{
-      label: 'Leads',
-      data: top5Counts,
-      backgroundColor: top5Counts.map(function(v, i) { return i > 0 && v < top5Counts[i-1] ? '#dc3545' : '#198754'; }),
-      borderRadius: 6
-    }]
-  },
-  options: {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: { legend: { display: false } },
-    scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } }
-  }
+  try {
+    new Chart(document.getElementById('leadsSourceChart'), {
+      type: 'bar',
+      data: { labels: soLabels, datasets: [{ label: 'Leads', data: soData, backgroundColor: '#0d6efd', borderRadius: 6 }] },
+      options: { responsive: true, maintainAspectRatio: false, animation: false, resizeDelay: 0, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } }
+    });
+    makeModal('leadsSourceChart', 'Top 5 Fuentes', soLabels, soData);
+  } catch(e) { console.error(e); }
+
+  try {
+    new Chart(document.getElementById('leadsMonthlyChart'), {
+      type: 'bar',
+      data: { labels: moLabels, datasets: [{ label: 'Leads', data: moData, backgroundColor: '#6c757d', borderRadius: 6 }] },
+      options: { responsive: true, maintainAspectRatio: false, animation: false, resizeDelay: 0, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } }
+    });
+    makeModal('leadsMonthlyChart', 'Leads por Mes', moLabels, moData);
+  } catch(e) { console.error(e); }
+
+  try {
+    new Chart(document.getElementById('leadsConvChart'), {
+      type: 'line',
+      data: { labels: coLabels, datasets: [{ label: '% Conversión', data: coData, borderColor: '#198754', backgroundColor: 'rgba(25,135,84,0.08)', fill: true, tension: 0.3, pointRadius: 4 }] },
+      options: { responsive: true, maintainAspectRatio: false, animation: false, resizeDelay: 0, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, max: 100, grid: { color: '#eee' } }, x: { grid: { display: false } } } }
+    });
+    makeModal('leadsConvChart', 'Tasa Conversión (%)', coLabels, coData);
+  } catch(e) { console.error(e); }
 });
 </script>
-</section>

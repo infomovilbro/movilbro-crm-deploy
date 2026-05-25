@@ -23,13 +23,14 @@
     <div class="col-md-6">
       <div class="card"><div class="card-body">
         <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Penalizaciones por Estado</h6>
-        <canvas id="chartPenEstado" style="height:221px;"></canvas>
+        <div class="chart-wrap" style="height:150px;overflow:hidden;position:relative;"><canvas id="chartPenEstado"></canvas></div>
+        <div class="chart-legend mt-2 d-flex flex-wrap gap-3 justify-content-center" id="legend-chartPenEstado"></div>
       </div></div>
     </div>
     <div class="col-md-6">
       <div class="card"><div class="card-body">
         <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Importe por Estado</h6>
-        <canvas id="chartPenImporte" style="height:221px;"></canvas>
+        <div class="chart-wrap" style="height:150px;overflow:hidden;position:relative;"><canvas id="chartPenImporte"></canvas></div>
       </div></div>
     </div>
   </div>
@@ -67,6 +68,14 @@
   </div>
 </section>
 
+<div class="modal fade" id="chartDetailModal" tabindex="-1">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="chartDetailTitle"></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body p-0"><div class="table-responsive"><table class="table table-hover mb-0" id="chartDetailTable"><thead></thead><tbody></tbody></table></div></div>
+    <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button></div>
+  </div></div>
+</div>
+
 <script>
 document.querySelectorAll('#statsRow .stat-card').forEach(function(c) {
   c.addEventListener('click', function() {
@@ -86,15 +95,48 @@ document.getElementById('toggleStats').addEventListener('click', function() {
   r.style.display = r.style.display === 'none' ? '' : 'none';
 });
 
-var pd = <%- JSON.stringify(penalties) %>;
-var cpe = {}, cpi = {};
-pd.forEach(function(x) {
-  var k = (x.status || 'UNKNOWN').toUpperCase();
-  cpe[k] = (cpe[k] || 0) + 1;
-  cpi[k] = (cpi[k] || 0) + parseFloat(x.amount || x.importe || 0);
+document.addEventListener('DOMContentLoaded', function() {
+  var penalties = <%- JSON.stringify(penalties) %>;
+  if (!Array.isArray(penalties)) penalties = [];
+
+  var cpe = {}, cpi = {};
+  penalties.forEach(function(x) {
+    var k = (x.status || 'UNKNOWN').toUpperCase();
+    cpe[k] = (cpe[k] || 0) + 1;
+    cpi[k] = (cpi[k] || 0) + parseFloat(x.amount || x.importe || 0);
+  });
+  var lpe = Object.keys(cpe);
+  var cols = lpe.map(function(s) { return s === 'PAID' || s === 'PAGADA' ? '#198754' : s === 'PENDING' || s === 'PENDIENTE' ? '#ffc107' : s === 'CANCELED' ? '#dc3545' : '#6c757d'; });
+
+  var chartPen = new Chart(document.getElementById('chartPenEstado'), {
+    type: 'doughnut',
+    data: { labels: lpe, datasets: [{ data: Object.values(cpe), backgroundColor: cols, borderWidth: 0 }] },
+    options: { responsive: true, maintainAspectRatio: false, animation: false, resizeDelay: 0, cutout: '60%', plugins: { legend: { display: false }, tooltip: { enabled: true } }, onClick: function(e, elements) { if (elements.length > 0) showChartDetail(this, elements[0].index); } }
+  });
+  makeLegend(chartPen, 'legend-chartPenEstado');
+
+  new Chart(document.getElementById('chartPenImporte'), {
+    type: 'bar',
+    data: { labels: lpe, datasets: [{ label: 'Importe (€)', data: Object.values(cpi), backgroundColor: cols, borderRadius: 6 }] },
+    options: { responsive: true, maintainAspectRatio: false, animation: false, resizeDelay: 0, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } }, onClick: function(e, elements) { if (elements.length > 0) showChartDetail(this, elements[0].index); } }
+  });
+
+  function makeLegend(chart, id) {
+    var html = '', colors = chart.data.datasets[0].backgroundColor, data = chart.data.datasets[0].data;
+    chart.data.labels.forEach(function(l, i) { var c = Array.isArray(colors) ? colors[i] : '#0d6efd'; html += '<span class="d-inline-flex align-items-center gap-1 small me-3"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:'+c+';"></span> '+l+' ('+data[i]+')</span>'; });
+    document.getElementById(id).innerHTML = html;
+  }
+
+  function showChartDetail(chart, idx) {
+    var label = chart.data.labels[idx];
+    var records = penalties.filter(function(x){ return ((x.status||'').toUpperCase()) === label; });
+    var h = '<tr><th>Cliente</th><th>Línea</th><th>Router</th><th>Importe</th><th>Estado</th><th>Fecha</th></tr>';
+    var b = '';
+    records.forEach(function(x){ b += '<tr><td>'+(x.customerName||x.name||'-')+'</td><td>'+(x.lineNumber||x.linea||'-')+'</td><td>'+(x.routerModel||x.router||'-')+'</td><td>'+(x.amount||x.importe?((x.amount||x.importe)+'€'):'-')+'</td><td>'+(x.status||'-')+'</td><td>'+(x.date||x.fecha?new Date(x.date||x.fecha).toLocaleDateString('es-ES'):'-')+'</td></tr>'; });
+    document.getElementById('chartDetailTitle').textContent = label + ' (' + records.length + ')';
+    document.getElementById('chartDetailTable').querySelector('thead').innerHTML = h;
+    document.getElementById('chartDetailTable').querySelector('tbody').innerHTML = b;
+    new bootstrap.Modal(document.getElementById('chartDetailModal')).show();
+  }
 });
-var lpe = Object.keys(cpe);
-var cols = lpe.map(function(s) { return s === 'PAID' || s === 'PAGADA' ? '#198754' : s === 'PENDING' || s === 'PENDIENTE' ? '#ffc107' : s === 'CANCELED' ? '#dc3545' : '#6c757d'; });
-new Chart(document.getElementById('chartPenEstado'), { type: 'bar', data: { labels: lpe, datasets: [{ label: 'Penalizaciones', data: Object.values(cpe), backgroundColor: cols, borderRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } } });
-new Chart(document.getElementById('chartPenImporte'), { type: 'bar', data: { labels: lpe, datasets: [{ label: 'Importe (€)', data: Object.values(cpi), backgroundColor: cols, borderRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } } });
 </script>

@@ -8,6 +8,32 @@
     <a href="/remittances" class="text-decoration-none col-md-4 col-6 stat-card-item"><div class="stat-card"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle success"><span>✅</span></div><div><div class="stat-value"><%= remittances.filter(r => (r.status||'').toUpperCase() === 'PAID' || (r.status||'').toUpperCase() === 'COMPLETED').length %></div><div class="stat-label">Pagadas</div></div></div></div></a>
     <a href="/remittances" class="text-decoration-none col-md-4 col-6 stat-card-item"><div class="stat-card"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle warning"><span>⏳</span></div><div><div class="stat-value"><%= remittances.filter(r => (r.status||'').toUpperCase() === 'PENDING').length %></div><div class="stat-label">Pendientes</div></div></div></div></a>
   </div>
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <div class="card" style="cursor:pointer;" data-chart-modal="statusModal" onclick="showRemittanceDetail('status')">
+        <div class="card-body">
+          <h6 class="card-title"><span style="font-size:1.2rem;">🍩</span> Estado de Remesas</h6>
+          <div class="chart-wrapper" style="height:160px;overflow:hidden;"><canvas id="remittanceStatusChart"></canvas></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card" style="cursor:pointer;" data-chart-modal="monthlyModal" onclick="showRemittanceDetail('monthly')">
+        <div class="card-body">
+          <h6 class="card-title"><span style="font-size:1.2rem;">📅</span> Remesas por Mes</h6>
+          <div class="chart-wrapper" style="height:160px;overflow:hidden;"><canvas id="remittanceMonthlyChart"></canvas></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card" style="cursor:pointer;" data-chart-modal="amountModal" onclick="showRemittanceDetail('amount')">
+        <div class="card-body">
+          <h6 class="card-title"><span style="font-size:1.2rem;">💰</span> Importe por Estado</h6>
+          <div class="chart-wrapper" style="height:160px;overflow:hidden;"><canvas id="remittanceAmountChart"></canvas></div>
+        </div>
+      </div>
+    </div>
+  </div>
   <div class="card">
     <div class="card-body p-0">
       <div class="table-responsive">
@@ -16,7 +42,7 @@
           <tbody>
             <% if (!remittances || remittances.length === 0) { %>
             <tr><td colspan="6" class="text-center text-muted py-4">No hay remesas</td></tr>
-            <% } else { remittances.forEach(r => { 
+            <% } else { remittances.forEach(r => {
               const st = (r.status||'').toUpperCase();
               const sc = st === 'PAID' || st === 'COMPLETED' ? 'success' : st === 'PENDING' ? 'warning' : st === 'CANCELED' ? 'secondary' : 'danger';
             %>
@@ -35,3 +61,61 @@
     </div>
   </div>
 </section>
+
+<div class="modal fade" id="remittanceDetailModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="remDetailTitle">Detalle</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body" id="remDetailBody"></div>
+  </div></div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var statusLabels = <%- JSON.stringify(chartStatus.labels) %>;
+  var statusData = <%- JSON.stringify(chartStatus.data) %>;
+  var monthlyLabels = <%- JSON.stringify(chartMonthly.labels) %>;
+  var monthlyData = <%- JSON.stringify(chartMonthly.data) %>;
+  var amountLabels = <%- JSON.stringify(chartAmountByStatus.labels) %>;
+  var amountData = <%- JSON.stringify(chartAmountByStatus.data) %>;
+
+  new Chart(document.getElementById('remittanceStatusChart'), {
+    type: 'doughnut',
+    data: { labels: statusLabels, datasets: [{ data: statusData, backgroundColor: ['#198754','#ffc107','#dc3545','#6c757d'], borderWidth: 0 }] },
+    options: { responsive: true, maintainAspectRatio: false, animation: false, resizeDelay: 0, plugins: { legend: { display: false } }, cutout: '65%' }
+  });
+  new Chart(document.getElementById('remittanceMonthlyChart'), {
+    type: 'bar',
+    data: { labels: monthlyLabels, datasets: [{ label: 'Remesas', data: monthlyData, backgroundColor: '#0d6efd', borderRadius: 4 }] },
+    options: { responsive: true, maintainAspectRatio: false, animation: false, resizeDelay: 0, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } }
+  });
+  new Chart(document.getElementById('remittanceAmountChart'), {
+    type: 'bar',
+    data: { labels: amountLabels, datasets: [{ label: 'Importe', data: amountData, backgroundColor: ['#198754','#ffc107','#dc3545','#6c757d'], borderRadius: 4 }] },
+    options: { responsive: true, maintainAspectRatio: false, animation: false, resizeDelay: 0, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } }
+  });
+});
+
+function showRemittanceDetail(type) {
+  var title = '', body = '';
+  if (type === 'status') {
+    title = 'Estado de Remesas';
+    body = '<table class="table table-sm"><thead><tr><th>Estado</th><th>Cantidad</th></tr></thead><tbody>' +
+      statusLabels.map(function(l, i) { return '<tr><td>' + l + '</td><td><strong>' + statusData[i] + '</strong></td></tr>'; }).join('') +
+      '</tbody></table>';
+  } else if (type === 'monthly') {
+    title = 'Remesas por Mes';
+    body = '<table class="table table-sm"><thead><tr><th>Mes</th><th>Remesas</th></tr></thead><tbody>' +
+      monthlyLabels.map(function(l, i) { return '<tr><td>' + l + '</td><td><strong>' + monthlyData[i] + '</strong></td></tr>'; }).join('') +
+      '</tbody></table>';
+  } else if (type === 'amount') {
+    title = 'Importe por Estado';
+    body = '<table class="table table-sm"><thead><tr><th>Estado</th><th>Importe</th></tr></thead><tbody>' +
+      amountLabels.map(function(l, i) { return '<tr><td>' + l + '</td><td><strong>' + amountData[i].toFixed(2) + '€</strong></td></tr>'; }).join('') +
+      '</tbody></table>';
+  }
+  document.getElementById('remDetailTitle').textContent = title;
+  document.getElementById('remDetailBody').innerHTML = body;
+  var modal = new bootstrap.Modal(document.getElementById('remittanceDetailModal'));
+  modal.show();
+}
+</script>

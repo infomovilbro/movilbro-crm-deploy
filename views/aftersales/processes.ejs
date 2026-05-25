@@ -26,13 +26,14 @@
     <div class="col-md-6">
       <div class="card"><div class="card-body">
         <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Procesos por Tipo</h6>
-        <canvas id="chartTipoProc" style="height:221px;"></canvas>
+        <div class="chart-wrap" style="height:150px;overflow:hidden;position:relative;"><canvas id="chartTipoProc"></canvas></div>
+        <div class="chart-legend mt-2 d-flex flex-wrap gap-3 justify-content-center" id="legend-chartTipoProc"></div>
       </div></div>
     </div>
     <div class="col-md-6">
       <div class="card"><div class="card-body">
         <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Estado de Procesos</h6>
-        <canvas id="chartEstadoProc" style="height:221px;"></canvas>
+        <div class="chart-wrap" style="height:150px;overflow:hidden;position:relative;"><canvas id="chartEstadoProc"></canvas></div>
       </div></div>
     </div>
   </div>
@@ -74,6 +75,14 @@
   </div>
 </section>
 
+<div class="modal fade" id="chartDetailModal" tabindex="-1">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="chartDetailTitle"></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body p-0"><div class="table-responsive"><table class="table table-hover mb-0" id="chartDetailTable"><thead></thead><tbody></tbody></table></div></div>
+    <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button></div>
+  </div></div>
+</div>
+
 <script>
 document.querySelectorAll('#statsRow .stat-card').forEach(function(c) {
   c.addEventListener('click', function() {
@@ -92,22 +101,56 @@ document.getElementById('toggleStats').addEventListener('click', function() {
   var r = document.getElementById('statsRow');
   r.style.display = r.style.display === 'none' ? '' : 'none';
 });
-var typeLabels = { SIM_CHANGE: 'Cambio SIM', PRODUCT_CHANGE: 'Cambio Producto', TITULAR_CHANGE: 'Cambio Titular', CREATE_SHARED_GROUP: 'Grupo Compartido', ADD_FIXED_IP: 'IP Fija', ADD_MULTISIM: 'MultiSIM', SMS_MASSIVE: 'SMS Masivo' };
-var tipoCount = {}; processes.forEach(function(p){ var t = (p.type||'OTRO').toUpperCase(); tipoCount[t] = (tipoCount[t]||0) + 1; });
-var tipoLabels = Object.keys(tipoCount).map(function(t){ return typeLabels[t]||t; });
-var coloresTipo = ['#0d6efd','#198754','#ffc107','#dc3545','#6c757d','#17a2b8','#6610f2','#fd7e14'];
-var ctx1 = document.getElementById('chartTipoProc').getContext('2d');
-new Chart(ctx1, {
-  type: 'bar',
-  data: { labels: tipoLabels, datasets: [{ label: 'Procesos', data: Object.values(tipoCount), backgroundColor: coloresTipo.slice(0, Object.keys(tipoCount).length), borderRadius: 6 }] },
-  options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } }
-});
-var statusCount = {}; processes.forEach(function(p){ var s = (p.status||'desconocido').toUpperCase(); statusCount[s] = (statusCount[s]||0) + 1; });
-var colorMap = { COMPLETED: '#198754', IN_PROGRESS: '#0d6efd', PENDING: '#ffc107', ERRORED: '#dc3545', CANCELED: '#6c757d' };
-var ctx2 = document.getElementById('chartEstadoProc').getContext('2d');
-new Chart(ctx2, {
-  type: 'bar',
-  data: { labels: Object.keys(statusCount), datasets: [{ label: 'Procesos', data: Object.values(statusCount), backgroundColor: Object.keys(statusCount).map(function(s){ return colorMap[s]||'#0d6efd'; }), borderRadius: 6 }] },
-  options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } }
+
+document.addEventListener('DOMContentLoaded', function() {
+  var typeLabelsMap = { SIM_CHANGE: 'Cambio SIM', PRODUCT_CHANGE: 'Cambio Producto', TITULAR_CHANGE: 'Cambio Titular', CREATE_SHARED_GROUP: 'Grupo Compartido', ADD_FIXED_IP: 'IP Fija', ADD_MULTISIM: 'MultiSIM', SMS_MASSIVE: 'SMS Masivo' };
+  var processes = <%- JSON.stringify(processes) %>;
+  if (!Array.isArray(processes)) processes = [];
+
+  var tipoCount = {}; processes.forEach(function(p){ var t = (p.type||'OTRO').toUpperCase(); tipoCount[t] = (tipoCount[t]||0) + 1; });
+  var tipoLabels = Object.keys(tipoCount).map(function(t){ return typeLabelsMap[t]||t; });
+  var coloresTipo = ['#0d6efd','#198754','#ffc107','#dc3545','#6c757d','#17a2b8','#6610f2','#fd7e14'];
+  var tipoData = Object.values(tipoCount);
+  var tipoColors = coloresTipo.slice(0, tipoLabels.length);
+
+  var chartTipo = new Chart(document.getElementById('chartTipoProc'), {
+    type: 'doughnut',
+    data: { labels: tipoLabels, datasets: [{ data: tipoData, backgroundColor: tipoColors, borderWidth: 0 }] },
+    options: { responsive: true, maintainAspectRatio: false, animation: false, resizeDelay: 0, cutout: '60%', plugins: { legend: { display: false }, tooltip: { enabled: true } }, onClick: function(e, elements) { if (elements.length > 0) showChartDetail(this, elements[0].index); } }
+  });
+  makeLegend(chartTipo, 'legend-chartTipoProc');
+
+  var statusCount = {}; processes.forEach(function(p){ var s = (p.status||'desconocido').toUpperCase(); statusCount[s] = (statusCount[s]||0) + 1; });
+  var colorMap = { COMPLETED: '#198754', IN_PROGRESS: '#0d6efd', PENDING: '#ffc107', ERRORED: '#dc3545', CANCELED: '#6c757d' };
+  var statusLabels = Object.keys(statusCount);
+  new Chart(document.getElementById('chartEstadoProc'), {
+    type: 'bar',
+    data: { labels: statusLabels, datasets: [{ label: 'Procesos', data: Object.values(statusCount), backgroundColor: statusLabels.map(function(s){ return colorMap[s]||'#0d6efd'; }), borderRadius: 6 }] },
+    options: { responsive: true, maintainAspectRatio: false, animation: false, resizeDelay: 0, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } }, onClick: function(e, elements) { if (elements.length > 0) showChartDetail(this, elements[0].index); } }
+  });
+
+  function makeLegend(chart, id) {
+    var html = '', colors = chart.data.datasets[0].backgroundColor, data = chart.data.datasets[0].data;
+    chart.data.labels.forEach(function(l, i) { var c = Array.isArray(colors) ? colors[i] : '#0d6efd'; html += '<span class="d-inline-flex align-items-center gap-1 small me-3"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:'+c+';"></span> '+l+' ('+data[i]+')</span>'; });
+    document.getElementById(id).innerHTML = html;
+  }
+
+  function showChartDetail(chart, idx) {
+    var label = chart.data.labels[idx];
+    var records;
+    if (chart.canvas.id === 'chartTipoProc') {
+      var typeKey = Object.keys(typeLabelsMap).find(function(k){ return typeLabelsMap[k] === label; }) || label;
+      records = processes.filter(function(p){ return (p.type||'OTRO').toUpperCase() === typeKey; });
+    } else {
+      records = processes.filter(function(p){ return ((p.status||'desconocido').toUpperCase()) === label; });
+    }
+    var h = '<tr><th>Tipo</th><th>Cliente</th><th>Línea</th><th>Estado</th><th>Fecha</th></tr>';
+    var b = '';
+    records.forEach(function(p){ var tl = typeLabelsMap[p.type]||p.type||'-'; b += '<tr><td>'+tl+'</td><td>'+(p.customerName||p.name||'-')+'</td><td>'+(p.lineNumber||p.linea||'-')+'</td><td>'+(p.status||'-')+'</td><td>'+(p.changeDate||p.fecha_cambio?new Date(p.changeDate||p.fecha_cambio).toLocaleDateString('es-ES'):'-')+'</td></tr>'; });
+    document.getElementById('chartDetailTitle').textContent = label + ' (' + records.length + ')';
+    document.getElementById('chartDetailTable').querySelector('thead').innerHTML = h;
+    document.getElementById('chartDetailTable').querySelector('tbody').innerHTML = b;
+    new bootstrap.Modal(document.getElementById('chartDetailModal')).show();
+  }
 });
 </script>

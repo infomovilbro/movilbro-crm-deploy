@@ -6,11 +6,34 @@ const router = express.Router();
 router.get('/', requireAuth, (req, res) => {
   const clientes = db.prepare('SELECT id, nombre, apellidos FROM clients ORDER BY nombre').all();
   const facturas = db.prepare(`
-    SELECT f.*, c.nombre as cliente_nombre 
-    FROM invoices f LEFT JOIN clients c ON f.client_id = c.id 
+    SELECT f.*, c.nombre as cliente_nombre
+    FROM invoices f LEFT JOIN clients c ON f.client_id = c.id
     ORDER BY f.created_at DESC
   `).all();
-  res.render('billing/index', { title: 'Facturación', facturas, clientes, success: null, error: null });
+
+  const monthlyTotals = {};
+  facturas.forEach(f => {
+    if (!f.fecha_emision) return;
+    const d = new Date(f.fecha_emision);
+    if (isNaN(d.getTime())) return;
+    const mk = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    monthlyTotals[mk] = (monthlyTotals[mk] || 0) + (f.importe || 0);
+  });
+  const monthKeys = Object.keys(monthlyTotals).sort();
+  const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+  const monthlyLabels = monthKeys.map(k => { const [y, m] = k.split('-'); return months[parseInt(m) - 1] + ' ' + y; });
+  const monthlyData = monthKeys.map(k => monthlyTotals[k]);
+
+  res.render('billing/index', {
+    title: 'Facturación',
+    facturas,
+    clientes,
+    success: req.query.success || null,
+    error: req.query.error || null,
+    charts: {
+      monthlyAmounts: { labels: monthlyLabels, data: monthlyData }
+    }
+  });
 });
 
 router.post('/crear', requireAuth, (req, res) => {
@@ -39,7 +62,7 @@ router.post('/:id/editar', requireAuth, (req, res) => {
 
 router.get('/:id/pdf', requireAuth, (req, res) => {
   const factura = db.prepare(`
-    SELECT f.*, c.nombre as cn, c.apellidos as ca, c.dni_nif, c.direccion, c.telefono, c.email 
+    SELECT f.*, c.nombre as cn, c.apellidos as ca, c.dni_nif, c.direccion, c.telefono, c.email
     FROM invoices f JOIN clients c ON f.client_id = c.id WHERE f.id = ?
   `).get(req.params.id);
   if (!factura) return res.redirect('/facturacion');

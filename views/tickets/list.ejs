@@ -1,6 +1,6 @@
 <section>
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="bi bi-ticket"></i> Tickets de Soporte</h2>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0"><i class="bi bi-ticket"></i> Tickets de Soporte <span class="badge bg-secondary fs-6"><%= tickets.length %></span></h5>
     <div>
       <% if (apiCount > 0) { %>
         <span class="badge bg-info me-2 fs-6"><i class="bi bi-cloud"></i> <%= apiCount %> API</span>
@@ -8,7 +8,50 @@
       <% if (apiError) { %>
         <span class="badge bg-warning text-dark me-2" title="<%= apiError %>"><i class="bi bi-exclamation-triangle"></i> API</span>
       <% } %>
-      <a href="/tickets/nuevo" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Nuevo Ticket</a>
+      <a href="/tickets/nuevo" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg"></i> Nuevo</a>
+    </div>
+  </div>
+
+  <!-- Charts row: 4 compact charts -->
+  <div class="row g-2 mb-3">
+    <div class="col-md-3">
+      <div class="card cursor-pointer" style="cursor:pointer;" onclick="abrirDetalle('estado')"><div class="card-body p-2">
+        <small class="text-muted">Estado de tickets</small>
+        <div class="chart-wrap" style="height:170px;overflow:hidden;position:relative;"><canvas id="chartEstado"></canvas></div>
+        <div id="legendEstado" class="mt-1" style="font-size:0.55rem;line-height:1.3;"></div>
+      </div></div>
+    </div>
+    <div class="col-md-3">
+      <div class="card cursor-pointer" style="cursor:pointer;" onclick="abrirDetalle('prioridad')"><div class="card-body p-2">
+        <small class="text-muted">Prioridad</small>
+        <div class="chart-wrap" style="height:170px;overflow:hidden;position:relative;"><canvas id="chartPrioridad"></canvas></div>
+        <div id="legendPrioridad" class="mt-1" style="font-size:0.55rem;line-height:1.3;"></div>
+      </div></div>
+    </div>
+    <div class="col-md-3">
+      <div class="card cursor-pointer" style="cursor:pointer;" onclick="abrirDetalle('tipologia')"><div class="card-body p-2">
+        <small class="text-muted">Tipolog&iacute;a</small>
+        <div class="chart-wrap" style="height:170px;overflow:hidden;position:relative;"><canvas id="chartTipologia"></canvas></div>
+      </div></div>
+    </div>
+    <div class="col-md-3">
+      <div class="card cursor-pointer" style="cursor:pointer;" onclick="abrirDetalle('monthly')"><div class="card-body p-2">
+        <small class="text-muted">Tickets por mes</small>
+        <div class="chart-wrap" style="height:170px;overflow:hidden;position:relative;"><canvas id="chartMonthly"></canvas></div>
+      </div></div>
+    </div>
+  </div>
+
+  <!-- Modal de detalle -->
+  <div class="modal fade" id="detalleModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header py-2">
+          <h6 class="modal-title" id="detalleTitulo"></h6>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body p-2" id="detalleBody"></div>
+      </div>
     </div>
   </div>
 
@@ -91,6 +134,161 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+  var opts = { responsive: true, maintainAspectRatio: false, animation: false, resizeDelay: 0 };
+
+  function buildLegend(containerId, labels, colors, data) {
+    var html = '';
+    for (var i = 0; i < labels.length; i++) {
+      html += '<span style="display:inline-block;margin-right:8px;white-space:nowrap;">';
+      html += '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + colors[i] + ';margin-right:3px;vertical-align:middle;"></span>';
+      html += '<span style="vertical-align:middle;">' + labels[i] + ': ' + data[i] + '</span>';
+      html += '</span>';
+    }
+    var el = document.getElementById(containerId);
+    if (el) el.innerHTML = html;
+  }
+
+  var chartDataStore = {};
+
+  // Chart 1: Estado donut
+  try {
+    var labels = <%- JSON.stringify(charts.estado.labels) %>;
+    var data = <%- JSON.stringify(charts.estado.data) %>;
+    var colors = <%- JSON.stringify(charts.estado.colors) %>;
+    if (labels && labels.length) {
+      var display = labels.map(function(l){ return l.charAt(0).toUpperCase() + l.slice(1); });
+      new Chart(document.getElementById('chartEstado'), {
+        type: 'doughnut',
+        data: { labels: display, datasets: [{ data: data, backgroundColor: colors, borderWidth: 0 }] },
+        options: Object.assign({}, opts, { cutout: '65%', plugins: { legend: { display: false }, tooltip: { enabled: true } } })
+      });
+      buildLegend('legendEstado', display, colors, data);
+      chartDataStore.estado = { titulo: 'Estado de tickets', labels: display, data: data, colors: colors, tipo: 'estado' };
+    }
+  } catch(e) { console.error('E1:', e); }
+
+  // Chart 2: Prioridad donut
+  try {
+    var labels = <%- JSON.stringify(charts.prioridad.labels) %>;
+    var data = <%- JSON.stringify(charts.prioridad.data) %>;
+    var colors = <%- JSON.stringify(charts.prioridad.colors) %>;
+    if (labels && labels.length) {
+      var display = labels.map(function(l){ return l.charAt(0).toUpperCase() + l.slice(1); });
+      new Chart(document.getElementById('chartPrioridad'), {
+        type: 'doughnut',
+        data: { labels: display, datasets: [{ data: data, backgroundColor: colors, borderWidth: 0 }] },
+        options: Object.assign({}, opts, { cutout: '65%', plugins: { legend: { display: false }, tooltip: { enabled: true } } })
+      });
+      buildLegend('legendPrioridad', display, colors, data);
+      chartDataStore.prioridad = { titulo: 'Tickets por prioridad', labels: display, data: data, colors: colors, tipo: 'prioridad' };
+    }
+  } catch(e) { console.error('E2:', e); }
+
+  // Chart 3: Tipologia bar
+  try {
+    var labels = <%- JSON.stringify(charts.tipologia.labels) %>;
+    var data = <%- JSON.stringify(charts.tipologia.data) %>;
+    if (labels && labels.length) {
+      new Chart(document.getElementById('chartTipologia'), {
+        type: 'bar',
+        data: { labels: labels, datasets: [{ label: '', data: data, backgroundColor: '#0d6efd', borderRadius: 3 }] },
+        options: Object.assign({}, opts, { indexAxis: 'y', scales: { x: { beginAtZero: true, grid: { color: '#eee' }, ticks: { font: { size: 8 } } }, y: { grid: { display: false } } }, plugins: { legend: { display: false } } })
+      });
+      var detailHtml = '<table class="table table-sm table-bordered mb-0"><thead><tr><th>Tipolog\u00EDa</th><th>Tickets</th></tr></thead><tbody>';
+      for (var i = 0; i < labels.length; i++) { detailHtml += '<tr><td>' + labels[i] + '</td><td>' + data[i] + '</td></tr>'; }
+      detailHtml += '</tbody></table>';
+      chartDataStore.tipologia = { titulo: 'Tickets por tipolog\u00EDa', html: detailHtml };
+    }
+  } catch(e) { console.error('E3:', e); }
+
+  // Chart 4: Tickets por mes bar
+  try {
+    var labels = <%- JSON.stringify(charts.monthly.labels) %>;
+    var data = <%- JSON.stringify(charts.monthly.data) %>;
+    if (labels && labels.length) {
+      new Chart(document.getElementById('chartMonthly'), {
+        type: 'bar',
+        data: { labels: labels, datasets: [{ label: '', data: data, backgroundColor: '#198754', borderRadius: 3 }] },
+        options: Object.assign({}, opts, { scales: { y: { beginAtZero: true, grid: { color: '#eee' }, ticks: { font: { size: 8 } } }, x: { grid: { display: false }, ticks: { font: { size: 7 } } } }, plugins: { legend: { display: false } } })
+      });
+      var detailHtml = '<table class="table table-sm table-bordered mb-0"><thead><tr><th>Mes</th><th>Tickets</th></tr></thead><tbody>';
+      for (var i = 0; i < labels.length; i++) { detailHtml += '<tr><td>' + labels[i] + '</td><td>' + data[i] + '</td></tr>'; }
+      detailHtml += '</tbody></table>';
+      chartDataStore.monthly = { titulo: 'Tickets por mes', html: detailHtml };
+    }
+  } catch(e) { console.error('E4:', e); }
+
+  // Detail data for modal (items by status)
+  var statusDetail = <%- JSON.stringify(charts.estado.detail) %>;
+
+  window.abrirDetalle = function(tipo) {
+    var info = chartDataStore[tipo];
+    if (!info) return;
+    document.getElementById('detalleTitulo').textContent = info.titulo;
+    var html = '';
+
+    if (tipo === 'estado' || tipo === 'prioridad') {
+      html += '<table class="table table-sm table-bordered mb-2"><thead><tr><th>Categor\u00EDa</th><th>Cantidad</th><th></th></tr></thead><tbody>';
+      for (var i = 0; i < info.labels.length; i++) {
+        var key = info.labels[i].toLowerCase();
+        var normKey = key;
+        var items = tipo === 'estado' ? (statusDetail[normKey] || []) : [];
+        if (tipo === 'estado' && !items.length) {
+          for (var sk in statusDetail) {
+            if (key.indexOf(sk) >= 0 || sk.indexOf(key) >= 0) {
+              items = statusDetail[sk];
+              break;
+            }
+          }
+        }
+        html += '<tr>';
+        html += '<td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + info.colors[i] + ';margin-right:5px;vertical-align:middle;"></span>' + info.labels[i] + '</td>';
+        html += '<td><strong>' + info.data[i] + '</strong></td>';
+        if (tipo === 'estado') {
+          html += '<td><button class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="mostrarDetalle(\'' + info.labels[i] + '\',' + info.data[i] + ')"><i class="bi bi-eye"></i></button></td>';
+        } else {
+          html += '<td></td>';
+        }
+        html += '</tr>';
+      }
+      html += '</tbody></table>';
+      if (tipo === 'estado') html += '<div id="detalleSubs"></div>';
+    } else if (info.html) {
+      html = info.html;
+    }
+
+    document.getElementById('detalleBody').innerHTML = html;
+    var modal = new bootstrap.Modal(document.getElementById('detalleModal'));
+    modal.show();
+  };
+
+  window.mostrarDetalle = function(categoria, total) {
+    var norm = categoria.toLowerCase().trim();
+    var items = statusDetail[norm] || [];
+    if (!items.length) {
+      for (var sk in statusDetail) {
+        if (norm.indexOf(sk) >= 0 || sk.indexOf(norm) >= 0) {
+          items = statusDetail[sk];
+          break;
+        }
+      }
+    }
+    if (!items.length) {
+      document.getElementById('detalleSubs').innerHTML = '<div class="text-muted small">Sin datos detallados para esta categor\u00EDa</div>';
+      return;
+    }
+    var html = '<div class="fw-bold small mb-1">' + categoria + ' (' + total + '):</div>';
+    html += '<div style="max-height:300px;overflow-y:auto;"><table class="table table-sm table-bordered mb-0"><thead><tr><th>Asunto</th><th>Cliente</th><th>Prioridad</th><th>Fecha</th></tr></thead><tbody>';
+    for (var i = 0; i < items.length; i++) {
+      var d = items[i].fecha ? new Date(items[i].fecha).toLocaleDateString('es-ES') : '-';
+      html += '<tr><td class="small">' + (items[i].asunto || '-') + '</td><td class="small">' + (items[i].cliente || '-') + '</td><td class="small">' + (items[i].prioridad || '-') + '</td><td class="small">' + d + '</td></tr>';
+    }
+    if (total > items.length) html += '<tr><td colspan="4" class="text-muted small">... y ' + (total - items.length) + ' m\u00E1s</td></tr>';
+    html += '</tbody></table></div>';
+    document.getElementById('detalleSubs').innerHTML = html;
+  };
+
+  // Existing filter logic
   const searchInput = document.getElementById('searchTicket');
   const filterEstado = document.getElementById('filterEstado');
   const filterPrioridad = document.getElementById('filterPrioridad');

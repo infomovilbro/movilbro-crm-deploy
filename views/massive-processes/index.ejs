@@ -2,57 +2,230 @@
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h2><i class="ri-database-2-line"></i> Procesos Masivos</h2>
   </div>
+  <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-warning"><%= error %></div><% } %>
   <div class="row g-3 mb-4">
-    <div class="col-md-6">
-      <div class="card">
-        <div class="card-header"><i class="ri-upload-line"></i> Nuevo proceso masivo</div>
-        <div class="card-body">
-          <form>
-            <div class="mb-3">
-              <label class="form-label">Tipo de proceso</label>
-              <select class="form-select">
-                <option>Cambio SIM</option>
-                <option>Cambio Producto</option>
-                <option>Cambio Titular</option>
-                <option>Activación</option>
-                <option>Desactivación</option>
-                <option>SMS Masivo</option>
-              </select>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Archivo CSV</label>
-              <input type="file" class="form-control">
-              <small class="text-muted">Formato: CSV con cabeceras. Máx 10.000 registros.</small>
-            </div>
-            <button class="btn btn-primary"><i class="ri-upload-line"></i> Subir y procesar</button>
-          </form>
-        </div>
-      </div>
+    <div class="col-md-4">
+      <div class="card"><div class="card-body">
+        <h6 class="card-title"><span style="font-size:1.2rem;">🍩</span> Por Tipo</h6>
+        <div class="chart-wrap" style="height:150px;overflow:hidden;position:relative;"><canvas id="chartType"></canvas></div>
+      </div></div>
     </div>
-    <div class="col-md-6">
-      <div class="card">
-        <div class="card-header"><i class="ri-information-line"></i> Instrucciones</div>
-        <div class="card-body">
-          <ul class="small">
-            <li>El archivo debe ser CSV con separador punto y coma (;)</li>
-            <li>La primera fila debe contener los nombres de las columnas</li>
-            <li>Columnas requeridas: linea, producto (según tipo)</li>
-            <li>El proceso se ejecutará en segundo plano</li>
-            <li>Recibirás una notificación al finalizar</li>
-          </ul>
-        </div>
-      </div>
+    <div class="col-md-4">
+      <div class="card"><div class="card-body">
+        <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Por Estado</h6>
+        <div class="chart-wrap" style="height:150px;overflow:hidden;position:relative;"><canvas id="chartStatus"></canvas></div>
+      </div></div>
+    </div>
+    <div class="col-md-4">
+      <div class="card"><div class="card-body">
+        <h6 class="card-title"><span style="font-size:1.2rem;">📈</span> Por Mes</h6>
+        <div class="chart-wrap" style="height:150px;overflow:hidden;position:relative;"><canvas id="chartMonthly"></canvas></div>
+      </div></div>
     </div>
   </div>
   <div class="card">
-    <div class="card-header">Historial</div>
+    <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <span><i class="ri-list-check"></i> Historial</span>
+      <div class="d-flex gap-2">
+        <select class="form-select form-select-sm" id="filterType" style="width:auto;">
+          <option value="">Todos los tipos</option>
+        </select>
+        <select class="form-select form-select-sm" id="filterStatus" style="width:auto;">
+          <option value="">Todos los estados</option>
+        </select>
+      </div>
+    </div>
     <div class="card-body p-0">
       <div class="table-responsive">
-        <table class="table table-hover">
-          <thead><tr><th>ID</th><th>Tipo</th><th>Archivo</th><th>Registros</th><th>OK</th><th>Error</th><th>Estado</th><th>Fecha</th></tr></thead>
-          <tbody><tr><td colspan="8" class="text-center text-muted py-4">No hay procesos masivos</td></tr></tbody>
+        <table class="table table-hover" id="processTable">
+          <thead><tr><th>Tipo</th><th>Estado</th><th>Cliente</th><th>Línea</th><th>Detalles</th><th>Fecha</th></tr></thead>
+          <tbody>
+            <% if (!processes || processes.length === 0) { %>
+            <tr><td colspan="6" class="text-center text-muted py-4">No hay procesos masivos</td></tr>
+            <% } else { processes.forEach((p, i) => {
+              const st = (p.status || '').toUpperCase();
+              const sc = st === 'COMPLETED' ? 'success' : st === 'IN_PROGRESS' || st === 'PENDING' ? 'info' : st === 'ERRORED' ? 'danger' : st === 'CANCELED' ? 'secondary' : 'warning';
+              const typeLabels = { SIM_CHANGE: 'Cambio SIM', PRODUCT_CHANGE: 'Cambio Producto', TITULAR_CHANGE: 'Cambio Titular', CREATE_SHARED_GROUP: 'Grupo Compartido', ADD_FIXED_IP: 'IP Fija', ADD_MULTISIM: 'MultiSIM', SMS_MASSIVE: 'SMS Masivo' };
+              const pt = typeLabels[p.type] || p.type || '-';
+              const details = p.previousIcc || p.previous || p.anterior || p.actualProductName || p.newProduct || p.nuevo || '-';
+            %>
+            <tr style="cursor:pointer;" data-index="<%= i %>">
+              <td><span class="badge bg-primary"><%= pt %></span></td>
+              <td><span class="badge bg-<%= sc %>"><%= st %></span></td>
+              <td><%= p.customerName || p.name || '-' %></td>
+              <td><%= p.lineNumber || p.linea || '-' %></td>
+              <td class="small"><%= details %></td>
+              <td class="small"><%= p.changeDate || p.fecha_cambio ? new Date(p.changeDate || p.fecha_cambio).toLocaleDateString('es-ES') : '-' %></td>
+            </tr>
+            <% }); } %>
+          </tbody>
         </table>
       </div>
     </div>
+    <% if (processes && processes.length > 50) { %>
+    <div class="card-footer d-flex justify-content-center">
+      <nav><ul class="pagination pagination-sm mb-0" id="pagination"></ul></nav>
+    </div>
+    <% } %>
   </div>
 </section>
+
+<div class="modal fade" id="detailModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Detalle del Proceso</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body" id="detailModalBody"></div>
+    <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button></div>
+  </div></div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var typeLabels = { SIM_CHANGE: 'Cambio SIM', PRODUCT_CHANGE: 'Cambio Producto', TITULAR_CHANGE: 'Cambio Titular', CREATE_SHARED_GROUP: 'Grupo Compartido', ADD_FIXED_IP: 'IP Fija', ADD_MULTISIM: 'MultiSIM', SMS_MASSIVE: 'SMS Masivo' };
+  var colorStatus = { COMPLETED: '#198754', IN_PROGRESS: '#0d6efd', PENDING: '#ffc107', ERRORED: '#dc3545', CANCELED: '#6c757d' };
+  var colorType = ['#0d6efd','#198754','#ffc107','#dc3545','#6c757d','#17a2b8','#6610f2','#fd7e14'];
+
+  var processes = <%- JSON.stringify(processes) %>;
+  if (!Array.isArray(processes)) processes = [];
+
+  try {
+    var tc = <%- JSON.stringify(charts.byType) %>;
+    new Chart(document.getElementById('chartType'), {
+      type: 'doughnut',
+      data: { labels: tc.labels, datasets: [{ data: tc.data, backgroundColor: colorType.slice(0, tc.labels.length), borderWidth: 0 }] },
+      options: { responsive: true, maintainAspectRatio: false, animation: false, resizeDelay: 0, cutout: '60%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, padding: 8 } } } }
+    });
+  } catch(e) { console.error(e); }
+
+  try {
+    var sc = <%- JSON.stringify(charts.byStatus) %>;
+    new Chart(document.getElementById('chartStatus'), {
+      type: 'bar',
+      data: { labels: sc.labels, datasets: [{ label: 'Procesos', data: sc.data, backgroundColor: sc.labels.map(function(s){ return colorStatus[s] || '#0d6efd'; }), borderRadius: 6 }] },
+      options: { responsive: true, maintainAspectRatio: false, animation: false, resizeDelay: 0, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } }
+    });
+  } catch(e) { console.error(e); }
+
+  try {
+    var mc = <%- JSON.stringify(charts.byMonth) %>;
+    new Chart(document.getElementById('chartMonthly'), {
+      type: 'bar',
+      data: { labels: mc.labels, datasets: [{ label: 'Procesos', data: mc.data, backgroundColor: '#6c757d', borderRadius: 6 }] },
+      options: { responsive: true, maintainAspectRatio: false, animation: false, resizeDelay: 0, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } }
+    });
+  } catch(e) { console.error(e); }
+
+  var types = {};
+  var statuses = {};
+  processes.forEach(function(p) {
+    var t = typeLabels[p.type] || p.type || 'OTRO';
+    types[t] = (types[t] || 0) + 1;
+    var s = (p.status || 'DESCONOCIDO').toUpperCase();
+    statuses[s] = (statuses[s] || 0) + 1;
+  });
+
+  var ft = document.getElementById('filterType');
+  Object.keys(types).sort().forEach(function(t) {
+    var o = document.createElement('option');
+    o.value = t; o.textContent = t + ' (' + types[t] + ')';
+    ft.appendChild(o);
+  });
+
+  var fs = document.getElementById('filterStatus');
+  Object.keys(statuses).sort().forEach(function(s) {
+    var o = document.createElement('option');
+    o.value = s; o.textContent = s + ' (' + statuses[s] + ')';
+    fs.appendChild(o);
+  });
+
+  var rows = document.querySelectorAll('#processTable tbody tr');
+  function applyFilters() {
+    var tf = ft.value;
+    var sf = fs.value;
+    rows.forEach(function(r) {
+      if (!r.hasAttribute('data-index')) return;
+      var p = processes[parseInt(r.getAttribute('data-index'))];
+      if (!p) { r.style.display = 'none'; return; }
+      var t = typeLabels[p.type] || p.type || 'OTRO';
+      var s = (p.status || 'DESCONOCIDO').toUpperCase();
+      var show = (!tf || t === tf) && (!sf || s === sf);
+      r.style.display = show ? '' : 'none';
+    });
+  }
+
+  ft.addEventListener('change', applyFilters);
+  fs.addEventListener('change', applyFilters);
+
+  var detailModal = new bootstrap.Modal(document.getElementById('detailModal'));
+
+  rows.forEach(function(r) {
+    r.addEventListener('click', function() {
+      var idx = parseInt(this.getAttribute('data-index'));
+      var p = processes[idx];
+      if (!p) return;
+      var st = (p.status || '').toUpperCase();
+      var t = typeLabels[p.type] || p.type || '-';
+      var body = document.getElementById('detailModalBody');
+      body.innerHTML =
+        '<table class="table table-sm table-borderless mb-0">' +
+        '<tr><th class="ps-0">Tipo</th><td><span class="badge bg-primary">' + t + '</span></td></tr>' +
+        '<tr><th class="ps-0">Estado</th><td><span class="badge bg-' + (st === 'COMPLETED' ? 'success' : st === 'IN_PROGRESS' || st === 'PENDING' ? 'info' : st === 'ERRORED' ? 'danger' : st === 'CANCELED' ? 'secondary' : 'warning') + '">' + st + '</span></td></tr>' +
+        (p.customerName || p.name ? '<tr><th class="ps-0">Cliente</th><td>' + (p.customerName || p.name) + '</td></tr>' : '') +
+        (p.lineNumber || p.linea ? '<tr><th class="ps-0">Línea</th><td>' + (p.lineNumber || p.linea) + '</td></tr>' : '') +
+        (p.previousIcc || p.previous || p.anterior ? '<tr><th class="ps-0">Valor Anterior</th><td class="small">' + (p.previousIcc || p.previous || p.anterior) + '</td></tr>' : '') +
+        (p.actualProductName || p.newProduct || p.nuevo ? '<tr><th class="ps-0">Valor Nuevo</th><td class="small">' + (p.actualProductName || p.newProduct || p.nuevo) + '</td></tr>' : '') +
+        (p.changeDate || p.fecha_cambio ? '<tr><th class="ps-0">Fecha</th><td>' + new Date(p.changeDate || p.fecha_cambio).toLocaleString('es-ES') + '</td></tr>' : '') +
+        (p.file || p.archivo ? '<tr><th class="ps-0">Archivo</th><td class="small">' + (p.file || p.archivo) + '</td></tr>' : '') +
+        (p.totalRecords || p.registros ? '<tr><th class="ps-0">Registros</th><td>' + (p.totalRecords || p.registros) + '</td></tr>' : '') +
+        (p.okRecords || p.ok ? '<tr><th class="ps-0">OK</th><td>' + (p.okRecords || p.ok) + '</td></tr>' : '') +
+        (p.errorRecords || p.error ? '<tr><th class="ps-0">Errores</th><td>' + (p.errorRecords || p.error) + '</td></tr>' : '') +
+        '</table>';
+      detailModal.show();
+    });
+  });
+
+  var pag = document.getElementById('pagination');
+  if (pag && processes.length > 50) {
+    var perPage = 50;
+    var totalPages = Math.ceil(processes.length / perPage);
+    function renderPage(page) {
+      var start = (page - 1) * perPage;
+      var end = Math.min(start + perPage, processes.length);
+      rows.forEach(function(r, idx) {
+        if (!r.hasAttribute('data-index')) return;
+        var ri = parseInt(r.getAttribute('data-index'));
+        r.style.display = (ri >= start && ri < end && r.style.display !== 'none') ? '' : 'none';
+      });
+      var lis = pag.querySelectorAll('.page-item');
+      lis.forEach(function(li, i) {
+        li.classList.toggle('active', i === page);
+      });
+    }
+
+    var html = '<li class="page-item disabled" id="prevPage"><a class="page-link" href="#">&laquo;</a></li>';
+    for (var i = 1; i <= totalPages; i++) {
+      html += '<li class="page-item' + (i === 1 ? ' active' : '') + '"><a class="page-link" href="#" data-page="' + i + '">' + i + '</a></li>';
+    }
+    html += '<li class="page-item" id="nextPage"><a class="page-link" href="#">&raquo;</a></li>';
+    pag.innerHTML = html;
+
+    var currentPage = 1;
+    pag.querySelectorAll('a.page-link[data-page]').forEach(function(a) {
+      a.addEventListener('click', function(e) {
+        e.preventDefault();
+        currentPage = parseInt(this.getAttribute('data-page'));
+        renderPage(currentPage);
+      });
+    });
+    document.getElementById('prevPage').addEventListener('click', function(e) {
+      e.preventDefault();
+      if (currentPage > 1) { currentPage--; renderPage(currentPage); }
+    });
+    document.getElementById('nextPage').addEventListener('click', function(e) {
+      e.preventDefault();
+      if (currentPage < totalPages) { currentPage++; renderPage(currentPage); }
+    });
+
+    renderPage(1);
+  }
+});
+</script>

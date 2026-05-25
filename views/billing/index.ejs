@@ -15,16 +15,22 @@
   </div>
 
   <div class="row g-3 mb-4">
-    <div class="col-md-6">
-      <div class="card"><div class="card-body">
-        <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Estado de Facturas</h6>
-        <canvas id="billingStatusChart" style="height:221px;"></canvas>
+    <div class="col-md-4">
+      <div class="card"><div class="card-body" style="overflow:hidden;height:150px;padding:10px;">
+        <div class="small text-muted fw-semibold">Estado de Facturas</div>
+        <canvas id="billingStatusChart" style="height:110px;width:100%;"></canvas>
       </div></div>
     </div>
-    <div class="col-md-6">
-      <div class="card"><div class="card-body">
-        <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Importe por Estado</h6>
-        <canvas id="billingAmountChart" style="height:221px;"></canvas>
+    <div class="col-md-4">
+      <div class="card"><div class="card-body" style="overflow:hidden;height:150px;padding:10px;">
+        <div class="small text-muted fw-semibold">Importe por Estado</div>
+        <canvas id="billingAmountChart" style="height:110px;width:100%;"></canvas>
+      </div></div>
+    </div>
+    <div class="col-md-4">
+      <div class="card"><div class="card-body" style="overflow:hidden;height:150px;padding:10px;">
+        <div class="small text-muted fw-semibold">Importe Mensual (€)</div>
+        <canvas id="billingMonthlyChart" style="height:110px;width:100%;"></canvas>
       </div></div>
     </div>
   </div>
@@ -36,7 +42,16 @@
         <tbody>
           <% if (facturas.length === 0) { %><tr><td colspan="8" class="text-center text-muted py-4"><i class="bi bi-inbox"></i> No hay facturas</td></tr>
           <% } else { facturas.forEach(f => { %>
-          <tr>
+          <tr style="cursor:pointer;" class="invoice-row"
+            data-id="<%= f.id %>"
+            data-cliente="<%= (f.cliente_nombre || 'Sin cliente').replace(/"/g,'&quot;') %>"
+            data-concepto="<%= (f.concepto || '').replace(/"/g,'&quot;') %>"
+            data-importe="<%= f.importe.toFixed(2) %>"
+            data-emision="<%= f.fecha_emision ? new Date(f.fecha_emision).toLocaleDateString('es-ES') : '-' %>"
+            data-vencimiento="<%= f.fecha_vencimiento ? new Date(f.fecha_vencimiento).toLocaleDateString('es-ES') : '-' %>"
+            data-estado="<%= f.estado %>"
+            data-stripe="<%= f.stripe_payment_link || '' %>"
+            data-pdf="/facturacion/<%= f.id %>/pdf">
             <td>#<%= f.id %></td>
             <td><%= f.cliente_nombre || 'Sin cliente' %></td>
             <td><%= f.concepto %></td>
@@ -64,57 +79,18 @@
       </table>
     </div>
   </div>
-<script>
-var facturasData = <%- JSON.stringify(facturas) %>;
-var pendientes = facturasData.filter(function(f) { return f.estado === 'pendiente'; }).length;
-var pagadas = facturasData.filter(function(f) { return f.estado === 'pagada'; }).length;
-var vencidas = facturasData.filter(function(f) { return f.estado === 'vencida'; }).length;
-
-var ctx1 = document.getElementById('billingStatusChart').getContext('2d');
-new Chart(ctx1, {
-  type: 'bar',
-  data: {
-    labels: ['Pendientes', 'Pagadas', 'Vencidas'],
-    datasets: [{
-      label: 'Facturas',
-      data: [pendientes, pagadas, vencidas],
-      backgroundColor: ['#ffc107', '#198754', '#dc3545'],
-      borderRadius: 6
-    }]
-  },
-  options: {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: { legend: { display: false } },
-    scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } }
-  }
-});
-
-var importePendientes = facturasData.reduce(function(t, f) { return f.estado === 'pendiente' ? t + (f.importe || 0) : t; }, 0);
-var importePagadas = facturasData.reduce(function(t, f) { return f.estado === 'pagada' ? t + (f.importe || 0) : t; }, 0);
-var importeVencidas = facturasData.reduce(function(t, f) { return f.estado === 'vencida' ? t + (f.importe || 0) : t; }, 0);
-
-var ctx2 = document.getElementById('billingAmountChart').getContext('2d');
-new Chart(ctx2, {
-  type: 'bar',
-  data: {
-    labels: ['Pendientes', 'Pagadas', 'Vencidas'],
-    datasets: [{
-      label: 'Importe (€)',
-      data: [importePendientes, importePagadas, importeVencidas],
-      backgroundColor: ['#ffc107', '#198754', '#dc3545'],
-      borderRadius: 6
-    }]
-  },
-  options: {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: { legend: { display: false } },
-    scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } }
-  }
-});
-</script>
 </section>
+
+<div class="modal fade" id="invoiceDetailModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Detalle de Factura</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body" id="invoiceDetailBody"></div>
+    <div class="modal-footer">
+      <a href="#" id="invoiceDetailPdf" target="_blank" class="btn btn-outline-danger"><i class="bi bi-filetype-pdf"></i> PDF</a>
+      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+    </div>
+  </div></div>
+</div>
 
 <div class="modal fade" id="newInvoiceModal">
   <div class="modal-dialog"><div class="modal-content">
@@ -178,3 +154,104 @@ new Chart(ctx2, {
   </div></div>
 </div>
 <% }); %>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var facturasData = <%- JSON.stringify(facturas) %>;
+  var pendientes = facturasData.filter(function(f) { return f.estado === 'pendiente'; }).length;
+  var pagadas = facturasData.filter(function(f) { return f.estado === 'pagada'; }).length;
+  var vencidas = facturasData.filter(function(f) { return f.estado === 'vencida'; }).length;
+
+  var ctx1 = document.getElementById('billingStatusChart');
+  if (ctx1) {
+    new Chart(ctx1.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: ['Pendientes', 'Pagadas', 'Vencidas'],
+        datasets: [{
+          label: 'Facturas',
+          data: [pendientes, pagadas, vencidas],
+          backgroundColor: ['#ffc107', '#198754', '#dc3545'],
+          borderRadius: 6
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: false, resizeDelay: 0,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } }
+      }
+    });
+  }
+
+  var importePendientes = facturasData.reduce(function(t, f) { return f.estado === 'pendiente' ? t + (f.importe || 0) : t; }, 0);
+  var importePagadas = facturasData.reduce(function(t, f) { return f.estado === 'pagada' ? t + (f.importe || 0) : t; }, 0);
+  var importeVencidas = facturasData.reduce(function(t, f) { return f.estado === 'vencida' ? t + (f.importe || 0) : t; }, 0);
+
+  var ctx2 = document.getElementById('billingAmountChart');
+  if (ctx2) {
+    new Chart(ctx2.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: ['Pendientes', 'Pagadas', 'Vencidas'],
+        datasets: [{
+          label: 'Importe (€)',
+          data: [importePendientes, importePagadas, importeVencidas],
+          backgroundColor: ['#ffc107', '#198754', '#dc3545'],
+          borderRadius: 6
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: false, resizeDelay: 0,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } }
+      }
+    });
+  }
+
+  var monthlyLabels = <%- JSON.stringify(charts.monthlyAmounts.labels) %>;
+  var monthlyData = <%- JSON.stringify(charts.monthlyAmounts.data) %>;
+  var ctx3 = document.getElementById('billingMonthlyChart');
+  if (ctx3 && monthlyLabels.length) {
+    new Chart(ctx3.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: monthlyLabels,
+        datasets: [{
+          label: 'Importe (€)',
+          data: monthlyData,
+          backgroundColor: '#0d6efd',
+          borderRadius: 6
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: false, resizeDelay: 0,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false }, ticks: { font: { size: 9 } } } }
+      }
+    });
+  }
+
+  document.querySelectorAll('.invoice-row').forEach(function(row) {
+    row.addEventListener('click', function(e) {
+      if (e.target.closest('a') || e.target.closest('form') || e.target.closest('select') || e.target.closest('button')) return;
+      var id = this.dataset.id;
+      var cliente = this.dataset.cliente;
+      var concepto = this.dataset.concepto;
+      var importe = this.dataset.importe;
+      var emision = this.dataset.emision;
+      var vencimiento = this.dataset.vencimiento;
+      var estado = this.dataset.estado;
+      var stripe = this.dataset.stripe;
+      var pdf = this.dataset.pdf;
+      var badgeClass = estado === 'pagada' ? 'success' : estado === 'vencida' ? 'danger' : 'warning';
+      document.getElementById('invoiceDetailBody').innerHTML =
+        '<table class="table table-sm"><tr><th>#</th><td>' + id + '</td></tr><tr><th>Cliente</th><td>' + cliente + '</td></tr><tr><th>Concepto</th><td>' + concepto + '</td></tr><tr><th>Importe</th><td><strong>' + importe + '€</strong></td></tr><tr><th>Emisión</th><td>' + emision + '</td></tr><tr><th>Vencimiento</th><td>' + vencimiento + '</td></tr><tr><th>Estado</th><td><span class="badge bg-' + badgeClass + '">' + estado + '</span></td></tr>' +
+        (stripe ? '<tr><th>Stripe</th><td><a href="' + stripe + '" target="_blank">Pagar ahora</a></td></tr>' : '') +
+        '</table>';
+      document.getElementById('invoiceDetailPdf').href = pdf;
+      var modal = new bootstrap.Modal(document.getElementById('invoiceDetailModal'));
+      modal.show();
+    });
+  });
+});
+</script>

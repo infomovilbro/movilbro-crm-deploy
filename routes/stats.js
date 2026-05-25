@@ -8,8 +8,8 @@ function getApi() {
   return new LikesAPI({ apiUrl: c.likes_api_url, email: c.likes_client_id, password: c.likes_client_secret, brandId: c.likes_brand_id });
 }
 
-const cache = { customers: null, portabilities: null, products: null, tickets: null };
-const cacheTime = { customers: 0, portabilities: 0, products: 0, tickets: 0 };
+const cache = { customers: null, portabilities: null, products: null, tickets: null, subscriptions: null };
+const cacheTime = { customers: 0, portabilities: 0, products: 0, tickets: 0, subscriptions: 0 };
 const TTL = 60000;
 
 async function getCached(key, fetcher) {
@@ -27,11 +27,12 @@ async function getCached(key, fetcher) {
 async function getAllStats() {
   const api = getApi();
 
-  const [customers, portabilities, products, tickets] = await Promise.all([
+  const [customers, portabilities, products, tickets, apiSubsRaw] = await Promise.all([
     getCached('customers', () => api.getCustomers()),
     getCached('portabilities', () => api.request('GET', '/portabilities?brand_id=' + api.brandId).then(r => Array.isArray(r) ? r : r.portabilities || r.data || [])),
     getCached('products', () => api.request('GET', '/products/brand?brand_id=' + api.brandId).then(r => Array.isArray(r) ? r : r.products || r.data || [])),
-    getCached('tickets', () => api.getTickets({ brand_id: api.brandId }))
+    getCached('tickets', () => api.getTickets({ brand_id: api.brandId })),
+    getCached('subscriptions', () => api.getSubscriptions())
   ]);
 
   const localSubscriptions = db.prepare(`
@@ -40,8 +41,34 @@ async function getAllStats() {
     LEFT JOIN clients c ON c.id = s.client_id
   `).all();
 
-  const subscriptions = localSubscriptions;
-  const lines = localSubscriptions.map(s => ({ status: (s.estado || '').toUpperCase(), product: s.producto || '' }));
+  const apiMapped = (apiSubsRaw || []).map(sub => {
+    const prod = (sub.products && sub.products[0]) || {};
+    return {
+      id: sub.subscriptionId || sub.id,
+      linea: prod.lineNumber || sub.lineNumber || '',
+      estado: (prod.status || sub.status || 'ACTIVE').toString().toUpperCase(),
+      familia: prod.family || sub.family || '',
+      producto: prod.productName || sub.productName || sub.product || '',
+      from_api: true
+    };
+  });
+
+  const mergedMap = new Map();
+  localSubscriptions.forEach(s => {
+    const key = s.linea || `local_${s.id}`;
+    if (!mergedMap.has(key)) mergedMap.set(key, s);
+  });
+  apiMapped.forEach(s => {
+    const key = s.linea || `api_${s.id}`;
+    mergedMap.set(key, s);
+  });
+
+  const subscriptions = Array.from(mergedMap.values());
+  const lines = subscriptions.map(s => ({
+    status: (s.estado || '').toUpperCase(),
+    product: s.producto || '',
+    family: s.familia || ''
+  }));
 
   const totalCustomers = customers.length;
   const totalProducts = products.length;

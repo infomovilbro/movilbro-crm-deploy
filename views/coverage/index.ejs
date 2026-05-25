@@ -1,14 +1,16 @@
 <section class="row justify-content-center">
-  <div class="col-md-8">
+  <div class="col-md-10 col-lg-8">
+
     <h2 class="mb-4"><i class="bi bi-wifi"></i> Consultar Cobertura</h2>
-    <div class="card">
+
+    <div class="card shadow-sm mb-4">
       <div class="card-body">
-        <form method="POST" action="/cobertura/consultar">
+        <form method="POST" action="/cobertura/search">
           <div class="mb-3">
-            <label class="form-label">Dirección</label>
+            <label class="form-label fw-semibold">Dirección</label>
             <div class="input-group">
               <input type="text" name="direccion" class="form-control form-control-lg" placeholder="Ej: Calle Cantareros, 29, Antequera" value="<%= direccion %>" required>
-              <button type="submit" class="btn btn-primary btn-lg"><i class="bi bi-search"></i> Consultar</button>
+              <button type="submit" class="btn btn-primary btn-lg"><i class="bi bi-search"></i> Buscar</button>
             </div>
           </div>
         </form>
@@ -16,25 +18,89 @@
     </div>
 
     <% if (error) { %>
-      <div class="alert alert-danger mt-3"><%= error %></div>
+      <div class="alert alert-warning shadow-sm"><i class="bi bi-exclamation-triangle"></i> <%= error %></div>
     <% } %>
 
-    <% if (resultado) { %>
-      <div class="card mt-3 border-success">
-        <div class="card-header bg-success text-white">
-          <i class="bi bi-check-circle"></i> Resultado de Cobertura
+    <% if (addresses && addresses.length > 0) { %>
+      <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white">
+          <h5 class="mb-0"><i class="bi bi-building"></i> Direcciones encontradas</h5>
         </div>
-        <div class="card-body">
-          <p><strong>Dirección consultada:</strong> <%= resultado.direccion %></p>
-          <div class="alert alert-info">
-            <i class="bi bi-info-circle"></i> <%= resultado.mensaje %>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Dirección</th>
+                  <th class="text-end">Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% addresses.forEach(function(addr) { %>
+                <tr>
+                  <td><%= addr.label || addr.direccion || addr.address || addr.name || '' %></td>
+                  <td class="text-end">
+                    <form method="POST" action="/cobertura/check" class="d-inline">
+                      <input type="hidden" name="gescal" value="<%= addr.gescal || addr.id || '' %>">
+                      <input type="hidden" name="sessionId" value="<%= addr.sessionId || addr.session_id || '' %>">
+                      <input type="hidden" name="label" value="<%= addr.label || addr.direccion || addr.address || addr.name || '' %>">
+                      <button type="submit" class="btn btn-sm btn-success"><i class="bi bi-check-circle"></i> Ver cobertura</button>
+                    </form>
+                  </td>
+                </tr>
+                <% }); %>
+              </tbody>
+            </table>
           </div>
-          <p class="text-muted small">
-            <i class="bi bi-gear"></i> Para obtener resultados reales, configura las credenciales de la API de Likes Telecom en 
-            <a href="/configuracion">Configuración</a>.
-          </p>
         </div>
       </div>
     <% } %>
+
+    <% if (selectedAddress) { %>
+      <div class="card shadow-sm mb-4 border-<%= coverage && coverage.hasCoverage ? 'success' : 'danger' %>">
+        <div class="card-header <%= coverage && coverage.hasCoverage ? 'bg-success' : 'bg-danger' %> text-white">
+          <h5 class="mb-0">
+            <i class="bi <%= coverage && coverage.hasCoverage ? 'bi-check-circle' : 'bi-x-circle' %>"></i>
+            Cobertura <%= coverage && coverage.hasCoverage ? 'Disponible' : 'No Disponible' %>
+          </h5>
+        </div>
+        <div class="card-body">
+          <p><strong>Dirección:</strong> <%= selectedAddress.label || '' %></p>
+          <span class="badge fs-6 <%= coverage && coverage.hasCoverage ? 'bg-success' : 'bg-danger' %>">
+            <i class="bi <%= coverage && coverage.hasCoverage ? 'bi-check-lg' : 'bi-x-lg' %>"></i>
+            <%= coverage && coverage.hasCoverage ? 'Cobertura disponible' : 'Sin cobertura' %>
+          </span>
+
+          <% if (products && products.length > 0) { %>
+            <h5 class="mt-4"><i class="bi bi-box-seam"></i> Productos disponibles</h5>
+            <div class="table-responsive">
+              <table class="table table-bordered">
+                <thead class="table-light">
+                  <tr>
+                    <th>Producto</th>
+                    <th>Velocidad</th>
+                    <th>Precio</th>
+                    <th>Tipo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% products.forEach(function(p) { %>
+                  <tr>
+                    <td><%= p.name || p.nombre || p.product || p.producto || '-' %></td>
+                    <td><%= p.speed || p.velocidad || p.rate || '-' %></td>
+                    <td class="fw-bold"><%= p.price || p.precio || p.cost ? (Number(p.price || p.precio || p.cost || 0).toFixed(2) + ' €') : '-' %></td>
+                    <td><%= p.type || p.tipo || p.category || '-' %></td>
+                  </tr>
+                  <% }); %>
+                </tbody>
+              </table>
+            </div>
+          <% } else if (coverage && coverage.hasCoverage) { %>
+            <div class="alert alert-info mt-3"><i class="bi bi-info-circle"></i> Cobertura disponible. Consulta los productos disponibles en la plataforma.</div>
+          <% } %>
+        </div>
+      </div>
+    <% } %>
+
   </div>
 </section>

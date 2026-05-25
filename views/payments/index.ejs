@@ -11,16 +11,20 @@
   </div>
   <div class="row g-3 mb-4">
     <div class="col-md-6">
-      <div class="card"><div class="card-body">
-        <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Estado de Pagos</h6>
-        <canvas id="paymentStatusChart" style="height:221px;"></canvas>
-      </div></div>
+      <div class="card" style="cursor:pointer;" onclick="showPaymentDetail('status')">
+        <div class="card-body">
+          <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Estado de Pagos</h6>
+          <div class="chart-wrapper" style="height:160px;overflow:hidden;"><canvas id="paymentStatusChart"></canvas></div>
+        </div>
+      </div>
     </div>
     <div class="col-md-6">
-      <div class="card"><div class="card-body">
-        <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Pagos por Método</h6>
-        <canvas id="paymentMethodChart" style="height:221px;"></canvas>
-      </div></div>
+      <div class="card" style="cursor:pointer;" onclick="showPaymentDetail('method')">
+        <div class="card-body">
+          <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Pagos por Método</h6>
+          <div class="chart-wrapper" style="height:160px;overflow:hidden;"><canvas id="paymentMethodChart"></canvas></div>
+        </div>
+      </div>
     </div>
   </div>
   <div class="card">
@@ -31,7 +35,7 @@
           <tbody>
             <% if (!payments || payments.length === 0) { %>
             <tr><td colspan="6" class="text-center text-muted py-4">No hay pagos</td></tr>
-            <% } else { payments.forEach(p => { 
+            <% } else { payments.forEach(p => {
               const st = (p.status||'').toUpperCase();
               const sc = st === 'COMPLETED' || st === 'SUCCEEDED' ? 'success' : st === 'PENDING' ? 'warning' : st === 'FAILED' ? 'danger' : 'secondary';
             %>
@@ -49,59 +53,75 @@
       </div>
     </div>
   </div>
-<script>
-var paymentsData = <%- JSON.stringify(payments) %>;
-var completados = paymentsData.filter(function(p) { var s = (p.status||'').toUpperCase(); return s === 'COMPLETED' || s === 'SUCCEEDED'; }).length;
-var pendientes = paymentsData.filter(function(p) { return (p.status||'').toUpperCase() === 'PENDING'; }).length;
-var fallidos = paymentsData.filter(function(p) { return (p.status||'').toUpperCase() === 'FAILED'; }).length;
-
-var ctx1 = document.getElementById('paymentStatusChart').getContext('2d');
-new Chart(ctx1, {
-  type: 'bar',
-  data: {
-    labels: ['Completados', 'Pendientes', 'Fallidos'],
-    datasets: [{
-      label: 'Pagos',
-      data: [completados, pendientes, fallidos],
-      backgroundColor: ['#198754', '#ffc107', '#dc3545'],
-      borderRadius: 6
-    }]
-  },
-  options: {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: { legend: { display: false } },
-    scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } }
-  }
-});
-
-var methodCounts = {};
-paymentsData.forEach(function(p) {
-  var m = p.method || p.metodo || p.paymentMethod || 'Otro';
-  methodCounts[m] = (methodCounts[m] || 0) + 1;
-});
-var sortedMethods = Object.keys(methodCounts).sort(function(a, b) { return methodCounts[b] - methodCounts[a]; });
-var methodLabels = sortedMethods;
-var methodData = sortedMethods.map(function(m) { return methodCounts[m]; });
-
-var ctx2 = document.getElementById('paymentMethodChart').getContext('2d');
-new Chart(ctx2, {
-  type: 'bar',
-  data: {
-    labels: methodLabels,
-    datasets: [{
-      label: 'Pagos',
-      data: methodData,
-      backgroundColor: methodData.map(function(v, i) { return i > 0 && v < methodData[i-1] ? '#dc3545' : '#198754'; }),
-      borderRadius: 6
-    }]
-  },
-  options: {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: { legend: { display: false } },
-    scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } }
-  }
-});
-</script>
 </section>
+
+<div class="modal fade" id="paymentDetailModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="payDetailTitle">Detalle</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body" id="payDetailBody"></div>
+  </div></div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var paymentsData = <%- JSON.stringify(payments) %>;
+  var completados = paymentsData.filter(function(p) { var s = (p.status||'').toUpperCase(); return s === 'COMPLETED' || s === 'SUCCEEDED'; }).length;
+  var pendientes = paymentsData.filter(function(p) { return (p.status||'').toUpperCase() === 'PENDING'; }).length;
+  var fallidos = paymentsData.filter(function(p) { return (p.status||'').toUpperCase() === 'FAILED'; }).length;
+
+  new Chart(document.getElementById('paymentStatusChart'), {
+    type: 'bar',
+    data: {
+      labels: ['Completados', 'Pendientes', 'Fallidos'],
+      datasets: [{ label: 'Pagos', data: [completados, pendientes, fallidos], backgroundColor: ['#198754', '#ffc107', '#dc3545'], borderRadius: 6 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, animation: false, resizeDelay: 0, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } }
+  });
+
+  var methodCounts = {};
+  paymentsData.forEach(function(p) {
+    var m = p.method || p.metodo || p.paymentMethod || 'Otro';
+    methodCounts[m] = (methodCounts[m] || 0) + 1;
+  });
+  var sortedMethods = Object.keys(methodCounts).sort(function(a, b) { return methodCounts[b] - methodCounts[a]; });
+  var methodLabels = sortedMethods;
+  var methodData = sortedMethods.map(function(m) { return methodCounts[m]; });
+
+  new Chart(document.getElementById('paymentMethodChart'), {
+    type: 'bar',
+    data: {
+      labels: methodLabels,
+      datasets: [{ label: 'Pagos', data: methodData, backgroundColor: methodData.map(function(v, i) { return i > 0 && v < methodData[i-1] ? '#dc3545' : '#198754'; }), borderRadius: 6 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, animation: false, resizeDelay: 0, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } }
+  });
+});
+
+function showPaymentDetail(type) {
+  var title = '', body = '';
+  if (type === 'status') {
+    title = 'Estado de Pagos';
+    var completados = paymentsData.filter(function(p) { var s = (p.status||'').toUpperCase(); return s === 'COMPLETED' || s === 'SUCCEEDED'; }).length;
+    var pendientes = paymentsData.filter(function(p) { return (p.status||'').toUpperCase() === 'PENDING'; }).length;
+    var fallidos = paymentsData.filter(function(p) { return (p.status||'').toUpperCase() === 'FAILED'; }).length;
+    body = '<table class="table table-sm"><thead><tr><th>Estado</th><th>Cantidad</th></tr></thead><tbody>' +
+      '<tr><td>Completados</td><td><strong>' + completados + '</strong></td></tr>' +
+      '<tr><td>Pendientes</td><td><strong>' + pendientes + '</strong></td></tr>' +
+      '<tr><td>Fallidos</td><td><strong>' + fallidos + '</strong></td></tr>' +
+      '</tbody></table>';
+  } else if (type === 'method') {
+    title = 'Pagos por Método';
+    var methodCounts = {};
+    paymentsData.forEach(function(p) {
+      var m = p.method || p.metodo || p.paymentMethod || 'Otro';
+      methodCounts[m] = (methodCounts[m] || 0) + 1;
+    });
+    var rows = Object.keys(methodCounts).map(function(m) { return '<tr><td>' + m + '</td><td><strong>' + methodCounts[m] + '</strong></td></tr>'; }).join('');
+    body = '<table class="table table-sm"><thead><tr><th>Método</th><th>Cantidad</th></tr></thead><tbody>' + rows + '</tbody></table>';
+  }
+  document.getElementById('payDetailTitle').textContent = title;
+  document.getElementById('payDetailBody').innerHTML = body;
+  var modal = new bootstrap.Modal(document.getElementById('paymentDetailModal'));
+  modal.show();
+}
+</script>

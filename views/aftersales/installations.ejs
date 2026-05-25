@@ -23,23 +23,82 @@
     <a href="#" class="text-decoration-none col-md-3 col-6 stat-card-item"><div class="stat-card" data-filter="pendientes"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle danger"><span>⏳</span></div><div><div class="stat-value"><%= pending %></div><div class="stat-label">Pendientes cita</div></div></div></div></a>
   </div>
 
+  <!-- Charts: 4 compact charts -->
   <div class="row g-3 mb-4">
-    <div class="col-md-12">
-      <div class="card"><div class="card-body">
-        <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Estado de Instalaciones</h6>
-        <canvas id="chartInstalaciones" style="height:221px;"></canvas>
+    <div class="col-md-3">
+      <div class="card"><div class="card-body p-3">
+        <h6 class="card-title small mb-2">Estado de Instalaciones</h6>
+        <div style="height:150px;overflow:hidden;position:relative;"><canvas id="chartInstalaciones"></canvas></div>
+      </div></div>
+    </div>
+    <div class="col-md-3">
+      <div class="card"><div class="card-body p-3">
+        <h6 class="card-title small mb-2">Instalaciones por Mes</h6>
+        <div style="height:150px;overflow:hidden;position:relative;"><canvas id="chartInstalacionesMes"></canvas></div>
+      </div></div>
+    </div>
+    <div class="col-md-3">
+      <div class="card"><div class="card-body p-3">
+        <h6 class="card-title small mb-2">Instalaciones por Estado</h6>
+        <div style="height:150px;overflow:hidden;position:relative;"><canvas id="chartInstalacionesBar"></canvas></div>
+      </div></div>
+    </div>
+    <div class="col-md-3">
+      <div class="card"><div class="card-body p-3">
+        <h6 class="card-title small mb-2">Estado (Compacto)</h6>
+        <div style="height:150px;overflow:hidden;position:relative;"><canvas id="chartInstalacionesDonut2"></canvas></div>
       </div></div>
     </div>
   </div>
 
+  <!-- Create Installation Form (collapsible) -->
+  <div class="card mb-3">
+    <div class="card-header py-2 d-flex justify-content-between align-items-center" style="cursor:pointer" data-bs-toggle="collapse" data-bs-target="#newInstallForm">
+      <span><i class="ri-add-circle-line"></i> Nueva Instalación</span>
+      <i class="ri-arrow-down-s-line"></i>
+    </div>
+    <div class="collapse" id="newInstallForm">
+      <div class="card-body">
+        <form id="createInstallationForm">
+          <div class="row g-2">
+            <div class="col-md-4">
+              <label class="form-label small">Fecha programada</label>
+              <input type="date" class="form-control form-control-sm" id="newScheduledDate" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small">Cliente (nombre o ID fiscal)</label>
+              <input type="text" class="form-control form-control-sm" id="newCustomer" placeholder="Nombre o NIF">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small">Dirección</label>
+              <input type="text" class="form-control form-control-sm" id="newAddress" placeholder="Calle, nº, ciudad">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small">Producto</label>
+              <input type="text" class="form-control form-control-sm" id="newProduct" placeholder="Nombre del producto">
+            </div>
+            <div class="col-md-8">
+              <label class="form-label small">Notas</label>
+              <textarea class="form-control form-control-sm" id="newNotes" rows="2" placeholder="Observaciones..."></textarea>
+            </div>
+            <div class="col-12 mt-2">
+              <button type="submit" class="btn btn-primary btn-sm" id="btnCreateInstallation"><i class="ri-calendar-check-line"></i> Programar Instalación</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Installations Table -->
   <div class="card hideable-section" data-card-id="instalaciones-tabla">
     <div class="card-body p-0">
       <div class="table-responsive">
         <table class="table table-hover">
-          <thead><tr><th>Cliente</th><th>DNI/NIF</th><th>Dirección</th><th>Producto</th><th>Estado</th><th>Fecha Inst.</th><th></th></tr></thead>
+          <thead><tr><th>Cliente</th><th>DNI/NIF</th><th>Dirección</th><th>Producto</th><th>Estado</th><th>Fecha Inst.</th><th>Fecha Prog.</th><th>Técnico</th><th>Notas</th><th></th></tr></thead>
           <tbody>
             <% if (!installations || installations.length === 0) { %>
-            <tr><td colspan="7" class="text-center text-muted py-4">No hay instalaciones</td></tr>
+            <tr><td colspan="10" class="text-center text-muted py-4">No hay instalaciones</td></tr>
             <% } else { installations.forEach(i => { 
               const st = (i.status || i.estado || '').toUpperCase();
               const sc = st === 'COMPLETED' ? 'success' : st === 'SCHEDULED' || st === 'PENDING_SCHEDULE' ? 'info' : st === 'ERRORED' ? 'danger' : st === 'CANCELED' ? 'secondary' : 'warning';
@@ -49,13 +108,16 @@
               if (st === 'SCHEDULED') fv.push('programadas');
               if (st === 'PENDING_SCHEDULE' || st === 'PENDING') fv.push('pendientes');
             %>
-            <tr data-filter-values="<%= fv.join(' ') %>">
+            <tr data-filter-values="<%= fv.join(' ') %>" class="installation-row" style="cursor:pointer" data-json='<%- JSON.stringify(i).replace(/'/g,"&#39;") %>'>
               <td><%= i.customerName || i.cliente_nombre || i.name || '-' %></td>
               <td><%= i.fiscalId || i.dni || '-' %></td>
               <td class="small"><%= i.address || i.direccion || '-' %></td>
               <td><%= i.productName || i.producto || i.product || '-' %></td>
               <td><span class="badge bg-<%= sc %>"><%= st %></span></td>
               <td class="small"><%= i.installationDate || i.fecha_instalacion ? new Date(i.installationDate || i.fecha_instalacion).toLocaleDateString('es-ES') : '-' %></td>
+              <td class="small"><%= i.scheduledDate ? new Date(i.scheduledDate).toLocaleDateString('es-ES') : '-' %></td>
+              <td class="small"><%= i.technician || i.tecnico || i.installer || '-' %></td>
+              <td class="small text-truncate" style="max-width:120px;"><%= i.notes || i.notas || i.observations || '-' %></td>
               <td><button class="btn btn-sm btn-outline-primary ver-instalacion" data-json='<%- JSON.stringify(i).replace(/'/g,"&#39;") %>'><i class="ri-eye-line"></i></button></td>
             </tr>
             <% }); } %>
@@ -66,7 +128,7 @@
   </div>
 </section>
 
-<!-- Modal Detalle Instalación -->
+<!-- Installation Detail Modal -->
 <div class="modal fade" id="modalInstalacion" tabindex="-1">
   <div class="modal-dialog modal-lg"><div class="modal-content">
     <div class="modal-header"><h5><i class="ri-calendar-schedule-line"></i> Detalle de Instalación</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
@@ -77,7 +139,27 @@
   </div></div>
 </div>
 
+<div class="modal fade" id="chartDetailModal" tabindex="-1">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="chartDetailTitle"></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body p-0"><div class="table-responsive"><table class="table table-hover mb-0" id="chartDetailTable"><thead></thead><tbody></tbody></table></div></div>
+    <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button></div>
+  </div></div>
+</div>
+
 <script>
+// Row click → detail modal
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.installation-row').forEach(function(row) {
+    row.addEventListener('click', function(e) {
+      if (e.target.closest('.ver-instalacion') || e.target.closest('button') || e.target.closest('a')) return;
+      var btn = this.querySelector('.ver-instalacion');
+      if (btn) btn.click();
+    });
+  });
+});
+
+// Detail modal
 document.querySelectorAll('.ver-instalacion').forEach(function(btn) {
   btn.addEventListener('click', function() {
     var data;
@@ -85,14 +167,18 @@ document.querySelectorAll('.ver-instalacion').forEach(function(btn) {
     if (!data) return;
     var html = '<table class="table table-sm table-bordered mb-0"><tbody>';
     var fields = [
+      ['ID', data.id || data.installationId],
       ['Cliente', data.customerName || data.cliente_nombre || data.name],
       ['DNI/NIF', data.fiscalId || data.dni],
       ['Dirección', data.address || data.direccion],
+      ['Teléfono', data.phone || data.telefono],
+      ['Email', data.email],
       ['Producto', data.productName || data.producto || data.product],
+      ['Familia', data.family || data.familia],
       ['Estado', data.status || data.estado],
       ['Fecha Instalación', data.installationDate || data.fecha_instalacion ? new Date(data.installationDate || data.fecha_instalacion).toLocaleDateString('es-ES') : ''],
-      ['Email', data.email],
-      ['Teléfono', data.phone || data.telefono],
+      ['Fecha Programada', data.scheduledDate ? new Date(data.scheduledDate).toLocaleDateString('es-ES') : ''],
+      ['Fecha Compleción', data.completionDate ? new Date(data.completionDate).toLocaleDateString('es-ES') : ''],
       ['Técnico', data.technician || data.tecnico || data.installer],
       ['Notas', data.notes || data.notas || data.observations],
       ['Creado', data.created || data.createdAt ? new Date(data.created || data.createdAt).toLocaleString('es-ES') : ''],
@@ -134,9 +220,120 @@ document.getElementById('toggleStats').addEventListener('click', function() {
   r.style.display = r.style.display === 'none' ? '' : 'none';
 });
 
-var id = <%- JSON.stringify(installations) %>;
-var ci = {};
-id.forEach(function(x) { var k = (x.status || x.estado || 'UNKNOWN').toUpperCase(); ci[k] = (ci[k] || 0) + 1; });
-var li = Object.keys(ci);
-new Chart(document.getElementById('chartInstalaciones'), { type: 'bar', data: { labels: li, datasets: [{ label: 'Instalaciones', data: Object.values(ci), backgroundColor: li.map(function(s) { return s === 'COMPLETED' ? '#198754' : s === 'SCHEDULED' ? '#0d6efd' : (s === 'PENDING' || s === 'PENDING_SCHEDULE') ? '#ffc107' : (s === 'CANCELED' || s === 'ERRORED' || s === 'ERROR') ? '#dc3545' : '#6c757d'; }), borderRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } } });
+// Form submission
+document.addEventListener('DOMContentLoaded', function() {
+  var form = document.getElementById('createInstallationForm');
+  if (form) {
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      var btn = document.getElementById('btnCreateInstallation');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Creando...';
+      var body = {
+        scheduledDate: document.getElementById('newScheduledDate').value,
+        customerName: document.getElementById('newCustomer').value,
+        address: document.getElementById('newAddress').value,
+        productName: document.getElementById('newProduct').value,
+        notes: document.getElementById('newNotes').value
+      };
+      fetch('/aftersales/installations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(res) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="ri-calendar-check-line"></i> Programar Instalación';
+        if (res.success) {
+          location.reload();
+        } else {
+          alert('Error: ' + (res.error || 'No se pudo crear la instalación'));
+        }
+      })
+      .catch(function(err) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="ri-calendar-check-line"></i> Programar Instalación';
+        alert('Error de conexión: ' + err.message);
+      });
+    });
+  }
+});
+
+// Charts
+document.addEventListener('DOMContentLoaded', function() {
+  var installations = <%- JSON.stringify(installations) %>;
+  if (!Array.isArray(installations)) installations = [];
+
+  // Existing donut: Estado de Instalaciones
+  var ci = {};
+  installations.forEach(function(x) { var k = (x.status || x.estado || 'UNKNOWN').toUpperCase(); ci[k] = (ci[k] || 0) + 1; });
+  var li = Object.keys(ci);
+
+  var chartDonut = new Chart(document.getElementById('chartInstalaciones'), {
+    type: 'doughnut',
+    data: { labels: li, datasets: [{ data: Object.values(ci), backgroundColor: li.map(function(s) { return s === 'COMPLETED' ? '#198754' : s === 'SCHEDULED' ? '#0d6efd' : (s === 'PENDING' || s === 'PENDING_SCHEDULE') ? '#ffc107' : (s === 'CANCELED' || s === 'ERRORED' || s === 'ERROR') ? '#dc3545' : '#6c757d'; }), borderWidth: 0 }] },
+    options: { responsive: true, maintainAspectRatio: false, animation: false, resizeDelay: 0, cutout: '60%', plugins: { legend: { display: false }, tooltip: { enabled: true } }, onClick: function(e, elements) { if (elements.length > 0) showChartDetail(this, elements[0].index); } }
+  });
+
+  // Existing bar: Instalaciones por Estado
+  var chartBar = new Chart(document.getElementById('chartInstalacionesBar'), {
+    type: 'bar',
+    data: { labels: li, datasets: [{ label: 'Instalaciones', data: Object.values(ci), backgroundColor: li.map(function(s) { return s === 'COMPLETED' ? '#198754' : s === 'SCHEDULED' ? '#0d6efd' : (s === 'PENDING' || s === 'PENDING_SCHEDULE') ? '#ffc107' : (s === 'CANCELED' || s === 'ERRORED' || s === 'ERROR') ? '#dc3545' : '#6c757d'; }), borderRadius: 6 }] },
+    options: { responsive: true, maintainAspectRatio: false, animation: false, resizeDelay: 0, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } }, onClick: function(e, elements) { if (elements.length > 0) showChartDetail(this, elements[0].index); } }
+  });
+
+  // NEW: Instalaciones por Mes (bar chart)
+  var monthMap = {};
+  var monthNames = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  installations.forEach(function(x) {
+    var d = x.scheduledDate || x.installationDate || x.fecha_instalacion || x.created || x.createdAt;
+    if (d) {
+      var dt = new Date(d);
+      var key = dt.getFullYear() + '-' + (dt.getMonth() + 1);
+      var label = monthNames[dt.getMonth()] + ' ' + dt.getFullYear();
+      if (!monthMap[key]) { monthMap[key] = { label: label, count: 0 }; }
+      monthMap[key].count++;
+    }
+  });
+  var monthKeys = Object.keys(monthMap).sort();
+  var monthLabels = monthKeys.map(function(k) { return monthMap[k].label; });
+  var monthCounts = monthKeys.map(function(k) { return monthMap[k].count; });
+
+  new Chart(document.getElementById('chartInstalacionesMes'), {
+    type: 'bar',
+    data: { labels: monthLabels, datasets: [{ label: 'Instalaciones', data: monthCounts, backgroundColor: '#0d6efd', borderRadius: 4 }] },
+    options: { responsive: true, maintainAspectRatio: false, animation: false, resizeDelay: 0, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } }
+  });
+
+  // NEW: Donut compacto - Estado de instalaciones (pending/completed/cancelled/errored)
+  var catMap = { PENDING: 0, PENDING_SCHEDULE: 0, SCHEDULED: 0, COMPLETED: 0, CANCELED: 0, ERRORED: 0, ERROR: 0 };
+  var catColors = { PENDING: '#ffc107', PENDING_SCHEDULE: '#ffc107', SCHEDULED: '#0d6efd', COMPLETED: '#198754', CANCELED: '#6c757d', ERRORED: '#dc3545', ERROR: '#dc3545' };
+  installations.forEach(function(x) {
+    var st = (x.status || x.estado || 'UNKNOWN').toUpperCase();
+    if (catMap[st] !== undefined) catMap[st]++;
+    else catMap['PENDING']++;
+  });
+  var catLabels = Object.keys(catMap).filter(function(k) { return catMap[k] > 0; });
+  var catData = catLabels.map(function(k) { return catMap[k]; });
+  var catBg = catLabels.map(function(k) { return catColors[k] || '#6c757d'; });
+
+  new Chart(document.getElementById('chartInstalacionesDonut2'), {
+    type: 'doughnut',
+    data: { labels: catLabels, datasets: [{ data: catData, backgroundColor: catBg, borderWidth: 0 }] },
+    options: { responsive: true, maintainAspectRatio: false, animation: false, resizeDelay: 0, cutout: '60%', plugins: { legend: { display: false }, tooltip: { enabled: true } } }
+  });
+
+  function showChartDetail(chart, idx) {
+    var label = chart.data.labels[idx];
+    var records = installations.filter(function(x){ return ((x.status||x.estado||'UNKNOWN').toUpperCase()) === label; });
+    var h = '<tr><th>Cliente</th><th>Producto</th><th>Estado</th><th>Fecha Prog.</th></tr>';
+    var b = '';
+    records.forEach(function(x){ b += '<tr><td>'+(x.customerName||x.name||'-')+'</td><td>'+(x.productName||x.producto||'-')+'</td><td>'+(x.status||x.estado||'-')+'</td><td>'+(x.scheduledDate||x.installationDate?new Date(x.scheduledDate||x.installationDate).toLocaleDateString('es-ES'):'-')+'</td></tr>'; });
+    document.getElementById('chartDetailTitle').textContent = label + ' (' + records.length + ')';
+    document.getElementById('chartDetailTable').querySelector('thead').innerHTML = h;
+    document.getElementById('chartDetailTable').querySelector('tbody').innerHTML = b;
+    new bootstrap.Modal(document.getElementById('chartDetailModal')).show();
+  }
+});
 </script>

@@ -1,218 +1,744 @@
 <section>
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="bi bi-box-seam"></i> Productos por familia</h2>
-    <span class="badge bg-primary fs-6"><%= grouped.reduce((t, g) => t + g.items.length, 0) %> productos</span>
+  <style>
+  .products-section { display: none; }
+  .products-section.active { display: block; }
+  .products-section.active .products-inner { animation: slideDown 0.35s ease forwards; overflow: hidden; }
+  @keyframes slideDown { from { opacity: 0; max-height: 0; transform: translateY(-12px); } to { opacity: 1; max-height: 5000px; transform: translateY(0); } }
+  </style>
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-box-seam"></i> Productos</h2>
+    <div>
+      <span class="badge bg-primary fs-6 me-2"><%= productos.length %> productos</span>
+    </div>
   </div>
 
   <% if (error) { %>
     <div class="alert alert-danger"><i class="bi bi-exclamation-triangle"></i> <%= error %></div>
   <% } %>
 
-  <% if (grouped.length === 0 && !error) { %>
+  <% if (productos.length === 0 && !error) { %>
     <div class="text-center text-muted py-5">
       <i class="bi bi-inbox" style="font-size: 3rem;"></i>
       <p class="mt-2">No se encontraron productos. Verifica la configuración de la API.</p>
     </div>
   <% } %>
 
-  <div class="card mb-4">
-    <div class="card-body py-3">
-      <div class="row g-2 align-items-center">
-        <div class="col-md-5">
-          <input type="text" class="form-control" id="searchProducto" placeholder="Buscar producto...">
-        </div>
-        <div class="col-md-3">
-          <select class="form-select" id="filterFamilia">
-            <option value="">Todas las familias</option>
-            <% grouped.forEach(g => { %>
-            <option value="<%= g.name %>"><%= g.name %></option>
-            <% }) %>
-          </select>
-        </div>
-        <div class="col-md-2">
-          <select class="form-select" id="filterTipo">
-            <option value="">Todos los tipos</option>
-            <option value="Main">Main</option>
-            <option value="Optional">Optional</option>
-          </select>
-        </div>
-        <div class="col-md-2">
-          <button class="btn btn-outline-secondary w-100" id="btnLimpiarFiltros"><i class="bi bi-x-circle"></i> Limpiar</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
+  <% if (chartData) { %>
   <div class="row g-3 mb-4">
-    <div class="col-md-6">
-      <div class="card"><div class="card-body">
-        <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Productos por Familia</h6>
-        <canvas id="chartFamilia" style="height:221px;"></canvas>
-      </div></div>
-    </div>
-    <div class="col-md-6">
-      <div class="card"><div class="card-body">
-        <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Tipo de Producto</h6>
-        <canvas id="chartTipo" style="height:221px;"></canvas>
-      </div></div>
-    </div>
-  </div>
-
-  <div class="accordion" id="familiasAccordion">
-    <% grouped.forEach((grupo, idx) => { %>
-    <div class="accordion-item">
-      <h2 class="accordion-header">
-        <button class="accordion-button <%= idx > 0 ? 'collapsed' : '' %>" type="button" data-bs-toggle="collapse" data-bs-target="#fam<%= idx %>">
-          <strong><%= grupo.name %></strong>
-          <span class="badge bg-secondary ms-2"><%= grupo.items.length %></span>
-          <%
-            const minPrice = Math.min(...grupo.items.map(p => p.price).filter(p => p > 0));
-            const maxPrice = Math.max(...grupo.items.map(p => p.price).filter(p => p > 0));
-          %>
-          <% if (minPrice && maxPrice) { %>
-            <small class="text-muted ms-3"><%= minPrice.toFixed(2) %>€ - <%= maxPrice.toFixed(2) %>€</small>
-          <% } %>
-        </button>
-      </h2>
-      <div id="fam<%= idx %>" class="accordion-collapse collapse <%= idx === 0 ? 'show' : '' %>" data-bs-parent="#familiasAccordion">
-        <div class="accordion-body p-0">
-          <table class="table table-hover mb-0 align-middle">
-            <thead class="table-light">
-              <tr>
-                <th>Nombre</th>
-                <th>Tipo</th>
-                <th>Familia</th>
-                <th>Precio</th>
-                <th>Descripción</th>
-              </tr>
-            </thead>
-            <tbody>
-              <% grupo.items.forEach(p => { %>
-                <tr class="producto-row" data-familia="<%= p.family || 'Otros' %>" data-tipo="<%= p.type || '' %>">
-                  <td class="fw-bold"><%= p.productName || p.name || '-' %></td>
-                  <td>
-                    <span class="badge bg-<%= p.type === 'Main' ? 'primary' : p.type === 'Optional' ? 'success' : 'secondary' %>">
-                      <%= p.type || '-' %>
-                    </span>
-                  </td>
-                  <td><%= p.family || '-' %></td>
-                  <td class="fw-bold text-primary">
-                    <% if (p.price && p.price > 0) { %>
-                      <%= p.price.toFixed(2) %>€<% if (p.isRecurringPrice) { %><small class="text-muted">/mes</small><% } %>
-                    <% } else { %>
-                      <span class="text-muted">Consultar</span>
-                    <% } %>
-                    <% if (p.commission && p.commission > 0) { %>
-                      <br><small class="text-muted">Comisión: <%= p.commission %>€</small>
-                    <% } %>
-                  </td>
-                  <td class="small text-muted"><%= p.description || p.shortDescription || '-' %></td>
-                </tr>
-              <% }) %>
-            </tbody>
-          </table>
+    <div class="col-md-3">
+      <div class="card" style="cursor:pointer" onclick="abrirModalChart('familia')">
+        <div class="card-body p-3">
+          <h6 class="card-title small mb-2">Productos por Familia</h6>
+          <div style="height:150px;overflow:hidden;position:relative;">
+            <canvas id="chartFamilia"></canvas>
+          </div>
         </div>
       </div>
     </div>
-    <% }) %>
+    <div class="col-md-3">
+      <div class="card" style="cursor:pointer" onclick="abrirModalChart('tipo')">
+        <div class="card-body p-3">
+          <h6 class="card-title small mb-2">Tipo de Producto</h6>
+          <div style="height:150px;overflow:hidden;position:relative;">
+            <canvas id="chartTipo"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card" style="cursor:pointer" onclick="abrirModalChart('precio')">
+        <div class="card-body p-3">
+          <h6 class="card-title small mb-2">Precio medio por Familia</h6>
+          <div style="height:150px;overflow:hidden;position:relative;">
+            <canvas id="chartPrecio"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card" style="cursor:pointer" onclick="abrirModalChart('rango')">
+        <div class="card-body p-3">
+          <h6 class="card-title small mb-2">Rangos de Precio</h6>
+          <div style="height:150px;overflow:hidden;position:relative;">
+            <canvas id="chartRango"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <% } %>
+
+  <!-- Category stat cards -->
+  <div class="row g-1 mb-3">
+    <div class="col-md-2 col-4">
+      <div class="card family-card cursor-pointer text-center p-1 border-primary" data-family="all" style="cursor:pointer;" onclick="filtrarFamilia('all')">
+        <div class="fs-5">📋</div>
+        <small>Todas</small>
+        <span class="badge bg-secondary" style="font-size:0.6rem;"><%= productos.length %></span>
+      </div>
+    </div>
+    <% grouped.forEach(function(g) { %>
+    <% var famName = g.name; %>
+    <% var famIcon = {Mobile:'📱',Fiber:'🌐',TV:'📺',Device:'📟',International:'🌍',Energy:'🔋',Satellite:'📡',Fixed:'📞',Other:'📦'}[famName] || '📦'; %>
+    <% var famLabel = {Mobile:'Móvil',Fiber:'Fibra',TV:'TV',Device:'Dispositivo',International:'Internacional',Energy:'Energía',Satellite:'Satélite',Fixed:'Fijo',Other:'Otras'}[famName] || famName; %>
+    <div class="col-md-2 col-4">
+      <div class="card family-card cursor-pointer text-center p-1" data-family="<%= famName %>" style="cursor:pointer;" onclick="filtrarFamilia('<%= famName %>')">
+        <div class="fs-5"><%= famIcon %></div>
+        <small><%= famLabel %></small>
+        <span class="badge bg-secondary" style="font-size:0.6rem;"><%= g.items.length %></span>
+      </div>
+    </div>
+    <% }); %>
+  </div>
+
+  <div id="productsSection" class="products-section">
+    <div class="products-inner">
+      <!-- Search Bar -->
+      <div class="card mb-3">
+        <div class="card-body py-2">
+          <div class="row g-2 align-items-center">
+            <div class="col-md-6">
+              <div class="input-group">
+                <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                <input type="text" class="form-control" id="searchProducto" placeholder="Buscar por nombre o ID de producto...">
+              </div>
+            </div>
+            <div class="col-md-3">
+              <select class="form-select" id="filterTipo">
+                <option value="">Todos los tipos</option>
+                <option value="Main">Main</option>
+                <option value="Optional">Optional</option>
+                <option value="Promotion">Promotion</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <button class="btn btn-outline-secondary w-100" id="btnLimpiarFiltros"><i class="bi bi-x-circle"></i> Limpiar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Products Table -->
+      <div class="card">
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" id="productsTable">
+              <thead class="table-light">
+                <tr>
+                  <th style="width:100px;">ID Producto</th>
+                  <th>Nombre</th>
+                  <th style="width:90px;">Tipo</th>
+                  <th style="width:110px;">Precio Base</th>
+                  <th style="width:130px;">Precio Recomendado</th>
+                  <th style="width:90px;">Comisión</th>
+                  <th style="width:120px;">Proveedor</th>
+                  <th style="width:60px;">Acción</th>
+                </tr>
+              </thead>
+              <tbody id="productsTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card-footer d-flex justify-content-between align-items-center" id="tableFooter">
+          <small class="text-muted" id="paginationInfo">Mostrando 0-0 de 0</small>
+          <nav>
+            <ul class="pagination pagination-sm mb-0" id="pagination"></ul>
+          </nav>
+        </div>
+      </div>
+    </div>
   </div>
 </section>
 
+<!-- Chart Detail Modal -->
+<div class="modal fade" id="chartModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="chartModalTitle"></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover mb-0 align-middle">
+            <thead class="table-light" id="chartModalHead"></thead>
+            <tbody id="chartModalBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Product Detail/Edit Modal -->
+<div class="modal fade" id="productModal" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="productModalTitle">Detalle del Producto</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="productModalBody">
+        <div class="row">
+          <div class="col-md-5">
+            <div id="productImageSection" class="text-center mb-3 d-none">
+              <img id="productImage" src="" class="img-fluid rounded" style="max-height:180px;object-fit:contain;" alt="Producto">
+            </div>
+            <table class="table table-sm table-borderless mb-0">
+              <tr><td class="text-muted small">ID:</td><td class="fw-semibold" id="modalProductId">-</td></tr>
+              <tr><td class="text-muted small">Nombre:</td><td class="fw-semibold" id="modalProductName">-</td></tr>
+              <tr><td class="text-muted small">Familia:</td><td id="modalProductFamily">-</td></tr>
+              <tr><td class="text-muted small">Tipo:</td><td id="modalProductType">-</td></tr>
+              <tr><td class="text-muted small">Descripción:</td><td><small id="modalProductDesc">-</small></td></tr>
+              <tr><td class="text-muted small">Marketing:</td><td><small id="modalProductMarketing">-</small></td></tr>
+            </table>
+          </div>
+          <div class="col-md-7">
+            <h6 class="fw-bold mb-3"><i class="bi bi-currency-euro"></i> Precios</h6>
+            <div class="mb-3">
+              <label class="form-label">Precio Base (API)</label>
+              <div class="input-group">
+                <span class="input-group-text">&euro;</span>
+                <input type="number" step="0.01" class="form-control" id="editBasePrice">
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Precio Recomendado</label>
+              <div class="input-group">
+                <span class="input-group-text">&euro;</span>
+                <input type="number" step="0.01" class="form-control" id="editRecommendedPrice">
+                <button class="btn btn-outline-secondary" type="button" id="toggleIvaBtn" title="Calcular con IVA">+IVA</button>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Precio de Cesión</label>
+              <div class="input-group">
+                <span class="input-group-text">&euro;</span>
+                <input type="number" step="0.01" class="form-control" id="editCessionPrice">
+              </div>
+            </div>
+            <div class="card bg-light mb-3">
+              <div class="card-body p-2">
+                <div class="row g-1 text-center">
+                  <div class="col-4"><small class="text-muted">Precio con IVA</small><div class="fw-bold" id="precioConIva">0,00€</div></div>
+                  <div class="col-4"><small class="text-muted">Base Imponible</small><div class="fw-bold" id="ivaBaseDisplay">0,00€</div></div>
+                  <div class="col-4"><small class="text-muted">IVA (21%)</small><div class="fw-bold text-danger" id="ivaAmountDisplay">0,00€</div></div>
+                </div>
+                <hr class="my-1">
+                <div class="row g-1 text-center">
+                  <div class="col-4"><small class="text-muted">Precio Cesión</small><div class="fw-bold" id="precioCesionDisplay">0,00€</div></div>
+                  <div class="col-4"><small class="text-muted">Beneficio</small><div class="fw-bold text-success" id="beneficioDisplay">0,00€</div></div>
+                  <div class="col-4"><small class="text-muted">Margen</small><div class="fw-bold text-primary" id="margenDisplay">0%</div></div>
+                </div>
+              </div>
+            </div>
+            <button class="btn btn-primary w-100 mb-3" id="btnGuardarPrecios">
+              <i class="bi bi-save"></i> Guardar Precios
+            </button>
+            <hr>
+            <h6 class="fw-bold mb-2"><i class="bi bi-info-circle"></i> Informaci&oacute;n adicional</h6>
+            <table class="table table-sm table-borderless mb-0 small">
+              <tr><td class="text-muted">Comisi&oacute;n:</td><td id="modalCommission">-</td></tr>
+              <tr><td class="text-muted">Permanencia:</td><td id="modalMinTerm">-</td></tr>
+              <tr><td class="text-muted">Requiere Env&iacute;o:</td><td id="modalHasShipping">-</td></tr>
+              <tr><td class="text-muted">Stock:</td><td id="modalStock">-</td></tr>
+              <tr><td class="text-muted">Opcionales compatibles:</td><td id="modalOptionals">-</td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index:9999">
+  <div id="successToast" class="toast align-items-center text-bg-success border-0" role="alert">
+    <div class="d-flex">
+      <div class="toast-body"><i class="bi bi-check-circle"></i> Precios guardados correctamente</div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+  <div id="errorToast" class="toast align-items-center text-bg-danger border-0" role="alert">
+    <div class="d-flex">
+      <div class="toast-body"><i class="bi bi-exclamation-triangle"></i> <span id="errorToastMsg">Error</span></div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-  const searchInput = document.getElementById('searchProducto');
-  const filterFamilia = document.getElementById('filterFamilia');
-  const filterTipo = document.getElementById('filterTipo');
-  const btnLimpiar = document.getElementById('btnLimpiarFiltros');
+var FAMILY_TRANS = <%- JSON.stringify({Mobile:'Móvil',Fiber:'Fibra',Fixed:'Fijo',TV:'TV',Satellite:'Satélite',Device:'Dispositivo',Energy:'Energía',International:'Internacional',Custom:'Personalizado',Other:'Otras'}) %>;
+var FAMILY_ICONS_MAP = <%- JSON.stringify({Mobile:'📱',Fiber:'🌐',TV:'📺',Device:'📟',International:'🌍',Energy:'🔋',Satellite:'📡',Fixed:'📞',Other:'📦'}) %>;
 
-  function filtrar() {
-    const q = searchInput.value.toLowerCase().trim();
-    const fam = filterFamilia.value;
-    const tipo = filterTipo.value;
+var allProducts = <%- JSON.stringify(productos) %>;
+var priceMap = <%- JSON.stringify(priceMap) %>;
+var currentFamily = 'all';
+var currentPage = 1;
+var pageSize = 20;
+var currentProduct = null;
 
-    document.querySelectorAll('.producto-row').forEach(function(row) {
-      const nombre = row.querySelector('td:first-child').textContent.toLowerCase();
-      const rowFamilia = row.getAttribute('data-familia');
-      const rowTipo = row.getAttribute('data-tipo');
-      const matchTexto = !q || nombre.includes(q);
-      const matchFamilia = !fam || rowFamilia === fam;
-      const matchTipo = !tipo || rowTipo === tipo;
-      row.style.display = matchTexto && matchFamilia && matchTipo ? '' : 'none';
+function translateFamily(fam) { return FAMILY_TRANS[fam] || fam || 'Otras'; }
+function familyIcon(fam) { return FAMILY_ICONS_MAP[fam] || '\uD83D\uDCE6'; }
+
+function getProvider(p) {
+  if (p.extProductId) return 'Internacional';
+  if (p.family === 'Device') return 'Fabricante';
+  return 'Likes Telecom';
+}
+
+function getRecommendedPrice(p) {
+  var record = priceMap[p.productId || p.id];
+  if (record && record.recommended_price && record.recommended_price > 0) return record.recommended_price;
+  var base = p.price || 0;
+  if (base > 0) return base * 1.21;
+  return 0;
+}
+
+function getProductId(p) { return p.productId || p.id || p._id || ''; }
+
+function formatCurrency(val) {
+  if (!val || val <= 0) return '-';
+  return parseFloat(val).toFixed(2) + '\u20AC';
+}
+
+function typeBadgeHtml(type) {
+  if (!type) return '<span class="badge bg-secondary">-</span>';
+  var cls = 'secondary';
+  if (type === 'Main') cls = 'primary';
+  else if (type === 'Optional') cls = 'success';
+  else if (type === 'Promotion') cls = 'warning';
+  return '<span class="badge bg-' + cls + '">' + type + '</span>';
+}
+
+function getFilteredProducts() {
+  var q = (document.getElementById('searchProducto').value || '').toLowerCase().trim();
+  var tipo = document.getElementById('filterTipo').value;
+  return allProducts.filter(function(p) {
+    var famMatch = currentFamily === 'all' || p.family === currentFamily;
+    if (!famMatch) return false;
+    if (tipo && p.type !== tipo) return false;
+    if (q) {
+      var nameMatch = (p.productName || p.name || '').toLowerCase().includes(q);
+      var idMatch = (getProductId(p) || '').toLowerCase().includes(q);
+      if (!nameMatch && !idMatch) return false;
+    }
+    return true;
+  });
+}
+
+function renderTable() {
+  var filtered = getFilteredProducts();
+  var total = filtered.length;
+  var totalPages = Math.ceil(total / pageSize) || 1;
+  if (currentPage > totalPages) currentPage = totalPages;
+  var start = (currentPage - 1) * pageSize;
+  var end = Math.min(start + pageSize, total);
+  var pageItems = filtered.slice(start, end);
+
+  var tbody = document.getElementById('productsTableBody');
+  tbody.innerHTML = '';
+
+  pageItems.forEach(function(p) {
+    var pid = getProductId(p);
+    var recPrice = getRecommendedPrice(p);
+    var pName = p.productName || p.name || '-';
+    var prov = getProvider(p);
+    var priceStr = formatCurrency(p.price);
+    var recStr = formatCurrency(recPrice);
+    var badgeHtml = typeBadgeHtml(p.type);
+    var commStr = p.commission != null ? parseFloat(p.commission).toFixed(1) + '%' : '-';
+
+    var tr = document.createElement('tr');
+    tr.style.cursor = 'pointer';
+    tr.addEventListener('click', function() { openProductModal(p); });
+
+    var tdId = document.createElement('td');
+    var aId = document.createElement('a');
+    aId.href = '#';
+    aId.className = 'fw-semibold text-primary';
+    aId.textContent = pid || '-';
+    aId.addEventListener('click', function(e) {
+      e.stopPropagation();
+      openProductModal(p);
     });
+    tdId.appendChild(aId);
 
-    document.querySelectorAll('.accordion-item').forEach(function(item) {
-      const visibleRows = item.querySelectorAll('.producto-row[style*="display: none"]');
-      const totalRows = item.querySelectorAll('.producto-row');
-      if (visibleRows.length === totalRows.length && totalRows.length > 0) {
-        item.style.display = 'none';
-      } else {
-        item.style.display = '';
-      }
+    var tdName = document.createElement('td');
+    tdName.className = 'fw-semibold';
+    tdName.textContent = pName;
+
+    var tdType = document.createElement('td');
+    tdType.innerHTML = badgeHtml;
+
+    var tdPrice = document.createElement('td');
+    tdPrice.className = 'fw-bold text-primary';
+    tdPrice.textContent = priceStr;
+
+    var tdRec = document.createElement('td');
+    tdRec.className = 'fw-bold text-success';
+    tdRec.textContent = recStr;
+
+    var tdComm = document.createElement('td');
+    tdComm.textContent = commStr;
+
+    var tdProv = document.createElement('td');
+    var smallProv = document.createElement('small');
+    smallProv.textContent = prov;
+    tdProv.appendChild(smallProv);
+
+    var tdAction = document.createElement('td');
+    var btnEdit = document.createElement('button');
+    btnEdit.className = 'btn btn-sm btn-outline-primary';
+    btnEdit.innerHTML = '<i class="bi bi-pencil"></i>';
+    btnEdit.addEventListener('click', function(e) {
+      e.stopPropagation();
+      openProductModal(p);
     });
+    tdAction.appendChild(btnEdit);
+
+    tr.appendChild(tdId);
+    tr.appendChild(tdName);
+    tr.appendChild(tdType);
+    tr.appendChild(tdPrice);
+    tr.appendChild(tdRec);
+    tr.appendChild(tdComm);
+    tr.appendChild(tdProv);
+    tr.appendChild(tdAction);
+    tbody.appendChild(tr);
+  });
+
+  if (pageItems.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4"><i class="bi bi-inbox"></i> No se encontraron productos</td></tr>';
   }
 
-  searchInput.addEventListener('input', filtrar);
-  filterFamilia.addEventListener('change', filtrar);
-  filterTipo.addEventListener('change', filtrar);
+  document.getElementById('paginationInfo').textContent = 'Mostrando ' + (start + 1) + '-' + end + ' de ' + total;
+  renderPagination(totalPages);
+}
 
-  btnLimpiar.addEventListener('click', function() {
-    searchInput.value = '';
-    filterFamilia.value = '';
-    filterTipo.value = '';
-    filtrar();
-  });
-});
-</script>
+function renderPagination(totalPages) {
+  var ul = document.getElementById('pagination');
+  ul.innerHTML = '';
+  var prevLi = document.createElement('li');
+  prevLi.className = 'page-item' + (currentPage <= 1 ? ' disabled' : '');
+  var prevA = document.createElement('a');
+  prevA.className = 'page-link';
+  prevA.href = '#';
+  prevA.textContent = '\u00AB';
+  prevA.addEventListener('click', function(e) { e.preventDefault(); goPage(currentPage - 1); });
+  prevLi.appendChild(prevA);
+  ul.appendChild(prevLi);
 
-<script>
+  var maxVisible = 5;
+  var startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+  var endPage = Math.min(totalPages, startPage + maxVisible - 1);
+  if (endPage - startPage < maxVisible - 1) startPage = Math.max(1, endPage - maxVisible + 1);
+
+  for (var i = startPage; i <= endPage; i++) {
+    var li = document.createElement('li');
+    li.className = 'page-item' + (i === currentPage ? ' active' : '');
+    var a = document.createElement('a');
+    a.className = 'page-link';
+    a.href = '#';
+    a.textContent = '' + i;
+    a.addEventListener('click', (function(page) { return function(e) { e.preventDefault(); goPage(page); }; })(i));
+    li.appendChild(a);
+    ul.appendChild(li);
+  }
+
+  var nextLi = document.createElement('li');
+  nextLi.className = 'page-item' + (currentPage >= totalPages ? ' disabled' : '');
+  var nextA = document.createElement('a');
+  nextA.className = 'page-link';
+  nextA.href = '#';
+  nextA.textContent = '\u00BB';
+  nextA.addEventListener('click', function(e) { e.preventDefault(); goPage(currentPage + 1); });
+  nextLi.appendChild(nextA);
+  ul.appendChild(nextLi);
+}
+
+function goPage(page) {
+  currentPage = page;
+  renderTable();
+}
+
+function applyFilters() {
+  currentPage = 1;
+  renderTable();
+}
+
+function switchFamily(family) {
+  currentFamily = family;
+  currentPage = 1;
+  document.querySelectorAll('.family-card').forEach(function(c) { c.classList.remove('border-primary'); });
+  var card = document.querySelector('.family-card[data-family="' + family + '"]');
+  if (card) card.classList.add('border-primary');
+  renderTable();
+}
+
+function filtrarFamilia(family) {
+  var section = document.getElementById('productsSection');
+  if (section.style.display === 'none' || !section.classList.contains('active')) {
+    section.style.display = 'block';
+    section.classList.add('active');
+  }
+  switchFamily(family);
+}
+
+// Main initialization
 document.addEventListener('DOMContentLoaded', function() {
-  var familias = [<% grouped.forEach(function(g,i) { %>'<%= g.name.replace(/'/g,"\\'") %>'<% if (i < grouped.length-1) { %>,<% } %><% }); %>];
-  var counts = [<% grouped.forEach(function(g,i) { %><%= g.items.length %><% if (i < grouped.length-1) { %>,<% } %><% }); %>];
-  var blueGreen = ['#0d6efd','#198754','#20c997','#0dcaf0','#3b8ea5','#2d6a4f','#40916c','#52b788'];
-  new Chart(document.getElementById('chartFamilia'), {
-    type: 'bar',
-    data: {
-      labels: familias,
-      datasets: [{
-        label: 'Productos',
-        data: counts,
-        backgroundColor: familias.map(function(_,i){return blueGreen[i%blueGreen.length]}),
-        borderRadius: 4
-      }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+
+  // Search/filter
+  document.getElementById('searchProducto').addEventListener('input', applyFilters);
+  document.getElementById('filterTipo').addEventListener('change', applyFilters);
+  document.getElementById('btnLimpiarFiltros').addEventListener('click', function() {
+    document.getElementById('searchProducto').value = '';
+    document.getElementById('filterTipo').value = '';
+    applyFilters();
+  });
+
+  // IVA toggle
+  document.getElementById('toggleIvaBtn').addEventListener('click', function() {
+    var basePrice = parseFloat(document.getElementById('editBasePrice').value) || 0;
+    if (basePrice > 0) {
+      var recField = document.getElementById('editRecommendedPrice');
+      var currentRec = parseFloat(recField.value) || 0;
+      if (Math.abs(currentRec - basePrice * 1.21) < 0.01) {
+        recField.value = basePrice.toFixed(2);
+      } else {
+        recField.value = (basePrice * 1.21).toFixed(2);
+      }
+      updateIvaDisplay();
     }
   });
 
-  var tiposProd = { Main: 0, Optional: 0, Promotion: 0 };
-  <% grouped.forEach(function(g) { %>
-    <% g.items.forEach(function(p) { %>
-      var tp = '<%= (p.type || "").replace(/'/g,"\\'") %>';
-      if (tiposProd.hasOwnProperty(tp)) tiposProd[tp]++;
-      else tiposProd['Promotion']++;
-    <% }); %>
-  <% }); %>
-  var tipoLabels = Object.keys(tiposProd);
-  var tipoData = tipoLabels.map(function(k){return tiposProd[k]});
+  // Price inputs update displays
+  document.getElementById('editRecommendedPrice').addEventListener('input', updateIvaDisplay);
+  document.getElementById('editCessionPrice').addEventListener('input', updateIvaDisplay);
+
+  // Save prices
+  document.getElementById('btnGuardarPrecios').addEventListener('click', function() {
+    if (!currentProduct) return;
+    var btn = this;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Guardando...';
+
+    var basePrice = parseFloat(document.getElementById('editBasePrice').value) || 0;
+    var recommendedPrice = parseFloat(document.getElementById('editRecommendedPrice').value) || 0;
+    var family = currentProduct.family || 'Other';
+    var productId = getProductId(currentProduct);
+
+    fetch('/products/product/' + encodeURIComponent(family) + '/' + encodeURIComponent(productId) + '/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ recommendedPrice: recommendedPrice, basePrice: basePrice, cessionPrice: parseFloat(document.getElementById('editCessionPrice').value) || 0 })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-save"></i> Guardar Precios';
+      if (data.success) {
+        priceMap[productId] = { product_id: productId, recommended_price: recommendedPrice, base_price: basePrice };
+        renderTable();
+        var toast = new bootstrap.Toast(document.getElementById('successToast'));
+        toast.show();
+      } else {
+        document.getElementById('errorToastMsg').textContent = data.error || 'Error al guardar';
+        var et = new bootstrap.Toast(document.getElementById('errorToast'));
+        et.show();
+      }
+    })
+    .catch(function(err) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-save"></i> Guardar Precios';
+      document.getElementById('errorToastMsg').textContent = err.message || 'Error de conexi\u00F3n';
+      var et = new bootstrap.Toast(document.getElementById('errorToast'));
+      et.show();
+    });
+  });
+
+  // No initial table render — table hidden until a family card is clicked
+});
+
+// Product Modal
+function openProductModal(p) {
+  currentProduct = p;
+  document.getElementById('productModalTitle').textContent = (p.productName || p.name || 'Producto') + ' - Editar precios';
+  document.getElementById('modalProductId').textContent = getProductId(p) || '-';
+  document.getElementById('modalProductName').textContent = p.productName || p.name || '-';
+  document.getElementById('modalProductFamily').innerHTML = familyIcon(p.family) + ' ' + translateFamily(p.family);
+  document.getElementById('modalProductType').innerHTML = typeBadgeHtml(p.type);
+  document.getElementById('modalProductDesc').textContent = p.description || p.shortDescription || 'Sin descripci\u00F3n';
+  document.getElementById('modalProductMarketing').textContent = p.marketingText || 'Sin texto de marketing';
+
+  var imgSection = document.getElementById('productImageSection');
+  if (p.imageUrl) {
+    imgSection.classList.remove('d-none');
+    document.getElementById('productImage').src = p.imageUrl;
+  } else {
+    imgSection.classList.add('d-none');
+  }
+
+  var record = priceMap[getProductId(p)];
+  var basePrice = p.price || 0;
+  var recPrice = record && record.recommended_price && record.recommended_price > 0 ? record.recommended_price : (basePrice * 1.21);
+  var cessionPrice = record && record.cession_price && record.cession_price > 0 ? record.cession_price : (basePrice * 0.8);
+
+  document.getElementById('editBasePrice').value = basePrice > 0 ? basePrice.toFixed(2) : '';
+  document.getElementById('editRecommendedPrice').value = recPrice > 0 ? recPrice.toFixed(2) : '';
+  document.getElementById('editCessionPrice').value = cessionPrice > 0 ? cessionPrice.toFixed(2) : '';
+  updateIvaDisplay();
+
+  document.getElementById('modalCommission').textContent = p.commission != null ? parseFloat(p.commission).toFixed(1) + '%' : '-';
+  document.getElementById('modalMinTerm').textContent = p.minimumTerm != null ? p.minimumTerm + ' meses' : '-';
+  document.getElementById('modalHasShipping').textContent = p.hasShipping ? 'S\u00ED' : 'No';
+  document.getElementById('modalStock').innerHTML = p.outOfStock ? '<span class="badge bg-danger">Agotado</span>' : '<span class="badge bg-success">Disponible</span>';
+
+  var opts = '';
+  if (p.optionalProductIds && Array.isArray(p.optionalProductIds) && p.optionalProductIds.length > 0) {
+    opts = p.optionalProductIds.join(', ');
+  } else {
+    opts = 'Ninguno';
+  }
+  document.getElementById('modalOptionals').textContent = opts;
+
+  var modal = new bootstrap.Modal(document.getElementById('productModal'));
+  modal.show();
+}
+
+function updateIvaDisplay() {
+  var recVal = parseFloat(document.getElementById('editRecommendedPrice').value) || 0;
+  var cession = parseFloat(document.getElementById('editCessionPrice').value) || 0;
+  var base = recVal / 1.21;
+  var iva = recVal - base;
+  var beneficio = base - cession;
+  var margen = base > 0 ? (beneficio / base * 100) : 0;
+  document.getElementById('precioConIva').textContent = recVal.toFixed(2) + '\u20AC';
+  document.getElementById('ivaBaseDisplay').textContent = base.toFixed(2) + '\u20AC';
+  document.getElementById('ivaAmountDisplay').textContent = iva.toFixed(2) + '\u20AC';
+  document.getElementById('precioCesionDisplay').textContent = cession.toFixed(2) + '\u20AC';
+  document.getElementById('beneficioDisplay').textContent = beneficio.toFixed(2) + '\u20AC';
+  document.getElementById('margenDisplay').textContent = margen.toFixed(0) + '%';
+}
+
+// Charts
+document.addEventListener('DOMContentLoaded', function() {
+  <% if (chartData) { %>
+  var familias = <%- chartData.families %>;
+  var counts = <%- chartData.counts %>;
+  var tipoLabels = <%- chartData.tipoLabels %>;
+  var tipoCounts = <%- chartData.tipoCounts %>;
+  var preciosMedios = <%- chartData.avgPrices %>;
+  var rangosLabels = <%- chartData.rangosLabels %>;
+  var rangosCounts = <%- chartData.rangosCounts %>;
+
+  var colors = ['#0d6efd','#198754','#20c997','#0dcaf0','#3b8ea5','#2d6a4f','#40916c','#52b788','#ffc107'];
+
+  var chartOpts = {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: false,
+    resizeDelay: 0,
+    plugins: { legend: { display: false } }
+  };
+
+  new Chart(document.getElementById('chartFamilia'), {
+    type: 'doughnut',
+    data: {
+      labels: familias,
+      datasets: [{ data: counts, backgroundColor: colors, borderWidth: 0 }]
+    },
+    options: Object.assign({}, chartOpts, {
+      cutout: '60%',
+      plugins: { legend: { display: false } }
+    })
+  });
+
   new Chart(document.getElementById('chartTipo'), {
     type: 'bar',
     data: {
       labels: tipoLabels,
-      datasets: [{
-        label: 'Productos',
-        data: tipoData,
-        backgroundColor: ['#0d6efd','#198754','#ffc107'],
-        borderRadius: 4
-      }]
+      datasets: [{ label: 'Productos', data: tipoCounts, backgroundColor: '#0d6efd', borderRadius: 4 }]
     },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
-    }
+    options: Object.assign({}, chartOpts, {
+      indexAxis: 'y',
+      scales: { x: { beginAtZero: true, grid: { color: '#eee' } }, y: { grid: { display: false } } }
+    })
   });
+
+  new Chart(document.getElementById('chartPrecio'), {
+    type: 'bar',
+    data: {
+      labels: familias,
+      datasets: [{ label: 'Precio medio', data: preciosMedios, backgroundColor: '#198754', borderRadius: 4 }]
+    },
+    options: Object.assign({}, chartOpts, {
+      scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } }
+    })
+  });
+
+  new Chart(document.getElementById('chartRango'), {
+    type: 'bar',
+    data: {
+      labels: rangosLabels,
+      datasets: [{ label: 'Productos', data: rangosCounts, backgroundColor: '#20c997', borderRadius: 4 }]
+    },
+    options: Object.assign({}, chartOpts, {
+      scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } }
+    })
+  });
+
+  window.__chartModalData = {
+    familia: {
+      title: 'Productos por Familia',
+      headers: ['Familia', 'Productos', '%'],
+      rows: familias.map(function(f, i) {
+        var total = counts.reduce(function(a, b) { return a + b; }, 0);
+        return [f, counts[i], (total > 0 ? (counts[i] / total * 100).toFixed(1) : '0') + '%'];
+      })
+    },
+    tipo: {
+      title: 'Tipo de Producto',
+      headers: ['Tipo', 'Productos', '%'],
+      rows: tipoLabels.map(function(t, i) {
+        var total = tipoCounts.reduce(function(a, b) { return a + b; }, 0);
+        return [t, tipoCounts[i], (total > 0 ? (tipoCounts[i] / total * 100).toFixed(1) : '0') + '%'];
+      })
+    },
+    precio: {
+      title: 'Precio medio por Familia',
+      headers: ['Familia', 'Precio Medio'],
+      rows: familias.map(function(f, i) {
+        return [f, preciosMedios[i] > 0 ? preciosMedios[i].toFixed(2) + '\u20AC' : 'Consultar'];
+      })
+    },
+    rango: {
+      title: 'Productos por Rango de Precio',
+      headers: ['Rango', 'Productos'],
+      rows: rangosLabels.map(function(r, i) { return [r, rangosCounts[i]]; })
+    }
+  };
+  <% } %>
 });
+
+function abrirModalChart(tipo) {
+  var data = window.__chartModalData ? window.__chartModalData[tipo] : null;
+  if (!data) return;
+  document.getElementById('chartModalTitle').textContent = data.title;
+  var thead = document.getElementById('chartModalHead');
+  var tbody = document.getElementById('chartModalBody');
+  thead.innerHTML = '<tr>' + data.headers.map(function(h) { return '<th>' + h + '</th>'; }).join('') + '</tr>';
+  tbody.innerHTML = data.rows.map(function(r) {
+    return '<tr>' + r.map(function(c) { return '<td>' + c + '</td>'; }).join('') + '</tr>';
+  }).join('');
+  var modal = new bootstrap.Modal(document.getElementById('chartModal'));
+  modal.show();
+}
 </script>
