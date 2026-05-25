@@ -31,4 +31,3 @@ if %ERRORLEVEL% NEQ 0 (
     pause
     exit /b 1
 )
-REM Deploy trigger 2026-05-25 15:27:36
