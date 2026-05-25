@@ -72,4 +72,69 @@ router.get('/suscripciones/:customerId', requireAuth, async (req, res) => {
   }
 });
 
+router.get('/search', requireAuth, async (req, res) => {
+  var q = (req.query.q || '').trim();
+  if (!q || q.length < 2) { return res.json([]); }
+
+  var search = '%' + q + '%';
+
+  var locales = db.prepare(`
+    SELECT id, nombre, apellidos, telefono, dni_nif, email, 'LOCAL' as origen
+    FROM clients
+    WHERE nombre LIKE ? OR apellidos LIKE ? OR telefono LIKE ? OR dni_nif LIKE ? OR email LIKE ?
+    ORDER BY nombre ASC
+    LIMIT 20
+  `).all(search, search, search, search, search);
+
+  var apiResults = [];
+  try {
+    var api = getApi();
+    var raw = await api.request('GET', '/customers?brand_id=' + api.brandId);
+    var customers = Array.isArray(raw) ? raw : raw.customers || raw.data || [];
+    var qLower = q.toLowerCase();
+    apiResults = customers.filter(function(c) {
+      var name = ((c.name || c.firstName || '') + ' ' + (c.lastName || c.surname || '')).toLowerCase();
+      var phone = (c.phone || c.contactInfo?.phone || '');
+      var fiscalId = (c.fiscalId || c.fiscalNumber || '').toLowerCase();
+      var email = (c.email || c.contactInfo?.email || '').toLowerCase();
+      return name.includes(qLower) || phone.includes(q) || fiscalId.includes(qLower) || email.includes(qLower);
+    }).slice(0, 20).map(function(c) {
+      return {
+        id: null,
+        nombre: (c.name || c.firstName || '') + ' ' + (c.lastName || c.surname || ''),
+        telefono: c.phone || c.contactInfo?.phone || '',
+        fiscalId: c.fiscalId || c.fiscalNumber || '',
+        origen: 'API'
+      };
+    });
+  } catch (e) {
+    // API search failed, continue with local results only
+  }
+
+  var seenPhones = {};
+  locales.forEach(function(c) {
+    var p = c.telefono ? c.telefono.replace(/[^\d]/g, '') : '';
+    if (p) seenPhones[p] = true;
+  });
+  apiResults.forEach(function(c) {
+    var p = c.telefono ? c.telefono.replace(/[^\d]/g, '') : '';
+    if (!seenPhones[p]) {
+      seenPhones[p] = true;
+      locales.push({ id: null, nombre: c.nombre, telefono: c.telefono, dni_nif: c.fiscalId, origen: 'API' });
+    }
+  });
+
+  var results = locales.slice(0, 20).map(function(c) {
+    return {
+      id: c.id || null,
+      nombre: c.nombre || '',
+      telefono: c.telefono || '',
+      fiscalId: c.dni_nif || '',
+      origen: c.origen || 'LOCAL'
+    };
+  });
+
+  res.json(results);
+});
+
 module.exports = router;

@@ -42,7 +42,7 @@
             <thead class="table-light"><tr><th>#</th><th>Tipo</th><th>Producto</th><th>Estado</th><th>Fecha</th></tr></thead>
             <tbody>
               <% if (ordenes.length === 0) { %><tr><td colspan="5" class="text-center text-muted py-3">Sin órdenes</td></tr><% } %>
-              <% ordenes.forEach(o => { %>
+              <% ordenes.forEach(function(o) { %>
               <tr>
                 <td><a href="/ordenes/<%= o.id %>">#<%= o.id %></a></td>
                 <td><%= o.tipo %></td>
@@ -57,18 +57,22 @@
       </div>
 
       <div class="card mb-3">
-        <div class="card-header"><i class="bi bi-tag"></i> Suscripciones</div>
+        <div class="card-header d-flex justify-content-between">
+          <span><i class="bi bi-tag"></i> Suscripciones</span>
+          <span><% if (typeof apiSubCount !== 'undefined' && apiSubCount > 0) { %><span class="badge bg-info"><i class="bi bi-cloud"></i> <%= apiSubCount %> API</span><% } %></span>
+        </div>
         <div class="card-body p-0">
           <table class="table table-hover mb-0">
-            <thead class="table-light"><tr><th>Línea</th><th>Producto</th><th>Estado</th><th>Alta</th></tr></thead>
+            <thead class="table-light"><tr><th>Línea</th><th>Producto</th><th>Estado</th><th>Alta</th><th></th></tr></thead>
             <tbody>
-              <% if (suscripciones.length === 0) { %><tr><td colspan="4" class="text-center text-muted py-3">Sin suscripciones</td></tr><% } %>
-              <% suscripciones.forEach(s => { %>
-              <tr>
+              <% if (suscripciones.length === 0) { %><tr><td colspan="5" class="text-center text-muted py-3">Sin suscripciones</td></tr><% } %>
+              <% suscripciones.forEach(function(s) { %>
+              <tr class="<%= s.origen === 'api' ? 'table-info' : '' %>">
                 <td><%= s.linea || '-' %></td>
                 <td><%= s.producto %></td>
-                <td><span class="badge bg-<%= s.estado === 'activa' ? 'success' : 'danger' %>"><%= s.estado %></span></td>
+                <td><span class="badge bg-<%= s.estado === 'activa' ? 'success' : s.estado === 'suspendida' ? 'warning' : 'danger' %>"><%= s.estado %></span></td>
                 <td class="small"><%= new Date(s.fecha_alta || s.created_at).toLocaleDateString('es-ES') %></td>
+                <td><% if (s.origen === 'api') { %><small class="text-info"><i class="bi bi-cloud"></i> API</small><% } %></td>
               </tr>
               <% }) %>
             </tbody>
@@ -83,7 +87,7 @@
             <thead class="table-light"><tr><th>Asunto</th><th>Prioridad</th><th>Estado</th><th>Fecha</th></tr></thead>
             <tbody>
               <% if (tickets.length === 0) { %><tr><td colspan="4" class="text-center text-muted py-3">Sin tickets</td></tr><% } %>
-              <% tickets.forEach(t => { %>
+              <% tickets.forEach(function(t) { %>
               <tr>
                 <td><%= t.asunto %></td>
                 <td><span class="badge bg-<%= t.prioridad === 'alta' ? 'danger' : t.prioridad === 'baja' ? 'success' : 'warning' %>"><%= t.prioridad %></span></td>
@@ -97,4 +101,485 @@
       </div>
     </div>
   </div>
+
+  <!-- Charts Row -->
+  <div class="row g-3 mt-3">
+    <div class="col-md-6">
+      <div class="card" style="height:150px;overflow:hidden;">
+        <div class="card-header py-1"><small><i class="bi bi-pie-chart"></i> Estado de Suscripciones</small></div>
+        <div class="card-body p-2"><canvas id="statusChart"></canvas></div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card" style="height:150px;overflow:hidden;">
+        <div class="card-header py-1"><small><i class="bi bi-bar-chart"></i> Consumo GB</small></div>
+        <div class="card-body p-2"><canvas id="gbChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Líneas y Consumo -->
+  <div class="row g-3 mt-3">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-phone"></i> Líneas y Consumo</div>
+        <div class="card-body p-0">
+          <table class="table table-hover mb-0">
+            <thead class="table-light"><tr><th>Línea</th><th>Producto</th><th>Estado</th><th>Acción</th></tr></thead>
+            <tbody>
+              <% if (suscripciones.length === 0) { %><tr><td colspan="4" class="text-center text-muted py-3">Sin líneas</td></tr><% } %>
+              <% suscripciones.forEach(function(s) { %>
+              <tr>
+                <td><strong><%= s.linea || '-' %></strong></td>
+                <td><%= s.producto %></td>
+                <td><span class="badge bg-<%= s.estado === 'activa' ? 'success' : s.estado === 'suspendida' ? 'warning' : 'danger' %>"><%= s.estado %></span></td>
+                <td>
+                  <button class="btn btn-sm btn-outline-info ver-consumo" data-line="<%= s.linea %>" data-producto="<%= s.producto %>" <%= s.linea ? '' : 'disabled' %>><i class="bi bi-graph-up"></i> Ver consumo</button>
+                  <button class="btn btn-sm btn-outline-secondary cambiar-tarifa" data-line="<%= s.linea %>" <%= s.linea ? '' : 'disabled' %>><i class="bi bi-arrow-left-right"></i> Cambiar tarifa</button>
+                  <button class="btn btn-sm btn-outline-<%= s.estado === 'activa' ? 'warning' : 'success' %> toggle-block" data-line="<%= s.linea %>" data-blocked="<%= s.estado !== 'activa' %>" <%= s.linea ? '' : 'disabled' %>>
+                    <% if (s.estado === 'activa') { %><i class="bi bi-lock"></i> Bloquear<% } else { %><i class="bi bi-unlock"></i> Desbloquear<% } %>
+                  </button>
+                </td>
+              </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Acciones -->
+  <div class="row g-3 mt-3">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-lightning"></i> Acciones</div>
+        <div class="card-body">
+          <div class="d-flex gap-2 flex-wrap">
+            <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#changeTariffModal"><i class="bi bi-arrow-left-right"></i> Cambiar tarifa</button>
+            <button class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#blockLineModal"><i class="bi bi-lock"></i> Bloquear / Desbloquear</button>
+            <button class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#duplicateSimModal"><i class="bi bi-sd-card"></i> Duplicar SIM</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </section>
+
+<!-- Consumption Modal -->
+<div class="modal fade" id="consumptionModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-graph-up"></i> Consumo - <span id="consLineNumber"></span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row">
+          <div class="col-md-6">
+            <canvas id="consGBChart" height="200"></canvas>
+          </div>
+          <div class="col-md-6">
+            <table class="table table-sm table-bordered">
+              <tr><th>Total GB</th><td id="consTotalGB">-</td></tr>
+              <tr><th>Usados GB</th><td id="consUsedGB">-</td></tr>
+              <tr><th>Restantes GB</th><td id="consRemainingGB">-</td></tr>
+              <tr><th>Roaming GB</th><td id="consRoamingGB">-</td></tr>
+            </table>
+          </div>
+        </div>
+        <hr>
+        <h6 class="mt-3"><i class="bi bi-telephone"></i> Llamadas recientes (CDRs)</h6>
+        <div style="max-height:250px;overflow:auto">
+          <table class="table table-sm table-striped mb-0">
+            <thead><tr><th>Fecha</th><th>Tipo</th><th>Destino</th><th>Duración</th><th>Coste</th></tr></thead>
+            <tbody id="cdrsBody"><tr><td colspan="5" class="text-center text-muted">Cargando...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Change Tariff Modal -->
+<div class="modal fade" id="changeTariffModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-arrow-left-right"></i> Cambiar tarifa</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Línea</label>
+          <select id="tariffLine" class="form-select"><option value="">Seleccione línea...</option></select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Nuevo producto</label>
+          <select id="tariffProduct" class="form-select"><option value="">Cargando productos...</option></select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Ejecutar</label>
+          <select id="tariffSchedule" class="form-select">
+            <option value="">Inmediatamente</option>
+            <option value="next_billing">Próxima facturación</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button id="submitChangeTariff" class="btn btn-primary"><i class="bi bi-check"></i> Solicitar cambio</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Block Line Modal -->
+<div class="modal fade" id="blockLineModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-lock"></i> Bloquear / Desbloquear línea</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Línea</label>
+          <select id="blockLineSelect" class="form-select"><option value="">Seleccione línea...</option></select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Acción</label>
+          <div>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="radio" name="blockAction" id="blockActionBlock" value="block" checked>
+              <label class="form-check-label" for="blockActionBlock"><i class="bi bi-lock"></i> Bloquear</label>
+            </div>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="radio" name="blockAction" id="blockActionUnblock" value="unblock">
+              <label class="form-check-label" for="blockActionUnblock"><i class="bi bi-unlock"></i> Desbloquear</label>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button id="submitBlockLine" class="btn btn-warning"><i class="bi bi-check"></i> Ejecutar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Duplicate SIM Modal -->
+<div class="modal fade" id="duplicateSimModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-sd-card"></i> Duplicar SIM</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Línea</label>
+          <select id="simLine" class="form-select"><option value="">Seleccione línea...</option></select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Motivo</label>
+          <select id="simReason" class="form-select">
+            <option value="lost">Perdida</option>
+            <option value="stolen">Robada</option>
+            <option value="broken">Rota / Defectuosa</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Tipo</label>
+          <div>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="radio" name="simType" id="simTypePhysical" value="sim" checked>
+              <label class="form-check-label" for="simTypePhysical">SIM física</label>
+            </div>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="radio" name="simType" id="simTypeEsim" value="esim">
+              <label class="form-check-label" for="simTypeEsim">eSIM</label>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button id="submitDuplicateSim" class="btn btn-info"><i class="bi bi-check"></i> Solicitar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var statusData = <%- linesByStatus || '{}' %>;
+  var linesArr = <%- lineNumbers || '[]' %>;
+  var clientId = <%= cliente.id %>;
+
+  // ====== Donut: Estado de Suscripciones ======
+  var statusCtx = document.getElementById('statusChart');
+  if (statusCtx && Object.keys(statusData).length > 0) {
+    new Chart(statusCtx, {
+      type: 'doughnut',
+      data: {
+        labels: Object.keys(statusData),
+        datasets: [{
+          data: Object.values(statusData),
+          backgroundColor: ['#28a745', '#ffc107', '#dc3545', '#17a2b8', '#6c757d']
+        }]
+      },
+      options: {
+        animation: false, resizeDelay: 0,
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } }
+        }
+      }
+    });
+  }
+
+  // ====== Bar: Consumo GB (mini, updates when consumption is viewed) ======
+  var gbCtx = document.getElementById('gbChart');
+  var gbChart = null;
+  if (gbCtx) {
+    gbChart = new Chart(gbCtx, {
+      type: 'bar',
+      data: {
+        labels: ['GB Totales', 'GB Usados', 'GB Restantes'],
+        datasets: [{ label: 'GB', data: [0, 0, 0], backgroundColor: ['#17a2b8', '#ffc107', '#28a745'] }]
+      },
+      options: {
+        animation: false, resizeDelay: 0,
+        responsive: true, maintainAspectRatio: false,
+        scales: { y: { beginAtZero: true } },
+        plugins: { legend: { display: false } }
+      }
+    });
+  }
+
+  // ====== Ver Consumo ======
+  document.querySelectorAll('.ver-consumo').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var line = this.dataset.line;
+      if (!line) return;
+      document.getElementById('consLineNumber').textContent = line;
+      document.getElementById('cdrsBody').innerHTML = '<tr><td colspan="5" class="text-center text-muted">Cargando...</td></tr>';
+
+      fetch('/customers/' + clientId + '/line/' + encodeURIComponent(line) + '/consumption', { method: 'POST' })
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+          if (res.ok && res.data) {
+            var d = res.data;
+            var total = parseFloat(d.totalGB || d.total_gb || d.total || d.totalGB || 0);
+            var used = parseFloat(d.usedGB || d.used_gb || d.used || d.consumed || 0);
+            var remaining = parseFloat(d.remainingGB || d.remaining_gb || d.remaining || d.remainingGB || 0);
+            var roaming = parseFloat(d.roamingGB || d.roaming_gb || d.roaming || 0);
+            document.getElementById('consTotalGB').textContent = total.toFixed(2);
+            document.getElementById('consUsedGB').textContent = used.toFixed(2);
+            document.getElementById('consRemainingGB').textContent = remaining.toFixed(2);
+            document.getElementById('consRoamingGB').textContent = roaming.toFixed(2);
+            // Update mini bar
+            if (gbChart) {
+              gbChart.data.datasets[0].data = [total, used, remaining];
+              gbChart.update();
+            }
+            // Consumption modal chart
+            var consCtx = document.getElementById('consGBChart');
+            if (consCtx) {
+              new Chart(consCtx, {
+                type: 'bar',
+                data: {
+                  labels: ['Totales', 'Usados', 'Restantes'],
+                  datasets: [{
+                    label: 'GB',
+                    data: [total, used, remaining],
+                    backgroundColor: ['#17a2b8', '#ffc107', '#28a745']
+                  }]
+                },
+                options: {
+                  animation: false, resizeDelay: 0,
+                  responsive: true, maintainAspectRatio: false,
+                  indexAxis: 'y',
+                  plugins: { legend: { display: false } }
+                }
+              });
+            }
+          } else {
+            document.getElementById('consTotalGB').textContent = 'Error';
+            document.getElementById('consUsedGB').textContent = '-';
+            document.getElementById('consRemainingGB').textContent = '-';
+            document.getElementById('consRoamingGB').textContent = '-';
+          }
+        })
+        .catch(function(err) {
+          console.error('Consumption error:', err);
+          document.getElementById('consTotalGB').textContent = 'Error';
+        });
+
+      fetch('/customers/' + clientId + '/line/' + encodeURIComponent(line) + '/cdrs', { method: 'POST' })
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+          var tbody = document.getElementById('cdrsBody');
+          tbody.innerHTML = '';
+          if (res.ok && Array.isArray(res.data)) {
+            if (res.data.length === 0) {
+              tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Sin registros de llamadas</td></tr>';
+            } else {
+              res.data.forEach(function(cdr) {
+                var tr = document.createElement('tr');
+                tr.innerHTML = '<td class="small">' + (cdr.date || cdr.fecha || cdr.startTime || cdr.start_date || '-') + '</td>' +
+                  '<td>' + (cdr.type || cdr.tipo || cdr.callType || cdr.direction || '-') + '</td>' +
+                  '<td>' + (cdr.destination || cdr.destino || cdr.calledNumber || cdr.callee || '-') + '</td>' +
+                  '<td>' + (cdr.duration || cdr.duracion || cdr.durationSec || cdr.seconds || '-') + '</td>' +
+                  '<td>' + (cdr.cost || cdr.coste || cdr.price || cdr.amount || '-') + '</td>';
+                tbody.appendChild(tr);
+              });
+            }
+          } else {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Sin registros de llamadas</td></tr>';
+          }
+        })
+        .catch(function(err) {
+          console.error('CDRs error:', err);
+          document.getElementById('cdrsBody').innerHTML = '<tr><td colspan="5" class="text-center text-muted">Error al cargar CDRs</td></tr>';
+        });
+
+      new bootstrap.Modal(document.getElementById('consumptionModal')).show();
+    });
+  });
+
+  // ====== Toggle Block (inline in table) ======
+  document.querySelectorAll('.toggle-block').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var line = this.dataset.line;
+      var blocked = this.dataset.blocked === 'true';
+      if (!line) return;
+      if (!confirm((blocked ? 'Desbloquear' : 'Bloquear') + ' la línea ' + line + '?')) return;
+      fetch('/customers/' + clientId + '/line/' + encodeURIComponent(line) + '/block', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ blocked: !blocked })
+      })
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+          if (res.ok) { location.reload(); }
+          else { alert('Error: ' + (res.error || 'Desconocido')); }
+        })
+        .catch(function(err) { alert('Error: ' + err.message); });
+    });
+  });
+
+  // ====== Populate line selects in modals ======
+  function populateSelect(id) {
+    var sel = document.getElementById(id);
+    if (!sel) return;
+    linesArr.forEach(function(ln) {
+      if (!ln) return;
+      var opt = document.createElement('option');
+      opt.value = ln;
+      opt.textContent = ln;
+      sel.appendChild(opt);
+    });
+  }
+  populateSelect('tariffLine');
+  populateSelect('blockLineSelect');
+  populateSelect('simLine');
+
+  // ====== Change Tariff - load products on modal open ======
+  document.getElementById('changeTariffModal').addEventListener('show.bs.modal', function() {
+    var sel = document.getElementById('tariffProduct');
+    sel.innerHTML = '<option>Cargando productos...</option>';
+    sel.disabled = true;
+    fetch('/customers/' + clientId + '/compatible-products')
+      .then(function(r) { return r.json(); })
+      .then(function(res) {
+        sel.innerHTML = '';
+        if (res.ok && Array.isArray(res.data) && res.data.length > 0) {
+          sel.appendChild(new Option('Seleccione producto...', ''));
+          res.data.forEach(function(p) {
+            var name = p.name || p.productName || p.product || p.description || '';
+            var val = p.id || p.code || name;
+            sel.appendChild(new Option(name, val));
+          });
+        } else {
+          sel.innerHTML = '<option>No hay productos disponibles</option>';
+        }
+        sel.disabled = false;
+      })
+      .catch(function() {
+        sel.innerHTML = '<option>Error al cargar</option>';
+        sel.disabled = false;
+      });
+  });
+
+  document.getElementById('submitChangeTariff').addEventListener('click', function() {
+    var line = document.getElementById('tariffLine').value;
+    var product = document.getElementById('tariffProduct').value;
+    var schedule = document.getElementById('tariffSchedule').value || null;
+    if (!line || !product) { alert('Seleccione línea y producto'); return; }
+    fetch('/customers/' + clientId + '/line/' + encodeURIComponent(line) + '/change-tariff', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ line: line, productId: product, productCode: product, schedule: schedule })
+    })
+      .then(function(r) { return r.json(); })
+      .then(function(res) {
+        if (res.ok) {
+          alert('Cambio de tarifa solicitado correctamente');
+          bootstrap.Modal.getInstance(document.getElementById('changeTariffModal')).hide();
+        } else {
+          alert('Error: ' + (res.error || 'Desconocido'));
+        }
+      })
+      .catch(function(err) { alert('Error: ' + err.message); });
+  });
+
+  // ====== Block Line from modal ======
+  document.getElementById('submitBlockLine').addEventListener('click', function() {
+    var line = document.getElementById('blockLineSelect').value;
+    var blocked = document.querySelector('input[name="blockAction"]:checked').value === 'block';
+    if (!line) { alert('Seleccione una línea'); return; }
+    fetch('/customers/' + clientId + '/line/' + encodeURIComponent(line) + '/block', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ blocked: blocked })
+    })
+      .then(function(r) { return r.json(); })
+      .then(function(res) {
+        if (res.ok) {
+          alert('Línea ' + (blocked ? 'bloqueada' : 'desbloqueada') + ' correctamente');
+          bootstrap.Modal.getInstance(document.getElementById('blockLineModal')).hide();
+          location.reload();
+        } else {
+          alert('Error: ' + (res.error || 'Desconocido'));
+        }
+      })
+      .catch(function(err) { alert('Error: ' + err.message); });
+  });
+
+  // ====== Duplicate SIM ======
+  document.getElementById('submitDuplicateSim').addEventListener('click', function() {
+    var line = document.getElementById('simLine').value;
+    var reason = document.getElementById('simReason').value;
+    var simType = document.querySelector('input[name="simType"]:checked').value;
+    if (!line) { alert('Seleccione una línea'); return; }
+    fetch('/customers/' + clientId + '/line/' + encodeURIComponent(line) + '/duplicate-sim', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ line: line, reason: reason, simType: simType, type: simType })
+    })
+      .then(function(r) { return r.json(); })
+      .then(function(res) {
+        if (res.ok) {
+          alert('Solicitud de duplicado de SIM realizada correctamente');
+          bootstrap.Modal.getInstance(document.getElementById('duplicateSimModal')).hide();
+        } else {
+          alert('Error: ' + (res.error || 'Desconocido'));
+        }
+      })
+      .catch(function(err) { alert('Error: ' + err.message); });
+  });
+});
+</script>

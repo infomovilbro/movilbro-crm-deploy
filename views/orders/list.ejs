@@ -1,8 +1,32 @@
 <section>
   <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="bi bi-cart"></i> Órdenes</h2>
+    <h2><i class="bi bi-cart"></i> Órdenes (<%= orders.length %>)</h2>
     <a href="/ordenes/nueva" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Nueva Orden</a>
   </div>
+
+  <% if (typeof charts !== 'undefined' && charts.status && charts.status.labels.length) { %>
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <div class="card"><div class="card-body" style="overflow:hidden;height:150px;padding:10px;">
+        <div class="small text-muted fw-semibold">Estado de órdenes</div>
+        <canvas id="chartStatus" style="height:110px;width:100%;"></canvas>
+      </div></div>
+    </div>
+    <div class="col-md-4">
+      <div class="card"><div class="card-body" style="overflow:hidden;height:150px;padding:10px;">
+        <div class="small text-muted fw-semibold">Órdenes por mes</div>
+        <canvas id="chartMonthly" style="height:110px;width:100%;"></canvas>
+      </div></div>
+    </div>
+    <div class="col-md-4">
+      <div class="card"><div class="card-body" style="overflow:hidden;height:150px;padding:10px;">
+        <div class="small text-muted fw-semibold">Tipo de orden</div>
+        <canvas id="chartType" style="height:110px;width:100%;"></canvas>
+      </div></div>
+    </div>
+  </div>
+  <% } %>
+
   <div class="card">
     <div class="card-body p-0">
       <div class="table-responsive">
@@ -11,19 +35,21 @@
             <tr><th>#</th><th>Cliente</th><th>Tipo</th><th>Producto</th><th>Estado</th><th>Fecha</th><th></th></tr>
           </thead>
           <tbody>
-            <% if (ordenes.length === 0) { %>
-            <tr><td colspan="7" class="text-center text-muted py-4"><i class="bi bi-inbox"></i> No hay órdenes registradas</td></tr>
+            <% if (orders.length === 0) { %>
+            <tr><td colspan="7" class="text-center text-muted py-4"><i class="bi bi-inbox"></i> No hay órdenes</td></tr>
             <% } else { %>
-              <% ordenes.forEach(o => { %>
-              <tr>
+              <% orders.forEach(function(o) { %>
+              <tr style="cursor:pointer;" class="order-row" data-id="<%= o.id %>" data-client="<%= o.cliente_nombre || '' %>" data-tipo="<%= o.tipo || '' %>" data-producto="<%= o.producto || '' %>" data-estado="<%= o.estado || '' %>" data-detalles="<%= (o.detalles || '').replace(/"/g,'&quot;') %>" data-fecha="<%= new Date(o.created_at).toLocaleDateString('es-ES') %>" data-source="<%= o.source || 'local' %>">
                 <td>#<%= o.id %></td>
-                <td><a href="/clientes/<%= o.client_id %>"><%= o.cliente_nombre %></a></td>
+                <td><%= o.cliente_nombre || 'API' %></td>
                 <td><%= o.tipo %></td>
                 <td><%= o.producto || '-' %></td>
                 <td>
-                  <span class="badge bg-<%= o.estado === 'completada' ? 'success' : o.estado === 'pendiente' ? 'warning' : o.estado === 'cancelada' ? 'danger' : 'info' %>">
-                    <%= o.estado %>
-                  </span>
+                  <% var cls = 'info'; %>
+                  <% if (o.estado === 'completada' || o.estado === 'completed' || o.estado === 'delivered') cls = 'success'; %>
+                  <% else if (o.estado === 'pendiente' || o.estado === 'pending') cls = 'warning'; %>
+                  <% else if (o.estado === 'cancelada' || o.estado === 'cancelled' || o.estado === 'canceled') cls = 'danger'; %>
+                  <span class="badge bg-<%= cls %>"><%= o.estado %></span>
                 </td>
                 <td class="small"><%= new Date(o.created_at).toLocaleDateString('es-ES') %></td>
                 <td class="text-end"><a href="/ordenes/<%= o.id %>" class="btn btn-sm btn-outline-info"><i class="bi bi-eye"></i></a></td>
@@ -36,3 +62,92 @@
     </div>
   </div>
 </section>
+
+<div class="modal fade" id="orderDetailModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Detalle de Orden</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body" id="orderDetailBody"></div>
+    <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button></div>
+  </div></div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  <% if (typeof charts !== 'undefined' && charts.status && charts.status.labels.length) { %>
+  (function() {
+    var colors = ['#ffc107','#198754','#dc3545','#0d6efd','#6f42c1','#fd7e14','#20c997','#e83e8c'];
+    var statusCtx = document.getElementById('chartStatus');
+    if (statusCtx) {
+      new Chart(statusCtx.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+          labels: <%- JSON.stringify(charts.status.labels) %>,
+          datasets: [{
+            data: <%- JSON.stringify(charts.status.data) %>,
+            backgroundColor: colors.slice(0, <%- charts.status.labels.length %>),
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false, animation: false, resizeDelay: 0,
+          plugins: { legend: { position: 'right', labels: { boxWidth: 10, font: { size: 10 } } } },
+          cutout: '60%'
+        }
+      });
+    }
+    var monthlyCtx = document.getElementById('chartMonthly');
+    if (monthlyCtx) {
+      new Chart(monthlyCtx.getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: <%- JSON.stringify(charts.monthly.labels) %>,
+          datasets: [{ label: 'Órdenes', data: <%- JSON.stringify(charts.monthly.data) %>, backgroundColor: '#0d6efd', borderRadius: 4 }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false, animation: false, resizeDelay: 0,
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true, grid: { color: '#eee' }, ticks: { precision: 0 } }, x: { grid: { display: false }, ticks: { font: { size: 9 } } } }
+        }
+      });
+    }
+    var typeCtx = document.getElementById('chartType');
+    if (typeCtx) {
+      new Chart(typeCtx.getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: <%- JSON.stringify(charts.type.labels) %>,
+          datasets: [{ label: 'Tipo', data: <%- JSON.stringify(charts.type.data) %>, backgroundColor: '#20c997', borderRadius: 4 }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false, animation: false, resizeDelay: 0,
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true, grid: { color: '#eee' }, ticks: { precision: 0 } }, x: { grid: { display: false }, ticks: { font: { size: 9 } } } }
+        }
+      });
+    }
+  })();
+  <% } %>
+
+  document.querySelectorAll('.order-row').forEach(function(row) {
+    row.addEventListener('click', function(e) {
+      if (e.target.closest('a')) return;
+      var id = this.dataset.id;
+      var client = this.dataset.client;
+      var tipo = this.dataset.tipo;
+      var producto = this.dataset.producto;
+      var estado = this.dataset.estado;
+      var detalles = this.dataset.detalles;
+      var fecha = this.dataset.fecha;
+      var source = this.dataset.source;
+      var badgeClass = 'info';
+      if (estado === 'completada' || estado === 'completed' || estado === 'delivered') badgeClass = 'success';
+      else if (estado === 'pendiente' || estado === 'pending') badgeClass = 'warning';
+      else if (estado === 'cancelada' || estado === 'cancelled' || estado === 'canceled') badgeClass = 'danger';
+      document.getElementById('orderDetailBody').innerHTML =
+        '<table class="table table-sm"><tr><th>#</th><td>' + id + '</td></tr><tr><th>Cliente</th><td>' + client + '</td></tr><tr><th>Tipo</th><td>' + tipo + '</td></tr><tr><th>Producto</th><td>' + (producto || '-') + '</td></tr><tr><th>Estado</th><td><span class="badge bg-' + badgeClass + '">' + estado + '</span></td></tr><tr><th>Detalles</th><td>' + (detalles || '-') + '</td></tr><tr><th>Fecha</th><td>' + fecha + '</td></tr><tr><th>Origen</th><td>' + (source === 'api' ? '<span class="badge bg-info">API</span>' : '<span class="badge bg-secondary">Local</span>') + '</td></tr></table>';
+      var modal = new bootstrap.Modal(document.getElementById('orderDetailModal'));
+      modal.show();
+    });
+  });
+});
+</script>

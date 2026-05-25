@@ -113,6 +113,10 @@
     body.sidebar-bottom #wrapper { display: flex; flex-direction: column-reverse; }
     body.sidebar-bottom .sidebar { width: 100%; height: auto; position: static; border-right: 0; border-top: 1px solid #ddd; }
     body.sidebar-bottom .sidebar-scroll { max-height: 280px; }
+    #globalSearchDropdown a { display:block; padding:8px 12px; border-bottom:1px solid #f0f0f0; color:#333; text-decoration:none; font-size:0.85rem; }
+    #globalSearchDropdown a:last-child { border-bottom:0; }
+    #globalSearchDropdown a:hover { background:#f8f9ff; }
+    #globalSearchDropdown .src-badge { font-size:0.6rem; padding:2px 6px; border-radius:4px; }
   </style>
 </head>
 <body>
@@ -172,13 +176,7 @@
               <li><a class="<%= title === 'Recursos' ? 'active' : '' %>" href="/resources"><span class="emoji-icon">📁</span>Recursos</a></li>
               <li data-item-key="clientes_tickets"><a class="<%= title.includes('Ticket') ? 'active' : '' %>" href="/tickets"><span class="emoji-icon">🎫</span><%= ui.moduleName.tickets %></a></li>
               <li data-item-key="clientes_settings"><a class="<%= title.includes('Configurac') ? 'active' : '' %>" href="/settings"><span class="emoji-icon">⚙️</span><%= ui.moduleName.settings %></a></li>
-            </ul>
-          </li>
-
-          <!-- POSTVENTA (grupo) -->
-          <li class="nav-item nav-group <%= ['Portabilidades','Instalaciones','Órdenes','Envíos','Penalizaciones','Procesos','Masivos'].some(t => title === t || title.includes(t)) ? 'open' : '' %>" data-group="postventa" data-group-key="postventa" data-ui-draggable="group">
-            <a class="nav-group-toggle <%= ['Portabilidades','Instalaciones','Órdenes','Envíos','Penalizaciones','Procesos','Masivos'].some(t => title === t || title.includes(t)) ? 'active' : '' %>" data-toggle="nav-group" href="#"><span class="emoji-icon" data-group-icon>🛠️</span><span class="nav-text" data-group-label>PostVenta</span><i class="ri-arrow-down-s-line nav-arrow"></i></a>
-            <ul class="nav-submenu">
+              <li class="nav-subheading">🛠️ PostVenta</li>
               <li data-item-key="postventa_portabilidades" data-ui-draggable="item"><a class="<%= title === 'Portabilidades' ? 'active' : '' %>" href="/aftersales/portabilities"><span class="emoji-icon">🔄</span>Portabilidades</a></li>
               <li><a class="<%= title === 'Instalaciones' ? 'active' : '' %>" href="/aftersales/installations"><span class="emoji-icon">🔧</span>Instalaciones</a></li>
               <li><a class="<%= title === 'Órdenes' ? 'active' : '' %>" href="/aftersales/orders"><span class="emoji-icon">📄</span>Órdenes</a></li>
@@ -188,6 +186,8 @@
               <li data-item-key="postventa_masivos"><a class="<%= title === 'Masivos' ? 'active' : '' %>" href="/massive-processes"><span class="emoji-icon">🗄️</span>Procesos Masivos</a></li>
             </ul>
           </li>
+
+
 
         <ul class="sidebar-nav">
           <!-- REDES Y HERRAMIENTAS (grupo) -->
@@ -217,6 +217,14 @@
         <button class="btn btn-sm btn-outline-secondary d-md-none me-2" id="sidebarToggle"><i class="bi bi-list"></i></button>
         <span class="date-display"><i class="bi bi-calendar3 me-1"></i> <%= new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) %></span>
         <div class="ms-auto d-flex align-items-center gap-2">
+          <!-- Global Search -->
+          <div class="position-relative" id="globalSearchWrapper">
+            <div class="input-group input-group-sm" style="min-width:180px;">
+              <span class="input-group-text bg-white border-end-0"><i class="ri-search-line text-muted" style="font-size:0.8rem;"></i></span>
+              <input type="text" class="form-control border-start-0 ps-0" id="globalSearchInput" placeholder="Buscar clientes..." autocomplete="off" style="font-size:0.8rem;">
+            </div>
+            <div id="globalSearchDropdown" class="dropdown-menu shadow-sm p-0" style="max-height:350px;overflow-y:auto;display:none;width:320px;position:absolute;top:100%;left:0;z-index:9999;"></div>
+          </div>
           <!-- AI Chat Widget -->
           <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" id="aiChatToggle" title="Asistente IA" style="border-radius:20px;padding:4px 12px;">
             <i class="ri-robot-line"></i>
@@ -253,16 +261,13 @@
               <% } %>
             </div>
           </div>
-          <!-- Agentes -->
-          <a href="/tienda/agentes" class="btn btn-sm btn-outline-danger d-flex align-items-center gap-1" title="Agentes" style="border-radius:20px;padding:4px 12px;">
-            <i class="bi bi-shield-person"></i>
-            <span class="d-none d-sm-inline">Agentes</span>
-          </a>
-          <!-- Close Day -->
-          <button class="btn btn-sm btn-outline-warning d-flex align-items-center gap-1" id="btnCerrarDia" title="Cerrar día" style="border-radius:20px;padding:4px 12px;">
-            <i class="ri-lock-line"></i>
-            <span class="d-none d-sm-inline">Cerrar día</span>
+          <% if (user && user.rol === 'admin') { %>
+          <!-- Editar interfaz -->
+          <button id="uiEditorToggle" class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" title="Editar interfaz" style="border-radius:20px;padding:4px 12px;">
+            <i class="bi bi-magic"></i>
+            <span class="d-none d-sm-inline">Editar interfaz</span>
           </button>
+          <% } %>
           <!-- Quick Access -->
           <div id="customTopButtons" class="d-flex align-items-center gap-2"></div>
           <div class="dropdown">
@@ -362,7 +367,7 @@
             const submenu = groupEl.querySelector('.nav-submenu');
             if (submenu) {
               const itemMap = {};
-              submenu.querySelectorAll('li[data-item-key]').forEach(li => {
+              document.querySelectorAll('.sidebar-scroll li[data-item-key]').forEach(li => {
                 itemMap[li.getAttribute('data-item-key')] = li;
               });
               g.items.forEach(key => {
@@ -726,9 +731,6 @@
   </div>
 
   <% if (user && user.rol === 'admin') { %>
-  <button id="uiEditorToggle" class="btn btn-primary btn-sm ui-editor-fab">
-    <i class="bi bi-magic"></i> Editar interfaz
-  </button>
   <div id="uiEditorPanel" class="ui-editor-panel">
     <div class="head d-flex justify-content-between align-items-center">
       <span><i class="bi bi-sliders"></i> Modo diseñador</span>
@@ -1175,5 +1177,56 @@
       input?.addEventListener('keydown', function(e) { if (e.key === 'Enter') sendMessage(); });
     })();
   </script>
+<script>
+(function() {
+  var input = document.getElementById('globalSearchInput');
+  var dropdown = document.getElementById('globalSearchDropdown');
+  if (!input || !dropdown) return;
+  var timer = null;
+  input.addEventListener('keyup', function() {
+    clearTimeout(timer);
+    var q = input.value.trim();
+    if (q.length < 3) {
+      dropdown.style.display = 'none';
+      dropdown.innerHTML = '';
+      return;
+    }
+    timer = setTimeout(function() {
+      fetch('/api/search?q=' + encodeURIComponent(q))
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (!data || data.length === 0) {
+            dropdown.innerHTML = '<div class="text-muted text-center py-3 small" style="pointer-events:none;">Sin resultados</div>';
+          } else {
+            dropdown.innerHTML = data.map(function(r) {
+              var badgeClass = r.origen === 'API' ? 'bg-info' : 'bg-success';
+              var badgeLabel = r.origen === 'API' ? 'API' : 'Local';
+              var href = r.id ? '/customers/' + r.id : '/customers?search=' + encodeURIComponent(r.telefono || r.nombre);
+              return '<a href="' + href + '"><div class="d-flex justify-content-between align-items-start"><strong>' + r.nombre + '</strong> <span class="src-badge badge ' + badgeClass + '">' + badgeLabel + '</span></div><div class="small text-muted">' + (r.telefono ? r.telefono : '') + (r.fiscalId ? ' &middot; ' + r.fiscalId : '') + '</div></a>';
+            }).join('');
+          }
+          dropdown.style.display = 'block';
+        })
+        .catch(function() {
+          dropdown.innerHTML = '<div class="text-muted text-center py-3 small" style="pointer-events:none;">Error de b&uacute;squeda</div>';
+          dropdown.style.display = 'block';
+        });
+    }, 300);
+  });
+  document.addEventListener('click', function(e) {
+    if (!document.getElementById('globalSearchWrapper').contains(e.target)) {
+      dropdown.style.display = 'none';
+    }
+  });
+  input.addEventListener('blur', function() {
+    setTimeout(function() { dropdown.style.display = 'none'; }, 200);
+  });
+  input.addEventListener('focus', function() {
+    if (input.value.trim().length >= 3 && dropdown.innerHTML) {
+      dropdown.style.display = 'block';
+    }
+  });
+})();
+</script>
 </body>
 </html>

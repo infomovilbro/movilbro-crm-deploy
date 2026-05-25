@@ -19,13 +19,14 @@
     <div class="col-md-6">
       <div class="card"><div class="card-body">
         <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Portabilidades por Tipo</h6>
-        <canvas id="chartTipo" style="height:221px;"></canvas>
+        <div class="chart-wrap" style="height:150px;overflow:hidden;position:relative;"><canvas id="chartTipo"></canvas></div>
+        <div class="chart-legend mt-2 d-flex flex-wrap gap-3 justify-content-center" id="legend-chartTipo"></div>
       </div></div>
     </div>
     <div class="col-md-6">
       <div class="card"><div class="card-body">
         <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Estado de Portabilidades</h6>
-        <canvas id="chartEstadoPort" style="height:221px;"></canvas>
+        <div class="chart-wrap" style="height:150px;overflow:hidden;position:relative;"><canvas id="chartEstadoPort"></canvas></div>
       </div></div>
     </div>
   </div>
@@ -69,6 +70,14 @@
   </div>
 </section>
 
+<div class="modal fade" id="chartDetailModal" tabindex="-1">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="chartDetailTitle"></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body p-0"><div class="table-responsive"><table class="table table-hover mb-0" id="chartDetailTable"><thead></thead><tbody></tbody></table></div></div>
+    <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button></div>
+  </div></div>
+</div>
+
 <script>
 document.querySelectorAll('#statsRow .stat-card').forEach(function(c) {
   c.addEventListener('click', function() {
@@ -87,19 +96,50 @@ document.getElementById('toggleStats').addEventListener('click', function() {
   var r = document.getElementById('statsRow');
   r.style.display = r.style.display === 'none' ? '' : 'none';
 });
-var entrantes = portabilities.filter(function(p){ return p.type === 'IN' || p.type === 'in'; }).length;
-var salientes = portabilities.filter(function(p){ return p.type === 'OUT' || p.type === 'out' || !p.type || p.type === 'SALIENTE'; }).length;
-var ctx1 = document.getElementById('chartTipo').getContext('2d');
-new Chart(ctx1, {
-  type: 'bar',
-  data: { labels: ['Entrantes','Salientes'], datasets: [{ label: 'Portabilidades', data: [entrantes, salientes], backgroundColor: ['#198754','#dc3545'], borderRadius: 6 }] },
-  options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } }
-});
-var estCount = {}; portabilities.forEach(function(p){ var s = (p.status||p.estado||'desconocido').toUpperCase(); estCount[s] = (estCount[s]||0) + 1; });
-var ctx2 = document.getElementById('chartEstadoPort').getContext('2d');
-new Chart(ctx2, {
-  type: 'bar',
-  data: { labels: Object.keys(estCount), datasets: [{ label: 'Portabilidades', data: Object.values(estCount), backgroundColor: Object.keys(estCount).map(function(s){ return s==='COMPLETED'?'#198754':s==='PENDING'?'#ffc107':s==='ERRORED'?'#dc3545':s==='CANCELED'?'#6c757d':'#0d6efd'; }), borderRadius: 6 }] },
-  options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } }
+
+document.addEventListener('DOMContentLoaded', function() {
+  var portabilities = <%- JSON.stringify(portabilities) %>;
+  if (!Array.isArray(portabilities)) portabilities = [];
+
+  var entrantes = portabilities.filter(function(p){ return (p.type||'').toUpperCase() === 'IN'; }).length;
+  var salientes = portabilities.filter(function(p){ return (p.type||'').toUpperCase() === 'OUT'; }).length;
+  var chartTipo = new Chart(document.getElementById('chartTipo'), {
+    type: 'doughnut',
+    data: { labels: ['Entrantes','Salientes'], datasets: [{ data: [entrantes, salientes], backgroundColor: ['#198754','#dc3545'], borderWidth: 0 }] },
+    options: { responsive: true, maintainAspectRatio: false, animation: false, resizeDelay: 0, cutout: '60%', plugins: { legend: { display: false }, tooltip: { enabled: true } }, onClick: function(e, elements) { if (elements.length > 0) showChartDetail(this, elements[0].index); } }
+  });
+  makeLegend(chartTipo, 'legend-chartTipo');
+
+  var estCount = {}; portabilities.forEach(function(p){ var s = (p.status||p.estado||'desconocido').toUpperCase(); estCount[s] = (estCount[s]||0) + 1; });
+  var chartEst = new Chart(document.getElementById('chartEstadoPort'), {
+    type: 'bar',
+    data: { labels: Object.keys(estCount), datasets: [{ label: 'Portabilidades', data: Object.values(estCount), backgroundColor: Object.keys(estCount).map(function(s){ return s==='COMPLETED'?'#198754':s==='PENDING'?'#ffc107':s==='ERRORED'?'#dc3545':s==='CANCELED'?'#6c757d':'#0d6efd'; }), borderRadius: 6 }] },
+    options: { responsive: true, maintainAspectRatio: false, animation: false, resizeDelay: 0, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } }, onClick: function(e, elements) { if (elements.length > 0) showChartDetail(this, elements[0].index); } }
+  });
+
+  function makeLegend(chart, id) {
+    var html = '', colors = chart.data.datasets[0].backgroundColor, data = chart.data.datasets[0].data;
+    chart.data.labels.forEach(function(l, i) { var c = Array.isArray(colors) ? colors[i] : '#0d6efd'; html += '<span class="d-inline-flex align-items-center gap-1 small me-3"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:'+c+';"></span> '+l+' ('+data[i]+')</span>'; });
+    document.getElementById(id).innerHTML = html;
+  }
+
+  function showChartDetail(chart, idx) {
+    var label = chart.data.labels[idx];
+    var records;
+    if (chart.canvas.id === 'chartTipo') {
+      var tf = label === 'Entrantes' ? 'IN' : 'OUT';
+      records = portabilities.filter(function(p){ return (p.type||'').toUpperCase() === tf; });
+    } else {
+      var sf = label;
+      records = portabilities.filter(function(p){ return ((p.status||p.estado||'').toUpperCase()) === sf; });
+    }
+    var h = '<tr><th>Tipo</th><th>Cliente</th><th>Línea</th><th>Operador</th><th>Estado</th><th>Fecha</th></tr>';
+    var b = '';
+    records.forEach(function(p){ b += '<tr><td>'+(p.type||'-')+'</td><td>'+(p.customerName||p.name||'-')+'</td><td>'+(p.lineNumber||p.linea||'-')+'</td><td>'+(p.donorOperator||'-')+'</td><td>'+(p.status||p.estado||'-')+'</td><td>'+(p.portabilityDate||p.fecha?new Date(p.portabilityDate||p.fecha).toLocaleDateString('es-ES'):'-')+'</td></tr>'; });
+    document.getElementById('chartDetailTitle').textContent = label + ' (' + records.length + ')';
+    document.getElementById('chartDetailTable').querySelector('thead').innerHTML = h;
+    document.getElementById('chartDetailTable').querySelector('tbody').innerHTML = b;
+    new bootstrap.Modal(document.getElementById('chartDetailModal')).show();
+  }
 });
 </script>

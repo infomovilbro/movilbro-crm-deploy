@@ -309,14 +309,6 @@ function initDatabase() {
     db.prepare('UPDATE users SET email = ? WHERE id = ?').run(u.username + '@movilbro.com', u.id);
   });
 
-  // Ensure admin user always exists
-  const adminUser = db.prepare('SELECT id FROM users WHERE username = ?').get('admin');
-  if (!adminUser) {
-    const hash = bcrypt.hashSync('admin', 10);
-    db.prepare('INSERT INTO users (username, password, nombre, email, rol) VALUES (?, ?, ?, ?, ?)').run(
-      'admin', hash, 'Administrador', 'admin@movilbro.com', 'admin'
-    );
-  }
   const ivanUser = db.prepare('SELECT id FROM users WHERE username = ?').get('infomovilbro');
   if (!ivanUser) {
     const hash = bcrypt.hashSync('movilbro2026', 10);

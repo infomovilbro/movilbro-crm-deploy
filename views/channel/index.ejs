@@ -50,13 +50,13 @@
     <div class="col-md-6">
       <div class="card"><div class="card-body">
         <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Distribuidores Activos vs Inactivos</h6>
-        <canvas id="chartEstado" style="height:221px;"></canvas>
+        <div class="chart-wrap" style="height:170px;overflow:hidden;position:relative;"><canvas id="chartEstado"></canvas></div>
       </div></div>
     </div>
     <div class="col-md-6">
       <div class="card"><div class="card-body">
         <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Top Distribuidores por Ventas</h6>
-        <canvas id="chartTop" style="height:221px;"></canvas>
+        <div class="chart-wrap" style="height:170px;overflow:hidden;position:relative;"><canvas id="chartTop"></canvas></div>
       </div></div>
     </div>
   </div>
@@ -294,8 +294,8 @@ document.addEventListener('DOMContentLoaded', function() {
         borderRadius: 4
       }]
     },
-    options: {
-      responsive: true, maintainAspectRatio: false,
+      options: {
+      responsive: true, maintainAspectRatio: false, animation: false, resizeDelay: 0,
       plugins: { legend: { display: false } },
       scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
     }
@@ -315,7 +315,7 @@ document.addEventListener('DOMContentLoaded', function() {
       }]
     },
     options: {
-      responsive: true, maintainAspectRatio: false,
+      responsive: true, maintainAspectRatio: false, animation: false, resizeDelay: 0,
       indexAxis: 'y',
       plugins: { legend: { display: false } },
       scales: { x: { beginAtZero: true } }

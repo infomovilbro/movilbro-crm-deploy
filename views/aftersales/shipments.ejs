@@ -6,27 +6,26 @@
     </div>
   </div>
   <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-warning"><%= error %></div><% } %>
-  <% 
-    const total = shipments.length;
-    const completed = shipments.filter(s => (s.status||'').toUpperCase() === 'COMPLETED' || (s.status||'').toUpperCase() === 'DELIVERED').length;
-    const inTransit = shipments.filter(s => (s.status||'').toUpperCase() === 'IN_DELIVERY' || (s.status||'').toUpperCase() === 'SENT').length;
-    const pending = shipments.filter(s => (s.status||'').toUpperCase() === 'CREATED' || (s.status||'').toUpperCase() === 'PENDING').length;
-    const errored = shipments.filter(s => (s.status||'').toUpperCase() === 'ERRORED').length;
-    const canceled = shipments.filter(s => (s.status||'').toUpperCase() === 'CANCELED').length;
-  %>
   <div class="row g-3 mb-3" id="statsRow">
-    <div class="col-md-2 col-6"><div class="stat-card" data-filter="all"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle primary"><span>📊</span></div><div><div class="stat-value"><%= total %></div><div class="stat-label">Total</div></div></div></div></div>
-    <div class="col-md-2 col-6"><div class="stat-card" data-filter="completados"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle success"><span>✅</span></div><div><div class="stat-value"><%= completed %></div><div class="stat-label">Completados</div></div></div></div></div>
-    <div class="col-md-2 col-6"><div class="stat-card" data-filter="transito"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle info"><span>🚚</span></div><div><div class="stat-value"><%= inTransit %></div><div class="stat-label">En tránsito</div></div></div></div></div>
-    <div class="col-md-2 col-6"><div class="stat-card" data-filter="pendientes"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle warning"><span>⏳</span></div><div><div class="stat-value"><%= pending %></div><div class="stat-label">Pendientes</div></div></div></div></div>
-    <div class="col-md-2 col-6"><div class="stat-card" data-filter="error"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle danger"><span>❌</span></div><div><div class="stat-value"><%= errored %></div><div class="stat-label">Error</div></div></div></div></div>
-    <div class="col-md-2 col-6"><div class="stat-card" data-filter="cancelados"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle secondary"><span>🚫</span></div><div><div class="stat-value"><%= canceled %></div><div class="stat-label">Cancelados</div></div></div></div></div>
+    <div class="col-md-2 col-6"><div class="stat-card" data-filter="all"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle primary"><span>📊</span></div><div><div class="stat-value"><%= shipments.length %></div><div class="stat-label">Total</div></div></div></div></div>
+    <div class="col-md-2 col-6"><div class="stat-card" data-filter="completados"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle success"><span>✅</span></div><div><div class="stat-value"><%= shipments.filter(s => (s.status||'').toUpperCase() === 'COMPLETED' || (s.status||'').toUpperCase() === 'DELIVERED').length %></div><div class="stat-label">Completados</div></div></div></div></div>
+    <div class="col-md-2 col-6"><div class="stat-card" data-filter="transito"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle info"><span>🚚</span></div><div><div class="stat-value"><%= shipments.filter(s => (s.status||'').toUpperCase() === 'IN_DELIVERY' || (s.status||'').toUpperCase() === 'SENT').length %></div><div class="stat-label">En tránsito</div></div></div></div></div>
+    <div class="col-md-2 col-6"><div class="stat-card" data-filter="pendientes"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle warning"><span>⏳</span></div><div><div class="stat-value"><%= shipments.filter(s => (s.status||'').toUpperCase() === 'CREATED' || (s.status||'').toUpperCase() === 'PENDING').length %></div><div class="stat-label">Pendientes</div></div></div></div></div>
+    <div class="col-md-2 col-6"><div class="stat-card" data-filter="error"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle danger"><span>❌</span></div><div><div class="stat-value"><%= shipments.filter(s => (s.status||'').toUpperCase() === 'ERRORED').length %></div><div class="stat-label">Error</div></div></div></div></div>
+    <div class="col-md-2 col-6"><div class="stat-card" data-filter="cancelados"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle secondary"><span>🚫</span></div><div><div class="stat-value"><%= shipments.filter(s => (s.status||'').toUpperCase() === 'CANCELED').length %></div><div class="stat-label">Cancelados</div></div></div></div></div>
   </div>
   <div class="row g-3 mb-4">
-    <div class="col-md-12">
+    <div class="col-md-6">
       <div class="card"><div class="card-body">
         <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Estado de Envíos</h6>
-        <canvas id="shipmentsStatus" style="height:221px;"></canvas>
+        <div class="chart-wrap" style="height:150px;overflow:hidden;position:relative;"><canvas id="shipmentsStatus"></canvas></div>
+        <div class="chart-legend mt-2 d-flex flex-wrap gap-3 justify-content-center" id="legend-shipmentsStatus"></div>
+      </div></div>
+    </div>
+    <div class="col-md-6">
+      <div class="card"><div class="card-body">
+        <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Envíos por Estado</h6>
+        <div class="chart-wrap" style="height:150px;overflow:hidden;position:relative;"><canvas id="shipmentsBar"></canvas></div>
       </div></div>
     </div>
   </div>
@@ -65,6 +64,14 @@
   </div>
 </section>
 
+<div class="modal fade" id="chartDetailModal" tabindex="-1">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="chartDetailTitle"></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body p-0"><div class="table-responsive"><table class="table table-hover mb-0" id="chartDetailTable"><thead></thead><tbody></tbody></table></div></div>
+    <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button></div>
+  </div></div>
+</div>
+
 <script>
 document.querySelectorAll('#statsRow .stat-card').forEach(function(c) {
   c.addEventListener('click', function() {
@@ -83,30 +90,57 @@ document.getElementById('toggleStats').addEventListener('click', function() {
   var r = document.getElementById('statsRow');
   r.style.display = r.style.display === 'none' ? '' : 'none';
 });
-</script>
 
-<script>
 document.addEventListener('DOMContentLoaded', function() {
-  new Chart(document.getElementById('shipmentsStatus'), {
-    type: 'bar',
-    data: {
-      labels: ['Completados', 'En tránsito', 'Pendientes', 'Errores/Cancelados'],
-      datasets: [{
-        label: 'Envíos',
-        data: [<%= completed %>, <%= inTransit %>, <%= pending %>, <%= errored + canceled %>],
-        backgroundColor: ['#198754', '#0d6efd', '#ffc107', '#dc3545'],
-        borderRadius: 6
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        y: { beginAtZero: true, grid: { color: '#eee' } },
-        x: { grid: { display: false } }
-      }
-    }
+  var shipments = <%- JSON.stringify(shipments) %>;
+  if (!Array.isArray(shipments)) shipments = [];
+
+  var cat = { COMPLETED: 0, DELIVERED: 0, SENT: 0, IN_DELIVERY: 0, CREATED: 0, PENDING: 0, ERRORED: 0, CANCELED: 0 };
+  shipments.forEach(function(s) { var k = (s.status||'').toUpperCase(); if (cat[k] !== undefined) cat[k]++; });
+  var completed = cat.COMPLETED + cat.DELIVERED;
+  var inTransit = cat.IN_DELIVERY + cat.SENT;
+  var pending = cat.CREATED + cat.PENDING;
+  var errored = cat.ERRORED;
+  var canceled = cat.CANCELED;
+  var labels = ['Completados', 'En tránsito', 'Pendientes', 'Errores', 'Cancelados'];
+  var values = [completed, inTransit, pending, errored, canceled];
+  var barColors = ['#198754', '#0d6efd', '#ffc107', '#dc3545', '#6c757d'];
+
+  var chartDonut = new Chart(document.getElementById('shipmentsStatus'), {
+    type: 'doughnut',
+    data: { labels: labels, datasets: [{ data: values, backgroundColor: barColors, borderWidth: 0 }] },
+    options: { responsive: true, maintainAspectRatio: false, animation: false, resizeDelay: 0, cutout: '60%', plugins: { legend: { display: false }, tooltip: { enabled: true } }, onClick: function(e, elements) { if (elements.length > 0) showChartDetail(this, elements[0].index); } }
   });
+  makeLegend(chartDonut, 'legend-shipmentsStatus');
+
+  var chartBar = new Chart(document.getElementById('shipmentsBar'), {
+    type: 'bar',
+    data: { labels: labels, datasets: [{ label: 'Envíos', data: values, backgroundColor: barColors, borderRadius: 6 }] },
+    options: { responsive: true, maintainAspectRatio: false, animation: false, resizeDelay: 0, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } }, onClick: function(e, elements) { if (elements.length > 0) showChartDetail(this, elements[0].index); } }
+  });
+
+  function makeLegend(chart, id) {
+    var html = '', colors = chart.data.datasets[0].backgroundColor, data = chart.data.datasets[0].data;
+    chart.data.labels.forEach(function(l, i) { var c = Array.isArray(colors) ? colors[i] : '#0d6efd'; html += '<span class="d-inline-flex align-items-center gap-1 small me-3"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:'+c+';"></span> '+l+' ('+data[i]+')</span>'; });
+    document.getElementById(id).innerHTML = html;
+  }
+
+  function showChartDetail(chart, idx) {
+    var label = chart.data.labels[idx];
+    var statuses = [];
+    if (label === 'Completados') statuses = ['COMPLETED','DELIVERED'];
+    else if (label === 'En tránsito') statuses = ['IN_DELIVERY','SENT'];
+    else if (label === 'Pendientes') statuses = ['CREATED','PENDING'];
+    else if (label === 'Errores') statuses = ['ERRORED'];
+    else if (label === 'Cancelados') statuses = ['CANCELED'];
+    var records = shipments.filter(function(s){ return statuses.indexOf((s.status||'').toUpperCase()) !== -1; });
+    var h = '<tr><th>Cliente</th><th>Dirección</th><th>Producto</th><th>Estado</th><th>Fecha</th></tr>';
+    var b = '';
+    records.forEach(function(s){ b += '<tr><td>'+(s.customer||s.customerName||s.name||'-')+'</td><td>'+(s.address||s.direccion||'-')+'</td><td>'+(s.products||s.productos||s.product||'-')+'</td><td>'+(s.status||'-')+'</td><td>'+(s.statusDate||s.fecha?new Date(s.statusDate||s.fecha).toLocaleDateString('es-ES'):'-')+'</td></tr>'; });
+    document.getElementById('chartDetailTitle').textContent = label + ' (' + records.length + ')';
+    document.getElementById('chartDetailTable').querySelector('thead').innerHTML = h;
+    document.getElementById('chartDetailTable').querySelector('tbody').innerHTML = b;
+    new bootstrap.Modal(document.getElementById('chartDetailModal')).show();
+  }
 });
 </script>

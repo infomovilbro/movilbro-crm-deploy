@@ -113,9 +113,67 @@ router.get('/:id', requireAuth, async (req, res) => {
   const cliente = db.prepare('SELECT * FROM clients WHERE id = ?').get(req.params.id);
   if (!cliente) return res.redirect('/customers');
   const ordenes = db.prepare('SELECT * FROM orders WHERE client_id = ? ORDER BY created_at DESC').all(req.params.id);
-  const suscripciones = db.prepare('SELECT * FROM subscriptions WHERE client_id = ? ORDER BY created_at DESC').all(req.params.id);
+  const suscripciones = db.prepare('SELECT * FROM subscriptions WHERE client_id = ? ORDER BY created_at DESC').all(req.params.id).map(s => ({ ...s, origen: 'local' }));
   const tickets = db.prepare('SELECT * FROM tickets WHERE client_id = ? ORDER BY created_at DESC').all(req.params.id);
-  res.render('clients/view', { title: 'Cliente: ' + cliente.nombre, cliente, ordenes, suscripciones, tickets });
+
+  // Fetch API subscriptions for this client by phone/fiscalId
+  let apiSuscripciones = [];
+  try {
+    const api = LikesAPI.getApiInstance();
+    if (cliente.telefono) {
+      const raw = await api.getSubscriptions();
+      const allSubs = Array.isArray(raw) ? raw : [];
+      apiSuscripciones = allSubs
+        .filter(sub => {
+          const subPhone = (sub.phone || sub.line || sub.linea || '').replace(/[^\d]/g, '');
+          const cliPhone = (cliente.telefono || '').replace(/[^\d]/g, '');
+          return subPhone && cliPhone && subPhone === cliPhone;
+        })
+        .map(sub => {
+          var prod = (sub.products && sub.products[0]) || {};
+          return {
+            linea: prod.lineNumber || prod.line || prod.phone || sub.phone || sub.line || '',
+            producto: prod.productName || sub.productName || sub.product || sub.producto || '',
+            estado: (prod.status || sub.status || sub.estado || 'activa').toLowerCase(),
+            fecha_alta: sub.created || sub.sellDate || sub.created_at || sub.fecha_alta || sub.startDate || null,
+            fecha_baja: sub.cancelled_at || sub.fecha_baja || sub.endDate || null,
+            origen: 'api'
+          };
+        });
+    }
+  } catch (e) {
+    console.error('Error fetching API subscriptions for client:', e.message);
+  }
+
+  const todasSuscripciones = [...suscripciones, ...apiSuscripciones];
+  todasSuscripciones.sort((a, b) => {
+    const da = a.fecha_alta || '';
+    const db2 = b.fecha_alta || '';
+    return da < db2 ? 1 : da > db2 ? -1 : 0;
+  });
+
+  // Compute chart data
+  var linesByStatus = {};
+  var lineNumbers = [];
+  todasSuscripciones.forEach(function(s) {
+    var estado = s.estado || 'desconocido';
+    linesByStatus[estado] = (linesByStatus[estado] || 0) + 1;
+    if (s.linea && lineNumbers.indexOf(s.linea) === -1) {
+      lineNumbers.push(s.linea);
+    }
+  });
+
+  res.render('clients/view', {
+    title: 'Cliente: ' + cliente.nombre,
+    cliente,
+    ordenes,
+    suscripciones: todasSuscripciones,
+    tickets,
+    apiSubCount: apiSuscripciones.length,
+    linesByStatus: JSON.stringify(linesByStatus),
+    lineNumbers: JSON.stringify(lineNumbers),
+    apiActions: { canBlock: true, canChangeTariff: true, canDuplicateSim: true, canViewConsumption: true }
+  });
 });
 
 router.get('/:id/editar', requireAuth, (req, res) => {
@@ -137,6 +195,67 @@ router.post('/:id/editar', requireAuth, (req, res) => {
 router.post('/:id/eliminar', requireAuth, (req, res) => {
   db.prepare('DELETE FROM clients WHERE id = ?').run(req.params.id);
   res.redirect('/customers');
+});
+
+// --- API Action Routes ---
+router.post('/:id/line/:lineNumber/block', requireAuth, async (req, res) => {
+  try {
+    const api = LikesAPI.getApiInstance();
+    const result = await api.blockLine(req.params.lineNumber, req.body.blocked !== false);
+    res.json({ ok: true, data: result });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+router.post('/:id/line/:lineNumber/consumption', requireAuth, async (req, res) => {
+  try {
+    const api = LikesAPI.getApiInstance();
+    const result = await api.getLineGB(req.params.lineNumber);
+    res.json({ ok: true, data: result });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+router.post('/:id/line/:lineNumber/change-tariff', requireAuth, async (req, res) => {
+  try {
+    const api = LikesAPI.getApiInstance();
+    const result = await api.changeProduct(req.body);
+    res.json({ ok: true, data: result });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+router.post('/:id/line/:lineNumber/cdrs', requireAuth, async (req, res) => {
+  try {
+    const api = LikesAPI.getApiInstance();
+    const result = await api.getLineCDRs(req.params.lineNumber);
+    res.json({ ok: true, data: result });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+router.post('/:id/line/:lineNumber/duplicate-sim', requireAuth, async (req, res) => {
+  try {
+    const api = LikesAPI.getApiInstance();
+    const result = await api.lineChangeSim(req.body);
+    res.json({ ok: true, data: result });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+router.get('/:id/compatible-products', requireAuth, async (req, res) => {
+  try {
+    const api = LikesAPI.getApiInstance();
+    const result = await api.getProducts();
+    res.json({ ok: true, data: result });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
 });
 
 module.exports = router;

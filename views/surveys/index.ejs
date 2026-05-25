@@ -3,15 +3,26 @@
     <h2><i class="ri-clipboard-line"></i> Encuestas</h2>
   </div>
   <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-warning"><%= error %></div><% } %>
-  <% const scoreCounts = [0,0,0,0,0]; (surveys || []).forEach(s => { const sc = parseInt(s.score || s.puntuacion || s.rating || 0, 10); if (sc >= 1 && sc <= 5) scoreCounts[sc-1]++; }); %>
   <div class="row g-3 mb-3">
     <div class="col-md-3 col-6"><div class="stat-card"><div class="stat-value"><%= surveys.length %></div><div class="stat-label">Total</div></div></div>
   </div>
   <div class="row g-3 mb-4">
-    <div class="col-md-12">
+    <div class="col-md-4">
       <div class="card"><div class="card-body">
-        <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Puntuación de Encuestas</h6>
-        <canvas id="surveyScores" style="height:221px;"></canvas>
+        <h6 class="card-title"><span style="font-size:1.2rem;">🍩</span> Puntuación (1-5)</h6>
+        <div class="chart-container" style="height:221px;overflow:hidden;"><canvas id="surveyScores"></canvas></div>
+      </div></div>
+    </div>
+    <div class="col-md-4">
+      <div class="card"><div class="card-body">
+        <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Por Categoría</h6>
+        <div class="chart-container" style="height:221px;overflow:hidden;"><canvas id="surveyCategories"></canvas></div>
+      </div></div>
+    </div>
+    <div class="col-md-4">
+      <div class="card"><div class="card-body">
+        <h6 class="card-title"><span style="font-size:1.2rem;">📈</span> Evolución Mensual</h6>
+        <div class="chart-container" style="height:221px;overflow:hidden;"><canvas id="surveyMonthly"></canvas></div>
       </div></div>
     </div>
   </div>
@@ -39,28 +50,60 @@
   </div>
 </section>
 
+<div class="modal fade" id="chartDetailModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered modal-sm"><div class="modal-content"><div class="modal-header"><h6 class="modal-title" id="chartDetailTitle"></h6><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body p-2"><table class="table table-sm mb-0"><thead><tr><th>Etiqueta</th><th class="text-end">Valor</th></tr></thead><tbody id="chartDetailBody"></tbody></table></div></div></div></div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-  new Chart(document.getElementById('surveyScores'), {
-    type: 'bar',
-    data: {
-      labels: ['1', '2', '3', '4', '5'],
-      datasets: [{
-        label: 'Encuestas',
-        data: [<%= scoreCounts.join(',') %>],
-        backgroundColor: ['#dc3545','#dc3545','#ffc107','#198754','#198754'],
-        borderRadius: 6
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        y: { beginAtZero: true, grid: { color: '#eee' } },
-        x: { grid: { display: false } }
-      }
-    }
-  });
+  var sLabels = <%- JSON.stringify(charts.scores.labels) %>;
+  var sData = <%- JSON.stringify(charts.scores.data) %>;
+  var cLabels = <%- JSON.stringify(charts.categories.labels) %>;
+  var cData = <%- JSON.stringify(charts.categories.data) %>;
+  var mLabels = <%- JSON.stringify(charts.monthly.labels) %>;
+  var mData = <%- JSON.stringify(charts.monthly.data) %>;
+
+  function makeModal(canvasId, title, labels, data) {
+    var el = document.getElementById(canvasId);
+    if (!el || labels.length === 0) return;
+    el.style.cursor = 'pointer';
+    el.addEventListener('click', function() {
+      document.getElementById('chartDetailTitle').textContent = title;
+      var tbody = document.getElementById('chartDetailBody');
+      tbody.innerHTML = '';
+      labels.forEach(function(l, i) {
+        var tr = document.createElement('tr');
+        tr.innerHTML = '<td>' + l + '</td><td class="text-end fw-bold">' + data[i] + '</td>';
+        tbody.appendChild(tr);
+      });
+      var modal = new bootstrap.Modal(document.getElementById('chartDetailModal'));
+      modal.show();
+    });
+  }
+
+  try {
+    new Chart(document.getElementById('surveyScores'), {
+      type: 'doughnut',
+      data: { labels: sLabels, datasets: [{ label: 'Encuestas', data: sData, backgroundColor: ['#dc3545','#dc3545','#ffc107','#198754','#198754'], borderWidth: 0 }] },
+      options: { responsive: true, maintainAspectRatio: false, animation: false, resizeDelay: 0, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, padding: 8 } } } }
+    });
+    makeModal('surveyScores', 'Puntuación 1-5', sLabels, sData);
+  } catch(e) { console.error(e); }
+
+  try {
+    new Chart(document.getElementById('surveyCategories'), {
+      type: 'bar',
+      data: { labels: cLabels, datasets: [{ label: 'Encuestas', data: cData, backgroundColor: '#0d6efd', borderRadius: 6 }] },
+      options: { responsive: true, maintainAspectRatio: false, animation: false, resizeDelay: 0, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } }
+    });
+    makeModal('surveyCategories', 'Por Categoría', cLabels, cData);
+  } catch(e) { console.error(e); }
+
+  try {
+    new Chart(document.getElementById('surveyMonthly'), {
+      type: 'bar',
+      data: { labels: mLabels, datasets: [{ label: 'Encuestas', data: mData, backgroundColor: '#6c757d', borderRadius: 6 }] },
+      options: { responsive: true, maintainAspectRatio: false, animation: false, resizeDelay: 0, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false } } } }
+    });
+    makeModal('surveyMonthly', 'Evolución Mensual', mLabels, mData);
+  } catch(e) { console.error(e); }
 });
 </script>

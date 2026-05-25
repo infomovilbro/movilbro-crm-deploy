@@ -52,6 +52,8 @@ const remittancesRoutes = require('./routes/remittances');
 const resourcesRoutes = require('./routes/resources');
 const massiveRoutes = require('./routes/massive-processes');
 const tiendaRoutes = require('./routes/tienda');
+const apiProxyRoutes = require('./routes/api-proxy');
+const externalApiRoutes = require('./routes/external-api');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -91,7 +93,7 @@ app.use(helmet({
 }));
 
 // 2. CORS - Restringir orígenes permitidos (evita robo de datos cross-origin)
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000,https://movilbro-crm.onrender.com,https://movilbro-pro-web-2026.web.app').split(',').map(s => s.trim());
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000,http://localhost:5173,https://movilbro-crm.onrender.com,https://movilbro-pro-web-2026.web.app').split(',').map(s => s.trim());
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
@@ -221,6 +223,10 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.set('layout', 'layout');
 app.use(layouts);
+
+// ---- API PROXY (sin auth - el frontend Vue lo usa) ----
+app.use('/api-proxy', apiProxyRoutes);
+app.use('/external-api', externalApiRoutes);
 
 // ---- AUTH ----
 app.use('/', dashboardRoutes);
