@@ -105,6 +105,10 @@ router.post('/login', loginLimiter, [
   const password = (req.body.password || '').trim();
   const user = db.prepare('SELECT * FROM users WHERE LOWER(email) = ? OR LOWER(username) = ?').get(email, email);
 
+  // Bloquear usuario admin aunque exista en DB
+  if (user && user.username === 'admin') {
+    return res.render('login', { title: 'Iniciar Sesión', error: 'Email o contraseña incorrectos', success: null, email });
+  }
   if (!user || !bcrypt.compareSync(password, user.password)) {
     return res.render('login', { title: 'Iniciar Sesión', error: 'Email o contraseña incorrectos', success: null, email });
   }
