@@ -388,4 +388,3 @@ function shutdown(signal) {
 }
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
-// Render deploy trigger: 2026-05-25 22:53:42
