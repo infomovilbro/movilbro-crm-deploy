@@ -10,6 +10,7 @@ const cors = require('cors');
 const hpp = require('hpp');
 
 const http = require('http');
+const https = require('https');
 require('dotenv').config();
 process.env.TZ = 'Europe/Madrid';
 
@@ -371,7 +372,8 @@ function selfPing() {
   // Ping externo (Render no duerme si ve tráfico externo)
   if (EXTERNAL_URL) {
     const url = EXTERNAL_URL + '/health';
-    http.get(url, (res) => {
+    var lib = url.indexOf('https:') === 0 ? https : http;
+    lib.get(url, (res) => {
       res.resume();
     }).on('error', () => {});
   }
