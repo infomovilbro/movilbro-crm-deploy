@@ -309,6 +309,9 @@ function initDatabase() {
     db.prepare('UPDATE users SET email = ? WHERE id = ?').run(u.username + '@movilbro.com', u.id);
   });
 
+  // Eliminar usuario admin/admin si existe (seguridad)
+  db.prepare("DELETE FROM users WHERE username = 'admin'").run();
+  
   const ivanUser = db.prepare('SELECT id FROM users WHERE username = ?').get('infomovilbro');
   if (!ivanUser) {
     const hash = bcrypt.hashSync('movilbro2026', 10);
