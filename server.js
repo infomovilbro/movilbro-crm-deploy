@@ -357,25 +357,29 @@ const server = app.listen(PORT, () => {
 });
 
 // ---- AUTO KEEP-AWAKE - Evita que Render duerma el servidor ----
-// Usamos localhost:PORT siempre (no la URL externa) para evitar problemas de SSL/ruteo
-// El servidor se hace peticiones a si mismo, no necesita salir a internet
+// Ping a localhost (interno) + a la URL externa de Render si está disponible
 const SELF_PING_URL = `http://localhost:${PORT}/health`;
+const EXTERNAL_URL = process.env.RENDER_EXTERNAL_URL || process.env.EXTERNAL_URL || null;
+const KEEP_AWAKE_INTERVAL = 4 * 60 * 1000; // cada 4 minutos (Render requiere actividad cada 15)
 
 function selfPing() {
+  const now = new Date().toISOString().slice(11, 19);
+  // Ping local
   http.get(SELF_PING_URL, (res) => {
-    res.resume(); // consumir la respuesta para liberar memoria
-    if (res.statusCode !== 200) {
-      console.log(`[KeepAwake] Local ping -> ${res.statusCode}`);
-    }
-  }).on('error', (err) => {
-    console.log(`[KeepAwake] Error local: ${err.message}`);
-  });
+    res.resume();
+  }).on('error', () => {});
+  // Ping externo (Render no duerme si ve tráfico externo)
+  if (EXTERNAL_URL) {
+    const url = EXTERNAL_URL + '/health';
+    http.get(url, (res) => {
+      res.resume();
+    }).on('error', () => {});
+  }
 }
 
-// Primer ping a los 10s de arrancar, luego cada 3 minutos
-setTimeout(selfPing, 10000);
-setInterval(selfPing, 3 * 60 * 1000);
-console.log(`[KeepAwake] Auto-ping http://localhost:${PORT}/health cada 3 min`);
+setTimeout(selfPing, 5000);
+setInterval(selfPing, KEEP_AWAKE_INTERVAL);
+console.log(`[KeepAwake] Ping cada ${KEEP_AWAKE_INTERVAL/60000} min (localhost${EXTERNAL_URL ? ' + ' + EXTERNAL_URL : ''})`);
 
 // ---- GRACEFUL SHUTDOWN - Cerrar conexiones limpiamente ----
 function shutdown(signal) {
