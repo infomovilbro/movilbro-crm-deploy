@@ -3,260 +3,423 @@ const { db } = require('../database');
 const https = require('https');
 const router = express.Router();
 
-// ---- helpers ----
+// ---- estado de conversacion (para flujos multi-paso) ----
+var esperando = {};
+
+// ---- helpers telegram ----
 function getToken() {
   if (process.env.TELEGRAM_BOT_TOKEN) return process.env.TELEGRAM_BOT_TOKEN;
-  const row = db.prepare("SELECT value FROM settings WHERE key = 'telegram_bot_token'").get();
+  var row = db.prepare("SELECT value FROM settings WHERE key = 'telegram_bot_token'").get();
   return row ? row.value : null;
 }
 function getChatId() {
   if (process.env.TELEGRAM_CHAT_ID) return process.env.TELEGRAM_CHAT_ID;
-  const row = db.prepare("SELECT value FROM settings WHERE key = 'telegram_chat_id'").get();
+  var row = db.prepare("SELECT value FROM settings WHERE key = 'telegram_chat_id'").get();
   return row ? row.value : null;
 }
 
-function sendMsg(chatId, text) {
-  return new Promise((resolve) => {
-    const token = getToken();
-    if (!token) return resolve(false);
-    const body = JSON.stringify({ chat_id: chatId, text: text, parse_mode: 'HTML' });
-    const opts = {
+function apiCall(method, payload) {
+  return new Promise(function(resolve) {
+    var token = getToken();
+    if (!token) return resolve(null);
+    var body = JSON.stringify(payload);
+    var opts = {
       hostname: 'api.telegram.org',
-      path: '/bot' + token + '/sendMessage',
+      path: '/bot' + token + '/' + method,
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Content-Length': body.length }
     };
-    const req = https.request(opts, (res) => { let d = ''; res.on('data', c => d += c); res.on('end', () => resolve(true)); });
-    req.on('error', () => resolve(false));
+    var req = https.request(opts, function(res) { var d = ''; res.on('data', function(c) { d += c; }); res.on('end', function() { try { resolve(JSON.parse(d)); } catch(e) { resolve(null); } }); });
+    req.on('error', function() { resolve(null); });
     req.write(body);
     req.end();
   });
 }
 
-// ---- menu ----
-const MENU = [
-  { id: 1, label: 'Backup', desc: 'Enviar backup de la base de datos ahora', cmd: 'backup' },
-  { id: 2, label: 'Resumen diario', desc: 'Altas, bajas, ingresos y stats del d\u00eda', cmd: 'resumen' },
-  { id: 3, label: 'Stats generales', desc: 'KPIs generales del CRM', cmd: 'stats' },
-  { id: 4, label: 'Buscar cliente', desc: 'Escribe: /cliente 694297048', cmd: 'cliente' },
-  { id: 5, label: 'Tickets pendientes', desc: 'Lista de tickets abiertos', cmd: 'tickets' },
-  { id: 6, label: 'Portabilidades', desc: 'Estado de portabilidades activas', cmd: 'portabilidades' },
-  { id: 7, label: 'Facturaci\u00f3n del mes', desc: 'Ingresos y cobros del mes actual', cmd: 'facturacion' },
-  { id: 8, label: '\u00d3rdenes pendientes', desc: '\u00d3rdenes de servicio sin completar', cmd: 'ordenes' },
-  { id: 9, label: 'Pr\u00f3ximas instalaciones', desc: 'Instalaciones programadas', cmd: 'instalaciones' },
-  { id: 10, label: 'Encuestas recientes', desc: '\u00daltimas encuestas de satisfacci\u00f3n', cmd: 'encuestas' }
-];
-
-function menuTexto() {
-  let t = '\uD83E\uDD16 <b>CRM Movilbro - Comandos</b>\n\n';
-  t += 'Responde con el n\u00famero o usa /quiero <n\u00famero>\n\n';
-  MENU.forEach(m => { t += '<b>' + m.id + '.</b> ' + m.label + ' \u2014 ' + m.desc + '\n'; });
-  t += '\n\uD83D\uDCAC Tambi\u00e9n puedes escribir /' + MENU.map(m => m.cmd).join(', /');
-  return t;
+function sendMsg(chatId, text) {
+  return apiCall('sendMessage', { chat_id: chatId, text: text });
 }
 
-// ---- command handlers ----
-async function cmdResumen(chatId) {
-  const hoy = new Date().toISOString().slice(0, 10);
-  const mes = hoy.slice(0, 7);
-  const totalCli = db.prepare('SELECT COUNT(*) as c FROM clients').get().c;
-  const totalSubs = db.prepare("SELECT COUNT(*) as c FROM subscriptions WHERE estado != 'baja'").get().c;
-  const altasHoy = db.prepare("SELECT COUNT(*) as c FROM subscriptions WHERE fecha_alta >= ?").get(hoy).c;
-  const ticketsAbiertos = db.prepare("SELECT COUNT(*) as c FROM tickets WHERE estado != 'cerrado'").get().c;
-  const ordenesPend = db.prepare("SELECT COUNT(*) as c FROM orders WHERE estado NOT IN ('completada','cancelada')").get().c;
-  const t = '\uD83D\uDCCA <b>Resumen diario</b>\n\n'
-    + '\uD83D\uDCC5 Fecha: ' + hoy + '\n\n'
-    + '\uD83C\uDFE6 Clientes: ' + totalCli + '\n'
-    + '\uD83D\uDCF1 Suscripciones activas: ' + totalSubs + '\n'
-    + '\uD83D\uDCE1 Altas hoy: ' + altasHoy + '\n'
-    + '\uD83C\uDFAB Tickets abiertos: ' + ticketsAbiertos + '\n'
-    + '\uD83D\uDCE6 \u00d3rdenes pendientes: ' + ordenesPend + '\n';
-  await sendMsg(chatId, t);
-}
-
-async function cmdStats(chatId) {
-  const hoy = new Date().toISOString().slice(0, 10);
-  const mes = hoy.slice(0, 7);
-  const totalCli = db.prepare('SELECT COUNT(*) as c FROM clients').get().c;
-  const activas = db.prepare("SELECT COUNT(*) as c FROM subscriptions WHERE estado != 'baja'").get().c;
-  const bajas = db.prepare("SELECT COUNT(*) as c FROM subscriptions WHERE estado = 'baja' OR estado LIKE '%baja%'").get().c;
-  const tickets = db.prepare('SELECT COUNT(*) as c FROM tickets').get().c;
-  const ordenes = db.prepare('SELECT COUNT(*) as c FROM orders').get().c;
-  const t = '\uD83D\uDCCA <b>Stats generales CRM</b>\n\n'
-    + '\uD83C\uDFE6 Clientes totales: ' + totalCli + '\n'
-    + '\uD83D\uDCF1 Suscripciones activas: ' + activas + '\n'
-    + '\uD83D\uDD14 Bajas totales: ' + bajas + '\n'
-    + '\uD83C\uDFAB Tickets: ' + tickets + '\n'
-    + '\uD83D\uDCE6 \u00d3rdenes: ' + ordenes + '\n';
-  await sendMsg(chatId, t);
-}
-
-async function cmdTickets(chatId) {
-  const lista = db.prepare("SELECT id, asunto, prioridad, estado, created_at FROM tickets WHERE estado != 'cerrado' ORDER BY created_at DESC LIMIT 10").all();
-  if (!lista.length) return await sendMsg(chatId, '\u2705 No hay tickets pendientes.');
-  let t = '\uD83C\uDFAB <b>Tickets pendientes</b>\n\n';
-  lista.forEach(r => {
-    const p = r.prioridad === 'alta' ? '\uD83D\uDD34' : r.prioridad === 'media' ? '\uD83D\uDFE1' : '\uD83D\uDFE2';
-    t += '#' + r.id + ' ' + p + ' <b>' + r.asunto + '</b> [' + r.estado + ']\n';
+function sendMenu(chatId, text) {
+  return apiCall('sendMessage', {
+    chat_id: chatId,
+    text: text || '\uD83E\uDD16 CRM Movilbro - Funciones',
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: '\uD83D\uDD04 Backup BD', callback_data: 'cmd_backup' }, { text: '\uD83D\uDCCA Resumen diario', callback_data: 'cmd_resumen' }],
+        [{ text: '\uD83D\uDCC8 KPIs generales', callback_data: 'cmd_stats' }, { text: '\uD83D\uDC64 Buscar cliente', callback_data: 'cmd_cliente' }],
+        [{ text: '\uD83C\uDFAB Tickets pendientes', callback_data: 'cmd_tickets' }, { text: '\uD83D\uDCF1 Portabilidades', callback_data: 'cmd_portabilidades' }],
+        [{ text: '\uD83D\uDCB0 Facturacion del mes', callback_data: 'cmd_facturacion' }, { text: '\uD83D\uDCE6 Ordenes pendientes', callback_data: 'cmd_ordenes' }],
+        [{ text: '\uD83D\uDD27 Instalaciones', callback_data: 'cmd_instalaciones' }, { text: '\uD83D\uDCE1 Ultimas altas', callback_data: 'cmd_altas' }],
+        [{ text: '\uD83D\uDD14 Ultimas bajas', callback_data: 'cmd_bajas' }, { text: '\uD83D\uDCB3 Cobros pendientes', callback_data: 'cmd_cobros' }],
+        [{ text: '\uD83D\uDCDD Encuestas', callback_data: 'cmd_encuestas' }, { text: '\uD83D\uDFE2 Caja de hoy', callback_data: 'cmd_caja' }],
+        [{ text: '\uD83D\uDCC5 Agenda de hoy', callback_data: 'cmd_agenda' }, { text: '\uD83D\uDCE6 Inventario minimo', callback_data: 'cmd_inventario' }],
+        [{ text: '\uD83D\uDEE1\uFE0F Salud del servidor', callback_data: 'cmd_servidor' }, { text: '\u2753 Ayuda', callback_data: 'cmd_ayuda' }]
+      ]
+    }
   });
-  await sendMsg(chatId, t);
 }
 
-async function cmdPortabilidades(chatId) {
-  const lista = db.prepare("SELECT id, linea, producto, estado, created_at FROM subscriptions WHERE estado LIKE '%portabilidad%' OR estado = 'en_curso' ORDER BY created_at DESC LIMIT 10").all();
-  if (!lista.length) return await sendMsg(chatId, 'No hay portabilidades activas.');
-  let t = '\uD83D\uDCF1 <b>Portabilidades</b>\n\n';
-  lista.forEach(r => { t += '\u2022 ' + (r.linea || '-') + ' \u2014 ' + (r.producto || '-') + ' [' + r.estado + ']\n'; });
-  await sendMsg(chatId, t);
+function editMsg(chatId, msgId, text, keyboard) {
+  var p = { chat_id: chatId, message_id: msgId, text: text };
+  if (keyboard) p.reply_markup = { inline_keyboard: keyboard };
+  return apiCall('editMessageText', p);
 }
 
-async function cmdFacturacion(chatId) {
-  const mes = new Date().toISOString().slice(0, 7);
-  const ing = db.prepare("SELECT COALESCE(SUM(importe),0) as t FROM tienda_caja WHERE tipo='ingreso' AND fecha LIKE ?").get(mes + '%');
-  const gas = db.prepare("SELECT COALESCE(SUM(importe),0) as t FROM tienda_caja WHERE tipo='gasto' AND fecha LIKE ?").get(mes + '%');
-  const t = '\uD83D\uDCB0 <b>Facturaci\u00f3n del mes</b>\n\n'
-    + '\uD83D\uDCC5 Mes: ' + mes + '\n'
-    + '\uD83D\uDFE2 Ingresos: ' + parseFloat(ing.t).toFixed(2) + '\u20AC\n'
-    + '\uD83D\uDD34 Gastos: ' + parseFloat(gas.t).toFixed(2) + '\u20AC\n'
-    + '\uD83D\uDD35 Saldo: ' + parseFloat(ing.t - gas.t).toFixed(2) + '\u20AC\n';
-  await sendMsg(chatId, t);
-}
-
-async function cmdOrdenes(chatId) {
-  const lista = db.prepare("SELECT id, tipo, estado, producto, fecha_orden FROM orders WHERE estado NOT IN ('completada','cancelada') ORDER BY fecha_orden DESC LIMIT 10").all();
-  if (!lista.length) return await sendMsg(chatId, '\u2705 No hay \u00f3rdenes pendientes.');
-  let t = '\uD83D\uDCE6 <b>\u00d3rdenes pendientes</b>\n\n';
-  lista.forEach(r => { t += '\u2022 #' + r.id + ' ' + r.tipo + ' \u2014 ' + (r.producto || '-') + ' [' + r.estado + ']\n'; });
-  await sendMsg(chatId, t);
-}
-
-async function cmdInstalaciones(chatId) {
-  const hoy = new Date().toISOString().slice(0, 10);
-  const lista = db.prepare("SELECT id, cliente_nombre, direccion, fecha_instalacion, estado FROM instalaciones WHERE fecha_instalacion >= ? ORDER BY fecha_instalacion ASC LIMIT 10").all(hoy);
-  if (!lista.length) return await sendMsg(chatId, 'No hay instalaciones programadas.');
-  let t = '\uD83D\uDD27 <b>Pr\u00f3ximas instalaciones</b>\n\n';
-  lista.forEach(r => { t += '\u2022 ' + r.cliente_nombre + ' \u2014 ' + (r.direccion || '') + ' [' + r.estado + ']\n'; });
-  await sendMsg(chatId, t);
-}
-
-async function cmdEncuestas(chatId) {
-  const lista = db.prepare("SELECT id, cliente_nombre, puntuacion, created_at FROM surveys ORDER BY created_at DESC LIMIT 5").all();
-  if (!lista.length) return await sendMsg(chatId, 'No hay encuestas registradas.');
-  let t = '\uD83D\uDCDD <b>\u00daltimas encuestas</b>\n\n';
-  lista.forEach(r => { t += '\u2022 ' + r.cliente_nombre + ' \u2014 ' + (r.puntuacion || '-') + '/5\n'; });
-  await sendMsg(chatId, t);
+function answerCb(callbackId, text) {
+  return apiCall('answerCallbackQuery', { callback_query_id: callbackId, text: text, show_alert: false });
 }
 
 // ---- webhook ----
-router.post('/webhook', (req, res) => {
-  const update = req.body;
-  if (!update || !update.message || !update.message.text) return res.sendStatus(200);
-  processCmd(update.message.text.trim(), update.message.chat.id);
+router.post('/webhook', function(req, res) {
+  var update = req.body;
+  if (!update) return res.sendStatus(200);
+
+  // Callback query (boton inline pulsado)
+  if (update.callback_query) {
+    var cq = update.callback_query;
+    var chatId = cq.message.chat.id;
+    var msgId = cq.message.message_id;
+    var data = cq.data || '';
+    var cbId = cq.id;
+
+    if (data === 'cmd_ayuda' || data === 'cmd_menu') {
+      editMsg(chatId, msgId, '\uD83E\uDD16 CRM Movilbro - Funciones\n\nPulsa cualquier boton para ejecutar una accion.', getMenuKeyboard());
+      return answerCb(cbId, 'Menu actualizado');
+    }
+
+    answerCb(cbId, 'Procesando...');
+    ejecutarComando(data, chatId, msgId);
+    return res.sendStatus(200);
+  }
+
+  // Mensaje de texto
+  if (update.message && update.message.text) {
+    var chatId = update.message.chat.id;
+    var text = update.message.text.trim();
+
+    // Si estamos esperando entrada del usuario
+    if (esperando[chatId]) {
+      var accion = esperando[chatId];
+      delete esperando[chatId];
+
+      if (accion === 'cliente') {
+        buscarCliente(chatId, text, null);
+        return res.sendStatus(200);
+      }
+      if (accion === 'backup') {
+        ejecutarBackup(chatId, null);
+        return res.sendStatus(200);
+      }
+    }
+
+    var parts = text.split(' ');
+    var first = parts[0].toLowerCase();
+    var rest = parts.slice(1).join(' ');
+
+    if (first === '/start' || first === '/funciones' || first === '/menu' || first === '/acciones') {
+      if (rest && !isNaN(rest)) {
+        var num = parseInt(rest);
+        var mapa = { 1:'cmd_backup',2:'cmd_resumen',3:'cmd_stats',4:'cmd_cliente',5:'cmd_tickets',6:'cmd_portabilidades',7:'cmd_facturacion',8:'cmd_ordenes',9:'cmd_instalaciones',10:'cmd_altas',11:'cmd_bajas',12:'cmd_cobros',13:'cmd_encuestas',14:'cmd_caja',15:'cmd_agenda',16:'cmd_inventario',17:'cmd_servidor' };
+        if (mapa[num]) return ejecutarComando(mapa[num], chatId, null);
+      }
+      return sendMenu(chatId);
+    }
+
+    if (first === '/backup') return ejecutarBackup(chatId, null);
+    if (first === '/resumen' || first === '/summary') return cmdResumen(chatId, null);
+    if (first === '/stats' || first === '/kpi') return cmdStats(chatId, null);
+    if (first === '/cliente' || first === '/clientes') return rest ? buscarCliente(chatId, rest, null) : pedirCliente(chatId);
+    if (first === '/tickets' || first === '/ticket') return cmdTickets(chatId, null);
+    if (first === '/portabilidades' || first === '/porta') return cmdPortabilidades(chatId, null);
+    if (first === '/facturacion' || first === '/billing') return cmdFacturacion(chatId, null);
+    if (first === '/ordenes' || first === '/orders') return cmdOrdenes(chatId, null);
+    if (first === '/instalaciones') return cmdInstalaciones(chatId, null);
+    if (first === '/encuestas') return cmdEncuestas(chatId, null);
+    if (first === '/servidor' || first === '/health') return cmdServidor(chatId, null);
+    if (first === '/caja') return cmdCaja(chatId, null);
+    if (first === '/agenda') return cmdAgenda(chatId, null);
+    if (first === '/inventario') return cmdInventario(chatId, null);
+
+    return sendMsg(chatId, 'No te entiendo. Escribe /funciones para ver el menu.');
+  }
+
   res.sendStatus(200);
 });
 
-async function processCmd(text, chatId) {
-  const parts = text.split(' ');
-  const first = parts[0].toLowerCase();
-  const rest = parts.slice(1).join(' ');
+function getMenuKeyboard() {
+  return [
+    [{ text: '\uD83D\uDD04 Backup BD', callback_data: 'cmd_backup' }, { text: '\uD83D\uDCCA Resumen diario', callback_data: 'cmd_resumen' }],
+    [{ text: '\uD83D\uDCC8 KPIs generales', callback_data: 'cmd_stats' }, { text: '\uD83D\uDC64 Buscar cliente', callback_data: 'cmd_cliente' }],
+    [{ text: '\uD83C\uDFAB Tickets pendientes', callback_data: 'cmd_tickets' }, { text: '\uD83D\uDCF1 Portabilidades', callback_data: 'cmd_portabilidades' }],
+    [{ text: '\uD83D\uDCB0 Facturacion del mes', callback_data: 'cmd_facturacion' }, { text: '\uD83D\uDCE6 Ordenes pendientes', callback_data: 'cmd_ordenes' }],
+    [{ text: '\uD83D\uDD27 Instalaciones', callback_data: 'cmd_instalaciones' }, { text: '\uD83D\uDCE1 Ultimas altas', callback_data: 'cmd_altas' }],
+    [{ text: '\uD83D\uDD14 Ultimas bajas', callback_data: 'cmd_bajas' }, { text: '\uD83D\uDCB3 Cobros pendientes', callback_data: 'cmd_cobros' }],
+    [{ text: '\uD83D\uDCDD Encuestas', callback_data: 'cmd_encuestas' }, { text: '\uD83D\uDFE2 Caja de hoy', callback_data: 'cmd_caja' }],
+    [{ text: '\uD83D\uDCC5 Agenda de hoy', callback_data: 'cmd_agenda' }, { text: '\uD83D\uDCE6 Inventario minimo', callback_data: 'cmd_inventario' }],
+    [{ text: '\uD83D\uDEE1\uFE0F Salud del servidor', callback_data: 'cmd_servidor' }, { text: '\u2753 Ayuda', callback_data: 'cmd_ayuda' }]
+  ];
+}
 
-  if (first === '/start' || first === '/quiero' || first === '/menu' || first === '/acciones' || first === '/ayuda') {
-    if (rest && !isNaN(rest)) {
-      return ejecutarNumero(parseInt(rest), chatId);
-    }
-    return await sendMsg(chatId, menuTexto());
-  }
-
-  if (!isNaN(first) && first.length <= 3) {
-    return ejecutarNumero(parseInt(first), chatId);
-  }
-
-  switch (first) {
-    case '/backup': return cmdBackup(chatId);
-    case '/resumen': case '/summary': return cmdResumen(chatId);
-    case '/stats': case '/kpi': return cmdStats(chatId);
-    case '/cliente': case '/clientes': return cmdCliente(chatId, rest);
-    case '/tickets': case '/ticket': return cmdTickets(chatId);
-    case '/portabilidades': case '/porta': return cmdPortabilidades(chatId);
-    case '/facturacion': case '/billing': return cmdFacturacion(chatId);
-    case '/ordenes': case '/orders': return cmdOrdenes(chatId);
-    case '/instalaciones': return cmdInstalaciones(chatId);
-    case '/encuestas': return cmdEncuestas(chatId);
-    default:
-      await sendMsg(chatId, 'No te entiendo. Escribe /quiero para ver el men\u00fa.');
+// ---- ejecutor de comandos ----
+function ejecutarComando(data, chatId, msgId) {
+  switch (data) {
+    case 'cmd_backup': return ejecutarBackup(chatId, msgId);
+    case 'cmd_resumen': return cmdResumen(chatId, msgId);
+    case 'cmd_stats': return cmdStats(chatId, msgId);
+    case 'cmd_cliente': return pedirCliente(chatId);
+    case 'cmd_tickets': return cmdTickets(chatId, msgId);
+    case 'cmd_portabilidades': return cmdPortabilidades(chatId, msgId);
+    case 'cmd_facturacion': return cmdFacturacion(chatId, msgId);
+    case 'cmd_ordenes': return cmdOrdenes(chatId, msgId);
+    case 'cmd_instalaciones': return cmdInstalaciones(chatId, msgId);
+    case 'cmd_altas': return cmdAltas(chatId, msgId);
+    case 'cmd_bajas': return cmdBajas(chatId, msgId);
+    case 'cmd_cobros': return cmdCobros(chatId, msgId);
+    case 'cmd_encuestas': return cmdEncuestas(chatId, msgId);
+    case 'cmd_caja': return cmdCaja(chatId, msgId);
+    case 'cmd_agenda': return cmdAgenda(chatId, msgId);
+    case 'cmd_inventario': return cmdInventario(chatId, msgId);
+    case 'cmd_servidor': return cmdServidor(chatId, msgId);
+    default: return sendMsg(chatId, 'Comando no reconocido.');
   }
 }
 
-async function ejecutarNumero(num, chatId) {
-  const item = MENU.find(m => m.id === num);
-  if (!item) return await sendMsg(chatId, 'N\u00famero no v\u00e1lido. Escribe /quiero para ver el men\u00fa.');
-  switch (item.cmd) {
-    case 'backup': return cmdBackup(chatId);
-    case 'resumen': return cmdResumen(chatId);
-    case 'stats': return cmdStats(chatId);
-    case 'cliente': return await sendMsg(chatId, 'Escribe /cliente seguido del tel\u00e9fono o nombre.\nEjemplo: /cliente 694297048');
-    case 'tickets': return cmdTickets(chatId);
-    case 'portabilidades': return cmdPortabilidades(chatId);
-    case 'facturacion': return cmdFacturacion(chatId);
-    case 'ordenes': return cmdOrdenes(chatId);
-    case 'instalaciones': return cmdInstalaciones(chatId);
-    case 'encuestas': return cmdEncuestas(chatId);
-  }
-}
-
-async function cmdBackup(chatId) {
-  await sendMsg(chatId, '\uD83D\uDDC2 Generando backup...');
+// ---- handlers ----
+function ejecutarBackup(chatId, msgId) {
+  sendMsg(chatId, 'Generando backup...');
   try {
-    const { sendBackup } = require('./backup');
-    const r = await sendBackup();
-    if (r.success) {
-      await sendMsg(chatId, '\u2705 Backup enviado correctamente a este chat.');
-    } else {
-      await sendMsg(chatId, '\u274C Error: ' + (r.error || 'desconocido'));
-    }
-  } catch (e) {
-    await sendMsg(chatId, '\u274C Error al generar backup: ' + e.message);
+    var { sendBackup } = require('./backup');
+    sendBackup().then(function(r) {
+      if (r && r.success) sendMsg(chatId, 'Backup enviado a Telegram correctamente.');
+      else sendMsg(chatId, 'Error al enviar backup: ' + ((r && r.error) || 'desconocido'));
+    });
+  } catch(e) {
+    sendMsg(chatId, 'Error: ' + e.message);
   }
 }
 
-async function cmdCliente(chatId, query) {
-  if (!query) return await sendMsg(chatId, 'Escribe /cliente seguido del tel\u00e9fono, nombre o email.\nEjemplo: /cliente 694297048');
-  const q = '%' + query + '%';
-  const results = db.prepare("SELECT id, nombre, telefono, email, dni_nif FROM clients WHERE nombre LIKE ? OR telefono LIKE ? OR email LIKE ? OR dni_nif LIKE ? LIMIT 5").all(q, q, q, q);
-  if (!results.length) return await sendMsg(chatId, 'No se encontraron clientes con: ' + query);
-  let t = '\uD83D\uDC64 <b>Clientes encontrados</b>\n\n';
-  results.forEach(r => {
-    t += '\u2022 <b>' + r.nombre + '</b>\n';
-    if (r.telefono) t += '  \uD83D\uDCDE ' + r.telefono + '\n';
-    if (r.email) t += '  \u2709\uFE0F ' + r.email + '\n';
+function cmdResumen(chatId, msgId) {
+  var hoy = new Date().toISOString().slice(0, 10);
+  var totalCli = db.prepare('SELECT COUNT(*) as c FROM clients').get().c;
+  var totalSubs = db.prepare("SELECT COUNT(*) as c FROM subscriptions WHERE estado != 'baja'").get().c;
+  var altasHoy = db.prepare("SELECT COUNT(*) as c FROM subscriptions WHERE fecha_alta >= ?").get(hoy).c;
+  var ticketsAbiertos = db.prepare("SELECT COUNT(*) as c FROM tickets WHERE estado != 'cerrado'").get().c;
+  var ordenesPend = db.prepare("SELECT COUNT(*) as c FROM orders WHERE estado NOT IN ('completada','cancelada')").get().c;
+  var ingresosHoy = db.prepare("SELECT COALESCE(SUM(importe),0) as t FROM tienda_caja WHERE tipo='ingreso' AND fecha = ?").get(hoy).t;
+  var gastosHoy = db.prepare("SELECT COALESCE(SUM(importe),0) as t FROM tienda_caja WHERE tipo='gasto' AND fecha = ?").get(hoy).t;
+  var t = 'Resumen diario - ' + hoy + '\n'
+    + 'Clientes: ' + totalCli + ' | Suscripciones activas: ' + totalSubs + '\n'
+    + 'Altas hoy: ' + altasHoy + '\n'
+    + 'Tickets abiertos: ' + ticketsAbiertos + '\n'
+    + 'Ordenes pendientes: ' + ordenesPend + '\n'
+    + 'Caja - Ingresos: ' + parseFloat(ingresosHoy).toFixed(2) + 'EUR | Gastos: ' + parseFloat(gastosHoy).toFixed(2) + 'EUR | Saldo: ' + parseFloat(ingresosHoy - gastosHoy).toFixed(2) + 'EUR';
+  if (msgId) editMsg(chatId, msgId, t, getMenuKeyboard());
+  else sendMsg(chatId, t);
+}
+
+function cmdStats(chatId, msgId) {
+  var totalCli = db.prepare('SELECT COUNT(*) as c FROM clients').get().c;
+  var activas = db.prepare("SELECT COUNT(*) as c FROM subscriptions WHERE estado != 'baja'").get().c;
+  var bajas = db.prepare("SELECT COUNT(*) as c FROM subscriptions WHERE estado = 'baja' OR estado LIKE '%baja%'").get().c;
+  var tickets = db.prepare('SELECT COUNT(*) as c FROM tickets').get().c;
+  var ordenes = db.prepare('SELECT COUNT(*) as c FROM orders').get().c;
+  var productos = db.prepare('SELECT COUNT(*) as c FROM products').get().c;
+  var usuarios = db.prepare('SELECT COUNT(*) as c FROM users').get().c;
+  var t = 'KPIs generales del CRM\n'
+    + 'Clientes totales: ' + totalCli + '\n'
+    + 'Suscripciones activas: ' + activas + '\n'
+    + 'Bajas totales: ' + bajas + '\n'
+    + 'Tickets: ' + tickets + ' | Ordenes: ' + ordenes + '\n'
+    + 'Productos: ' + productos + ' | Usuarios: ' + usuarios;
+  if (msgId) editMsg(chatId, msgId, t, getMenuKeyboard());
+  else sendMsg(chatId, t);
+}
+
+function pedirCliente(chatId) {
+  esperando[chatId] = 'cliente';
+  sendMsg(chatId, 'Escribe el telefono, nombre o email del cliente que buscas:');
+}
+
+function buscarCliente(chatId, query, msgId) {
+  var q = '%' + query + '%';
+  var results = db.prepare("SELECT id, nombre, telefono, email, dni_nif FROM clients WHERE nombre LIKE ? OR telefono LIKE ? OR email LIKE ? OR dni_nif LIKE ? LIMIT 5").all(q, q, q, q);
+  if (!results.length) return sendMsg(chatId, 'No se encontraron clientes con: ' + query);
+  var t = 'Clientes encontrados:\n';
+  results.forEach(function(r) {
+    t += '- ' + r.nombre;
+    if (r.telefono) t += ' | Tel: ' + r.telefono;
+    if (r.email) t += ' | Email: ' + r.email;
     t += '\n';
   });
-  await sendMsg(chatId, t);
+  if (msgId) editMsg(chatId, msgId, t, getMenuKeyboard());
+  else sendMsg(chatId, t);
 }
 
-// ---- notificaciones automáticas ----
+function cmdTickets(chatId, msgId) {
+  var lista = db.prepare("SELECT id, asunto, prioridad, estado, created_at FROM tickets WHERE estado != 'cerrado' ORDER BY created_at DESC LIMIT 10").all();
+  if (!lista.length) return sendMsg(chatId, 'No hay tickets pendientes.');
+  var t = 'Tickets pendientes:\n';
+  lista.forEach(function(r) {
+    var p = r.prioridad === 'alta' ? '[Alta]' : r.prioridad === 'media' ? '[Media]' : '[Baja]';
+    t += '#' + r.id + ' ' + r.asunto + ' ' + p + ' (' + r.estado + ')\n';
+  });
+  if (msgId) editMsg(chatId, msgId, t, getMenuKeyboard());
+  else sendMsg(chatId, t);
+}
+
+function cmdPortabilidades(chatId, msgId) {
+  var lista = db.prepare("SELECT linea, producto, estado, created_at FROM subscriptions WHERE estado LIKE '%portabilidad%' OR estado = 'en_curso' ORDER BY created_at DESC LIMIT 10").all();
+  if (!lista.length) return sendMsg(chatId, 'No hay portabilidades activas.');
+  var t = 'Portabilidades:\n';
+  lista.forEach(function(r) { t += '- ' + (r.linea || 'sin linea') + ' | ' + (r.producto || '-') + ' [' + r.estado + ']\n'; });
+  if (msgId) editMsg(chatId, msgId, t, getMenuKeyboard());
+  else sendMsg(chatId, t);
+}
+
+function cmdFacturacion(chatId, msgId) {
+  var mes = new Date().toISOString().slice(0, 7);
+  var ing = db.prepare("SELECT COALESCE(SUM(importe),0) as t FROM tienda_caja WHERE tipo='ingreso' AND fecha LIKE ?").get(mes + '%').t;
+  var gas = db.prepare("SELECT COALESCE(SUM(importe),0) as t FROM tienda_caja WHERE tipo='gasto' AND fecha LIKE ?").get(mes + '%').t;
+  var t = 'Facturacion del mes ' + mes + '\n'
+    + 'Ingresos: ' + parseFloat(ing).toFixed(2) + 'EUR\n'
+    + 'Gastos: ' + parseFloat(gas).toFixed(2) + 'EUR\n'
+    + 'Saldo: ' + parseFloat(ing - gas).toFixed(2) + 'EUR';
+  if (msgId) editMsg(chatId, msgId, t, getMenuKeyboard());
+  else sendMsg(chatId, t);
+}
+
+function cmdOrdenes(chatId, msgId) {
+  var lista = db.prepare("SELECT id, tipo, estado, producto FROM orders WHERE estado NOT IN ('completada','cancelada') ORDER BY id DESC LIMIT 10").all();
+  if (!lista.length) return sendMsg(chatId, 'No hay ordenes pendientes.');
+  var t = 'Ordenes pendientes:\n';
+  lista.forEach(function(r) { t += '#' + r.id + ' ' + r.tipo + ' - ' + (r.producto || '-') + ' [' + r.estado + ']\n'; });
+  if (msgId) editMsg(chatId, msgId, t, getMenuKeyboard());
+  else sendMsg(chatId, t);
+}
+
+function cmdInstalaciones(chatId, msgId) {
+  var hoy = new Date().toISOString().slice(0, 10);
+  var lista = db.prepare("SELECT id, cliente_nombre, direccion, fecha_instalacion, estado FROM instalaciones WHERE fecha_instalacion >= ? ORDER BY fecha_instalacion ASC LIMIT 10").all(hoy);
+  if (!lista.length) return sendMsg(chatId, 'No hay instalaciones programadas.');
+  var t = 'Proximas instalaciones:\n';
+  lista.forEach(function(r) { t += '- ' + r.cliente_nombre + ' | ' + (r.direccion || '') + ' [' + r.estado + ']\n'; });
+  if (msgId) editMsg(chatId, msgId, t, getMenuKeyboard());
+  else sendMsg(chatId, t);
+}
+
+function cmdAltas(chatId, msgId) {
+  var lista = db.prepare("SELECT s.id, s.linea, s.producto, s.fecha_alta, c.nombre FROM subscriptions s LEFT JOIN clients c ON s.client_id = c.id ORDER BY s.fecha_alta DESC LIMIT 10").all();
+  if (!lista.length) return sendMsg(chatId, 'No hay altas registradas.');
+  var t = 'Ultimas altas:\n';
+  lista.forEach(function(r) { t += '- ' + (r.linea || 'sin linea') + ' | ' + (r.producto || '-') + ' | ' + (r.nombre || '') + ' (' + (r.fecha_alta || '') + ')\n'; });
+  if (msgId) editMsg(chatId, msgId, t, getMenuKeyboard());
+  else sendMsg(chatId, t);
+}
+
+function cmdBajas(chatId, msgId) {
+  var lista = db.prepare("SELECT s.id, s.linea, s.producto, s.fecha_baja, c.nombre FROM subscriptions s LEFT JOIN clients c ON s.client_id = c.id WHERE s.estado = 'baja' ORDER BY s.fecha_baja DESC LIMIT 10").all();
+  if (!lista.length) return sendMsg(chatId, 'No hay bajas registradas.');
+  var t = 'Ultimas bajas:\n';
+  lista.forEach(function(r) { t += '- ' + (r.linea || 'sin linea') + ' | ' + (r.producto || '-') + ' | ' + (r.nombre || '') + ' (' + (r.fecha_baja || '') + ')\n'; });
+  if (msgId) editMsg(chatId, msgId, t, getMenuKeyboard());
+  else sendMsg(chatId, t);
+}
+
+function cmdCobros(chatId, msgId) {
+  var lista = db.prepare("SELECT id, concepto, importe, fecha_vencimiento, estado FROM invoices WHERE estado != 'pagado' ORDER BY fecha_vencimiento ASC LIMIT 10").all();
+  if (!lista.length) return sendMsg(chatId, 'No hay cobros pendientes.');
+  var t = 'Cobros pendientes:\n';
+  lista.forEach(function(r) { t += '-' + r.concepto + ' | ' + parseFloat(r.importe).toFixed(2) + 'EUR | Vence: ' + (r.fecha_vencimiento || '-') + ' [' + r.estado + ']\n'; });
+  if (msgId) editMsg(chatId, msgId, t, getMenuKeyboard());
+  else sendMsg(chatId, t);
+}
+
+function cmdEncuestas(chatId, msgId) {
+  var lista = db.prepare("SELECT id, cliente_nombre, puntuacion, created_at FROM surveys ORDER BY created_at DESC LIMIT 5").all();
+  if (!lista.length) return sendMsg(chatId, 'No hay encuestas registradas.');
+  var t = 'Ultimas encuestas:\n';
+  lista.forEach(function(r) { t += '- ' + r.cliente_nombre + ' | Puntuacion: ' + (r.puntuacion || '-') + '/5\n'; });
+  if (msgId) editMsg(chatId, msgId, t, getMenuKeyboard());
+  else sendMsg(chatId, t);
+}
+
+function cmdCaja(chatId, msgId) {
+  var hoy = new Date().toISOString().slice(0, 10);
+  var ing = db.prepare("SELECT COALESCE(SUM(importe),0) as t FROM tienda_caja WHERE tipo='ingreso' AND fecha = ?").get(hoy).t;
+  var gas = db.prepare("SELECT COALESCE(SUM(importe),0) as t FROM tienda_caja WHERE tipo='gasto' AND fecha = ?").get(hoy).t;
+  var ops = db.prepare("SELECT COUNT(*) as c FROM tienda_caja WHERE fecha = ?").get(hoy).c;
+  var t = 'Caja de hoy (' + hoy + ')\n'
+    + 'Operaciones: ' + ops + '\n'
+    + 'Ingresos: ' + parseFloat(ing).toFixed(2) + 'EUR\n'
+    + 'Gastos: ' + parseFloat(gas).toFixed(2) + 'EUR\n'
+    + 'Saldo: ' + parseFloat(ing - gas).toFixed(2) + 'EUR';
+  if (msgId) editMsg(chatId, msgId, t, getMenuKeyboard());
+  else sendMsg(chatId, t);
+}
+
+function cmdAgenda(chatId, msgId) {
+  var hoy = new Date().toISOString().slice(0, 10);
+  var lista = db.prepare("SELECT id, cliente_nombre, telefono, hora, tipo, motivo, estado FROM tienda_agenda WHERE fecha = ? ORDER BY hora ASC").all(hoy);
+  if (!lista.length) return sendMsg(chatId, 'No hay citas en la agenda de hoy.');
+  var t = 'Agenda de hoy (' + hoy + '):\n';
+  lista.forEach(function(r) { t += '- ' + (r.hora || '') + ' ' + r.cliente_nombre + (r.telefono ? ' Tel:' + r.telefono : '') + ' [' + r.estado + ']\n'; });
+  if (msgId) editMsg(chatId, msgId, t, getMenuKeyboard());
+  else sendMsg(chatId, t);
+}
+
+function cmdInventario(chatId, msgId) {
+  var lista = db.prepare("SELECT nombre, cantidad, stock_minimo FROM tienda_inventario WHERE cantidad <= stock_minimo ORDER BY cantidad ASC LIMIT 10").all();
+  if (!lista.length) return sendMsg(chatId, 'No hay productos con stock minimo.');
+  var t = 'Inventario bajo minimo:\n';
+  lista.forEach(function(r) { t += '- ' + r.nombre + ' | Stock: ' + r.cantidad + ' (min: ' + r.stock_minimo + ')\n'; });
+  if (msgId) editMsg(chatId, msgId, t, getMenuKeyboard());
+  else sendMsg(chatId, t);
+}
+
+function cmdServidor(chatId, msgId) {
+  var fs = require('fs');
+  var path = require('path');
+  var dbSize = '0 B';
+  try { var s = fs.statSync(path.join(__dirname, '..', 'movilbro.db')); dbSize = (s.size / 1024 / 1024).toFixed(2) + ' MB'; } catch(e) {}
+  var uptime = process.uptime();
+  var horas = Math.floor(uptime / 3600);
+  var mins = Math.floor((uptime % 3600) / 60);
+  var t = 'Salud del servidor:\n'
+    + 'Activo desde: ' + new Date(Date.now() - uptime * 1000).toLocaleString('es-ES') + '\n'
+    + 'Tiempo activo: ' + horas + 'h ' + mins + 'm\n'
+    + 'Tamano BD: ' + dbSize + '\n'
+    + 'Node: ' + process.version + '\n'
+    + 'Version CRM: 1.0.0';
+  if (msgId) editMsg(chatId, msgId, t, getMenuKeyboard());
+  else sendMsg(chatId, t);
+}
+
+// ---- notificaciones automaticas ----
 async function notifyServerStart() {
-  const chatId = getChatId();
+  var chatId = getChatId();
   if (!chatId) return;
-  await sendMsg(chatId, '\uD83D\uDFE2 Servidor CRM iniciado correctamente\n' + new Date().toLocaleString('es-ES'));
+  await sendMsg(chatId, 'Servidor CRM iniciado - ' + new Date().toLocaleString('es-ES'));
+  await sendMenu(chatId);
 }
 
 async function sendDailySummary() {
-  const chatId = getChatId();
+  var chatId = getChatId();
   if (!chatId) return;
-  await cmdResumen(chatId);
+  await sendMsg(chatId, 'Resumen diario automatico:');
+  cmdResumen(chatId, null);
 }
 
 async function notifyNewOrder(detalles) {
-  const chatId = getChatId();
+  var chatId = getChatId();
   if (!chatId) return;
-  await sendMsg(chatId, '\uD83D\uDCE6 <b>Nueva orden creada</b>\n' + detalles);
+  sendMsg(chatId, 'Nueva orden creada: ' + detalles);
 }
 
 async function notifyNewTicket(detalles) {
-  const chatId = getChatId();
+  var chatId = getChatId();
   if (!chatId) return;
-  await sendMsg(chatId, '\uD83C\uDFAB <b>Nuevo ticket</b>\n' + detalles);
+  sendMsg(chatId, 'Nuevo ticket: ' + detalles);
 }
 
 module.exports = { router, sendMsg, notifyServerStart, sendDailySummary, notifyNewOrder, notifyNewTicket };
