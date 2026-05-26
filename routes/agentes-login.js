@@ -12,37 +12,27 @@ function requireAgenteAuth(req, res, next) {
 
 router.get('/login', (req, res) => {
   if (req.session.agente) return res.redirect('/tienda/agentes');
-  res.render('tienda/agentes-login', { title: 'Acceso Agentes', error: null, success: null, email: '' });
-});
-
-router.post('/login', (req, res) => {
-  const username = (req.body.username || '').trim();
-  const password = (req.body.password || '').trim();
-  
-  if (username !== 'movilbro') {
-    return res.render('tienda/agentes-login', { title: 'Acceso Agentes', error: 'Usuario incorrecto', success: null, email: '' });
-  }
-  
-  const user = db.prepare("SELECT * FROM users WHERE username = 'movilbro'").get();
-  if (!user || !bcrypt.compareSync(password, user.password)) {
-    return res.render('tienda/agentes-login', { title: 'Acceso Agentes', error: 'Contraseña incorrecta', success: null, email: '' });
-  }
-  
-  req.session.agente = { username: 'movilbro', nombre: user.nombre };
-  res.redirect('/tienda/agentes');
+  res.render('tienda/agentes-login', { title: 'Acceso Agentes', error: null, success: null });
 });
 
 router.post('/solicitar', (req, res) => {
   const email = (req.body.email || '').trim().toLowerCase();
   
-  const user = db.prepare("SELECT * FROM users WHERE username = 'movilbro' AND LOWER(email) = ?").get(email);
-  if (!user) {
-    return res.render('tienda/agentes-login', { title: 'Acceso Agentes', error: 'Email no registrado para el acceso de agentes', success: null, email });
+  if (email !== 'infomovilbro@gmail.com') {
+    return res.render('tienda/agentes-login', { title: 'Acceso Agentes', error: 'Email no autorizado para acceso de agentes', success: null });
   }
   
+  // Generate random password
   const newPassword = crypto.randomBytes(12).toString('base64url').slice(0, 16);
   const hash = bcrypt.hashSync(newPassword, 10);
-  db.prepare("UPDATE users SET password = ? WHERE username = 'movilbro'").run(hash);
+  
+  // Ensure movilbro user exists
+  var user = db.prepare("SELECT id FROM users WHERE username = 'movilbro'").get();
+  if (user) {
+    db.prepare("UPDATE users SET password = ? WHERE username = 'movilbro'").run(hash);
+  } else {
+    db.prepare("INSERT INTO users (username, password, nombre, email, rol) VALUES ('movilbro', ?, 'Agente Movilbro', ?, 'user')").run(hash, email);
+  }
   
   // Try to send email
   (async () => {
@@ -56,14 +46,29 @@ router.post('/solicitar', (req, res) => {
             From: { Email: 'infomovilbro@gmail.com', Name: 'CRM Movilbro' },
             To: [{ Email: email, Name: 'Agente Movilbro' }],
             Subject: 'Tu contraseña de acceso - Agentes CRM',
-            HTMLPart: '<div style="font-family:sans-serif;max-width:500px;margin:0 auto;"><h2>CRM Movilbro - Acceso Agentes</h2><p>Tu nueva contraseña es:</p><div style="background:#f4f5fa;padding:16px;border-radius:8px;text-align:center;font-size:24px;font-weight:700;letter-spacing:2px;color:#0050A1;margin:16px 0;">' + newPassword + '</div></div>'
+            HTMLPart: '<div style="font-family:sans-serif;max-width:500px;margin:0 auto;"><h2 style="color:#0050A1;">CRM Movilbro - Acceso Agentes</h2><p>Tu nueva contraseña es:</p><div style="background:#f4f5fa;padding:16px;border-radius:8px;text-align:center;font-size:24px;font-weight:700;letter-spacing:2px;color:#0050A1;margin:16px 0;">' + newPassword + '</div><p style="color:#666;font-size:13px;">Esta contraseña es válida hasta que solicites una nueva.</p></div>'
           }]
         }, { auth: { username: mailjetKey, password: mailjetSecret }, timeout: 15000 });
       }
     } catch(e) { console.error('Email error:', e.message); }
   })();
   
-  res.render('tienda/agentes-login', { title: 'Acceso Agentes', error: null, success: 'Contraseña enviada a tu correo. Revisa tu bandeja de entrada.', email });
+  // Also store session so they can log in with the password
+  res.render('tienda/agentes-login', { title: 'Acceso Agentes', error: null, success: 'Contraseña enviada a tu correo. Revisa tu bandeja de entrada.' });
+});
+
+router.post('/login', (req, res) => {
+  var username = (req.body.username || '').trim();
+  var password = (req.body.password || '').trim();
+  if (username !== 'movilbro') {
+    return res.render('tienda/agentes-login', { title: 'Acceso Agentes', error: 'Usuario incorrecto', success: null });
+  }
+  var user = db.prepare("SELECT * FROM users WHERE username = 'movilbro'").get();
+  if (!user || !bcrypt.compareSync(password, user.password)) {
+    return res.render('tienda/agentes-login', { title: 'Acceso Agentes', error: 'Contraseña incorrecta. Usa "Recuperar contraseña" si la has olvidado.', success: null });
+  }
+  req.session.agente = { username: 'movilbro', nombre: user.nombre };
+  res.redirect('/tienda/agentes');
 });
 
 router.get('/logout', (req, res) => {
