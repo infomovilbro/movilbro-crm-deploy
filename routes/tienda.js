@@ -2,7 +2,11 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const { requireAuth, requireTiendaPermission } = require('../middleware/auth');
 const { db } = require('../database');
+const agentesLogin = require('./agentes-login');
 const router = express.Router();
+
+// Agentes login routes (before agentes page)
+router.use('/agentes', agentesLogin.router);
 
 // ============================================================
 // HELPERS
@@ -588,7 +592,7 @@ const CRM_SECTIONS = {
   }
 };
 
-router.get('/agentes', requireAuth, requireTiendaPermission('plantilla'), (req, res) => {
+router.get('/agentes', requireAuth, requireTiendaPermission('plantilla'), require('./agentes-login').requireAgenteAuth, (req, res) => {
   const agentes = db.prepare(`
     SELECT u.id, u.username, u.nombre, u.email, u.rol, u.permissions, u.created_at,
            t.apellidos, t.puesto, t.salario, t.activo, t.user_id
