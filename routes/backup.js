@@ -4,6 +4,7 @@ const { requireAuth } = require('../middleware/auth');
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
+const os = require('os');
 const router = express.Router();
 
 function getToken() {
@@ -47,20 +48,15 @@ function sendBackup() {
   var dbPath = path.join(__dirname, '..', 'movilbro.db');
   if (!fs.existsSync(dbPath)) return { success: false, error: 'DB no encontrada' };
 
-  var backupPath = path.join(__dirname, '..', 'backup.db');
+  var backupPath = path.join(os.tmpdir(), 'movilbro_backup.db');
   try {
-    // Backup via SQLite backup API
-    var backup = require('better-sqlite3')(backupPath);
-    var src = require('better-sqlite3')(dbPath, { readonly: true });
-    src.backup(backup);
-    backup.close();
-    src.close();
-  } catch (e) {
-    // Fallback: copy file
+    if (fs.existsSync(backupPath)) fs.unlinkSync(backupPath);
     fs.copyFileSync(dbPath, backupPath);
+  } catch (e) {
+    try { fs.copyFileSync(dbPath, backupPath); } catch (e2) {
+      return { success: false, error: 'No se pudo crear backup: ' + e2.message };
+    }
   }
-
-  var stats = fs.statSync(backupPath);
   var dateStr = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   var formData = `--BOUNDARY\r\nContent-Disposition: form-data; name="chat_id"\r\n\r\n${chatId}\r\n--BOUNDARY\r\nContent-Disposition: form-data; name="document"; filename="movilbro_${dateStr}.db"\r\nContent-Type: application/octet-stream\r\n\r\n`;
   var footer = `\r\n--BOUNDARY--\r\n`;
