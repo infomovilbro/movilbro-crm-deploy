@@ -5,6 +5,30 @@ var fs = require('fs');
 var path = require('path');
 var router = express.Router();
 
+var ADMIN_UID = '8281537070';
+
+function isAllowed(cid) {
+  var row = db.prepare("SELECT value FROM settings WHERE key = 'bot_allowed_ids'").get();
+  if (!row || !row.value) return true; // si no hay lista, todos pueden
+  var ids = row.value.split(',').map(function(s) { return s.trim(); });
+  return ids.indexOf(String(cid)) >= 0;
+}
+
+function addAllowed(cid) {
+  var row = db.prepare("SELECT value FROM settings WHERE key = 'bot_allowed_ids'").get();
+  var ids = (row && row.value) || '';
+  var lista = ids ? ids.split(',').map(function(s) { return s.trim(); }) : [];
+  if (lista.indexOf(String(cid)) < 0) {
+    lista.push(String(cid));
+    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('bot_allowed_ids', ?)").run(lista.join(','));
+    return true;
+  }
+  return false;
+}
+
+// Auto-agregar admin al inicio
+addAllowed(ADMIN_UID);
+
 function getToken() {
   if (process.env.TELEGRAM_BOT_TOKEN) return process.env.TELEGRAM_BOT_TOKEN;
   var row = db.prepare("SELECT value FROM settings WHERE key = 'telegram_bot_token'").get();
@@ -65,6 +89,7 @@ router.post('/webhook', function(req, res) {
   if (up.callback_query) {
     var cq = up.callback_query;
     var cid = cq.message.chat.id;
+    if (!isAllowed(cid)) { res.sendStatus(200); return; }
     var mid = cq.message.message_id;
     var cbdata = cq.data || '';
     var cbid = cq.id;
@@ -78,6 +103,7 @@ router.post('/webhook', function(req, res) {
   // Mensaje de texto
   if (up.message && up.message.text) {
     var cid = up.message.chat.id;
+    if (!isAllowed(cid)) { res.sendStatus(200); return; }
     var txt = up.message.text.trim();
 
     // Esperando respuesta del usuario
@@ -95,6 +121,13 @@ router.post('/webhook', function(req, res) {
     var arg = p.slice(1).join(' ');
 
     if (cmd === '/start' || cmd === '/funciones' || cmd === '/menu') { menu(cid); res.sendStatus(200); return; }
+    if (cmd === '/autorizar') {
+      if (String(cid) === ADMIN_UID && arg) {
+        if (addAllowed(arg)) msg(cid, '\u2705 Usuario ' + arg + ' autorizado.');
+        else msg(cid, '\u2139\uFE0F El usuario ' + arg + ' ya estaba autorizado.');
+      } else msg(cid, '\u26A0\uFE0F Solo el admin puede autorizar usuarios.');
+      res.sendStatus(200); return;
+    }
     if (cmd === '/backup') { msg(cid, '\u23F3 Generando backup...'); hacerBackup(cid); res.sendStatus(200); return; }
     if (cmd === '/resumen') { resumen(cid); res.sendStatus(200); return; }
     if (cmd === '/stats') { stats(cid); res.sendStatus(200); return; }
