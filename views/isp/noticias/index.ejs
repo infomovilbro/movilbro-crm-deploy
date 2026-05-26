@@ -1,0 +1,57 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0"><i class="bi bi-newspaper"></i> Noticias <span class="badge bg-secondary fs-6"><%= noticias.length %></span></h5>
+  </div>
+  <div class="card">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle" id="noticiasTable">
+          <thead class="table-dark">
+            <tr>
+              <th>T&iacute;tulo</th>
+              <th>Categor&iacute;a</th>
+              <th>Importante</th>
+              <th>Creaci&oacute;n</th>
+              <th>Autor</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (noticias.length === 0) { %>
+            <tr><td colspan="5" class="text-center text-muted py-4"><i class="bi bi-newspaper"></i> No hay noticias registradas</td></tr>
+            <% } else { %>
+              <% noticias.forEach(n => { %>
+              <tr>
+                <td><%= n.titulo %></td>
+                <td><span class="badge bg-secondary"><%= n.categoria || '-' %></span></td>
+                <td>
+                  <button class="btn btn-sm <%= n.importante ? 'btn-warning' : 'btn-outline-warning' %> toggle-importante" data-id="<%= n.id %>">
+                    <i class="bi bi-star<%= n.importante ? '-fill' : '' %>"></i>
+                  </button>
+                </td>
+                <td class="small"><%= n.created_at ? new Date(n.created_at).toLocaleDateString('es-ES') : '-' %></td>
+                <td><%= n.user_name || '-' %></td>
+              </tr>
+              <% }) %>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.toggle-importante').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var id = this.dataset.id;
+      fetch('/isp/noticias/' + id + '/importante', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      }).then(function(r) { return r.json(); }).then(function(d) {
+        if (d.success) location.reload();
+        else alert('Error al cambiar estado');
+      }).catch(function() { alert('Error de conexi&oacute;n'); });
+    });
+  });
+});
+</script>

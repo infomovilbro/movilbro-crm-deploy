@@ -1,0 +1,127 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0"><i class="bi bi-calendar-event"></i> Eventos</h5>
+    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createEventoModal"><i class="bi bi-plus-lg"></i> Nuevo Evento</button>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <div id="calendar"></div>
+    </div>
+  </div>
+</section>
+<div class="modal fade" id="createEventoModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-plus-circle"></i> Nuevo Evento</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="/isp/eventos/create">
+        <div class="modal-body">
+          <% if (typeof errors !== 'undefined' && errors.length > 0) { %><div class="alert alert-danger"><%= errors.join(', ') %></div><% } %>
+          <div class="mb-3">
+            <label class="form-label">T&iacute;tulo *</label>
+            <input type="text" name="titulo" class="form-control" required>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Fecha Inicio *</label>
+              <input type="datetime-local" name="fecha_inicio" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Fecha Fin</label>
+              <input type="datetime-local" name="fecha_fin" class="form-control">
+            </div>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Tipo</label>
+              <select name="tipo" class="form-select">
+                <option value="reunion">Reuni&oacute;n</option>
+                <option value="visita">Visita</option>
+                <option value="instalacion">Instalaci&oacute;n</option>
+                <option value="mantenimiento">Mantenimiento</option>
+                <option value="otro">Otro</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Cliente</label>
+              <select name="client_id" class="form-select">
+                <option value="">Sin cliente</option>
+                <% clientes.forEach(c => { %>
+                <option value="<%= c.id %>"><%= c.nombre %> <%= c.apellidos || '' %></option>
+                <% }) %>
+              </select>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Color</label>
+            <input type="color" name="color" class="form-control form-control-color" value="#0d6efd">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Descripci&oacute;n</label>
+            <textarea name="descripcion" class="form-control" rows="3"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Crear Evento</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var calendarEl = document.getElementById('calendar');
+  if (!calendarEl) return;
+  var eventos = <%- JSON.stringify(eventos || []) %>;
+  var calendar = new FullCalendar.Calendar(calendarEl, {
+    locale: 'es',
+    initialView: 'dayGridMonth',
+    headerToolbar: {
+      left: 'prev,next today',
+      center: 'title',
+      right: 'dayGridMonth,timeGridWeek,timeGridDay'
+    },
+    events: eventos.map(function(e) {
+      return {
+        id: e.id,
+        title: e.titulo,
+        start: e.fecha_inicio,
+        end: e.fecha_fin || null,
+        color: e.color || '#0d6efd',
+        extendedProps: { tipo: e.tipo, cliente: e.cliente_nombre, descripcion: e.descripcion }
+      };
+    }),
+    eventClick: function(info) {
+      var e = info.event;
+      var html = '<strong>' + e.title + '</strong>';
+      if (e.extendedProps.tipo) html += '<br>Tipo: ' + e.extendedProps.tipo;
+      if (e.extendedProps.cliente) html += '<br>Cliente: ' + e.extendedProps.cliente;
+      if (e.extendedProps.descripcion) html += '<br><br>' + e.extendedProps.descripcion;
+      html += '<br><br><a href="/isp/eventos/' + e.id + '/edit" class="btn btn-sm btn-primary">Editar</a>';
+      html += ' <button class="btn btn-sm btn-danger" onclick="eliminarEvento(' + e.id + ')">Eliminar</button>';
+      var infoEl = document.getElementById('eventoInfo');
+      if (!infoEl) {
+        infoEl = document.createElement('div');
+        infoEl.id = 'eventoInfo';
+        infoEl.className = 'modal fade';
+        infoEl.innerHTML = '<div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Evento</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body" id="eventoInfoBody"></div></div></div>';
+        document.body.appendChild(infoEl);
+      }
+      document.getElementById('eventoInfoBody').innerHTML = html;
+      new bootstrap.Modal(infoEl).show();
+    }
+  });
+  calendar.render();
+});
+function eliminarEvento(id) {
+  if (!confirm('¿Eliminar este evento?')) return;
+  fetch('/isp/eventos/' + id + '/delete', { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) { if (d.success) location.reload(); else alert('Error al eliminar'); })
+    .catch(function() { alert('Error de conexi&oacute;n'); });
+}
+</script>

@@ -231,13 +231,12 @@ router.get('/', requireAuth, async function(req, res) {
     var apiCount = 0;
     var apiError = null;
 
-    var query = 'SELECT s.*, c.nombre as cliente_nombre, c.apellidos as cliente_apellidos, c.telefono as cliente_telefono FROM subscriptions s JOIN clients c ON s.client_id = c.id';
+    var query = 'SELECT s.*, c.nombre as cliente_nombre, c.apellidos as cliente_apellidos, c.telefono as cliente_telefono FROM subscriptions s LEFT JOIN clients c ON s.client_id = c.id';
     var params = [];
     if (estadoFilter) { query += ' WHERE s.estado = ?'; params.push(estadoFilter); }
     query += ' ORDER BY s.created_at DESC';
-    localSubs = db.prepare(query).all(...params);
+    try { localSubs = db.prepare(query).all(...params); } catch(e) {}
 
-    // Fetch API data
     try {
       var api = getApi();
       var allSubs = [];
@@ -293,7 +292,6 @@ router.get('/', requireAuth, async function(req, res) {
       apiError = error.message;
       console.error('API error:', error.message);
     }
-
     // Merge
     var merged = [];
     localSubs.forEach(function(s) { merged.push(s); });

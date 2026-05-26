@@ -1,0 +1,157 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-cash-stack"></i> Caja y Operaciones</h2>
+  </div>
+
+  <form method="GET" class="row g-2 mb-3 align-items-end">
+    <div class="col-md-3">
+      <label class="form-label small">Fecha</label>
+      <input type="date" name="fecha" class="form-control" value="<%= filterDate %>" onchange="this.form.submit()">
+    </div>
+  </form>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <div class="card border-success">
+        <div class="card-body text-center">
+          <div class="text-success fs-1"><i class="bi bi-arrow-up-circle"></i></div>
+          <h6 class="text-muted">Total Ingresos</h6>
+          <h3 class="text-success mb-0"><%= parseFloat(ingresos).toFixed(2) %>€</h3>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card border-danger">
+        <div class="card-body text-center">
+          <div class="text-danger fs-1"><i class="bi bi-arrow-down-circle"></i></div>
+          <h6 class="text-muted">Total Gastos</h6>
+          <h3 class="text-danger mb-0"><%= parseFloat(gastos).toFixed(2) %>€</h3>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card border-primary">
+        <div class="card-body text-center">
+          <div class="text-primary fs-1"><i class="bi bi-wallet2"></i></div>
+          <h6 class="text-muted">Saldo</h6>
+          <h3 class="text-primary mb-0"><%= (parseFloat(ingresos) - parseFloat(gastos)).toFixed(2) %>€</h3>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-header"><i class="bi bi-plus-circle"></i> Nuevo Movimiento</div>
+    <div class="card-body">
+      <form method="POST" action="/isp/caja/crear">
+        <div class="row g-2">
+          <div class="col-md-2">
+            <label class="form-label small">Tipo</label>
+            <select name="tipo" class="form-select" required>
+              <option value="ingreso">Ingreso</option>
+              <option value="gasto">Gasto</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small">Concepto</label>
+            <input type="text" name="concepto" class="form-control" required>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label small">Importe (€)</label>
+            <input type="number" step="0.01" name="importe" class="form-control" required>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label small">Método Pago</label>
+            <select name="metodo_pago" class="form-select">
+              <option value="efectivo">Efectivo</option>
+              <option value="tarjeta">Tarjeta</option>
+              <option value="transferencia">Transferencia</option>
+              <option value="bizum">Bizum</option>
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label small">Categoria</label>
+            <input type="text" name="categoria" class="form-control" placeholder="ej: ventas, nomina">
+          </div>
+          <div class="col-md-1">
+            <label class="form-label small">Cliente</label>
+            <select name="client_id" class="form-select">
+              <option value="">-</option>
+              <% (clientes || []).forEach(c => { %>
+              <option value="<%= c.id %>"><%= c.nombre %></option>
+              <% }) %>
+            </select>
+          </div>
+          <div class="col-12">
+            <div class="row g-2">
+              <div class="col-md-10">
+                <input type="text" name="descripcion" class="form-control" placeholder="Descripción (opcional)">
+              </div>
+              <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100"><i class="bi bi-plus-lg"></i> Añadir</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header d-flex justify-content-between">
+      <span><i class="bi bi-list"></i> Movimientos</span>
+      <small class="text-muted"><%= movimientos.length %> registros</small>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle" id="cajaTable">
+          <thead class="table-dark">
+            <tr>
+              <th>Tipo</th>
+              <th>Concepto</th>
+              <th>Importe</th>
+              <th>Método Pago</th>
+              <th>Cliente</th>
+              <th>Usuario</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (movimientos.length === 0) { %>
+            <tr><td colspan="6" class="text-center text-muted py-4"><i class="bi bi-inbox"></i> Sin movimientos en esta fecha</td></tr>
+            <% } else { movimientos.forEach(m => { %>
+            <tr>
+              <td>
+                <% if (m.tipo === 'ingreso') { %>
+                  <span class="badge bg-success fs-6"><i class="bi bi-arrow-up"></i> Ingreso</span>
+                <% } else { %>
+                  <span class="badge bg-danger fs-6"><i class="bi bi-arrow-down"></i> Gasto</span>
+                <% } %>
+              </td>
+              <td><%= m.concepto %></td>
+              <td class="fw-bold"><%= parseFloat(m.importe).toFixed(2) %>€</td>
+              <td><%= m.metodo_pago || '-' %></td>
+              <td><%= m.cliente_nombre || '-' %></td>
+              <td><%= m.user_name || '-' %></td>
+            </tr>
+            <% }) } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  if (typeof $.fn.DataTable !== 'undefined' && document.querySelectorAll('#cajaTable tbody tr').length > 1) {
+    new DataTable('#cajaTable', {
+      language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es.json' },
+      pageLength: 25,
+      order: []
+    });
+  }
+});
+</script>

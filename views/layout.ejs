@@ -39,6 +39,35 @@
       --warning: <%= ui.warning || '#ffc107' %>;
       --info: <%= ui.info || '#17a2b8' %>;
     }
+    /* Bottom navigation (mobile) */
+    .bottom-nav {
+      display: none;
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: #fff; border-top: 1px solid #ddd;
+      z-index: 1050; padding: 4px 0;
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.08);
+      justify-content: space-around;
+    }
+    .bottom-nav-item {
+      background: none; border: none;
+      display: flex; flex-direction: column;
+      align-items: center; gap: 2px;
+      padding: 4px 8px; cursor: pointer;
+      border-radius: 8px; transition: background 0.15s;
+      min-width: 60px;
+    }
+    .bottom-nav-item:active { background: #f0f0f0; }
+    .bottom-nav-icon { font-size: 1.3rem; line-height: 1; }
+    .bottom-nav-label { font-size: 0.6rem; color: #666; white-space: nowrap; }
+    .bottom-nav-item.active .bottom-nav-label { color: var(--primary, #0050A1); font-weight: 600; }
+    .bottom-nav-item.active .bottom-nav-icon { filter: brightness(0.7) sepia(1) hue-rotate(190deg) saturate(3); }
+
+    @media (max-width: 767.98px) {
+      .bottom-nav { display: flex; }
+      .sidebar { padding-bottom: 60px; }
+      #page-content { padding-bottom: 56px; }
+    }
+
     /* AI Chat Panel */
     .ai-chat-panel {
       position: fixed; bottom: 20px; right: 20px; width: 360px; height: 500px;
@@ -186,8 +215,31 @@
               <li data-item-key="postventa_masivos"><a class="<%= title === 'Masivos' ? 'active' : '' %>" href="/massive-processes"><span class="emoji-icon">🗄️</span>Procesos Masivos</a></li>
             </ul>
           </li>
-
-
+          <!-- PANEL ISP (grupo) -->
+          <li class="nav-item nav-group <%= ['Panel ISP','Panel de Mando ISP','Contratos','Portabilidades','Tarifas','Incidencias','Tareas','Tickets ISP','Workflows','Documentos','Noticias','Calendario','Caja','Nodos','Equipos','Artículos','Listados','Clientes ISP'].some(t => title === t || title.includes(t)) ? 'open' : '' %>" data-group="isp" data-group-key="isp" data-ui-draggable="group">
+            <a class="nav-group-toggle <%= ['Panel ISP','Panel de Mando ISP','Contratos','Portabilidades','Tarifas','Incidencias','Tareas','Tickets ISP','Workflows','Documentos','Noticias','Calendario','Caja','Nodos','Equipos','Artículos','Listados','Clientes ISP'].some(t => title === t || title.includes(t)) ? 'active' : '' %>" data-toggle="nav-group" href="#"><span class="emoji-icon" data-group-icon>🌐</span><span class="nav-text" data-group-label>Panel ISP</span><i class="ri-arrow-down-s-line nav-arrow"></i></a>
+            <ul class="nav-submenu">
+              <li data-item-key="isp_dashboard"><a class="<%= title === 'Panel ISP' ? 'active' : '' %>" href="/isp/dashboard"><span class="emoji-icon">📊</span>Dashboard</a></li>
+              <li data-item-key="isp_facturacion"><a class="<%= title === 'Facturación' ? 'active' : '' %>" href="/isp/facturacion"><span class="emoji-icon">🧾</span>Facturación</a></li>
+              <li data-item-key="isp_panel_mando"><a class="<%= title === 'Panel de Mando ISP' ? 'active' : '' %>" href="/isp/panel-mando"><span class="emoji-icon">📈</span>Panel Mando</a></li>
+              <li data-item-key="isp_contratos"><a class="<%= title === 'Contratos' ? 'active' : '' %>" href="/isp/contratos"><span class="emoji-icon">📄</span>Contratos</a></li>
+              <li data-item-key="isp_portabilidades"><a class="<%= title === 'Portabilidades' ? 'active' : '' %>" href="/isp/portabilidades"><span class="emoji-icon">🔄</span>Portabilidades</a></li>
+              <li data-item-key="isp_tarifas"><a class="<%= title === 'Tarifas' ? 'active' : '' %>" href="/isp/tarifas"><span class="emoji-icon">🏷️</span>Tarifas</a></li>
+              <li data-item-key="isp_incidencias"><a class="<%= title === 'Incidencias' ? 'active' : '' %>" href="/isp/incidencias"><span class="emoji-icon">⚠️</span>Incidencias</a></li>
+              <li data-item-key="isp_tareas"><a class="<%= title === 'Tareas' ? 'active' : '' %>" href="/isp/tareas"><span class="emoji-icon">✅</span>Tareas</a></li>
+              <li data-item-key="isp_tickets"><a class="<%= title === 'Tickets ISP' ? 'active' : '' %>" href="/isp/tickets"><span class="emoji-icon">🎫</span>Tickets</a></li>
+              <li data-item-key="isp_workflows"><a class="<%= title === 'Workflows' ? 'active' : '' %>" href="/isp/workflows"><span class="emoji-icon">🔄</span>Flujos</a></li>
+              <li data-item-key="isp_documentos"><a class="<%= title === 'Documentos' ? 'active' : '' %>" href="/isp/documentos"><span class="emoji-icon">📁</span>Documentos</a></li>
+              <li data-item-key="isp_noticias"><a class="<%= title === 'Noticias' ? 'active' : '' %>" href="/isp/noticias"><span class="emoji-icon">📰</span>Noticias</a></li>
+              <li data-item-key="isp_eventos"><a class="<%= title === 'Calendario' ? 'active' : '' %>" href="/isp/eventos"><span class="emoji-icon">📅</span>Calendario</a></li>
+              <li data-item-key="isp_caja"><a class="<%= title === 'Caja' ? 'active' : '' %>" href="/isp/caja"><span class="emoji-icon">💰</span>Caja</a></li>
+              <li data-item-key="isp_nodos"><a class="<%= title === 'Nodos' ? 'active' : '' %>" href="/isp/nodos"><span class="emoji-icon">🏗️</span>Nodos</a></li>
+              <li data-item-key="isp_equipos"><a class="<%= title === 'Equipos' ? 'active' : '' %>" href="/isp/equipos"><span class="emoji-icon">🔧</span>Equipos</a></li>
+              <li data-item-key="isp_articulos"><a class="<%= title === 'Artículos' ? 'active' : '' %>" href="/isp/articulos"><span class="emoji-icon">📦</span>Artículos</a></li>
+              <li data-item-key="isp_listados"><a class="<%= title === 'Listados' ? 'active' : '' %>" href="/isp/listados"><span class="emoji-icon">📋</span>Listados</a></li>
+              <li data-item-key="isp_clientes"><a class="<%= title === 'Clientes ISP' ? 'active' : '' %>" href="/isp/clientes"><span class="emoji-icon">👥</span>Clientes ISP</a></li>
+            </ul>
+          </li>
 
         <ul class="sidebar-nav">
           <!-- REDES Y HERRAMIENTAS (grupo) -->
@@ -415,6 +467,40 @@
       e.preventDefault();
       document.getElementById('aiChatToggle')?.click();
     });
+
+    // Bottom nav handlers (mobile)
+    document.querySelectorAll('.bottom-nav-item').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        var targetGroup = this.dataset.navGroup;
+        var sidebar = document.getElementById('sidebar');
+        var backdrop = document.getElementById('sidebarBackdrop');
+
+        // Close all groups first
+        document.querySelectorAll('.nav-group').forEach(function(g) { g.classList.remove('open'); });
+
+        // Open the target group
+        var group = document.querySelector('.nav-group[data-group-key="' + targetGroup + '"]');
+        if (group) group.classList.add('open');
+
+        // Show sidebar
+        if (sidebar) sidebar.classList.add('show');
+        if (backdrop) backdrop.classList.add('show');
+
+        // Update active state
+        document.querySelectorAll('.bottom-nav-item').forEach(function(i) { i.classList.remove('active'); });
+        btn.classList.add('active');
+      });
+    });
+
+    // Close sidebar when clicking backdrop
+    var backdropEl = document.getElementById('sidebarBackdrop');
+    if (backdropEl) {
+      backdropEl.addEventListener('click', function() {
+        document.getElementById('sidebar')?.classList.remove('show');
+        backdropEl.classList.remove('show');
+        document.querySelectorAll('.bottom-nav-item').forEach(function(i) { i.classList.remove('active'); });
+      });
+    }
 
     // Toggle nav groups
     document.querySelectorAll('.nav-group-toggle').forEach(function(toggle) {
@@ -703,6 +789,26 @@
       renderQA();
     })();
   </script>
+
+  <!-- Bottom nav bar for mobile -->
+  <div class="bottom-nav" id="bottomNav">
+    <button class="bottom-nav-item" data-nav-group="tienda">
+      <span class="bottom-nav-icon">🏪</span>
+      <span class="bottom-nav-label">Tienda</span>
+    </button>
+    <button class="bottom-nav-item" data-nav-group="clientes">
+      <span class="bottom-nav-icon">🖥️</span>
+      <span class="bottom-nav-label">Clientes</span>
+    </button>
+    <button class="bottom-nav-item" data-nav-group="isp">
+      <span class="bottom-nav-icon">🌐</span>
+      <span class="bottom-nav-label">ISP</span>
+    </button>
+    <button class="bottom-nav-item" data-nav-group="redes">
+      <span class="bottom-nav-icon">🔗</span>
+      <span class="bottom-nav-label">Herramientas</span>
+    </button>
+  </div>
 
   <!-- Sidebar backdrop for mobile -->
   <div class="sidebar-backdrop" id="sidebarBackdrop"></div>

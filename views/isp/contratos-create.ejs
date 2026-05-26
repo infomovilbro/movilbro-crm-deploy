@@ -1,0 +1,88 @@
+<section class="row justify-content-center">
+  <div class="col-md-8">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h2><i class="bi bi-plus-circle"></i> Nuevo Contrato</h2>
+      <a href="/isp/contratos" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Volver</a>
+    </div>
+    <% if (errors && errors.length > 0) { %><div class="alert alert-danger"><%= errors.join(', ') %></div><% } %>
+    <div class="card">
+      <div class="card-body">
+        <form method="POST">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Cliente *</label>
+              <select name="client_id" class="form-select" required>
+                <option value="">Seleccionar cliente</option>
+                <% (clientes || []).forEach(function(c) { %>
+                <option value="<%= c.id %>" <%= contrato.client_id == c.id ? 'selected' : '' %>><%= c.nombre %> <%= c.apellidos || '' %> - <%= c.telefono || '' %></option>
+                <% }) %>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Tipo *</label>
+              <select name="tipo" class="form-select" required>
+                <option value="">Seleccionar tipo</option>
+                <option value="movil" <%= contrato.tipo === 'movil' ? 'selected' : '' %>>Móvil</option>
+                <option value="fibra" <%= contrato.tipo === 'fibra' ? 'selected' : '' %>>Fibra</option>
+                <option value="fijo" <%= contrato.tipo === 'fijo' ? 'selected' : '' %>>Fijo</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Producto</label>
+              <input type="text" name="producto" class="form-control" value="<%= contrato.producto || '' %>">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Tarifa</label>
+              <select name="tarifa" class="form-select">
+                <option value="">Sin tarifa</option>
+                <% (tarifas || []).forEach(function(t) { %>
+                <option value="<%= t.nombre %>" <%= contrato.tarifa === t.nombre ? 'selected' : '' %>><%= t.nombre %> - <%= t.precio %>€</option>
+                <% }) %>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Precio</label>
+              <input type="number" step="0.01" name="precio" class="form-control" value="<%= contrato.precio || '' %>">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Descuento</label>
+              <input type="number" step="0.01" name="descuento" class="form-control" value="<%= contrato.descuento || 0 %>">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Permanencia (meses)</label>
+              <input type="number" name="permanencia_meses" class="form-control" value="<%= contrato.permanencia_meses || 0 %>">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Fecha Alta</label>
+              <input type="date" name="fecha_alta" class="form-control" value="<%= contrato.fecha_alta || new Date().toISOString().split('T')[0] %>">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Línea</label>
+              <input type="text" name="linea" class="form-control" value="<%= contrato.linea || '' %>" placeholder="+34 600 000 000">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">ICCID</label>
+              <input type="text" name="iccid" class="form-control" value="<%= contrato.iccid || '' %>">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">PIN</label>
+              <input type="text" name="pin" class="form-control" value="<%= contrato.pin || '' %>">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">PUK</label>
+              <input type="text" name="puk" class="form-control" value="<%= contrato.puk || '' %>">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Notas</label>
+              <textarea name="notas" class="form-control" rows="3"><%= contrato.notas || '' %></textarea>
+            </div>
+          </div>
+          <div class="mt-4">
+            <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Crear Contrato</button>
+            <a href="/isp/contratos" class="btn btn-outline-secondary">Cancelar</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>

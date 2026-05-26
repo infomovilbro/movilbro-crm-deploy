@@ -1,0 +1,156 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0"><i class="bi bi-check2-square"></i> Tareas <span class="badge bg-secondary fs-6"><%= tareas.length %></span></h5>
+    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createTareaModal"><i class="bi bi-plus-lg"></i> Nueva Tarea</button>
+  </div>
+  <div class="card mb-3">
+    <div class="card-body py-2">
+      <div class="row g-2 align-items-center">
+        <div class="col-md-4">
+          <input type="text" class="form-control form-control-sm" id="searchTarea" placeholder="Buscar t&iacute;tulo o cliente...">
+        </div>
+        <div class="col-md-2">
+          <select class="form-select form-select-sm" id="filterPrioridad">
+            <option value="">Todas las prioridades</option>
+            <option value="alta">Alta</option>
+            <option value="normal">Normal</option>
+            <option value="baja">Baja</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <select class="form-select form-select-sm" id="filterCompletada">
+            <option value="">Todas</option>
+            <option value="0">Pendientes</option>
+            <option value="1">Completadas</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle" id="tareasTable">
+          <thead class="table-dark">
+            <tr>
+              <th>T&iacute;tulo</th>
+              <th>Prioridad</th>
+              <th>Cliente</th>
+              <th>Asignado</th>
+              <th>Vencimiento</th>
+              <th>Completada</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (tareas.length === 0) { %>
+            <tr><td colspan="6" class="text-center text-muted py-4"><i class="bi bi-check2-square"></i> No hay tareas registradas</td></tr>
+            <% } else { %>
+              <% tareas.forEach(t => { %>
+              <tr class="tarea-row">
+                <td><%= t.titulo %></td>
+                <td>
+                  <span class="badge bg-<%= t.prioridad === 'alta' ? 'danger' : t.prioridad === 'normal' ? 'warning' : 'info' %>"><%= t.prioridad %></span>
+                </td>
+                <td><%= t.cliente_nombre || '-' %></td>
+                <td><%= t.user_name || '-' %></td>
+                <td class="small"><%= t.fecha_vencimiento ? new Date(t.fecha_vencimiento).toLocaleDateString('es-ES') : '-' %></td>
+                <td>
+                  <input type="checkbox" class="form-check-input tarea-completada" data-id="<%= t.id %>" <%= t.completada ? 'checked' : '' %>>
+                </td>
+              </tr>
+              <% }) %>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+<div class="modal fade" id="createTareaModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-plus-circle"></i> Nueva Tarea</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="/isp/tareas/create">
+        <div class="modal-body">
+          <% if (typeof errors !== 'undefined' && errors.length > 0) { %><div class="alert alert-danger"><%= errors.join(', ') %></div><% } %>
+          <div class="mb-3">
+            <label class="form-label">T&iacute;tulo *</label>
+            <input type="text" name="titulo" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Descripci&oacute;n</label>
+            <textarea name="descripcion" class="form-control" rows="3"></textarea>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Prioridad</label>
+              <select name="prioridad" class="form-select">
+                <option value="baja">Baja</option>
+                <option value="normal" selected>Normal</option>
+                <option value="alta">Alta</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Cliente</label>
+              <select name="client_id" class="form-select">
+                <option value="">Sin cliente</option>
+                <% clientes.forEach(c => { %>
+                <option value="<%= c.id %>"><%= c.nombre %> <%= c.apellidos || '' %></option>
+                <% }) %>
+              </select>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Fecha de Vencimiento</label>
+            <input type="date" name="fecha_vencimiento" class="form-control">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Crear Tarea</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const searchInput = document.getElementById('searchTarea');
+  const filterPrioridad = document.getElementById('filterPrioridad');
+  const filterCompletada = document.getElementById('filterCompletada');
+  function filtrar() {
+    const q = searchInput ? searchInput.value.toLowerCase().trim() : '';
+    const pri = filterPrioridad ? filterPrioridad.value : '';
+    const com = filterCompletada ? filterCompletada.value : '';
+    document.querySelectorAll('.tarea-row').forEach(function(row) {
+      const titulo = row.querySelector('td:nth-child(1)')?.textContent.toLowerCase() || '';
+      const cliente = row.querySelector('td:nth-child(3)')?.textContent.toLowerCase() || '';
+      const rowPri = row.querySelector('td:nth-child(2) .badge')?.textContent.trim().toLowerCase() || '';
+      const rowCom = row.querySelector('td:nth-child(6) input')?.checked ? '1' : '0';
+      const matchTexto = !q || titulo.includes(q) || cliente.includes(q);
+      const matchPri = !pri || rowPri === pri;
+      const matchCom = !com || rowCom === com;
+      row.style.display = matchTexto && matchPri && matchCom ? '' : 'none';
+    });
+  }
+  if (searchInput) searchInput.addEventListener('input', filtrar);
+  if (filterPrioridad) filterPrioridad.addEventListener('change', filtrar);
+  if (filterCompletada) filterCompletada.addEventListener('change', filtrar);
+  document.querySelectorAll('.tarea-completada').forEach(function(cb) {
+    cb.addEventListener('change', function() {
+      var id = this.dataset.id;
+      var checked = this.checked ? 1 : 0;
+      fetch('/isp/tareas/' + id + '/completar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ completada: checked })
+      }).then(function(r) { return r.json(); }).then(function(d) {
+        if (!d.success) alert('Error al actualizar');
+      }).catch(function() { alert('Error de conexi&oacute;n'); });
+    });
+  });
+});
+</script>

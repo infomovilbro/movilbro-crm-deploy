@@ -1,0 +1,10 @@
+Telegram Backup Config - DO NOT COMMIT
+========================================
+Bot Token: 8654521522:AAEMba-uhYtI0tBN0Z8gWNnJYzmlo0Rp5nE
+Chat ID: 8281537070
+Bot Username: @movilbro_crm_bot
+Last configured: 2026-05-26
+
+Usage:
+- Config in Render: Environment variables TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID
+- Or via CRM: Configuración > Telegram Backup

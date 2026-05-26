@@ -276,6 +276,10 @@ app.use('/store', tiendaRoutes);
 const chatRoutes = require('./routes/chat')(db);
 app.use('/api/chat', chatRoutes);
 
+// ---- ISP GESTION MODULE ----
+const ispRoutes = require('./routes/isp-core');
+app.use('/isp', ispRoutes);
+
 // ---- NEW LIKES TELECOM PAGES ----
 app.use('/aftersales', aftersalesRoutes);
 app.use('/massive-processes', massiveRoutes);

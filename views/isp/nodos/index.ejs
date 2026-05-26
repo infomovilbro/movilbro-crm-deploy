@@ -1,0 +1,98 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0"><i class="bi bi-diagram-2"></i> Nodos de Red <span class="badge bg-secondary fs-6"><%= nodos.length %></span></h5>
+    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createNodoModal"><i class="bi bi-plus-lg"></i> Nuevo Nodo</button>
+  </div>
+  <div class="card">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle" id="nodosTable">
+          <thead class="table-dark">
+            <tr>
+              <th>Nombre</th>
+              <th>Direcci&oacute;n</th>
+              <th>Tipo</th>
+              <th>Latitud</th>
+              <th>Longitud</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (nodos.length === 0) { %>
+            <tr><td colspan="6" class="text-center text-muted py-4"><i class="bi bi-diagram-2"></i> No hay nodos registrados</td></tr>
+            <% } else { %>
+              <% nodos.forEach(n => { %>
+              <tr>
+                <td><a href="/isp/nodos/<%= n.id %>" class="fw-bold"><%= n.nombre %></a></td>
+                <td><%= n.direccion || '-' %></td>
+                <td><span class="badge bg-info"><%= n.tipo || '-' %></span></td>
+                <td><%= n.latitud || '-' %></td>
+                <td><%= n.longitud || '-' %></td>
+                <td class="text-end">
+                  <button class="btn btn-sm btn-outline-danger" onclick="eliminarNodo(<%= n.id %>)"><i class="bi bi-trash"></i></button>
+                </td>
+              </tr>
+              <% }) %>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+<div class="modal fade" id="createNodoModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-plus-circle"></i> Nuevo Nodo</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="/isp/nodos/create">
+        <div class="modal-body">
+          <% if (typeof errors !== 'undefined' && errors.length > 0) { %><div class="alert alert-danger"><%= errors.join(', ') %></div><% } %>
+          <div class="mb-3">
+            <label class="form-label">Nombre *</label>
+            <input type="text" name="nombre" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Direcci&oacute;n</label>
+            <input type="text" name="direccion" class="form-control">
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Tipo</label>
+              <select name="tipo" class="form-select">
+                <option value="fibra">Fibra &Oacute;ptica</option>
+                <option value="radio">Radio</option>
+                <option value="cobre">Cobre</option>
+                <option value="mixto">Mixto</option>
+                <option value="otro">Otro</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Latitud</label>
+              <input type="text" name="latitud" class="form-control" placeholder="Ej: 40.416775">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Longitud</label>
+              <input type="text" name="longitud" class="form-control" placeholder="Ej: -3.703790">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Crear Nodo</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<script>
+function eliminarNodo(id) {
+  if (!confirm('¿Eliminar este nodo?')) return;
+  fetch('/isp/nodos/' + id + '/delete', { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) { if (d.success) location.reload(); else alert('Error al eliminar'); })
+    .catch(function() { alert('Error de conexi&oacute;n'); });
+}
+</script>

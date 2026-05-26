@@ -1,0 +1,136 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0"><i class="bi bi-file-text"></i> Contratos <span class="badge bg-secondary fs-6"><%= contratos.length %></span></h5>
+    <div>
+      <button class="btn btn-sm btn-outline-success me-1" onclick="descargarCSV()"><i class="bi bi-download"></i> CSV</button>
+      <a href="/isp/contratos/nuevo" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg"></i> Nuevo</a>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-body py-2">
+      <div class="row g-2 align-items-center">
+        <div class="col-md-4">
+          <input type="text" class="form-control form-control-sm" id="searchContrato" placeholder="Buscar cliente o línea...">
+        </div>
+        <div class="col-md-2">
+          <select class="form-select form-select-sm" id="filterEstado">
+            <option value="">Todos los estados</option>
+            <option value="activo">Activo</option>
+            <option value="pendiente">Pendiente</option>
+            <option value="cancelado">Cancelado</option>
+            <option value="baja">Baja</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <select class="form-select form-select-sm" id="filterTipo">
+            <option value="">Todos los tipos</option>
+            <option value="movil">Móvil</option>
+            <option value="fibra">Fibra</option>
+            <option value="fijo">Fijo</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <button class="btn btn-outline-secondary btn-sm w-100" id="btnLimpiarFiltros"><i class="bi bi-x-circle"></i> Limpiar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle" id="contratosTable">
+          <thead class="table-dark">
+            <tr>
+              <th>#</th>
+              <th>Cliente</th>
+              <th>Tipo</th>
+              <th>Estado</th>
+              <th>Tarifa</th>
+              <th>Línea</th>
+              <th>Fecha Alta</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (contratos.length === 0) { %>
+            <tr><td colspan="8" class="text-center text-muted py-4"><i class="bi bi-inbox"></i> No hay contratos registrados</td></tr>
+            <% } else { %>
+              <% contratos.forEach(function(c) { %>
+              <tr class="contrato-row">
+                <td><a href="/isp/contratos/<%= c.id %>" class="fw-bold">#<%= c.id %></a></td>
+                <td><%= c.cliente_nombre || '-' %></td>
+                <td><span class="badge bg-secondary"><%= c.tipo %></span></td>
+                <td><span class="badge bg-<%= c.estado === 'activo' ? 'success' : c.estado === 'pendiente' ? 'warning' : c.estado === 'baja' ? 'secondary' : 'danger' %> fs-6"><%= c.estado %></span></td>
+                <td><%= c.tarifa || '-' %></td>
+                <td><%= c.linea || '-' %></td>
+                <td class="small"><%= c.fecha_alta ? new Date(c.fecha_alta).toLocaleDateString('es-ES') : '-' %></td>
+                <td class="text-end"><a href="/isp/contratos/<%= c.id %>" class="btn btn-sm btn-outline-info"><i class="bi bi-eye"></i></a></td>
+              </tr>
+              <% }) %>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const searchInput = document.getElementById('searchContrato');
+  const filterEstado = document.getElementById('filterEstado');
+  const filterTipo = document.getElementById('filterTipo');
+  const btnLimpiar = document.getElementById('btnLimpiarFiltros');
+
+  function filtrar() {
+    const q = searchInput ? searchInput.value.toLowerCase().trim() : '';
+    const est = filterEstado ? filterEstado.value : '';
+    const tip = filterTipo ? filterTipo.value : '';
+
+    document.querySelectorAll('.contrato-row').forEach(function(row) {
+      const cliente = row.querySelector('td:nth-child(2)')?.textContent.toLowerCase() || '';
+      const linea = row.querySelector('td:nth-child(6)')?.textContent.toLowerCase() || '';
+      const estado = row.querySelector('td:nth-child(4) .badge')?.textContent.trim().toLowerCase() || '';
+      const tipo = row.querySelector('td:nth-child(3) .badge')?.textContent.trim().toLowerCase() || '';
+      const matchTexto = !q || cliente.includes(q) || linea.includes(q);
+      const matchEstado = !est || estado === est;
+      const matchTipo = !tip || tipo === tip;
+      row.style.display = matchTexto && matchEstado && matchTipo ? '' : 'none';
+    });
+  }
+
+  if (searchInput) searchInput.addEventListener('input', filtrar);
+  if (filterEstado) filterEstado.addEventListener('change', filtrar);
+  if (filterTipo) filterTipo.addEventListener('change', filtrar);
+  if (btnLimpiar) btnLimpiar.addEventListener('click', function() {
+    if (searchInput) searchInput.value = '';
+    if (filterEstado) filterEstado.value = '';
+    if (filterTipo) filterTipo.value = '';
+    filtrar();
+  });
+});
+
+function descargarCSV() {
+  var rows = document.querySelectorAll('.contrato-row');
+  var csv = '\uFEFF#;Cliente;Tipo;Estado;Tarifa;L\u00EDnea;Fecha Alta\n';
+  rows.forEach(function(row) {
+    var cols = row.querySelectorAll('td');
+    if (cols.length < 7) return;
+    var id = cols[0].textContent.trim().replace('#','');
+    var cliente = cols[1].textContent.trim();
+    var tipo = cols[2].textContent.trim();
+    var estado = cols[3].textContent.trim();
+    var tarifa = cols[4].textContent.trim();
+    var linea = cols[5].textContent.trim();
+    var fecha = cols[6].textContent.trim();
+    csv += id + ';' + cliente + ';' + tipo + ';' + estado + ';' + tarifa + ';' + linea + ';' + fecha + '\n';
+  });
+  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  var link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'contratos.csv';
+  link.click();
+}
+</script>

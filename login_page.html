@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta charset="utf-8">
+<link rel="stylesheet" type="text/css" href="/isp_assets/css/jquery-ui.css" />
+<script type="text/javascript" src="/assets/1c0f4426/jquery.min.js"></script>
+<script type="text/javascript" src="/assets/1c0f4426/jui/js/jquery-ui.min.js"></script>
+<script type="text/javascript" src="/assets/88a7adba/js/fingerprint2.min.js"></script>
+<script type="text/javascript" src="/assets/88a7adba/js/ej2.min.js"></script>
+<script type="text/javascript" src="/assets/88a7adba/js/ej2-locale-common.js"></script>
+<script type="text/javascript" src="/assets/1c0f4426/jui/js/jquery-ui-i18n.min.js"></script>
+<script type="text/javascript">
+/*<![CDATA[*/
+ej.base.registerLicense('Ngo9BigBOggjHTQxAR8/V1JFaF5cXGRCf1FpRmJGdld5fUVHYVZUTXxaS00DNHVRdkdmWXZedXRdRGdcWEBwXENWYEA=');
+
+    // Función para detectar si el dispositivo es móvil o tablet
+    function isMobileOrTablet() {
+        return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    }
+
+    class ResponsiveGrid extends ej.grids.Grid {
+        constructor(options) {        
+            if(isMobileOrTablet()) {
+                 // Si es móvil o tablet, agregamos autoFit: true a todas las columnas
+                 if (options && Array.isArray(options.columns)) {
+                     options.columns = options.columns.map(column => ({
+                         ...column,
+                         autoFit: true
+                     }));
+                 }
+            }
+            super(options); // Llamar al constructor de la clase base
+        }
+    }
+
+
+/*]]>*/
+</script>
+<title>Movilbro - Login</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="robots" content="noindex, nofollow">
+
+<script type="text/javascript">
+    var empresa_separador_decimal = ',';
+    var empresa_separador_miles = '.';
+</script>
+
+<link id="bs-css" href="/assets/88a7adba/css/bootstrap-cerulean.css" rel="stylesheet">
+<link href="/assets/88a7adba/css/bootstrap-responsive.css" rel="stylesheet">
+<link href="/assets/88a7adba/js/DataTables/datatables.min.css" rel="stylesheet">
+<link href="/assets/88a7adba/js/Editor-1.9.6/css/editor.dataTables.min.css" rel="stylesheet">
+<link href="/assets/88a7adba/css/chosen.min.css" rel="stylesheet">
+<link href="/assets/88a7adba/css/calidad.css" rel="stylesheet">
+<link href="/assets/88a7adba/css/colorbox.css" rel='stylesheet'>
+<link href="/assets/88a7adba/css/jquery.noty.css" rel='stylesheet'>
+<link href="/assets/88a7adba/css/noty_theme_default.css" rel='stylesheet'>
+<link href="/assets/88a7adba/css/opa-icons.css" rel='stylesheet'>
+<link href="/assets/88a7adba/css/uploadify.css" rel='stylesheet'>
+<link href="/assets/88a7adba/css/additional.css" rel='stylesheet'>
+<link href="/assets/88a7adba/css/font-awesome.min.css" rel='stylesheet'>
+<link href="/assets/88a7adba/css/estilo.css" rel="stylesheet" type="text/css" >
+<link href="/assets/88a7adba/css/jquery.dynameter-0.5.6.min.css" rel="stylesheet" type="text/css" >
+<link href="/assets/88a7adba/css/bootstrap-formhelpers.css" rel="stylesheet" type="text/css" >
+<link href="/assets/88a7adba/css/bootstrap-datetimepicker.min.css" rel="stylesheet" type="text/css" >
+<link href="/assets/88a7adba/css/jquery-clockpicker.min.css" rel="stylesheet" type="text/css" >
+<link href="/assets/88a7adba/css/fontawesome-iconpicker.min.css" rel="stylesheet" type="text/css" >
+<link href="/assets/88a7adba/css/typicons.min.css" rel="stylesheet" type="text/css" >
+<link href="/assets/88a7adba/css/alertBox.css" rel="stylesheet" type="text/css" >
+<link href="/assets/88a7adba/css/select2.min.css" rel="stylesheet" />
+<link href="/assets/88a7adba/css/material.min.css" rel="stylesheet">
+<link href="/assets/88a7adba/css/print.min.css" rel="stylesheet">
+<!--  <link href="/assets/88a7adba/css/bootstrap-tour-standalone.min.css" rel="stylesheet"> -->
+<link href="/assets/88a7adba/css/tangerine.css" rel="stylesheet">
+<link href="/assets/88a7adba/css/foto_perfil_pequena.css" rel="stylesheet">
+
+
+<script	src="/assets/88a7adba/js/jquery_ui_touch_jquery_spin_spin2.js"></script>
+<script	src="/assets/88a7adba/js/DataTables/datatables.min.js"></script>
+<script	src="/assets/88a7adba/js/Editor-1.9.6/js/dataTables.editor.min.js"></script>
+<script src="/assets/88a7adba/js/chosen.jquery.min.js"></script>
+<script	src="/assets/88a7adba/js/jquery.jeditable.js"></script>
+<script	src="/assets/88a7adba/js/jquery.validate.js"></script>
+<script	src="/assets/88a7adba/js/bootstrap-formhelpers.js"></script>
+<script	src="/assets/88a7adba/js/bootstrap-number-input.js"></script>
+<script src="/assets/88a7adba/js/select2.min.js"></script>
+<script src="/assets/88a7adba/js/select2-es.js"></script>
+<!--script src="/js/RGraph_common_core.js" ></script>
+<script src="/js/RGraph_hprogress.js"></script-->
+<script id="emptytemplate_global" type="text/x-template">
+    <div class="emptyRecordTemplate">
+    <i class='isp-wf isp-icons-w-file-info-wf'><div class='fondoDoblado'></div></i>
+    <span>No hay datos disponibles</span>
+    </div>
+</script>
+<script type="text/javascript">
+    (function (factory) {
+        if (typeof define === 'function' && define.amd) {
+            // AMD
+            define(['jquery', 'datatables', 'datatables-editor'], factory);
+        } else if (typeof exports === 'object') {
+            // Node / CommonJS
+            module.exports = function ($, dt) {
+                if (!$) {
+                    $ = require('jquery');
+                }
+                factory($, dt || $.fn.dataTable || require('datatables'));
+            };
+        } else if (jQuery) {
+            // Browser standard
+            factory(jQuery, jQuery.fn.dataTable);
+        }
+    }(function ($, DataTable) {
+        'use strict';
+
+
+        if (!DataTable.ext.editorFields) {
+            DataTable.ext.editorFields = {};
+        }
+
+        var _fieldTypes = DataTable.Editor ?
+                DataTable.Editor.fieldTypes :
+                DataTable.ext.editorFields;
+
+
+        _fieldTypes.chosen = {
+            "_addOptions": function (conf, opts) {
+                var elOpts = conf._input[0].options;
+
+                elOpts.length = 0;
+
+                if (opts) {
+                    DataTable.Editor.pairs(opts, conf.optionsPair, function (val, label, i) {
+                        elOpts[i] = new Option(label, val);
+                    });
+                }
+            },
+
+            create: function (conf) {
+                conf._input = $('<select/>')
+                        .attr($.extend({
+                            id: conf.id
+                        }, conf.attr || {}));
+
+                _fieldTypes.chosen._addOptions(conf, conf.options || conf.ipOpts);
+
+                // On open, need to have the instance update now that it is in the DOM
+                this.on('open.chosen-' + conf.id, function () {
+                    conf._input.chosen($.extend({}, conf.opts, {width: '100%'}));
+                });
+
+                return conf._input[0];
+            },
+
+            get: function (conf) {
+                return conf._input.val();
+            },
+
+            set: function (conf, val) {
+                conf._input.val(val).trigger('chosen:updated');
+            },
+
+            enable: function (conf) {
+                conf._input.attr('disabled', false).trigger('chosen:updated');
+                $(conf._input).removeClass('disabled');
+            },
+
+            disable: function (conf) {
+                conf._input.attr('disabled', true).trigger('chosen:updated');
+                $(conf._input).addClass('disabled');
+            },
+
+            update: function (conf, options) {
+                _fieldTypes.chosen._addOptions(conf, options);
+                conf._input.trigger('chosen:updated');
+            }
+        };
+
+
+    }));
+
+    (function () {
+        function removeAccents(data) {
+            if (data.normalize) {
+                // Use I18n API if avaiable to split characters and accents, then remove
+                // the accents wholesale. Note that we use the original data as well as
+                // the new to allow for searching of either form.
+                return data + ' ' + data
+                        .normalize('NFD')
+                        .replace(/[\u0300-\u036f]/g, '');
+            }
+
+            return data;
+        }
+
+        var searchType = jQuery.fn.DataTable.ext.type.search;
+
+        searchType.string = function (data) {
+            return !data ?
+                    '' :
+                    typeof data === 'string' ?
+                    removeAccents(data) :
+                    data;
+        };
+
+        searchType.html = function (data) {
+            return !data ?
+                    '' :
+                    typeof data === 'string' ?
+                    removeAccents(data.replace(/<.*?>/g, '')) :
+                    data;
+        };
+
+
+
+
+    }());
+</script>
+    <script type="text/javascript" src="https://secure.trust-provider.com/trustlogo/javascript/trustlogo.js"></script>
+        <link rel="shortcut icon" href="https://movilbro.ispgestion.com/documentos/open?doc=/PUBLICA/logo%20factura%20(3).png">
+</head>
+<body><script type="text/javascript">
+/*<![CDATA[*/
+$('body').css('background-image', 'url(\'https://movilbro.ispgestion.com/documentos/open?doc=/PUBLICA/owoil5wf.png\')');
+/*]]>*/
+</script>
+
+        	<style>
+    body,html{
+        padding-bottom: 0px!important
+    }
+    #mslogin {text-transform: capitalize}
+    #mslogin i{ color: #3c72d7!important;}
+    #mslogin:hover, #mslogin i:hover{ color: white!important}
+
+</style>
+
+<div class="container-fluid">
+    <div class="row-fluid">
+        <div class="row-fluid">
+            <div class="span6 center login-header">
+                <img src="/img/ISPGestion-logo.png" />
+            </div>
+                    </div>
+        <div class="row-fluid">
+            <div class="well center login-box " style='width: 300px; border: 1px solid #a3a2a2; background: #ffffff;padding-top: 32px;'>
+                <form class="form-horizontal" id="login-form" action="/site/login" method="post"><input type="hidden" value="0,0" name="coordenadas_control_presencia" id="coordenadas_control_presencia" /><input type="hidden" value="0,0" name="hash_control_presencia" id="hash_control_presencia" /><input type="hidden" value="0,0" name="plataforma_control_presencia" id="plataforma_control_presencia" />
+                        <style>
+                            input:-webkit-autofill,
+                            input:-webkit-autofill:hover,
+                            input:-webkit-autofill:focus,
+                            input:-webkit-autofill:active{
+                                -webkit-box-shadow: 0 0 0 20px #ffffff inset !important;
+                            }
+                        </style>
+
+                        <fieldset class="grande2">
+                            <div class="e-input-group e-float-icon-left" style='width: 200px'>
+                                <span class="e-input-group-icon"><i class='fa fa-lg fa-user'></i></span>
+                                <div class="e-input-in-wrap">
+                                    <input class="e-input" type="text" id='LoginForm_usuario' name='LoginForm[usuario]' placeholder="Usuario" />
+                                </div>
+                            </div>
+
+                                                        <div class="clearfix"></div>
+
+                            <div class="e-input-group e-float-icon-left" style='width: 200px'>
+                                <span class="e-input-group-icon"><i class='fa fa-lg fa-lock'></i></span>
+                                <div class="e-input-in-wrap">
+                                    <input class="e-input" type="password" id='LoginForm_contraseña' name='LoginForm[contraseña]' placeholder="Contraseña" />
+                                </div>
+                            </div>
+                                                        <div class="clearfix"></div>
+                            <br>
+                        </fieldset>
+                        <button type="submit" id='acceder' style='width: 193px; margin-left: 8px;'>Iniciar sesión</button>
+                        <script async>
+                            let button = new ej.buttons.Button({cssClass: 'e-info'}, '#acceder');
+                        </script>
+
+                                                
+                        </form><div class='row-fluid' style='margin-top:35px'><input id="btn_recordar" class="fondo_blanco awesome" style="margin-rigth:15px" title="Solicitar cambio de contraseña por correo" rel="tooltip" name="yt0" type="button" value=" Recuperar contraseña" /></div>            </div>
+            <div class="center">
+                                    <a id='wp-button' href='https://ispgestion.com/blog' rel='tooltip' title='Acceder al BLOG de ISPGestión' target='_blank'><i class="fa fa-wordpress"></i></a>
+                                        <script language="JavaScript" type="text/javascript">
+                        TrustLogo("/images/positivessl_trust_seal_sm_124x32.png", "CL1", "none");
+                    </script>
+                                </div>
+        </div>
+    </div>
+    <div id="pie_login" class="hidden-phone">
+        <b>Optimizado para: </b>        <img src="/images/chrome.png" width="33" height="33" rel="tooltip-top" title="Chrome"/>
+        <img src="/images/firefox.png" width="33" height="33" rel="tooltip-top" title="Firefox"/>
+        <img src="/images/safari.png" width="33" height="33" rel="tooltip-top" title="Safari"/>
+        <img src="/images/opera.png" width="33" height="33" rel="tooltip-top" title="Opera"/>
+        <img src="/images/edge.png" width="33" height="33" rel="tooltip-top" title="Microsoft Edge"/>
+    </div>
+</div>
+
+<script>
+    function getLocation() {
+        if (navigator.geolocation) {
+            var options = {
+                enableHighAccuracy: true,
+                timeout: 5000,
+                maximumAge: 0
+            };
+            navigator.geolocation.getCurrentPosition(showPosition, mostrar_error, options);
+        } else {
+            emergente('La geolocalización no está soportada por este navegador', 'error', 2000);
+        }
+    }
+
+    function mostrar_error(e) {
+        console.log(e);
+    }
+
+    function showPosition(position) {
+        $('#coordenadas_control_presencia').val(position.coords.latitude + "," + position.coords.longitude);
+    }
+
+    $('document').ready(function () {
+    });
+
+    window.addEventListener('touchstart', function onFirstTouch() { //detectamos dispositivo tactil
+        $.post('/site/es_tactil', {tactil: 1, YII_CSRF_TOKEN: '0bacb8dd72e8dfd334ad66478abe784ac62dda91'});
+        window.removeEventListener('touchstart', onFirstTouch, false);
+    }, false);
+</script>
+<script	src="/assets/88a7adba/js/bootstrap-transition.js"></script>
+<script	src="/assets/88a7adba/js/bootstrap-alert.js"></script>
+<script	src="/assets/88a7adba/js/bootstrap-modal.js"></script>
+<script	src="/assets/88a7adba/js/bootstrap-dropdown.js"></script>
+<script	src="/assets/88a7adba/js/bootstrap-scrollspy.js"></script>
+<script	src="/assets/88a7adba/js/bootstrap-tab.js"></script>
+<script	src="/assets/88a7adba/js/bootstrap-tooltip.js"></script>
+<script	src="/assets/88a7adba/js/bootstrap-popover.js"></script>
+<script	src="/assets/88a7adba/js/bootstrap-button.js"></script>
+<script	src="/assets/88a7adba/js/bootstrap-collapse.js"></script>
+<script	src="/assets/88a7adba/js/bootstrap-typeahead.js"></script>
+<script	src="/assets/88a7adba/js/jquery.cookie.js"></script>
+<script	src="/assets/88a7adba/js/chosen.jquery.min.js"></script>
+<script	src="/assets/88a7adba/js/jquery.uniform.min.js"></script>
+
+<script	src="/assets/88a7adba/js/tinymce.min.js"></script>
+<script	src="/assets/88a7adba/js/jquery.noty.js"></script>
+
+<script	src="/assets/88a7adba/js/jquery.autogrow-textarea.js"></script>
+<script	src="/assets/88a7adba/js/jquery.history.js"></script>
+<script	src="/assets/88a7adba/js/bootstrap-datetimepicker.js"></script>
+<script	src="/assets/88a7adba/js/locales/bootstrap-datetimepicker.es.js"></script>
+<script	src="/assets/88a7adba/js/alertBox.js"></script>
+<script	src="/assets/88a7adba/js/clientes.js"></script>
+
+<script src="/assets/88a7adba/js/js_foot.js" ></script>
+<!-- <script src="/assets/88a7adba/js/bootstrap-tour-standalone.min.js"></script> -->
+<!--<script	src="/assets/88a7adba/js/calidad.js"></script>-->
+
+<style>
+
+    /* Notificaciones Synfusion Toast */
+    .e-toast-icon.e-miniatura.e-icons {
+        border-radius: 50%;
+        background-repeat: no-repeat;
+        background-size: cover;
+        /*background-image: url(https://ej2.syncfusion.com/vue/demos/src/toast/resource/laura.png);*/
+        height: 44px !important;
+        margin: 0;
+        margin-right: 7px;
+        width: 60px;
+    }
+
+    .e-toast-container .e-toast .e-toast-message .e-toast-title a {
+        text-decoration: none;
+        color: black;
+        font-weight: bold;
+    }
+
+    .e-toast-container .e-toast .e-toast-actions .e-btn{
+        /*background-color: white;*/
+        border-radius: 50%;
+        width: 15px;
+        height: 25px;
+        border: 1px solid #ccc;
+    }
+
+    .e-toast-container .e-toast .e-toast-actions .e-btn i.fa {
+        margin: 0px -5px;
+    }
+
+    .e-toast-container .e-toast .e-toast-actions .e-btn:hover{
+        /*background-color: white;*/
+        border-radius: 50%;
+        width: 15px;
+        height: 25px;
+    }
+
+    .e-toast {
+        padding: 7px!important;
+    }
+
+    /* To change color, font family and font size */
+    .e-toast-container .e-toast .e-toast-message .e-toast-title {
+        color: black;
+        font-weight: bold;
+    }
+
+    /* To change color, font family and font size */
+    .e-toast-container .e-toast .e-toast-message .e-toast-content {
+        color: black;
+        font-size: 13px;
+        font-weight: normal;
+        font-family: Arial, sans-serif;
+
+    }
+
+    /* To change background color */
+    .e-toast-container .e-toast {
+        background-color: white;
+    }
+
+    /* To change background color HOVER */
+    .e-toast-container .e-toast:hover {
+        background-color: white;
+    }
+
+    .e-toast-container .e-toast .e-toast-close-icon {
+        color: black;
+    }
+
+    /* Notificaciones TOP 100% */
+    .e-toast-container.e-toast-full-width .e-toast{
+        margin: 0px;
+        margin-bottom: 2px;
+        width: 100.7%;
+        left: -6px;
+        text-align: center;
+
+        padding: 8px 14px;
+        font-size: 16px;
+        font-weight: bold;
+    }
+
+    .e-toast-container.e-toast-full-width .e-toast .e-toast-message .e-toast-content{
+        /*padding: 8px 14px;*/
+        font-size: 16px;
+    }
+
+    /* Notificaciones TOP Center */
+    .e-toast-container.e-toast-top-center{
+        top: -7px;
+    }
+
+    /* Notificaciones danger Color Fondo */
+    .e-toast-container .e-toast.e-toast-danger {
+        background-color: red;
+    }
+
+    .e-toast-container .e-toast.e-toast-danger .e-toast-message .e-toast-content{
+        font-weight: bold;
+    }
+
+    .e-toast-container .e-toast.e-toast-danger:hover {
+        background-color: red;
+    }
+
+    /* Notificaciones success Color Fondo */
+    .e-toast-container .e-toast.e-toast-success, .e-toast-container .e-toast.e-toast-success:hover{
+        background-color: #90EE90;
+        color: #006400;
+    }
+
+    .e-toast-container .e-toast.e-toast-success .e-toast-message .e-toast-content{
+        color: #006400;
+        font-weight: bold;
+    }
+
+    /* Notificaciones warning Color Fondo */
+    .e-toast-container .e-toast.e-toast-warning, .e-toast-container .e-toast.e-toast-warning:hover {
+        background-color: #FF4500;
+    }
+
+    /* Boton Cerrar */
+    .e-toast-close-icon {
+        background-color: white;
+        color: black!important;
+        border-radius: 50%;
+        font-size: xx-small!important;
+        font-weight: bold!important;
+        opacity: 1!important;
+        width: 20px!important;
+        height: 20px!important;
+    }
+
+    /********** Modal Syncfusion **********/
+
+    /* Header Modal*/
+    .e-dialog .e-dlg-header {
+        font-family: Arial, sans-serif;
+        font-size: 16px;
+        font-weight: bold;
+        text-align: center;
+    }
+
+    /* Header Text */
+    .e-dialog .e-dlg-header-content {
+        padding: 10px;
+    }
+
+    /* Content Modal */
+    .e-dialog .e-dlg-content {
+        font-family: Arial, sans-serif;
+    }
+
+    /** .e-modal-warning **/
+    .e-modal-warning .e-dlg-header-content{
+        background-color: #FF4500;
+    }
+
+    .e-modal-warning .e-dlg-header {
+        color: white;
+    }
+
+    .e-modal-warning .e-dlg-content {
+        color: white;
+        background-color: #FF4500;
+    }
+
+    /** .e-modal-danger **/
+    .e-modal-danger .e-dlg-header-content{
+        background-color: red;
+    }
+
+    .e-modal-danger .e-dlg-header {
+        color: white;
+    }
+
+    .e-modal-danger .e-dlg-content {
+        color: white;
+        background-color: red;
+    }
+
+
+    /** Boton Close Modal **/
+    .e-dialog .e-dlg-header-content .e-btn.e-dlg-closeicon-btn {
+        background-color: white;
+    }
+
+
+    body .uwy.userway_p2 .userway_buttons_wrapper {
+        top: 90%;
+        left: 15%;
+    }
+
+</style>
+
+<div id="noty_syncfusion_bottomLeft"></div>
+<div id="noty_syncfusion_bottomRight"></div>
+<div id="noty_syncfusion_center"></div>
+<div id="noty_syncfusion_topLeft"></div>
+<div id="noty_syncfusion_topRight"></div>
+        <script	src="/assets/88a7adba/js/jquery.noty.js"></script>
+        <script	src="/assets/88a7adba/js/bootstrap-tooltip.js"></script>
+        <script>
+            
+            function emergente(mensaje, tipo, retardo) {
+                if (tipo == '')
+                    tipo = 'information';
+
+                if (tipo == 'error')
+                    var close = false;
+                else
+                    var close = true;
+
+                if (parseInt(retardo) > 0)
+                    $.noty({text: mensaje, layout: 'top', type: tipo, timeout: retardo, closeOnSelfClick: close, closeButton: false});
+                else
+                    $.noty({text: mensaje, layout: 'top', type: tipo, timeout: false, closeOnSelfClick: close, closeButton: true});
+            };
+        
+        $('[rel="tooltip"],[data-rel="tooltip"]').tooltip({"placement": "bottom", delay: {show: 400, hide: 200}});
+        $('[rel="tooltip-top"],[data-rel="tooltip-top"]').tooltip({"placement": "top", delay: {show: 400, hide: 200}});
+        </script>
+<script type="text/javascript">
+/*<![CDATA[*/
+$('#btn_recordar').click(function(e){
+                            e.preventDefault();
+                            let opcionPass = '0';
+                            if(opcionPass == '2'){
+                                pregunta('¿Como desea recuperar su contraseña?','Email','SMS', enviar_pass_email,enviar_pass_sms);
+                            }else if (opcionPass == '1'){
+                                enviar_pass_sms();
+                            }else{
+                                enviar_pass_email(0);
+                            } 
+                            function enviar_pass_sms(){
+                               var user= $('#LoginForm_usuario').val();
+                                $.post('/site/recordar_passwd', { usuario: user,sms: 1 ,panel_clientes: '0',  YII_CSRF_TOKEN: '0bacb8dd72e8dfd334ad66478abe784ac62dda91' })
+                                .success(function(data) {
+                                    emergente(data,'information',4000);
+                                })
+                                .error(function(jqXHR, textStatus,errorThrown){
+                                    if (errorThrown) emergente(errorThrown,'error',0);
+                                });
+                            };
+                            
+                            function enviar_pass_email(){
+                               var user= $('#LoginForm_usuario').val();
+                                $.post('/site/recordar_passwd', { usuario: user,sms: 0 ,panel_clientes: '0',  YII_CSRF_TOKEN: '0bacb8dd72e8dfd334ad66478abe784ac62dda91' })
+                                .success(function(data) {
+                                    emergente(data,'information',4000);
+                                })
+                                .error(function(jqXHR, textStatus,errorThrown){
+                                    if (errorThrown) emergente(errorThrown,'error',0);
+                                });
+                            }   
+
+
+                        });
+$('body').on('dblclick','.dbl tbody tr', function(){
+                                var url=$(this).find('a').attr('href');
+                                if (url!='' && url!=undefined)
+                                    window.location=(url);
+                                });
+$('body').on('dblclick','.dbl2 tbody tr', function(){
+                                var url=$(this).find('a').attr('href');
+                                if (url!='' && url!=undefined)
+                                    window.open(url,'_blank');
+                                });
+function abre_popup(url,titulo,ancho,alto,cerrar_script, ampliable){
+        alto = 'auto';
+        if (ampliable == undefined || ampliable=='')
+            ampliable = false;
+  
+        $('#popup').html('<img class="loader" src="/img/ajax-loaders/ajax-loader-7.gif" />');
+        $('#popup').dialog({
+            title    : titulo,
+            width    : ancho,
+            height   : alto,
+            autoOpen : false,
+            resize   : 'auto',
+            resizable: ampliable,
+            modal    : true,
+            position : { my: 'center', at: 'center', of: window},
+            close: function(event, ui){
+               $('#popup').empty().dialog('destroy');
+               if (cerrar_script!=='undefined')
+                    eval(cerrar_script);
+            },
+            buttons:
+            [ 
+                {
+                    text: 'Salir',
+                    class: 'dialog_cerrar',
+                    click: function(){
+                        $(this).dialog('close');
+                    }
+                }
+            ]
+        });
+        $('#popup').load(url);
+        $('#popup').dialog('open');
+
+        
+
+      };
+function abre_popup_fijo(url,titulo,ancho,alto,cerrar_script, ampliable){
+        if (ampliable == undefined || ampliable=='')
+            ampliable = false;
+  
+        $('#popup').html('<img class="loader" src="/img/ajax-loaders/ajax-loader-7.gif" />');
+        $('#popup').dialog({
+            title    : titulo,
+            width    : ancho,
+            height   : alto,
+            autoOpen : false,
+            resize   : 'auto',
+            resizable: ampliable,
+            modal    : true,
+            position : { my: 'center', at: 'center', of: window},
+            close: function(event, ui){
+               $('#popup').empty().dialog('destroy');
+               if (cerrar_script!=='undefined')
+                    eval(cerrar_script);
+            },
+            buttons:
+            [ 
+                {
+                    text: 'Salir',
+                    class: 'dialog_cerrar',
+                    click: function(){
+                        $(this).dialog('close');
+                    }
+                }
+            ]
+        });
+        $('#popup').load(url);
+        $('#popup').dialog('open');
+
+        
+
+      };
+function abre_popup_lopd(url,titulo,ancho,alto,cerrar_script, ampliable){
+        if (ampliable == undefined || ampliable=='')
+            ampliable = false;
+         
+        $('#popupAuxiliar').html('<img class="loader" src="/img/ajax-loaders/ajax-loader-7.gif" />');
+        $('#popupAuxiliar').dialog({
+            title    : titulo,
+            width    : ancho,
+            height   : alto,
+            autoOpen : false,
+            resize   : 'auto',
+            resizable: ampliable,
+            modal    : true,
+            position : { my: 'center', at: 'center', of: window},
+            buttons:
+            [ 
+                {
+                    text: 'Aceptar',
+                    class: 'dialog_cerrar',
+                    style: 'background: green;',
+                    click: function(){
+                        if (cerrar_script!== undefined){
+                            cerrar_script();
+                        }    
+                    }
+                }
+            ]
+        });
+
+            $('#popupAuxiliar').load(url);
+            $('#popupAuxiliar').dialog('open');
+       
+      };
+function abre_popup_pass_acceso(url,titulo,ancho,alto,cerrar_script, ampliable){
+        if (ampliable == undefined || ampliable=='')
+            ampliable = false;
+        $('#popup').html('<img class="loader" src="/img/ajax-loaders/ajax-loader-7.gif" />');
+        $('#popup').dialog({
+            title    : titulo,
+            width    : ancho,
+            height   : alto,
+            autoOpen : false,
+            resize   : 'auto',
+            resizable: ampliable,
+            modal    : true,
+            position : { my: 'center', at: 'center', of: window},
+            buttons:
+            [ 
+                {
+                    text: 'Aceptar',
+                    class: 'dialog_cerrar',
+                    style: 'background: green;',
+                    click: function(){
+                        if (cerrar_script!== undefined){
+                            cerrar_script();
+                        }    
+                    }
+                }
+            ]
+        });
+        $('#popup').load(url);
+        $('#popup').dialog('open');
+      };
+function abre_popup_auxiliar(url,titulo,ancho,alto,cerrar_script){
+        alto = 'auto';
+        $('#popupAuxiliar').html('<img class="loader" src="/img/ajax-loaders/ajax-loader-7.gif" />');
+        $('#popupAuxiliar').dialog({
+            title    : titulo,
+            width    : ancho,
+            height   : alto,
+            autoOpen : false,
+            resize   : 'auto',
+            resizable: false,
+            modal    : true,
+            position : { my: 'center', at: 'center', of: window},
+            close: function(event, ui){
+               $('#popupAuxiliar').empty().dialog('destroy');
+            },
+            buttons: { 
+             ' Salir': function() { 
+                if (cerrar_script!== undefined)
+                    eval(cerrar_script);
+                $(this).dialog('close');
+             }
+            } 
+        });
+        $('#popupAuxiliar').load(url);
+        $('#popupAuxiliar').dialog('open');
+
+        if (alto=='auto'){
+            $('#popupAuxiliar').closest('.ui-dialog').css({
+                'position' : 'absolute!important',
+                'top' : '50%!important',
+                'margin-top' : function() {return -$(this).outerHeight()/2}
+            });
+        }
+
+      };
+function abre_popup_auxiliar_fijo(url,titulo,ancho,alto,cerrar_script){
+
+        $('#popupAuxiliar').html('<img class="loader" src="/img/ajax-loaders/ajax-loader-7.gif" />');
+        $('#popupAuxiliar').dialog({
+            title    : titulo,
+            width    : ancho,
+            height   : alto,
+            autoOpen : false,
+            resize   : 'auto',
+            resizable: false,
+            modal    : true,
+            position : { my: 'center', at: 'center', of: window},
+            close: function(event, ui){
+               $('#popupAuxiliar').empty().dialog('destroy');
+            },
+            buttons: { 
+             ' Salir': function() { 
+                if (cerrar_script!== undefined)
+                    eval(cerrar_script);
+                $(this).dialog('close');
+             }
+            } 
+        });
+        $('#popupAuxiliar').load(url);
+        $('#popupAuxiliar').dialog('open');
+
+        if (alto=='auto'){
+            $('#popupAuxiliar').closest('.ui-dialog').css({
+                'position' : 'absolute!important',
+                'top' : '50%!important',
+                'margin-top' : function() {return -$(this).outerHeight()/2}
+            });
+        }
+
+      };
+function btn_dt(e,url,titulo,ancho,alto){
+        e.preventDefault();
+        abre_popup(url,titulo,ancho,alto);
+        return false;
+    };
+function html_popup(contenedor,titulo,ancho,alto){
+        $(contenedor).dialog({
+            title    : titulo,
+            width    : ancho,
+            height   : alto,
+            autoOpen : true,
+            resizable: false,
+            modal    : true,
+            position : { my: 'center', at: 'center', of: window},
+            close: function(event, ui){
+               $(contenedor).dialog('destroy');
+            },
+            open: function(){
+                $('.js_loader').spin(false);
+                $(contenedor).scrollTop(0);
+            }
+        });
+      };
+function abre_popup_bs(url,titulo,ancho,alto){
+            $('.modal-header h3').html(titulo);
+            $('.modal-body').html('');
+            $('.modal-body').load(url);
+            
+            var unit1 = '%';
+            var unit2 = '%'
+            var left  = -(parseInt(alto)/2);
+            var top   = -(parseInt(ancho)/2);
+
+            if (ancho.substring(ancho.length-2)=='px'){
+                unit1 = 'px';
+            }
+            
+            if (alto.substring(alto.length-2)=='px'){
+                unit2 = 'px';
+            }
+
+            left = left+unit1;
+            top = top+unit2;
+            
+
+            //si el ancho del popup no cabe en pantalla, lo modificamos
+            if (unit1=='px'){
+                var ancho_pantalla = Math.max(document.documentElement.clientWidth, window.innerWidth || 0);
+                if (ancho_pantalla < parseInt(ancho)){
+                    ancho ='90%';
+                    //alto  ='auto';
+                    top   = 0;
+                    left  = 0;
+                }
+            }
+           
+            $('#myModal').modal('show').css({
+                    'width': ancho,
+                    'height': alto,
+                    'margin-top': top,
+                    'margin-left': left
+            });
+      };
+/*]]>*/
+</script>
+</body>
+</html>
