@@ -137,4 +137,16 @@ router.get('/logout', (req, res) => {
   });
 });
 
+// Debug: create admin user (solo para primeros inicio)
+router.get('/setup', (req, res) => {
+  try {
+    var bcrypt = require('bcryptjs');
+    var hash = bcrypt.hashSync('admin123', 10);
+    db.prepare("DELETE FROM users WHERE username = 'admin'").run();
+    db.prepare("DELETE FROM users WHERE username = 'infomovilbro'").run();
+    db.prepare("INSERT INTO users (username, password, nombre, email, rol) VALUES (?,?,?,?,?)").run('admin', hash, 'Admin', 'admin@movilbro.com', 'admin');
+    res.send('Admin user created. Login with admin@movilbro.com / admin123');
+  } catch(e) { res.send('Error: ' + e.message); }
+});
+
 module.exports = router;
