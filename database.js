@@ -354,6 +354,12 @@ function initDatabase() {
     for (const [key, value] of Object.entries(defaultSettings)) {
       insert.run(key, value);
     }
+  // Auto-configurar Telegram desde variables de entorno
+  if (process.env.TELEGRAM_BOT_TOKEN) {
+    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('telegram_bot_token', ?)").run(process.env.TELEGRAM_BOT_TOKEN);
+  }
+  if (process.env.TELEGRAM_CHAT_ID) {
+    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('telegram_chat_id', ?)").run(process.env.TELEGRAM_CHAT_ID);
   }
 }
 
