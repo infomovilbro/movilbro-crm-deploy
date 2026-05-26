@@ -390,6 +390,19 @@ function initDatabase() {
   if (process.env.TELEGRAM_CHAT_ID) {
     db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('telegram_chat_id', ?)").run(process.env.TELEGRAM_CHAT_ID);
   }
+  // Auto-configurar API Likes Telecom desde variables de entorno
+  if (process.env.LIKES_API_URL) {
+    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('likes_api_url', ?)").run(process.env.LIKES_API_URL);
+  }
+  if (process.env.LIKES_CLIENT_ID) {
+    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('likes_client_id', ?)").run(process.env.LIKES_CLIENT_ID);
+  }
+  if (process.env.LIKES_CLIENT_SECRET) {
+    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('likes_client_secret', ?)").run(process.env.LIKES_CLIENT_SECRET);
+  }
+  if (process.env.LIKES_BRAND_ID) {
+    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('likes_brand_id', ?)").run(process.env.LIKES_BRAND_ID);
+  }
 }
 
 module.exports = { db, initDatabase };
