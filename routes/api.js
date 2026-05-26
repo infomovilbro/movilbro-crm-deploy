@@ -177,9 +177,9 @@ router.get('/bot-test', async (req, res) => {
 res.json(result);
 });
 
-// GET /api/bot-data - muestra campos reales de la API
+// GET /api/bot-data - muestra campos reales de la API + orders con fiscalId
 router.get('/bot-data', async (req, res) => {
-var result = {};
+var result = { orders_test: [] };
 try {
 var LikesAPI = require('../likes-api');
 var api = LikesAPI.getApiInstance();
@@ -188,9 +188,18 @@ var customers = await api.getCustomers();
 if (customers.length > 0) {
 result.customer_fields = Object.keys(customers[0]);
 result.customer_sample = customers[0];
-// buscar ivan
-var ivan = customers.filter(c => (c.nombre||c.name||c.fullName||'').toLowerCase().indexOf('ivan')>=0 || (c.telefono||c.phone||'').indexOf('677350267')>=0);
-result.ivan_search = ivan.length > 0 ? ivan[0] : null;
+var ivan = customers.filter(c => (c.name||'').toLowerCase().indexOf('ivan')>=0);
+if (ivan.length > 0) result.ivan = ivan[0];
+// Test orders con fiscalId de los primeros 5 clientes
+for (var i = 0; i < Math.min(5, customers.length); i++) {
+var fid = customers[i].fiscalId;
+try {
+var ords = await api.request('GET', '/orders?brand_id=264&fiscalId=' + encodeURIComponent(fid));
+var data = (ords && ords.data) || [];
+result.orders_test.push({ fiscalId: fid, count: Array.isArray(data) ? data.length : 0 });
+if (Array.isArray(data) && data.length > 0) result.orders_sample = data[0];
+} catch(e) { result.orders_test.push({ fiscalId: fid, error: e.message }); }
+}
 }
 var inst = await api.getInstallations();
 if (inst.length > 0) {
@@ -201,22 +210,6 @@ var portas = await api.getPortabilities();
 if (portas.length > 0) {
 result.portability_fields = Object.keys(portas[0]);
 result.portability_sample = portas[0];
-}
-// intentar orders con fiscalId de un customer
-try {
-var orders = await api.getOrders();
-result.orders_count = orders.length;
-result.orders_sample = orders.length > 0 ? orders[0] : null;
-} catch(e) {
-result.orders_error = e.message;
-// intentar con fiscalId
-if (customers.length > 0) {
-try {
-var fid = customers[0].fiscalId || customers[0].fiscal_id || customers[0].customerId || customers[0].id;
-var r2 = await api.request('GET', '/orders?brand_id=264&fiscalId=' + encodeURIComponent(fid));
-result.orders_with_fiscalid = r2;
-} catch(e2) { result.orders_with_fiscalid = e2.message; }
-}
 }
 } catch(e) { result.error = e.message; }
 res.json(result);
