@@ -294,6 +294,25 @@ function initDatabase() {
       user_id INTEGER,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS surveys (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      cliente_nombre TEXT,
+      puntuacion INTEGER,
+      comentario TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS instalaciones (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      client_id INTEGER,
+      cliente_nombre TEXT,
+      direccion TEXT,
+      fecha_instalacion DATE,
+      estado TEXT DEFAULT 'pendiente',
+      notas TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
   `);
 
   try { db.prepare("ALTER TABLE users ADD COLUMN permissions TEXT DEFAULT '{}'").run(); } catch(e) {}
