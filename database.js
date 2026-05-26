@@ -423,6 +423,18 @@ function initDatabase() {
   if (process.env.LIKES_BRAND_ID) {
     db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('likes_brand_id', ?)").run(process.env.LIKES_BRAND_ID);
   }
+
+  // Auto-seed tienda data if empty (for Render restarts)
+  try {
+    var tiendaTables = ['tienda_agenda','tienda_prepago','tienda_caja','tienda_presupuestos','tienda_inventario','tienda_historial_dia','tienda_plantilla','tienda_cierres','tienda_notas_diarias','tienda_devoluciones'];
+    var needsSeed = true;
+    for (var _t of tiendaTables) {
+      try { var _c = db.prepare('SELECT COUNT(*) as cnt FROM ' + _t).get(); if (_c.cnt > 0) { needsSeed = false; break; } } catch(e) { needsSeed = false; break; }
+    }
+    if (needsSeed) {
+      require('./seed-tienda-auto');
+    }
+  } catch(e) { console.error('Seed tienda error:', e.message); }
 }
 
 module.exports = { db, initDatabase };
