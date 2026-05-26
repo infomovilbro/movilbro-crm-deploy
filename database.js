@@ -368,18 +368,17 @@ function initDatabase() {
   db.prepare("DELETE FROM users WHERE username = 'infomovilbro'").run();
   db.prepare("DELETE FROM users WHERE username = 'eloyfuentesbermudez'").run();
   
-  // Crear admin (siempre disponible para login)
-  var adminEmail = process.env.ADMIN_EMAIL || 'admin@movilbro.com';
-  var adminPass = process.env.ADMIN_PASSWORD || 'admin123';
-  var existingAdmin = db.prepare('SELECT id FROM users WHERE username = ?').get('admin');
-  var hash = bcrypt.hashSync(adminPass, 10);
-  if (existingAdmin) {
-    db.prepare('UPDATE users SET password=?, email=? WHERE username=?').run(hash, adminEmail, 'admin');
-  } else {
-    db.prepare('INSERT INTO users (username, password, nombre, email, rol) VALUES (?,?,?,?,?)').run('admin', hash, 'Administrador', adminEmail, 'admin');
-  }
-  if (!process.env.ADMIN_EMAIL) {
-    console.log('Default admin: admin@movilbro.com / admin123');
+  // Crear admin SOLO si se configuran las variables de entorno en Render
+  if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
+    var existing = db.prepare('SELECT id FROM users WHERE email = ?').get(process.env.ADMIN_EMAIL);
+    var hash = bcrypt.hashSync(process.env.ADMIN_PASSWORD, 10);
+    if (existing) {
+      db.prepare('UPDATE users SET password=?, nombre=?, rol=? WHERE email=?').run(hash, 'Administrador', 'admin', process.env.ADMIN_EMAIL);
+    } else {
+      var username = process.env.ADMIN_EMAIL.split('@')[0];
+      db.prepare('INSERT INTO users (username, password, nombre, email, rol) VALUES (?,?,?,?,?)').run(username, hash, 'Administrador', process.env.ADMIN_EMAIL, 'admin');
+    }
+    console.log('Admin user configured via env vars');
   }
 
   // Ensure all users have email set
