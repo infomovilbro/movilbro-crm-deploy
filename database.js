@@ -1,6 +1,7 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 
 const dbPath = path.join(__dirname, 'movilbro.db');
 const db = new Database(dbPath);
@@ -366,10 +367,10 @@ function initDatabase() {
   // Solo eliminar usuario admin por seguridad (no borrar usuarios reales)
   db.prepare("DELETE FROM users WHERE username = 'admin'").run();
   
-  // Crear usuario movilbro para acceso a Agentes (si no existe)
+  // Crear usuario movilbro para acceso a Agentes (sin contraseña fija - se genera al solicitar)
   var movilbroUser = db.prepare("SELECT id FROM users WHERE username = 'movilbro'").get();
   if (!movilbroUser) {
-    var movHash = bcrypt.hashSync('movilbro', 10);
+    var movHash = bcrypt.hashSync(crypto.randomBytes(16).toString('hex'), 10);
     db.prepare("INSERT INTO users (username, password, nombre, email, rol) VALUES (?,?,?,?,?)").run('movilbro', movHash, 'Agente Movilbro', 'infomovilbro@gmail.com', 'user');
   }
 
