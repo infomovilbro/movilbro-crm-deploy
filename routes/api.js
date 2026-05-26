@@ -137,4 +137,81 @@ router.get('/search', requireAuth, async (req, res) => {
   res.json(results);
 });
 
+// GET /api/propuestas - leer propuestas del bot (para que el dev las lea)
+router.get('/propuestas', (req, res) => {
+  var lista = db.prepare("SELECT id, chat_id, texto, leido, created_at FROM bot_propuestas WHERE leido = 0 ORDER BY created_at DESC").all();
+  res.json(lista);
+});
+
+// POST /api/propuestas/:id/leer - marcar como leida
+router.post('/propuestas/:id/leer', (req, res) => {
+  db.prepare("UPDATE bot_propuestas SET leido = 1 WHERE id = ?").run(req.params.id);
+  res.json({ ok: true });
+});
+
+// GET /api/bot-test - diagnostic: test API from Render
+router.get('/bot-test', async (req, res) => {
+  var result = { api_configured: false, api_token: false, endpoints: {} };
+  try {
+    var LikesAPI = require('../likes-api');
+    var api = LikesAPI.getApiInstance();
+    result.api_configured = true;
+    await api.getToken();
+    result.api_token = true;
+    var tests = [
+      ['customers', 'getCustomers'], ['products', 'getProducts'], ['portabilities', 'getPortabilities'],
+      ['installations', 'getInstallations'], ['subscriptions', 'getSubscriptions'],
+      ['tickets', 'getTickets'], ['orders', 'getOrders'], ['surveys', 'getSurveys'], ['payments', 'getPayments']
+    ];
+    for (var i = 0; i < tests.length; i++) {
+      try {
+        var r = await api[tests[i][1]]();
+        result.endpoints[tests[i][0]] = { ok: true, count: Array.isArray(r) ? r.length : 0 };
+    } catch(e) {
+      result.endpoints[tests[i][0]] = { ok: false, error: e.message };
+    }
+  }
+} catch(e) {
+  result.error = e.message;
+}
+res.json(result);
+});
+
+// GET /api/bot-data - muestra campos reales de la API + orders con fiscalId
+router.get('/bot-data', async (req, res) => {
+var result = {};
+try {
+var LikesAPI = require('../likes-api');
+var api = LikesAPI.getApiInstance();
+await api.getToken();
+
+// Orders - probar 3 estrategias como en routes/orders.js
+result.orders_strategies = {};
+try { var r1 = await api.request('GET', '/orders?brand_id=' + api.brandId); result.orders_strategies.strategy1 = { ok: true, data: (api.extractData(r1) || []).length }; } catch(e) { result.orders_strategies.strategy1 = { ok: false, error: e.message }; }
+try { var r2 = await api.request('GET', '/orders'); result.orders_strategies.strategy2 = { ok: true, data: (api.extractData(r2) || []).length }; } catch(e) { result.orders_strategies.strategy2 = { ok: false, error: e.message }; }
+try { var r3 = await api.getOrders(); result.orders_strategies.strategy3 = { ok: true, data: (r3 || []).length }; } catch(e) { result.orders_strategies.strategy3 = { ok: false, error: e.message }; }
+// Estrategia 4: orders sin parametros con page
+try { var r4 = await api.fetchAll('/orders'); result.orders_strategies.strategy4 = { ok: true, data: (r4 || []).length }; if (r4.length > 0) result.orders_sample = r4[0]; } catch(e) { result.orders_strategies.strategy4 = { ok: false, error: e.message }; }
+
+var customers = await api.getCustomers();
+if (customers.length > 0) {
+result.customer_fields = Object.keys(customers[0]);
+result.customer_sample = customers[0];
+var ivan = customers.filter(c => (c.name||'').toLowerCase().indexOf('ivan')>=0);
+if (ivan.length > 0) result.ivan = ivan[0];
+}
+var inst = await api.getInstallations();
+if (inst.length > 0) {
+result.installation_fields = Object.keys(inst[0]);
+result.installation_sample = inst[0];
+}
+var portas = await api.getPortabilities();
+if (portas.length > 0) {
+result.portability_fields = Object.keys(portas[0]);
+result.portability_sample = portas[0];
+}
+} catch(e) { result.error = e.message; }
+res.json(result);
+});
+
 module.exports = router;

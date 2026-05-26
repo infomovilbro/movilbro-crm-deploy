@@ -1,146 +1,157 @@
-const express = require('express');
-const { db } = require('../database');
-const https = require('https');
-const router = express.Router();
+﻿var express = require('express');
+var db = require('../database').db;
+var https = require('https');
+var fs = require('fs');
+var path = require('path');
+var router = express.Router();
 
-// ---- estado de conversacion (para flujos multi-paso) ----
-var esperando = {};
+var ADMIN_UID = '8281537070';
 
-// ---- helpers telegram ----
+function isAllowed(cid) {
+  var row = db.prepare("SELECT value FROM settings WHERE key = 'bot_allowed_ids'").get();
+  if (!row || !row.value) return true; // si no hay lista, todos pueden
+  var ids = row.value.split(',').map(function(s) { return s.trim(); });
+  return ids.indexOf(String(cid)) >= 0;
+}
+
+function addAllowed(cid) {
+  var row = db.prepare("SELECT value FROM settings WHERE key = 'bot_allowed_ids'").get();
+  var ids = (row && row.value) || '';
+  var lista = ids ? ids.split(',').map(function(s) { return s.trim(); }) : [];
+  if (lista.indexOf(String(cid)) < 0) {
+    lista.push(String(cid));
+    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('bot_allowed_ids', ?)").run(lista.join(','));
+    return true;
+  }
+  return false;
+}
+
+// Auto-agregar admin al inicio
+addAllowed(ADMIN_UID);
+
 function getToken() {
   if (process.env.TELEGRAM_BOT_TOKEN) return process.env.TELEGRAM_BOT_TOKEN;
   var row = db.prepare("SELECT value FROM settings WHERE key = 'telegram_bot_token'").get();
   return row ? row.value : null;
 }
+
 function getChatId() {
   if (process.env.TELEGRAM_CHAT_ID) return process.env.TELEGRAM_CHAT_ID;
   var row = db.prepare("SELECT value FROM settings WHERE key = 'telegram_chat_id'").get();
   return row ? row.value : null;
 }
 
-function apiCall(method, payload) {
-  return new Promise(function(resolve) {
-    var token = getToken();
-    if (!token) return resolve(null);
+function tg(method, payload, cb) {
+  var token = getToken();
+  if (!token) { if (cb) cb(null); return; }
+  try {
     var body = JSON.stringify(payload);
-    var opts = {
+    var r = https.request({
       hostname: 'api.telegram.org',
       path: '/bot' + token + '/' + method,
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Content-Length': body.length }
-    };
-    var req = https.request(opts, function(res) { var d = ''; res.on('data', function(c) { d += c; }); res.on('end', function() { try { resolve(JSON.parse(d)); } catch(e) { resolve(null); } }); });
-    req.on('error', function() { resolve(null); });
-    req.write(body);
-    req.end();
-  });
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }
+    }, function(res) {
+      var d = '';
+      res.on('data', function(c) { d += c; });
+      res.on('end', function() { if (cb) { try { cb(JSON.parse(d)); } catch(e) { cb(null); } } });
+    });
+    r.on('error', function() { if (cb) cb(null); });
+    r.write(body);
+    r.end();
+  } catch(e) { if (cb) cb(null); }
 }
 
-function sendMsg(chatId, text) {
-  return apiCall('sendMessage', { chat_id: chatId, text: text });
-}
+function msg(chatId, text) { tg('sendMessage', { chat_id: chatId, text: text }); }
 
-function sendMenu(chatId, text) {
-  return apiCall('sendMessage', {
+function menu(chatId) {
+  tg('sendMessage', {
     chat_id: chatId,
-    text: text || '\uD83E\uDD16 CRM Movilbro - Funciones',
+    text: 'CRM Movilbro - Funciones',
     reply_markup: {
       inline_keyboard: [
-        [{ text: '\uD83D\uDD04 Backup BD', callback_data: 'cmd_backup' }, { text: '\uD83D\uDCCA Resumen diario', callback_data: 'cmd_resumen' }],
-        [{ text: '\uD83D\uDCC8 KPIs generales', callback_data: 'cmd_stats' }, { text: '\uD83D\uDC64 Buscar cliente', callback_data: 'cmd_cliente' }],
-        [{ text: '\uD83C\uDFAB Tickets pendientes', callback_data: 'cmd_tickets' }, { text: '\uD83D\uDCF1 Portabilidades', callback_data: 'cmd_portabilidades' }],
-        [{ text: '\uD83D\uDCB0 Facturacion del mes', callback_data: 'cmd_facturacion' }, { text: '\uD83D\uDCE6 Ordenes pendientes', callback_data: 'cmd_ordenes' }],
-        [{ text: '\uD83D\uDD27 Instalaciones', callback_data: 'cmd_instalaciones' }, { text: '\uD83D\uDCE1 Ultimas altas', callback_data: 'cmd_altas' }],
-        [{ text: '\uD83D\uDD14 Ultimas bajas', callback_data: 'cmd_bajas' }, { text: '\uD83D\uDCB3 Cobros pendientes', callback_data: 'cmd_cobros' }],
-        [{ text: '\uD83D\uDCDD Encuestas', callback_data: 'cmd_encuestas' }, { text: '\uD83D\uDFE2 Caja de hoy', callback_data: 'cmd_caja' }],
-        [{ text: '\uD83D\uDCC5 Agenda de hoy', callback_data: 'cmd_agenda' }, { text: '\uD83D\uDCE6 Inventario minimo', callback_data: 'cmd_inventario' }],
-        [{ text: '\uD83D\uDEE1\uFE0F Salud del servidor', callback_data: 'cmd_servidor' }, { text: '\u2753 Ayuda', callback_data: 'cmd_ayuda' }]
+        [{ text: 'Buscar cliente', callback_data: 'c_cliente' }, { text: 'Instalaciones', callback_data: 'c_inst' }],
+        [{ text: 'Portabilidades', callback_data: 'c_porta' }, { text: 'Ordenes', callback_data: 'c_ordenes' }],
+        [{ text: 'Resumen rapido', callback_data: 'c_resumen' }, { text: 'Servidor', callback_data: 'c_serv' }],
+        [{ text: 'Enviar propuesta', callback_data: 'c_prop' }]
       ]
     }
   });
 }
 
-function editMsg(chatId, msgId, text, keyboard) {
-  var p = { chat_id: chatId, message_id: msgId, text: text };
-  if (keyboard) p.reply_markup = { inline_keyboard: keyboard };
-  return apiCall('editMessageText', p);
-}
+var espera = {};
 
-function answerCb(callbackId, text) {
-  return apiCall('answerCallbackQuery', { callback_query_id: callbackId, text: text, show_alert: false });
-}
-
-// ---- webhook ----
 router.post('/webhook', function(req, res) {
-  var update = req.body;
-  if (!update) { res.sendStatus(200); return; }
+  var up = req.body;
+  if (!up) { res.sendStatus(200); return; }
 
-  // Callback query (boton inline pulsado)
-  if (update.callback_query) {
-    var cq = update.callback_query;
-    var chatId = cq.message.chat.id;
-    var msgId = cq.message.message_id;
-    var data = cq.data || '';
-    var cbId = cq.id;
+  // Boton inline pulsado
+  if (up.callback_query) {
+    var cq = up.callback_query;
+    var cid = cq.message.chat.id;
+    if (!isAllowed(cid)) { tg('answerCallbackQuery', { callback_query_id: cq.id, text: 'No autorizado. ID: ' + cid }); res.sendStatus(200); return; }
+    var mid = cq.message.message_id;
+    var cbdata = cq.data || '';
+    var cbid = cq.id;
 
-    if (data === 'cmd_ayuda' || data === 'cmd_menu') {
-      editMsg(chatId, msgId, '\uD83E\uDD16 CRM Movilbro - Funciones\n\nPulsa cualquier boton para ejecutar una accion.', getMenuKeyboard());
-      answerCb(cbId, 'Menu actualizado');
-    } else {
-      answerCb(cbId, 'Procesando...');
-      ejecutarComando(data, chatId, msgId);
-    }
+    tg('answerCallbackQuery', { callback_query_id: cbid, text: 'Procesando...' });
+    procesar(cbdata, cid, mid);
     res.sendStatus(200);
     return;
   }
 
   // Mensaje de texto
-  if (update.message && update.message.text) {
-    var chatId = update.message.chat.id;
-    var text = update.message.text.trim();
+  if (up.message && up.message.text) {
+    var cid = up.message.chat.id;
+    if (!isAllowed(cid)) { tg('sendMessage', { chat_id: cid, text: 'No autorizado. Tu ID: ' + cid + '\nPide al admin que ejecute: /autorizar ' + cid }); res.sendStatus(200); return; }
+    var txt = up.message.text.trim();
 
-    // Si estamos esperando entrada del usuario
-    if (esperando[chatId]) {
-      var accion = esperando[chatId];
-      delete esperando[chatId];
-      if (accion === 'cliente') buscarCliente(chatId, text, null);
-      else if (accion === 'backup') ejecutarBackup(chatId, null);
+    // Esperando respuesta del usuario
+    if (espera[cid]) {
+      var acc = espera[cid];
+      delete espera[cid];
+      if (acc === 'cliente') buscarCliente(cid, txt);
+      else if (acc === 'propuesta') { db.prepare('INSERT INTO bot_propuestas (chat_id, texto) VALUES (?, ?)').run(String(cid), txt); msg(cid, '\u2705 Propuesta guardada.'); }
       res.sendStatus(200);
       return;
     }
 
-    var parts = text.split(' ');
-    var first = parts[0].toLowerCase();
-    var rest = parts.slice(1).join(' ');
+    var p = txt.split(' ');
+    var cmd = p[0].toLowerCase();
+    var arg = p.slice(1).join(' ');
 
-    if (first === '/start' || first === '/funciones' || first === '/menu' || first === '/acciones') {
-      if (rest && !isNaN(rest)) {
-        var num = parseInt(rest);
-        var mapa = { 1:'cmd_backup',2:'cmd_resumen',3:'cmd_stats',4:'cmd_cliente',5:'cmd_tickets',6:'cmd_portabilidades',7:'cmd_facturacion',8:'cmd_ordenes',9:'cmd_instalaciones',10:'cmd_altas',11:'cmd_bajas',12:'cmd_cobros',13:'cmd_encuestas',14:'cmd_caja',15:'cmd_agenda',16:'cmd_inventario',17:'cmd_servidor' };
-        if (mapa[num]) ejecutarComando(mapa[num], chatId, null);
-      } else {
-        sendMenu(chatId);
-      }
-      res.sendStatus(200);
-      return;
+    if (cmd === '/start' || cmd === '/funciones' || cmd === '/menu') { menu(cid); res.sendStatus(200); return; }
+    if (cmd === '/autorizar') {
+      if (String(cid) === ADMIN_UID && arg) {
+        if (addAllowed(arg)) msg(cid, '\u2705 Usuario ' + arg + ' autorizado.');
+        else msg(cid, '\u2139\uFE0F El usuario ' + arg + ' ya estaba autorizado.');
+      } else msg(cid, '\u26A0\uFE0F Solo el admin puede autorizar usuarios.');
+      res.sendStatus(200); return;
+    }
+    if (cmd === '/backup') { msg(cid, '\u23F3 Generando backup...'); hacerBackup(cid); res.sendStatus(200); return; }
+    if (cmd === '/resumen') { resumen(cid); res.sendStatus(200); return; }
+    if (cmd === '/stats') { stats(cid); res.sendStatus(200); return; }
+    if (cmd === '/cliente' || cmd === '/clientes') { if (arg) buscarCliente(cid, arg); else { espera[cid] = 'cliente'; msg(cid, '\uD83D\uDC64 Escribe el telefono o nombre del cliente:'); } res.sendStatus(200); return; }
+    if (cmd === '/tickets') { tickets(cid); res.sendStatus(200); return; }
+    if (cmd === '/portabilidades' || cmd === '/porta') { portas(cid); res.sendStatus(200); return; }
+    if (cmd === '/facturacion' || cmd === '/billing') { fact(cid); res.sendStatus(200); return; }
+    if (cmd === '/ordenes' || cmd === '/orders') { ordenes(cid); res.sendStatus(200); return; }
+    if (cmd === '/instalaciones') { instalaciones(cid); res.sendStatus(200); return; }
+    if (cmd === '/altas') { msg(cid, '\uD83D\uDCE1 Altas disponibles en /resumen o CRM web.'); res.sendStatus(200); return; }
+    if (cmd === '/bajas') { msg(cid, '\uD83D\uDD14 Bajas disponibles en /resumen o CRM web.'); res.sendStatus(200); return; }
+    if (cmd === '/cobros') { cobros(cid); res.sendStatus(200); return; }
+    if (cmd === '/encuestas') { msg(cid, '\uD83D\uDCDD Encuestas en CRM web (/surveys).'); res.sendStatus(200); return; }
+    if (cmd === '/caja') { msg(cid, '\uD83D\uDFE2 Caja del dia en Panel Tienda del CRM.'); res.sendStatus(200); return; }
+    if (cmd === '/agenda') { msg(cid, '\uD83D\uDCC5 Agenda en Panel Tienda del CRM.'); res.sendStatus(200); return; }
+    if (cmd === '/inventario') { msg(cid, '\uD83D\uDCE6 Inventario en Panel Tienda del CRM.'); res.sendStatus(200); return; }
+    if (cmd === '/servidor' || cmd === '/health') { servidor(cid); res.sendStatus(200); return; }
+    if (cmd === '/propuesta' || cmd === '/propuestas') {
+      if (arg) { db.prepare('INSERT INTO bot_propuestas (chat_id, texto) VALUES (?, ?)').run(String(cid), arg); msg(cid, '\u2705 Propuesta guardada.'); }
+      else msg(cid, '\uD83D\uDCDD Escribe /propuestas + tu sugerencia.');
+      res.sendStatus(200); return;
     }
 
-    if (first === '/backup') safeRun(ejecutarBackup, chatId, null);
-    else if (first === '/resumen' || first === '/summary') safeRun(cmdResumen, chatId, null);
-    else if (first === '/stats' || first === '/kpi') safeRun(cmdStats, chatId, null);
-    else if (first === '/cliente' || first === '/clientes') { if (rest) safeRun(function(c,m){buscarCliente(c,rest,m);}, chatId, null); else pedirCliente(chatId); }
-    else if (first === '/tickets' || first === '/ticket') safeRun(cmdTickets, chatId, null);
-    else if (first === '/portabilidades' || first === '/porta') safeRun(cmdPortabilidades, chatId, null);
-    else if (first === '/facturacion' || first === '/billing') safeRun(cmdFacturacion, chatId, null);
-    else if (first === '/ordenes' || first === '/orders') safeRun(cmdOrdenes, chatId, null);
-    else if (first === '/instalaciones') safeRun(cmdInstalaciones, chatId, null);
-    else if (first === '/encuestas') safeRun(cmdEncuestas, chatId, null);
-    else if (first === '/servidor' || first === '/health') safeRun(cmdServidor, chatId, null);
-    else if (first === '/caja') safeRun(cmdCaja, chatId, null);
-    else if (first === '/agenda') safeRun(cmdAgenda, chatId, null);
-    else if (first === '/inventario') safeRun(cmdInventario, chatId, null);
-    else sendMsg(chatId, 'No te entiendo. Escribe /funciones para ver el menu.');
-
+    msg(cid, '\u2753 Usa /funciones para ver el menu.');
     res.sendStatus(200);
     return;
   }
@@ -148,321 +159,254 @@ router.post('/webhook', function(req, res) {
   res.sendStatus(200);
 });
 
-function getMenuKeyboard() {
-  return [
-    [{ text: '\uD83D\uDD04 Backup BD', callback_data: 'cmd_backup' }, { text: '\uD83D\uDCCA Resumen diario', callback_data: 'cmd_resumen' }],
-    [{ text: '\uD83D\uDCC8 KPIs generales', callback_data: 'cmd_stats' }, { text: '\uD83D\uDC64 Buscar cliente', callback_data: 'cmd_cliente' }],
-    [{ text: '\uD83C\uDFAB Tickets pendientes', callback_data: 'cmd_tickets' }, { text: '\uD83D\uDCF1 Portabilidades', callback_data: 'cmd_portabilidades' }],
-    [{ text: '\uD83D\uDCB0 Facturacion del mes', callback_data: 'cmd_facturacion' }, { text: '\uD83D\uDCE6 Ordenes pendientes', callback_data: 'cmd_ordenes' }],
-    [{ text: '\uD83D\uDD27 Instalaciones', callback_data: 'cmd_instalaciones' }, { text: '\uD83D\uDCE1 Ultimas altas', callback_data: 'cmd_altas' }],
-    [{ text: '\uD83D\uDD14 Ultimas bajas', callback_data: 'cmd_bajas' }, { text: '\uD83D\uDCB3 Cobros pendientes', callback_data: 'cmd_cobros' }],
-    [{ text: '\uD83D\uDCDD Encuestas', callback_data: 'cmd_encuestas' }, { text: '\uD83D\uDFE2 Caja de hoy', callback_data: 'cmd_caja' }],
-    [{ text: '\uD83D\uDCC5 Agenda de hoy', callback_data: 'cmd_agenda' }, { text: '\uD83D\uDCE6 Inventario minimo', callback_data: 'cmd_inventario' }],
-    [{ text: '\uD83D\uDEE1\uFE0F Salud del servidor', callback_data: 'cmd_servidor' }, { text: '\u2753 Ayuda', callback_data: 'cmd_ayuda' }]
-  ];
-}
-
-// ---- ejecutor de comandos con proteccion ----
-function safeRun(fn, chatId, msgId) {
-  try {
-    var r = fn(chatId, msgId);
-    if (r && typeof r.then === 'function') r.catch(function(e) { sendMsg(chatId, 'Error: ' + e.message); });
-  } catch (e) {
-    sendMsg(chatId, 'Error: ' + e.message);
-  }
-}
-
-function ejecutarComando(data, chatId, msgId) {
+function procesar(data, cid, mid) {
   switch (data) {
-    case 'cmd_backup': return safeRun(ejecutarBackup, chatId, msgId);
-    case 'cmd_resumen': return safeRun(cmdResumen, chatId, msgId);
-    case 'cmd_stats': return safeRun(cmdStats, chatId, msgId);
-    case 'cmd_cliente': return pedirCliente(chatId);
-    case 'cmd_tickets': return safeRun(cmdTickets, chatId, msgId);
-    case 'cmd_portabilidades': return safeRun(cmdPortabilidades, chatId, msgId);
-    case 'cmd_facturacion': return safeRun(cmdFacturacion, chatId, msgId);
-    case 'cmd_ordenes': return safeRun(cmdOrdenes, chatId, msgId);
-    case 'cmd_instalaciones': return safeRun(cmdInstalaciones, chatId, msgId);
-    case 'cmd_altas': return safeRun(cmdAltas, chatId, msgId);
-    case 'cmd_bajas': return safeRun(cmdBajas, chatId, msgId);
-    case 'cmd_cobros': return safeRun(cmdCobros, chatId, msgId);
-    case 'cmd_encuestas': return safeRun(cmdEncuestas, chatId, msgId);
-    case 'cmd_caja': return safeRun(cmdCaja, chatId, msgId);
-    case 'cmd_agenda': return safeRun(cmdAgenda, chatId, msgId);
-    case 'cmd_inventario': return safeRun(cmdInventario, chatId, msgId);
-    case 'cmd_servidor': return safeRun(cmdServidor, chatId, msgId);
-    default: return sendMsg(chatId, 'Comando no reconocido.');
+    case 'c_backup': msg(cid, '\u23F3 Generando backup...'); hacerBackup(cid); break;
+    case 'c_resumen': resumen(cid); break;
+    case 'c_stats': stats(cid); break;
+    case 'c_cliente': espera[cid] = 'cliente'; msg(cid, '\uD83D\uDC64 Escribe el telefono o nombre del cliente:'); break;
+    case 'c_tickets': tickets(cid); break;
+    case 'c_porta': portas(cid); break;
+    case 'c_fact': fact(cid); break;
+    case 'c_ordenes': ordenes(cid); break;
+    case 'c_inst': instalaciones(cid); break;
+    case 'c_altas': msg(cid, '\uD83D\uDCE1 Usa /resumen para ver altas.'); break;
+    case 'c_bajas': msg(cid, '\uD83D\uDD14 Usa /resumen para ver bajas.'); break;
+    case 'c_cobros': cobros(cid); break;
+    case 'c_enc': msg(cid, '\uD83D\uDCDD Encuestas en CRM web (/surveys).'); break;
+    case 'c_caja': msg(cid, '\uD83D\uDFE2 Caja en Panel Tienda del CRM.'); break;
+    case 'c_agenda': msg(cid, '\uD83D\uDCC5 Agenda en Panel Tienda del CRM.'); break;
+    case 'c_inv': msg(cid, '\uD83D\uDCE6 Inventario en Panel Tienda del CRM.'); break;
+    case 'c_serv': servidor(cid); break;
+    case 'c_prop': espera[cid] = 'propuesta'; msg(cid, '\uD83D\uDCDD Escribe tu propuesta:'); break;
+    default: msg(cid, '\u2753 Comando no reconocido.');
   }
 }
 
-// ---- handlers ----
-function ejecutarBackup(chatId, msgId) {
-  sendMsg(chatId, 'Generando backup...');
+function hacerBackup(cid) {
   try {
-    var { sendBackup } = require('./backup');
-    sendBackup().then(function(r) {
-      if (r && r.success) sendMsg(chatId, 'Backup enviado a Telegram correctamente.');
-      else sendMsg(chatId, 'Error al enviar backup: ' + ((r && r.error) || 'desconocido'));
+    var sb = require('./backup');
+    sb.sendBackup().then(function(r) {
+      msg(cid, r && r.success ? '\u2705 Backup enviado a Telegram.' : '\u274C Error backup: ' + (r && r.error || 'desconocido'));
     });
-  } catch(e) {
-    sendMsg(chatId, 'Error: ' + e.message);
+  } catch(e) { msg(cid, '\u274C Error: ' + e.message); }
+}
+
+function resumen(cid) {
+  msg(cid, '\u23F3 Cargando resumen...');
+  var LikesAPI = require('../likes-api');
+  var api = LikesAPI.getApiInstance();
+  api.getToken().then(function() {
+    return Promise.all([
+      api.getCustomers().then(function(r) { return r ? r.length : 0; }).catch(function() { return -1; }),
+      api.getInstallations().then(function(r) { return r ? r.length : 0; }).catch(function() { return -1; }),
+      api.getPortabilities().then(function(r) { return r ? r.length : 0; }).catch(function() { return -1; })
+    ]);
+  }).then(function(r) {
+    var t = '\uD83D\uDCCA Resumen diario\n\uD83D\uDCC5 ' + new Date().toISOString().slice(0, 10) + '\n\n\uD83C\uDFE6 Clientes: ' + (r[0] >= 0 ? r[0] : 'N/A') + '\n\uD83D\uDD27 Instalaciones: ' + (r[1] >= 0 ? r[1] : 'N/A') + '\n\uD83D\uDCF1 Portabilidades: ' + (r[2] >= 0 ? r[2] : 'N/A');
+    msg(cid, t);
+  }).catch(function(e) { msg(cid, '\u274C Error al obtener datos: ' + e.message); });
+}
+
+function stats(cid) {
+  msg(cid, '\u23F3 Cargando KPIs...');
+  var LikesAPI = require('../likes-api');
+  var api = LikesAPI.getApiInstance();
+  api.getToken().then(function() {
+    return Promise.all([
+      api.getCustomers().then(function(r) { return r ? r.length : 0; }).catch(function() { return -1; }),
+      api.getProducts().then(function(r) { return r ? r.length : 0; }).catch(function() { return -1; }),
+      api.getInstallations().then(function(r) { return r ? r.length : 0; }).catch(function() { return -1; }),
+      api.getPortabilities().then(function(r) { return r ? r.length : 0; }).catch(function() { return -1; })
+    ]);
+  }).then(function(r) {
+    var t = '\uD83D\uDCC8 KPIs\n\n\uD83C\uDFE6 Clientes: ' + (r[0] >= 0 ? r[0] : 'N/A') + '\n\uD83D\uDCE6 Productos: ' + (r[1] >= 0 ? r[1] : 'N/A') + '\n\uD83D\uDD27 Instalaciones: ' + (r[2] >= 0 ? r[2] : 'N/A') + '\n\uD83D\uDCF1 Portabilidades: ' + (r[3] >= 0 ? r[3] : 'N/A');
+    msg(cid, t);
+  }).catch(function(e) { msg(cid, '\u274C Error: ' + e.message); });
+}
+
+function buscarCliente(cid, q) {
+  var likes = require('../likes-api');
+  var api = likes.getApiInstance();
+
+  // Local
+  var local = db.prepare("SELECT nombre, telefono FROM clients WHERE nombre LIKE ? OR telefono LIKE ? LIMIT 5").all('%' + q + '%', '%' + q + '%');
+  var t = '\uD83D\uDC64 Resultados para: ' + q + '\n';
+  if (local.length > 0) {
+    t += '\n\uD83C\uDFE6 Clientes locales:\n';
+    local.forEach(function(r) { t += '- ' + r.nombre + (r.telefono ? ' | ' + r.telefono : '') + '\n'; });
+    msg(cid, t);
+  } else {
+    msg(cid, '\uD83D\uDD0D Buscando en API...');
+    var palabras = q.toLowerCase().split(' ').filter(function(p) { return p.length > 0; });
+    api.getToken().then(function() { return api.getCustomers(); }).then(function(clientes) {
+      var filtrados = clientes.filter(function(c) {
+        var texto = ((c.name || '') + ' ' + (c.firstSurname || '') + ' ' + (c.lastSurname || '') + ' ' + (c.contactPhone || '') + ' ' + (c.email || '')).toLowerCase();
+        return palabras.every(function(p) { return texto.indexOf(p) >= 0; });
+      }).slice(0, 5);
+      if (filtrados.length > 0) {
+        var t2 = '\uD83C\uDF10 Clientes API:\n';
+        filtrados.forEach(function(c) {
+          var nom = (c.name || '') + ' ' + (c.firstSurname || '') + ' ' + (c.lastSurname || '');
+          t2 += '- ' + nom.trim() + (c.contactPhone ? ' | ' + c.contactPhone : '') + '\n';
+        });
+        msg(cid, t2);
+      } else {
+        msg(cid, '\u274C No encontrado en API ni BD local.');
+      }
+    }).catch(function() { msg(cid, '\u274C No encontrado.'); });
   }
 }
 
-function cmdResumen(chatId, msgId) {
-  var hoy = new Date().toISOString().slice(0, 10);
-  var totalCli = db.prepare('SELECT COUNT(*) as c FROM clients').get().c;
-  var totalSubs = db.prepare("SELECT COUNT(*) as c FROM subscriptions WHERE estado != 'baja'").get().c;
-  var altasHoy = db.prepare("SELECT COUNT(*) as c FROM subscriptions WHERE fecha_alta >= ?").get(hoy).c;
-  var ticketsAbiertos = db.prepare("SELECT COUNT(*) as c FROM tickets WHERE estado != 'cerrado'").get().c;
-  var ordenesPend = db.prepare("SELECT COUNT(*) as c FROM orders WHERE estado NOT IN ('completada','cancelada')").get().c;
-  var ingresosHoy = db.prepare("SELECT COALESCE(SUM(importe),0) as t FROM tienda_caja WHERE tipo='ingreso' AND fecha = ?").get(hoy).t;
-  var gastosHoy = db.prepare("SELECT COALESCE(SUM(importe),0) as t FROM tienda_caja WHERE tipo='gasto' AND fecha = ?").get(hoy).t;
-  var t = 'Resumen diario - ' + hoy + '\n'
-    + 'Clientes: ' + totalCli + ' | Suscripciones activas: ' + totalSubs + '\n'
-    + 'Altas hoy: ' + altasHoy + '\n'
-    + 'Tickets abiertos: ' + ticketsAbiertos + '\n'
-    + 'Ordenes pendientes: ' + ordenesPend + '\n'
-    + 'Caja - Ingresos: ' + parseFloat(ingresosHoy).toFixed(2) + 'EUR | Gastos: ' + parseFloat(gastosHoy).toFixed(2) + 'EUR | Saldo: ' + parseFloat(ingresosHoy - gastosHoy).toFixed(2) + 'EUR';
-  if (msgId) editMsg(chatId, msgId, t, getMenuKeyboard());
-  else sendMsg(chatId, t);
+function tickets(cid) {
+  var local = db.prepare("SELECT id, asunto, prioridad, estado FROM tickets WHERE estado != 'cerrado' ORDER BY id DESC LIMIT 10").all();
+  if (local.length > 0) {
+    var t = '\uD83C\uDFAB Tickets pendientes (local):\n';
+    local.forEach(function(r) { t += '#' + r.id + ' ' + r.asunto + ' [' + r.estado + ']\n'; });
+    msg(cid, t);
+  } else {
+    msg(cid, '\uD83C\uDFAB No hay tickets pendientes en BD local. Revisa en el CRM web.');
+  }
 }
 
-function cmdStats(chatId, msgId) {
-  var totalCli = db.prepare('SELECT COUNT(*) as c FROM clients').get().c;
-  var activas = db.prepare("SELECT COUNT(*) as c FROM subscriptions WHERE estado != 'baja'").get().c;
-  var bajas = db.prepare("SELECT COUNT(*) as c FROM subscriptions WHERE estado = 'baja' OR estado LIKE '%baja%'").get().c;
-  var tickets = db.prepare('SELECT COUNT(*) as c FROM tickets').get().c;
-  var ordenes = db.prepare('SELECT COUNT(*) as c FROM orders').get().c;
-  var productos = db.prepare('SELECT COUNT(*) as c FROM products').get().c;
-  var usuarios = db.prepare('SELECT COUNT(*) as c FROM users').get().c;
-  var t = 'KPIs generales del CRM\n'
-    + 'Clientes totales: ' + totalCli + '\n'
-    + 'Suscripciones activas: ' + activas + '\n'
-    + 'Bajas totales: ' + bajas + '\n'
-    + 'Tickets: ' + tickets + ' | Ordenes: ' + ordenes + '\n'
-    + 'Productos: ' + productos + ' | Usuarios: ' + usuarios;
-  if (msgId) editMsg(chatId, msgId, t, getMenuKeyboard());
-  else sendMsg(chatId, t);
+function portas(cid) {
+  msg(cid, '\u23F3 Cargando portabilidades...');
+  var likes = require('../likes-api');
+  var api = likes.getApiInstance();
+  api.getToken().then(function() { return api.getPortabilities(); }).then(function(portas) {
+    if (portas.length === 0) { msg(cid, '\uD83D\uDCF1 No hay portabilidades activas.'); return; }
+    var t = '\uD83D\uDCF1 Portabilidades (' + portas.length + '):\n';
+    portas.slice(0, 10).forEach(function(p) {
+      var nom = (p.name || '') + ' ' + (p.firstSurname || '') + ' ' + (p.lastSurname || '');
+      t += '\u2022 ' + nom.trim() + '\n  Linea: ' + (p.lineNumber || '-') + ' | ' + (p.type === 'IN' ? 'entrante' : 'saliente') + '\n  Operador: ' + (p.donorOperator || '-') + ' | Estado: ' + est(p.status) + '\n';
+    });
+    msg(cid, t);
+  }).catch(function() { msg(cid, '\u274C Error al obtener portabilidades.'); });
 }
 
-function pedirCliente(chatId) {
-  esperando[chatId] = 'cliente';
-  sendMsg(chatId, 'Escribe el telefono, nombre o email del cliente que buscas:');
+function est(estado) {
+  var map = { 'COMPLETED':'completada', 'CANCELED':'cancelada', 'PENDING_CANCELATION':'pendiente', 'INITIATED':'iniciada', 'CREATED':'creada', 'ACTIVE':'activa', 'TERMINATED':'terminada', 'CLOSED':'cerrada', 'OPEN':'abierta' };
+  return map[estado] || (estado || '-');
 }
 
-function buscarCliente(chatId, query, msgId) {
-  var q = '%' + query + '%';
-  var results = db.prepare("SELECT id, nombre, telefono, email, dni_nif FROM clients WHERE nombre LIKE ? OR telefono LIKE ? OR email LIKE ? OR dni_nif LIKE ? LIMIT 5").all(q, q, q, q);
-  if (!results.length) return sendMsg(chatId, 'No se encontraron clientes con: ' + query);
-  var t = 'Clientes encontrados:\n';
-  results.forEach(function(r) {
-    t += '- ' + r.nombre;
-    if (r.telefono) t += ' | Tel: ' + r.telefono;
-    if (r.email) t += ' | Email: ' + r.email;
-    t += '\n';
-  });
-  if (msgId) editMsg(chatId, msgId, t, getMenuKeyboard());
-  else sendMsg(chatId, t);
-}
-
-function cmdTickets(chatId, msgId) {
-  var lista = db.prepare("SELECT id, asunto, prioridad, estado, created_at FROM tickets WHERE estado != 'cerrado' ORDER BY created_at DESC LIMIT 10").all();
-  if (!lista.length) return sendMsg(chatId, 'No hay tickets pendientes.');
-  var t = 'Tickets pendientes:\n';
-  lista.forEach(function(r) {
-    var p = r.prioridad === 'alta' ? '[Alta]' : r.prioridad === 'media' ? '[Media]' : '[Baja]';
-    t += '#' + r.id + ' ' + r.asunto + ' ' + p + ' (' + r.estado + ')\n';
-  });
-  if (msgId) editMsg(chatId, msgId, t, getMenuKeyboard());
-  else sendMsg(chatId, t);
-}
-
-function cmdPortabilidades(chatId, msgId) {
-  var lista = db.prepare("SELECT linea, producto, estado, created_at FROM subscriptions WHERE estado LIKE '%portabilidad%' OR estado = 'en_curso' ORDER BY created_at DESC LIMIT 10").all();
-  if (!lista.length) return sendMsg(chatId, 'No hay portabilidades activas.');
-  var t = 'Portabilidades:\n';
-  lista.forEach(function(r) { t += '- ' + (r.linea || 'sin linea') + ' | ' + (r.producto || '-') + ' [' + r.estado + ']\n'; });
-  if (msgId) editMsg(chatId, msgId, t, getMenuKeyboard());
-  else sendMsg(chatId, t);
-}
-
-function cmdFacturacion(chatId, msgId) {
+function fact(cid) {
   var mes = new Date().toISOString().slice(0, 7);
   var ing = db.prepare("SELECT COALESCE(SUM(importe),0) as t FROM tienda_caja WHERE tipo='ingreso' AND fecha LIKE ?").get(mes + '%').t;
   var gas = db.prepare("SELECT COALESCE(SUM(importe),0) as t FROM tienda_caja WHERE tipo='gasto' AND fecha LIKE ?").get(mes + '%').t;
-  var t = 'Facturacion del mes ' + mes + '\n'
-    + 'Ingresos: ' + parseFloat(ing).toFixed(2) + 'EUR\n'
-    + 'Gastos: ' + parseFloat(gas).toFixed(2) + 'EUR\n'
-    + 'Saldo: ' + parseFloat(ing - gas).toFixed(2) + 'EUR';
-  if (msgId) editMsg(chatId, msgId, t, getMenuKeyboard());
-  else sendMsg(chatId, t);
+  var t = '\uD83D\uDCB0 Facturacion del mes (' + mes + ')\n(Panel Tienda)\nIngresos: ' + parseFloat(ing).toFixed(2) + 'EUR\nGastos: ' + parseFloat(gas).toFixed(2) + 'EUR\nSaldo: ' + parseFloat(ing - gas).toFixed(2) + 'EUR';
+  msg(cid, t);
 }
 
-function cmdOrdenes(chatId, msgId) {
-  var lista = db.prepare("SELECT id, tipo, estado, producto FROM orders WHERE estado NOT IN ('completada','cancelada') ORDER BY id DESC LIMIT 10").all();
-  if (!lista.length) return sendMsg(chatId, 'No hay ordenes pendientes.');
-  var t = 'Ordenes pendientes:\n';
-  lista.forEach(function(r) { t += '#' + r.id + ' ' + r.tipo + ' - ' + (r.producto || '-') + ' [' + r.estado + ']\n'; });
-  if (msgId) editMsg(chatId, msgId, t, getMenuKeyboard());
-  else sendMsg(chatId, t);
+function ordenes(cid) {
+  msg(cid, '\u23F3 Cargando ordenes...');
+  var likes = require('../likes-api');
+  var api = likes.getApiInstance();
+  api.getToken().then(function() { return api.getCustomers(); }).then(function(clientes) {
+    if (!clientes || clientes.length === 0) { throw new Error('no customers'); }
+    // Buscar ordenes en los primeros 30 clientes (o todos si hay pocos)
+    var limite = Math.min(30, clientes.length);
+    var promesas = [];
+    for (var i = 0; i < limite; i++) {
+      var fid = clientes[i].fiscalId;
+      if (fid) {
+        (function(fiscalId) {
+          promesas.push(api.request('GET', '/orders?brand_id=264&fiscalId=' + encodeURIComponent(fiscalId)).then(function(r) {
+            var datos = api.extractData(r);
+            return datos.map(function(o) { o._fiscalId = fiscalId; return o; });
+          }).catch(function() { return []; }));
+        })(fid);
+      }
+    }
+    return Promise.all(promesas);
+  }).then(function(resultados) {
+    var todas = [];
+    resultados.forEach(function(r) { todas = todas.concat(r); });
+    if (todas.length > 0) {
+      var t = '\uD83D\uDCE6 Ordenes (' + todas.length + '):\n';
+      todas.slice(0, 15).forEach(function(o) {
+        var nom = o.customer_name || o.customerName || (o.customer && o.customer.name) || o.name || '';
+        t += '\u2022 ' + (o.product_name || o.productName || o.tipo || o.type || 'Orden') + '\n';
+        if (nom) t += '  Cliente: ' + nom + '\n';
+        t += '  Estado: ' + est(o.status || o.estado) + ' | ID: ' + (o.id || o.order_id || o.orderId || '').toString().slice(0, 12) + '\n';
+      });
+      msg(cid, t);
+    } else {
+      msg(cid, '\u2705 No se encontraron ordenes en los ultimos 30 clientes. Revisa en el CRM web.');
+    }
+  }).catch(function(e) {
+    msg(cid, '\u274C Error: ' + e.message);
+  });
 }
 
-function cmdInstalaciones(chatId, msgId) {
-  var hoy = new Date().toISOString().slice(0, 10);
-  var lista = db.prepare("SELECT id, cliente_nombre, direccion, fecha_instalacion, estado FROM instalaciones WHERE fecha_instalacion >= ? ORDER BY fecha_instalacion ASC LIMIT 10").all(hoy);
-  if (!lista.length) return sendMsg(chatId, 'No hay instalaciones programadas.');
-  var t = 'Proximas instalaciones:\n';
-  lista.forEach(function(r) { t += '- ' + r.cliente_nombre + ' | ' + (r.direccion || '') + ' [' + r.estado + ']\n'; });
-  if (msgId) editMsg(chatId, msgId, t, getMenuKeyboard());
-  else sendMsg(chatId, t);
+function instalaciones(cid) {
+  msg(cid, '\u23F3 Cargando instalaciones...');
+  var likes = require('../likes-api');
+  var api = likes.getApiInstance();
+  api.getToken().then(function() { return api.getInstallations(); }).then(function(inst) {
+    if (inst.length === 0) { msg(cid, '\uD83D\uDD27 No hay instalaciones.'); return; }
+    var t = '\uD83D\uDD27 Instalaciones (' + inst.length + '):\n';
+    inst.slice(0, 10).forEach(function(i) {
+      t += '\u2022 ' + (i.productName || '-') + '\n  Dir: ' + (i.address || '-') + '\n  Fijo: ' + (i.fixedNumber || '-') + ' | ' + est(i.status) + '\n';
+    });
+    msg(cid, t);
+  }).catch(function() { msg(cid, '\u274C Error al obtener instalaciones.'); });
 }
 
-function cmdAltas(chatId, msgId) {
-  var lista = db.prepare("SELECT s.id, s.linea, s.producto, s.fecha_alta, c.nombre FROM subscriptions s LEFT JOIN clients c ON s.client_id = c.id ORDER BY s.fecha_alta DESC LIMIT 10").all();
-  if (!lista.length) return sendMsg(chatId, 'No hay altas registradas.');
-  var t = 'Ultimas altas:\n';
-  lista.forEach(function(r) { t += '- ' + (r.linea || 'sin linea') + ' | ' + (r.producto || '-') + ' | ' + (r.nombre || '') + ' (' + (r.fecha_alta || '') + ')\n'; });
-  if (msgId) editMsg(chatId, msgId, t, getMenuKeyboard());
-  else sendMsg(chatId, t);
+function cobros(cid) {
+  var local = db.prepare("SELECT id, concepto, importe, fecha_vencimiento, estado FROM invoices WHERE estado != 'pagado' ORDER BY fecha_vencimiento ASC LIMIT 10").all();
+  if (local.length > 0) {
+    var t = '\uD83D\uDCB3 Cobros pendientes:\n';
+    local.forEach(function(r) { t += '-' + r.concepto + ' ' + parseFloat(r.importe).toFixed(2) + 'EUR [' + r.estado + ']\n'; });
+    msg(cid, t);
+  } else {
+    msg(cid, '\u2705 No hay cobros pendientes en BD local.');
+  }
 }
 
-function cmdBajas(chatId, msgId) {
-  var lista = db.prepare("SELECT s.id, s.linea, s.producto, s.fecha_baja, c.nombre FROM subscriptions s LEFT JOIN clients c ON s.client_id = c.id WHERE s.estado = 'baja' ORDER BY s.fecha_baja DESC LIMIT 10").all();
-  if (!lista.length) return sendMsg(chatId, 'No hay bajas registradas.');
-  var t = 'Ultimas bajas:\n';
-  lista.forEach(function(r) { t += '- ' + (r.linea || 'sin linea') + ' | ' + (r.producto || '-') + ' | ' + (r.nombre || '') + ' (' + (r.fecha_baja || '') + ')\n'; });
-  if (msgId) editMsg(chatId, msgId, t, getMenuKeyboard());
-  else sendMsg(chatId, t);
-}
-
-function cmdCobros(chatId, msgId) {
-  var lista = db.prepare("SELECT id, concepto, importe, fecha_vencimiento, estado FROM invoices WHERE estado != 'pagado' ORDER BY fecha_vencimiento ASC LIMIT 10").all();
-  if (!lista.length) return sendMsg(chatId, 'No hay cobros pendientes.');
-  var t = 'Cobros pendientes:\n';
-  lista.forEach(function(r) { t += '-' + r.concepto + ' | ' + parseFloat(r.importe).toFixed(2) + 'EUR | Vence: ' + (r.fecha_vencimiento || '-') + ' [' + r.estado + ']\n'; });
-  if (msgId) editMsg(chatId, msgId, t, getMenuKeyboard());
-  else sendMsg(chatId, t);
-}
-
-function cmdEncuestas(chatId, msgId) {
-  var lista = db.prepare("SELECT id, cliente_nombre, puntuacion, created_at FROM surveys ORDER BY created_at DESC LIMIT 5").all();
-  if (!lista.length) return sendMsg(chatId, 'No hay encuestas registradas.');
-  var t = 'Ultimas encuestas:\n';
-  lista.forEach(function(r) { t += '- ' + r.cliente_nombre + ' | Puntuacion: ' + (r.puntuacion || '-') + '/5\n'; });
-  if (msgId) editMsg(chatId, msgId, t, getMenuKeyboard());
-  else sendMsg(chatId, t);
-}
-
-function cmdCaja(chatId, msgId) {
-  var hoy = new Date().toISOString().slice(0, 10);
-  var ing = db.prepare("SELECT COALESCE(SUM(importe),0) as t FROM tienda_caja WHERE tipo='ingreso' AND fecha = ?").get(hoy).t;
-  var gas = db.prepare("SELECT COALESCE(SUM(importe),0) as t FROM tienda_caja WHERE tipo='gasto' AND fecha = ?").get(hoy).t;
-  var ops = db.prepare("SELECT COUNT(*) as c FROM tienda_caja WHERE fecha = ?").get(hoy).c;
-  var t = 'Caja de hoy (' + hoy + ')\n'
-    + 'Operaciones: ' + ops + '\n'
-    + 'Ingresos: ' + parseFloat(ing).toFixed(2) + 'EUR\n'
-    + 'Gastos: ' + parseFloat(gas).toFixed(2) + 'EUR\n'
-    + 'Saldo: ' + parseFloat(ing - gas).toFixed(2) + 'EUR';
-  if (msgId) editMsg(chatId, msgId, t, getMenuKeyboard());
-  else sendMsg(chatId, t);
-}
-
-function cmdAgenda(chatId, msgId) {
-  var hoy = new Date().toISOString().slice(0, 10);
-  var lista = db.prepare("SELECT id, cliente_nombre, telefono, hora, tipo, motivo, estado FROM tienda_agenda WHERE fecha = ? ORDER BY hora ASC").all(hoy);
-  if (!lista.length) return sendMsg(chatId, 'No hay citas en la agenda de hoy.');
-  var t = 'Agenda de hoy (' + hoy + '):\n';
-  lista.forEach(function(r) { t += '- ' + (r.hora || '') + ' ' + r.cliente_nombre + (r.telefono ? ' Tel:' + r.telefono : '') + ' [' + r.estado + ']\n'; });
-  if (msgId) editMsg(chatId, msgId, t, getMenuKeyboard());
-  else sendMsg(chatId, t);
-}
-
-function cmdInventario(chatId, msgId) {
-  var lista = db.prepare("SELECT nombre, cantidad, stock_minimo FROM tienda_inventario WHERE cantidad <= stock_minimo ORDER BY cantidad ASC LIMIT 10").all();
-  if (!lista.length) return sendMsg(chatId, 'No hay productos con stock minimo.');
-  var t = 'Inventario bajo minimo:\n';
-  lista.forEach(function(r) { t += '- ' + r.nombre + ' | Stock: ' + r.cantidad + ' (min: ' + r.stock_minimo + ')\n'; });
-  if (msgId) editMsg(chatId, msgId, t, getMenuKeyboard());
-  else sendMsg(chatId, t);
-}
-
-function cmdServidor(chatId, msgId) {
-  var fs = require('fs');
-  var path = require('path');
+function servidor(cid) {
   var dbSize = '0 B';
   try { var s = fs.statSync(path.join(__dirname, '..', 'movilbro.db')); dbSize = (s.size / 1024 / 1024).toFixed(2) + ' MB'; } catch(e) {}
   var uptime = process.uptime();
-  var horas = Math.floor(uptime / 3600);
-  var mins = Math.floor((uptime % 3600) / 60);
-  var t = 'Salud del servidor:\n'
-    + 'Activo desde: ' + new Date(Date.now() - uptime * 1000).toLocaleString('es-ES') + '\n'
-    + 'Tiempo activo: ' + horas + 'h ' + mins + 'm\n'
-    + 'Tamano BD: ' + dbSize + '\n'
-    + 'Node: ' + process.version + '\n'
-    + 'Version CRM: 1.0.0';
-  if (msgId) editMsg(chatId, msgId, t, getMenuKeyboard());
-  else sendMsg(chatId, t);
+  var h = Math.floor(uptime / 3600);
+  var m = Math.floor((uptime % 3600) / 60);
+  var t = '\uD83D\uDEE1\uFE0F Servidor\nTiempo activo: ' + h + 'h ' + m + 'm\nBD: ' + dbSize + '\nNode: ' + process.version;
+  var tk = getToken();
+  t += '\n\uD83D\uDCED Telegram: ' + (tk ? 'OK' : 'NO') + ' | \uD83D\uDCA1 API Likes: ' + (db.prepare("SELECT value FROM settings WHERE key = 'likes_client_id'").get() ? 'OK' : 'NO');
+  msg(cid, t);
 }
 
-// ---- notificaciones automaticas ----
-async function notifyServerStart() {
-  var chatId = getChatId();
-  if (!chatId) return;
-  await sendMsg(chatId, 'Servidor CRM iniciado - ' + new Date().toLocaleString('es-ES'));
-  await sendMenu(chatId);
+// Notificaciones
+function notifStart() {
+  var cid = getChatId();
+  if (cid) msg(cid, '\uD83D\uDFE2 Servidor CRM iniciado');
 }
-
-async function sendDailySummary() {
-  var chatId = getChatId();
-  if (!chatId) return;
-  await sendMsg(chatId, 'Resumen diario automatico:');
-  cmdResumen(chatId, null);
+function notifSummary() {
+  var cid = getChatId();
+  if (cid) { msg(cid, '\uD83D\uDD14 Resumen diario'); resumen(cid); }
 }
+function notifOrder(d) { var c = getChatId(); if (c) msg(c, 'Nueva orden: ' + (d || '')); }
+function notifTicket(d) { var c = getChatId(); if (c) msg(c, 'Nuevo ticket: ' + (d || '')); }
 
-async function notifyNewOrder(detalles) {
-  var chatId = getChatId();
-  if (!chatId) return;
-  sendMsg(chatId, 'Nueva orden creada: ' + detalles);
-}
-
-async function notifyNewTicket(detalles) {
-  var chatId = getChatId();
-  if (!chatId) return;
-  sendMsg(chatId, 'Nuevo ticket: ' + detalles);
-}
-
-module.exports = { router, sendMsg, notifyServerStart, sendDailySummary, notifyNewOrder, notifyNewTicket, registerBotCommands: registerBotCommands };
-
-// ---- registrar comandos en el menu de Telegram (junto al input) ----
-function registerBotCommands() {
-  var token = getToken();
-  if (!token) return;
-  var commands = [
-    { command: 'funciones', description: 'Menu principal con todas las funciones' },
-    { command: 'backup', description: 'Enviar backup de la base de datos' },
-    { command: 'resumen', description: 'Resumen diario del CRM' },
-    { command: 'stats', description: 'KPIs generales del CRM' },
-    { command: 'cliente', description: 'Buscar cliente por telefono o nombre' },
-    { command: 'tickets', description: 'Tickets pendientes' },
-    { command: 'portabilidades', description: 'Estado de portabilidades' },
-    { command: 'facturacion', description: 'Facturacion del mes' },
-    { command: 'ordenes', description: 'Ordenes pendientes' },
-    { command: 'instalaciones', description: 'Instalaciones programadas' },
-    { command: 'servidor', description: 'Salud del servidor' },
-    { command: 'caja', description: 'Caja del dia de hoy' },
-    { command: 'agenda', description: 'Agenda de hoy' },
-    { command: 'inventario', description: 'Inventario bajo minimo' }
+function regComandos() {
+  var tk = getToken();
+  if (!tk) return;
+  var cmds = [
+    { command: 'funciones', description: 'Menu principal' },
+    { command: 'backup', description: 'Enviar backup' },
+    { command: 'resumen', description: 'Resumen diario' },
+    { command: 'stats', description: 'KPIs' },
+    { command: 'cliente', description: 'Buscar cliente' },
+    { command: 'tickets', description: 'Tickets' },
+    { command: 'portabilidades', description: 'Portabilidades' },
+    { command: 'facturacion', description: 'Facturacion' },
+    { command: 'ordenes', description: 'Ordenes' },
+    { command: 'instalaciones', description: 'Instalaciones' },
+    { command: 'servidor', description: 'Servidor' },
+    { command: 'propuestas', description: 'Enviar propuesta' }
   ];
-  var body = JSON.stringify({ commands: commands });
-  var opts = {
-    hostname: 'api.telegram.org',
-    path: '/bot' + token + '/setMyCommands',
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Content-Length': body.length }
-  };
-  var req = https.request(opts, function(res) { var d = ''; res.on('data', function(c) { d += c; }); res.on('end', function() { console.log('[Bot] Comandos registrados:', d); }); });
-  req.on('error', function(e) { console.log('[Bot] Error al registrar comandos:', e.message); });
-  req.write(body);
-  req.end();
+  var b = JSON.stringify({ commands: cmds });
+  var r = https.request({ hostname: 'api.telegram.org', path: '/bot' + tk + '/setMyCommands', method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(b) } }, function() {});
+  r.write(b); r.end();
 }
+
+module.exports = { router: router, notifyServerStart: notifStart, sendDailySummary: notifSummary, notifyNewOrder: notifOrder, notifyNewTicket: notifTicket, registerBotCommands: regComandos };

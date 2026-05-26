@@ -339,6 +339,13 @@ function initDatabase() {
     CREATE TABLE IF NOT EXISTS isp_facturas (id INTEGER PRIMARY KEY AUTOINCREMENT, cliente_nombre TEXT, cliente_email TEXT, fiscal_id TEXT, periodo TEXT, fecha_emision DATE, fecha_vencimiento DATE, importe_base REAL DEFAULT 0, importe_cdrs REAL DEFAULT 0, importe_total REAL DEFAULT 0, metodo_pago TEXT DEFAULT 'stripe', estado TEXT DEFAULT 'pendiente', stripe_invoice_id TEXT, stripe_payment_intent TEXT, email_enviado INTEGER DEFAULT 0, pagada INTEGER DEFAULT 0, fecha_pago DATETIME, notas TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
     CREATE TABLE IF NOT EXISTS isp_facturas_lineas (id INTEGER PRIMARY KEY AUTOINCREMENT, factura_id INTEGER NOT NULL, concepto TEXT NOT NULL, tipo TEXT DEFAULT 'cuota', importe REAL NOT NULL, linea TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
     CREATE TABLE IF NOT EXISTS isp_pagos (id INTEGER PRIMARY KEY AUTOINCREMENT, factura_id INTEGER, client_id INTEGER, importe REAL NOT NULL, metodo TEXT NOT NULL, referencia TEXT, estado TEXT DEFAULT 'completado', fecha_pago DATE, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
+    CREATE TABLE IF NOT EXISTS bot_propuestas (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      chat_id TEXT,
+      texto TEXT NOT NULL,
+      leido INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
   `);
 
   try { db.prepare("ALTER TABLE users ADD COLUMN permissions TEXT DEFAULT '{}'").run(); } catch(e) {}
@@ -402,6 +409,19 @@ function initDatabase() {
   }
   if (process.env.TELEGRAM_CHAT_ID) {
     db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('telegram_chat_id', ?)").run(process.env.TELEGRAM_CHAT_ID);
+  }
+  // Auto-configurar API Likes Telecom desde variables de entorno
+  if (process.env.LIKES_API_URL) {
+    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('likes_api_url', ?)").run(process.env.LIKES_API_URL);
+  }
+  if (process.env.LIKES_CLIENT_ID) {
+    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('likes_client_id', ?)").run(process.env.LIKES_CLIENT_ID);
+  }
+  if (process.env.LIKES_CLIENT_SECRET) {
+    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('likes_client_secret', ?)").run(process.env.LIKES_CLIENT_SECRET);
+  }
+  if (process.env.LIKES_BRAND_ID) {
+    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('likes_brand_id', ?)").run(process.env.LIKES_BRAND_ID);
   }
 }
 
