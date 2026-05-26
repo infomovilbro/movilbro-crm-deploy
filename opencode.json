@@ -1,0 +1,17 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agent": {
+    "deploy": {
+      "description": "Expert in deploying to Render and managing production",
+      "mode": "subagent"
+    },
+    "security": {
+      "description": "Security auditor - reviews code for vulnerabilities",
+      "mode": "subagent"
+    },
+    "crm-api": {
+      "description": "Analyzes the Likes Telecom CRM API and data structures",
+      "mode": "subagent"
+    }
+  }
+}

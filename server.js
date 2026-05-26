@@ -55,6 +55,7 @@ const massiveRoutes = require('./routes/massive-processes');
 const tiendaRoutes = require('./routes/tienda');
 const apiProxyRoutes = require('./routes/api-proxy');
 const externalApiRoutes = require('./routes/external-api');
+const { router: backupRouter, sendBackup } = require('./routes/backup');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -257,6 +258,7 @@ app.use('/whatsapp', whatsappRoutes);
 app.use('/email', emailRoutes);
 app.use('/correo', emailRoutes);
 app.use('/stripe', stripeRoutes);
+app.use('/backup', backupRouter);
 app.use('/proxy', proxyRoutes);
 app.use('/api', apiRoutes);
 app.use('/analytics', analyticsRoutes);
@@ -355,6 +357,14 @@ cron.schedule('5 0 * * *', () => {
 
 const server = app.listen(PORT, () => {
   console.log(`CRM Movilbro iniciado en puerto ${PORT} (${isProd ? 'produccion' : 'desarrollo'})`);
+});
+
+// ---- BACKUP AUTOMATICO a Telegram a las 23:59 ----
+cron.schedule('59 23 * * *', () => {
+  console.log('[Backup] Ejecutando backup diario a Telegram...');
+  sendBackup().then(r => {
+    console.log('[Backup] Resultado:', r.success ? 'OK' : 'ERROR: ' + (r.error || 'desconocido'));
+  });
 });
 
 // ---- AUTO KEEP-AWAKE - Evita que Render duerma el servidor ----
