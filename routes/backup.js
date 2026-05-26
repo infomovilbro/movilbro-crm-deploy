@@ -19,16 +19,24 @@ function getChatId() {
 }
 
 router.post('/telegram-config', requireAuth, (req, res) => {
-  var token = req.body.token;
-  var chatId = req.body.chatId;
-  if (token) db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('telegram_bot_token', ?)").run(token);
-  if (chatId) db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('telegram_chat_id', ?)").run(chatId);
-  res.json({ success: true });
+  try {
+    var token = req.body.token;
+    var chatId = req.body.chatId;
+    if (token) db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('telegram_bot_token', ?)").run(token);
+    if (chatId) db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('telegram_chat_id', ?)").run(chatId);
+    res.json({ success: true });
+  } catch (e) {
+    res.json({ success: false, error: e.message });
+  }
 });
 
-router.post('/send', requireAuth, (req, res) => {
-  var result = sendBackup();
-  res.json(result);
+router.post('/send', requireAuth, async (req, res) => {
+  try {
+    var result = await sendBackup();
+    res.json(result);
+  } catch (e) {
+    res.json({ success: false, error: e.message });
+  }
 });
 
 function sendBackup() {
