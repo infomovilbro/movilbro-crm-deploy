@@ -54,7 +54,7 @@ function menu(chatId) {
         [{ text: 'Bajas', callback_data: 'c_bajas' }, { text: 'Cobros', callback_data: 'c_cobros' }],
         [{ text: 'Encuestas', callback_data: 'c_enc' }, { text: 'Caja', callback_data: 'c_caja' }],
         [{ text: 'Agenda', callback_data: 'c_agenda' }, { text: 'Inventario', callback_data: 'c_inv' }],
-        [{ text: 'Servidor', callback_data: 'c_serv' }]
+        [{ text: 'Servidor', callback_data: 'c_serv' }, { text: 'Propuestas', callback_data: 'c_prop' }]
       ]
     }
   });
@@ -90,6 +90,7 @@ router.post('/webhook', function(req, res) {
       var acc = espera[cid];
       delete espera[cid];
       if (acc === 'cliente') buscarCliente(cid, txt);
+      else if (acc === 'propuesta') { db.prepare('INSERT INTO bot_propuestas (chat_id, texto) VALUES (?, ?)').run(String(cid), txt); msg(cid, '\u2705 Propuesta guardada.'); }
       res.sendStatus(200);
       return;
     }
@@ -99,30 +100,30 @@ router.post('/webhook', function(req, res) {
     var arg = p.slice(1).join(' ');
 
     if (cmd === '/start' || cmd === '/funciones' || cmd === '/menu') { menu(cid); res.sendStatus(200); return; }
-    if (cmd === '/backup') { msg(cid, 'Generando backup...'); hacerBackup(cid); res.sendStatus(200); return; }
+    if (cmd === '/backup') { msg(cid, '\u23F3 Generando backup...'); hacerBackup(cid); res.sendStatus(200); return; }
     if (cmd === '/resumen') { resumen(cid); res.sendStatus(200); return; }
     if (cmd === '/stats') { stats(cid); res.sendStatus(200); return; }
-    if (cmd === '/cliente' || cmd === '/clientes') { if (arg) buscarCliente(cid, arg); else { espera[cid] = 'cliente'; msg(cid, 'Escribe el telefono o nombre del cliente:'); } res.sendStatus(200); return; }
+    if (cmd === '/cliente' || cmd === '/clientes') { if (arg) buscarCliente(cid, arg); else { espera[cid] = 'cliente'; msg(cid, '\uD83D\uDC64 Escribe el telefono o nombre del cliente:'); } res.sendStatus(200); return; }
     if (cmd === '/tickets') { tickets(cid); res.sendStatus(200); return; }
     if (cmd === '/portabilidades' || cmd === '/porta') { portas(cid); res.sendStatus(200); return; }
     if (cmd === '/facturacion' || cmd === '/billing') { fact(cid); res.sendStatus(200); return; }
     if (cmd === '/ordenes' || cmd === '/orders') { ordenes(cid); res.sendStatus(200); return; }
     if (cmd === '/instalaciones') { instalaciones(cid); res.sendStatus(200); return; }
-    if (cmd === '/altas') { msg(cid, 'Altas - usa /resumen para ver estadisticas o revisa el CRM web.'); res.sendStatus(200); return; }
-    if (cmd === '/bajas') { msg(cid, 'Bajas - usa /resumen para ver estadisticas o revisa el CRM web.'); res.sendStatus(200); return; }
+    if (cmd === '/altas') { msg(cid, '\uD83D\uDCE1 Altas disponibles en /resumen o CRM web.'); res.sendStatus(200); return; }
+    if (cmd === '/bajas') { msg(cid, '\uD83D\uDD14 Bajas disponibles en /resumen o CRM web.'); res.sendStatus(200); return; }
     if (cmd === '/cobros') { cobros(cid); res.sendStatus(200); return; }
-    if (cmd === '/encuestas') { msg(cid, 'Encuestas disponibles en el CRM web (/surveys).'); res.sendStatus(200); return; }
-    if (cmd === '/caja') { msg(cid, 'Caja del dia - disponible en Panel Tienda del CRM.'); res.sendStatus(200); return; }
-    if (cmd === '/agenda') { msg(cid, 'Agenda - disponible en Panel Tienda del CRM.'); res.sendStatus(200); return; }
-    if (cmd === '/inventario') { msg(cid, 'Inventario - disponible en Panel Tienda del CRM.'); res.sendStatus(200); return; }
+    if (cmd === '/encuestas') { msg(cid, '\uD83D\uDCDD Encuestas en CRM web (/surveys).'); res.sendStatus(200); return; }
+    if (cmd === '/caja') { msg(cid, '\uD83D\uDFE2 Caja del dia en Panel Tienda del CRM.'); res.sendStatus(200); return; }
+    if (cmd === '/agenda') { msg(cid, '\uD83D\uDCC5 Agenda en Panel Tienda del CRM.'); res.sendStatus(200); return; }
+    if (cmd === '/inventario') { msg(cid, '\uD83D\uDCE6 Inventario en Panel Tienda del CRM.'); res.sendStatus(200); return; }
     if (cmd === '/servidor' || cmd === '/health') { servidor(cid); res.sendStatus(200); return; }
     if (cmd === '/propuesta' || cmd === '/propuestas') {
-      if (arg) { db.prepare('INSERT INTO bot_propuestas (chat_id, texto) VALUES (?, ?)').run(String(cid), arg); msg(cid, 'Propuesta guardada.'); }
-      else msg(cid, 'Escribe /propuestas + tu sugerencia.');
+      if (arg) { db.prepare('INSERT INTO bot_propuestas (chat_id, texto) VALUES (?, ?)').run(String(cid), arg); msg(cid, '\u2705 Propuesta guardada.'); }
+      else msg(cid, '\uD83D\uDCDD Escribe /propuestas + tu sugerencia.');
       res.sendStatus(200); return;
     }
 
-    msg(cid, 'Usa /funciones para ver el menu.');
+    msg(cid, '\u2753 Usa /funciones para ver el menu.');
     res.sendStatus(200);
     return;
   }
@@ -132,24 +133,25 @@ router.post('/webhook', function(req, res) {
 
 function procesar(data, cid, mid) {
   switch (data) {
-    case 'c_backup': msg(cid, 'Generando backup...'); hacerBackup(cid); break;
+    case 'c_backup': msg(cid, '\u23F3 Generando backup...'); hacerBackup(cid); break;
     case 'c_resumen': resumen(cid); break;
     case 'c_stats': stats(cid); break;
-    case 'c_cliente': espera[cid] = 'cliente'; msg(cid, 'Escribe el telefono o nombre del cliente:'); break;
+    case 'c_cliente': espera[cid] = 'cliente'; msg(cid, '\uD83D\uDC64 Escribe el telefono o nombre del cliente:'); break;
     case 'c_tickets': tickets(cid); break;
     case 'c_porta': portas(cid); break;
     case 'c_fact': fact(cid); break;
     case 'c_ordenes': ordenes(cid); break;
     case 'c_inst': instalaciones(cid); break;
-    case 'c_altas': msg(cid, 'Usa /resumen para ver altas.'); break;
-    case 'c_bajas': msg(cid, 'Usa /resumen para ver bajas.'); break;
+    case 'c_altas': msg(cid, '\uD83D\uDCE1 Usa /resumen para ver altas.'); break;
+    case 'c_bajas': msg(cid, '\uD83D\uDD14 Usa /resumen para ver bajas.'); break;
     case 'c_cobros': cobros(cid); break;
-    case 'c_enc': msg(cid, 'Encuestas en CRM web (/surveys).'); break;
-    case 'c_caja': msg(cid, 'Caja en Panel Tienda del CRM.'); break;
-    case 'c_agenda': msg(cid, 'Agenda en Panel Tienda del CRM.'); break;
-    case 'c_inv': msg(cid, 'Inventario en Panel Tienda del CRM.'); break;
+    case 'c_enc': msg(cid, '\uD83D\uDCDD Encuestas en CRM web (/surveys).'); break;
+    case 'c_caja': msg(cid, '\uD83D\uDFE2 Caja en Panel Tienda del CRM.'); break;
+    case 'c_agenda': msg(cid, '\uD83D\uDCC5 Agenda en Panel Tienda del CRM.'); break;
+    case 'c_inv': msg(cid, '\uD83D\uDCE6 Inventario en Panel Tienda del CRM.'); break;
     case 'c_serv': servidor(cid); break;
-    default: msg(cid, 'Comando no reconocido.');
+    case 'c_prop': espera[cid] = 'propuesta'; msg(cid, '\uD83D\uDCDD Escribe tu propuesta:'); break;
+    default: msg(cid, '\u2753 Comando no reconocido.');
   }
 }
 
@@ -157,13 +159,13 @@ function hacerBackup(cid) {
   try {
     var sb = require('./backup');
     sb.sendBackup().then(function(r) {
-      msg(cid, r && r.success ? 'Backup enviado a Telegram.' : 'Error backup: ' + (r && r.error || 'desconocido'));
+      msg(cid, r && r.success ? '\u2705 Backup enviado a Telegram.' : '\u274C Error backup: ' + (r && r.error || 'desconocido'));
     });
-  } catch(e) { msg(cid, 'Error: ' + e.message); }
+  } catch(e) { msg(cid, '\u274C Error: ' + e.message); }
 }
 
 function resumen(cid) {
-  msg(cid, 'Cargando resumen...');
+  msg(cid, '\u23F3 Cargando resumen...');
   var LikesAPI = require('../likes-api');
   var api = LikesAPI.getApiInstance();
   api.getToken().then(function() {
@@ -173,13 +175,13 @@ function resumen(cid) {
       api.getPortabilities().then(function(r) { return r ? r.length : 0; }).catch(function() { return -1; })
     ]);
   }).then(function(r) {
-    var t = 'Resumen diario\n\nClientes: ' + (r[0] >= 0 ? r[0] : 'N/A') + '\nInstalaciones: ' + (r[1] >= 0 ? r[1] : 'N/A') + '\nPortabilidades: ' + (r[2] >= 0 ? r[2] : 'N/A');
+    var t = '\uD83D\uDCCA Resumen diario\n\uD83D\uDCC5 ' + new Date().toISOString().slice(0, 10) + '\n\n\uD83C\uDFE6 Clientes: ' + (r[0] >= 0 ? r[0] : 'N/A') + '\n\uD83D\uDD27 Instalaciones: ' + (r[1] >= 0 ? r[1] : 'N/A') + '\n\uD83D\uDCF1 Portabilidades: ' + (r[2] >= 0 ? r[2] : 'N/A');
     msg(cid, t);
-  }).catch(function(e) { msg(cid, 'Error al obtener datos: ' + e.message); });
+  }).catch(function(e) { msg(cid, '\u274C Error al obtener datos: ' + e.message); });
 }
 
 function stats(cid) {
-  msg(cid, 'Cargando KPIs...');
+  msg(cid, '\u23F3 Cargando KPIs...');
   var LikesAPI = require('../likes-api');
   var api = LikesAPI.getApiInstance();
   api.getToken().then(function() {
@@ -190,9 +192,9 @@ function stats(cid) {
       api.getPortabilities().then(function(r) { return r ? r.length : 0; }).catch(function() { return -1; })
     ]);
   }).then(function(r) {
-    var t = 'KPIs\n\nClientes: ' + (r[0] >= 0 ? r[0] : 'N/A') + '\nProductos: ' + (r[1] >= 0 ? r[1] : 'N/A') + '\nInstalaciones: ' + (r[2] >= 0 ? r[2] : 'N/A') + '\nPortabilidades: ' + (r[3] >= 0 ? r[3] : 'N/A');
+    var t = '\uD83D\uDCC8 KPIs\n\n\uD83C\uDFE6 Clientes: ' + (r[0] >= 0 ? r[0] : 'N/A') + '\n\uD83D\uDCE6 Productos: ' + (r[1] >= 0 ? r[1] : 'N/A') + '\n\uD83D\uDD27 Instalaciones: ' + (r[2] >= 0 ? r[2] : 'N/A') + '\n\uD83D\uDCF1 Portabilidades: ' + (r[3] >= 0 ? r[3] : 'N/A');
     msg(cid, t);
-  }).catch(function(e) { msg(cid, 'Error: ' + e.message); });
+  }).catch(function(e) { msg(cid, '\u274C Error: ' + e.message); });
 }
 
 function buscarCliente(cid, q) {
@@ -201,13 +203,13 @@ function buscarCliente(cid, q) {
 
   // Local
   var local = db.prepare("SELECT nombre, telefono FROM clients WHERE nombre LIKE ? OR telefono LIKE ? LIMIT 5").all('%' + q + '%', '%' + q + '%');
-  var t = 'Resultados para: ' + q + '\n';
+  var t = '\uD83D\uDC64 Resultados para: ' + q + '\n';
   if (local.length > 0) {
-    t += '\nClientes locales:\n';
+    t += '\n\uD83C\uDFE6 Clientes locales:\n';
     local.forEach(function(r) { t += '- ' + r.nombre + (r.telefono ? ' | ' + r.telefono : '') + '\n'; });
     msg(cid, t);
   } else {
-    msg(cid, 'Buscando en API...');
+    msg(cid, '\uD83D\uDD0D Buscando en API...');
     api.getToken().then(function() { return api.getCustomers(); }).then(function(clientes) {
       var filtrados = clientes.filter(function(c) {
         var nom = (c.nombre || c.name || '').toLowerCase();
@@ -215,84 +217,84 @@ function buscarCliente(cid, q) {
         return nom.indexOf(q.toLowerCase()) >= 0 || tel.indexOf(q.toLowerCase()) >= 0;
       }).slice(0, 5);
       if (filtrados.length > 0) {
-        var t2 = 'Clientes API:\n';
+        var t2 = '\uD83C\uDF10 Clientes API:\n';
         filtrados.forEach(function(c) {
           t2 += '- ' + (c.nombre || c.name || 'Sin nombre') + (c.telefono || c.phone ? ' | ' + (c.telefono || c.phone) : '') + '\n';
         });
         msg(cid, t2);
       } else {
-        msg(cid, 'No encontrado en API ni BD local.');
+        msg(cid, '\u274C No encontrado en API ni BD local.');
       }
-    }).catch(function() { msg(cid, 'No encontrado.'); });
+    }).catch(function() { msg(cid, '\u274C No encontrado.'); });
   }
 }
 
 function tickets(cid) {
   var local = db.prepare("SELECT id, asunto, prioridad, estado FROM tickets WHERE estado != 'cerrado' ORDER BY id DESC LIMIT 10").all();
   if (local.length > 0) {
-    var t = 'Tickets pendientes (local):\n';
+    var t = '\uD83C\uDFAB Tickets pendientes (local):\n';
     local.forEach(function(r) { t += '#' + r.id + ' ' + r.asunto + ' [' + r.estado + ']\n'; });
     msg(cid, t);
   } else {
-    msg(cid, 'No hay tickets pendientes en BD local. Revisa en el CRM web.');
+    msg(cid, '\uD83C\uDFAB No hay tickets pendientes en BD local. Revisa en el CRM web.');
   }
 }
 
 function portas(cid) {
-  msg(cid, 'Cargando portabilidades...');
+  msg(cid, '\u23F3 Cargando portabilidades...');
   var likes = require('../likes-api');
   var api = likes.getApiInstance();
   api.getToken().then(function() { return api.getPortabilities(); }).then(function(portas) {
-    if (portas.length === 0) { msg(cid, 'No hay portabilidades activas.'); return; }
-    var t = 'Portabilidades (' + portas.length + '):\n';
+    if (portas.length === 0) { msg(cid, '\uD83D\uDCF1 No hay portabilidades activas.'); return; }
+    var t = '\uD83D\uDCF1 Portabilidades (' + portas.length + '):\n';
     portas.slice(0, 10).forEach(function(p) {
       t += '- ' + (p.linea || p.line || '-') + ' [' + (p.estado || p.status || '-') + ']\n';
     });
     msg(cid, t);
-  }).catch(function() { msg(cid, 'Error al obtener portabilidades.'); });
+  }).catch(function() { msg(cid, '\u274C Error al obtener portabilidades.'); });
 }
 
 function fact(cid) {
   var mes = new Date().toISOString().slice(0, 7);
   var ing = db.prepare("SELECT COALESCE(SUM(importe),0) as t FROM tienda_caja WHERE tipo='ingreso' AND fecha LIKE ?").get(mes + '%').t;
   var gas = db.prepare("SELECT COALESCE(SUM(importe),0) as t FROM tienda_caja WHERE tipo='gasto' AND fecha LIKE ?").get(mes + '%').t;
-  var t = 'Facturacion del mes (' + mes + ')\n(Panel Tienda)\nIngresos: ' + parseFloat(ing).toFixed(2) + 'EUR\nGastos: ' + parseFloat(gas).toFixed(2) + 'EUR\nSaldo: ' + parseFloat(ing - gas).toFixed(2) + 'EUR';
+  var t = '\uD83D\uDCB0 Facturacion del mes (' + mes + ')\n(Panel Tienda)\nIngresos: ' + parseFloat(ing).toFixed(2) + 'EUR\nGastos: ' + parseFloat(gas).toFixed(2) + 'EUR\nSaldo: ' + parseFloat(ing - gas).toFixed(2) + 'EUR';
   msg(cid, t);
 }
 
 function ordenes(cid) {
   var local = db.prepare("SELECT id, tipo, estado FROM orders WHERE estado NOT IN ('completada','cancelada') ORDER BY id DESC LIMIT 10").all();
   if (local.length > 0) {
-    var t = 'Ordenes pendientes:\n';
+    var t = '\uD83D\uDCE6 Ordenes pendientes:\n';
     local.forEach(function(r) { t += '#' + r.id + ' ' + r.tipo + ' [' + r.estado + ']\n'; });
     msg(cid, t);
   } else {
-    msg(cid, 'No hay ordenes pendientes.');
+    msg(cid, '\u2705 No hay ordenes pendientes.');
   }
 }
 
 function instalaciones(cid) {
-  msg(cid, 'Cargando instalaciones...');
+  msg(cid, '\u23F3 Cargando instalaciones...');
   var likes = require('../likes-api');
   var api = likes.getApiInstance();
   api.getToken().then(function() { return api.getInstallations(); }).then(function(inst) {
-    if (inst.length === 0) { msg(cid, 'No hay instalaciones.'); return; }
-    var t = 'Instalaciones (' + inst.length + '):\n';
+    if (inst.length === 0) { msg(cid, '\uD83D\uDD27 No hay instalaciones.'); return; }
+    var t = '\uD83D\uDD27 Instalaciones (' + inst.length + '):\n';
     inst.slice(0, 10).forEach(function(i) {
       t += '- ' + (i.cliente_nombre || i.customer_name || 'Cliente') + ' [' + (i.estado || i.status || '-') + ']\n';
     });
     msg(cid, t);
-  }).catch(function() { msg(cid, 'Error al obtener instalaciones.'); });
+  }).catch(function() { msg(cid, '\u274C Error al obtener instalaciones.'); });
 }
 
 function cobros(cid) {
   var local = db.prepare("SELECT id, concepto, importe, fecha_vencimiento, estado FROM invoices WHERE estado != 'pagado' ORDER BY fecha_vencimiento ASC LIMIT 10").all();
   if (local.length > 0) {
-    var t = 'Cobros pendientes:\n';
+    var t = '\uD83D\uDCB3 Cobros pendientes:\n';
     local.forEach(function(r) { t += '-' + r.concepto + ' ' + parseFloat(r.importe).toFixed(2) + 'EUR [' + r.estado + ']\n'; });
     msg(cid, t);
   } else {
-    msg(cid, 'No hay cobros pendientes en BD local.');
+    msg(cid, '\u2705 No hay cobros pendientes en BD local.');
   }
 }
 
@@ -302,20 +304,20 @@ function servidor(cid) {
   var uptime = process.uptime();
   var h = Math.floor(uptime / 3600);
   var m = Math.floor((uptime % 3600) / 60);
-  var t = 'Servidor\nTiempo activo: ' + h + 'h ' + m + 'm\nBD: ' + dbSize + '\nNode: ' + process.version;
+  var t = '\uD83D\uDEE1\uFE0F Servidor\nTiempo activo: ' + h + 'h ' + m + 'm\nBD: ' + dbSize + '\nNode: ' + process.version;
   var tk = getToken();
-  t += '\nTelegram: ' + (tk ? 'OK' : 'NO') + ' | API Likes: ' + (db.prepare("SELECT value FROM settings WHERE key = 'likes_client_id'").get() ? 'OK' : 'NO');
+  t += '\n\uD83D\uDCED Telegram: ' + (tk ? 'OK' : 'NO') + ' | \uD83D\uDCA1 API Likes: ' + (db.prepare("SELECT value FROM settings WHERE key = 'likes_client_id'").get() ? 'OK' : 'NO');
   msg(cid, t);
 }
 
 // Notificaciones
 function notifStart() {
   var cid = getChatId();
-  if (cid) msg(cid, 'Servidor CRM iniciado');
+  if (cid) msg(cid, '\uD83D\uDFE2 Servidor CRM iniciado');
 }
 function notifSummary() {
   var cid = getChatId();
-  if (cid) { msg(cid, 'Resumen diario'); resumen(cid); }
+  if (cid) { msg(cid, '\uD83D\uDD14 Resumen diario'); resumen(cid); }
 }
 function notifOrder(d) { var c = getChatId(); if (c) msg(c, 'Nueva orden: ' + (d || '')); }
 function notifTicket(d) { var c = getChatId(); if (c) msg(c, 'Nuevo ticket: ' + (d || '')); }
