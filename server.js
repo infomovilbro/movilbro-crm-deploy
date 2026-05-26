@@ -362,16 +362,12 @@ const server = app.listen(PORT, () => {
   setTimeout(() => notifyServerStart(), 3000);
 });
 
-// ---- BACKUP AUTOMATICO a Telegram a las 23:59 ----
-cron.schedule('59 23 * * *', () => {
+// ---- BACKUP + RESUMEN DIARIO a Telegram a las 22:00 (cierre de tienda) ----
+cron.schedule('0 22 * * *', () => {
   console.log('[Backup] Ejecutando backup diario a Telegram...');
   sendBackup().then(r => {
     console.log('[Backup] Resultado:', r.success ? 'OK' : 'ERROR: ' + (r.error || 'desconocido'));
   });
-});
-
-// ---- RESUMEN DIARIO a Telegram a las 22:00 ----
-cron.schedule('0 22 * * *', () => {
   console.log('[Bot] Enviando resumen diario...');
   sendDailySummary();
 });
