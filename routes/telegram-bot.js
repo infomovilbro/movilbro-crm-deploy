@@ -210,16 +210,17 @@ function buscarCliente(cid, q) {
     msg(cid, t);
   } else {
     msg(cid, '\uD83D\uDD0D Buscando en API...');
+    var palabras = q.toLowerCase().split(' ').filter(function(p) { return p.length > 0; });
     api.getToken().then(function() { return api.getCustomers(); }).then(function(clientes) {
       var filtrados = clientes.filter(function(c) {
-        var nom = (c.nombre || c.name || '').toLowerCase();
-        var tel = (c.telefono || c.phone || '').toLowerCase();
-        return nom.indexOf(q.toLowerCase()) >= 0 || tel.indexOf(q.toLowerCase()) >= 0;
+        var texto = ((c.name || '') + ' ' + (c.firstSurname || '') + ' ' + (c.lastSurname || '') + ' ' + (c.contactPhone || '') + ' ' + (c.email || '')).toLowerCase();
+        return palabras.every(function(p) { return texto.indexOf(p) >= 0; });
       }).slice(0, 5);
       if (filtrados.length > 0) {
         var t2 = '\uD83C\uDF10 Clientes API:\n';
         filtrados.forEach(function(c) {
-          t2 += '- ' + (c.nombre || c.name || 'Sin nombre') + (c.telefono || c.phone ? ' | ' + (c.telefono || c.phone) : '') + '\n';
+          var nom = (c.name || '') + ' ' + (c.firstSurname || '') + ' ' + (c.lastSurname || '');
+          t2 += '- ' + nom.trim() + (c.contactPhone ? ' | ' + c.contactPhone : '') + '\n';
         });
         msg(cid, t2);
       } else {
@@ -248,10 +249,16 @@ function portas(cid) {
     if (portas.length === 0) { msg(cid, '\uD83D\uDCF1 No hay portabilidades activas.'); return; }
     var t = '\uD83D\uDCF1 Portabilidades (' + portas.length + '):\n';
     portas.slice(0, 10).forEach(function(p) {
-      t += '- ' + (p.linea || p.line || '-') + ' [' + (p.estado || p.status || '-') + ']\n';
+      var nom = (p.name || '') + ' ' + (p.firstSurname || '') + ' ' + (p.lastSurname || '');
+      t += '\u2022 ' + nom.trim() + '\n  Linea: ' + (p.lineNumber || '-') + ' | ' + (p.type === 'IN' ? 'entrante' : 'saliente') + '\n  Operador: ' + (p.donorOperator || '-') + ' | Estado: ' + est(p.status) + '\n';
     });
     msg(cid, t);
   }).catch(function() { msg(cid, '\u274C Error al obtener portabilidades.'); });
+}
+
+function est(estado) {
+  var map = { 'COMPLETED':'completada', 'CANCELED':'cancelada', 'PENDING_CANCELATION':'pendiente', 'INITIATED':'iniciada', 'CREATED':'creada', 'ACTIVE':'activa', 'TERMINATED':'terminada', 'CLOSED':'cerrada', 'OPEN':'abierta' };
+  return map[estado] || (estado || '-');
 }
 
 function fact(cid) {
@@ -263,14 +270,37 @@ function fact(cid) {
 }
 
 function ordenes(cid) {
-  var local = db.prepare("SELECT id, tipo, estado FROM orders WHERE estado NOT IN ('completada','cancelada') ORDER BY id DESC LIMIT 10").all();
-  if (local.length > 0) {
-    var t = '\uD83D\uDCE6 Ordenes pendientes:\n';
-    local.forEach(function(r) { t += '#' + r.id + ' ' + r.tipo + ' [' + r.estado + ']\n'; });
-    msg(cid, t);
-  } else {
-    msg(cid, '\u2705 No hay ordenes pendientes.');
-  }
+  msg(cid, '\u23F3 Cargando ordenes...');
+  var likes = require('../likes-api');
+  var api = likes.getApiInstance();
+  api.getToken().then(function() { return api.getCustomers(); }).then(function(clientes) {
+    if (!clientes || clientes.length === 0) { throw new Error('no customers'); }
+    var promesas = clientes.slice(0, 5).map(function(c) {
+      var fid = c.fiscalId || c.fiscal_id || c.customerId || c.id;
+      return api.request('GET', '/orders?brand_id=264&fiscalId=' + encodeURIComponent(fid)).then(function(r) { return api.extractData(r); }).catch(function() { return []; });
+    });
+    return Promise.all(promesas);
+  }).then(function(resultados) {
+    var todas = [];
+    resultados.forEach(function(r) { todas = todas.concat(r); });
+    if (todas.length > 0) {
+      var t = '\uD83D\uDCE6 Ordenes pendientes (' + todas.length + '):\n';
+      todas.slice(0, 10).forEach(function(o) { t += '\u2022 ' + (o.productName || o.tipo || o.type || '-') + ' [' + est(o.estado || o.status) + ']\n'; });
+      msg(cid, t);
+    } else {
+      msg(cid, '\u2705 No hay ordenes pendientes en la API.');
+    }
+  }).catch(function() {
+    // Fallback local
+    var local = db.prepare("SELECT id, tipo, estado FROM orders WHERE estado NOT IN ('completada','cancelada') ORDER BY id DESC LIMIT 10").all();
+    if (local.length > 0) {
+      var t = '\uD83D\uDCE6 Ordenes pendientes (local):\n';
+      local.forEach(function(r) { t += '#' + r.id + ' ' + r.tipo + ' [' + r.estado + ']\n'; });
+      msg(cid, t);
+    } else {
+      msg(cid, '\u2705 No hay ordenes pendientes.');
+    }
+  });
 }
 
 function instalaciones(cid) {
@@ -281,7 +311,7 @@ function instalaciones(cid) {
     if (inst.length === 0) { msg(cid, '\uD83D\uDD27 No hay instalaciones.'); return; }
     var t = '\uD83D\uDD27 Instalaciones (' + inst.length + '):\n';
     inst.slice(0, 10).forEach(function(i) {
-      t += '- ' + (i.cliente_nombre || i.customer_name || 'Cliente') + ' [' + (i.estado || i.status || '-') + ']\n';
+      t += '\u2022 ' + (i.productName || '-') + '\n  Dir: ' + (i.address || '-') + '\n  Fijo: ' + (i.fixedNumber || '-') + ' | ' + est(i.status) + '\n';
     });
     msg(cid, t);
   }).catch(function() { msg(cid, '\u274C Error al obtener instalaciones.'); });
