@@ -149,4 +149,32 @@ router.post('/propuestas/:id/leer', (req, res) => {
   res.json({ ok: true });
 });
 
+// GET /api/bot-test - diagnostic: test API from Render
+router.get('/bot-test', async (req, res) => {
+  var result = { api_configured: false, api_token: false, endpoints: {} };
+  try {
+    var LikesAPI = require('../likes-api');
+    var api = LikesAPI.getApiInstance();
+    result.api_configured = true;
+    await api.getToken();
+    result.api_token = true;
+    var tests = [
+      ['customers', 'getCustomers'], ['products', 'getProducts'], ['portabilities', 'getPortabilities'],
+      ['installations', 'getInstallations'], ['subscriptions', 'getSubscriptions'],
+      ['tickets', 'getTickets'], ['orders', 'getOrders'], ['surveys', 'getSurveys'], ['payments', 'getPayments']
+    ];
+    for (var i = 0; i < tests.length; i++) {
+      try {
+        var r = await api[tests[i][1]]();
+        result.endpoints[tests[i][0]] = { ok: true, count: Array.isArray(r) ? r.length : 0 };
+      } catch(e) {
+        result.endpoints[tests[i][0]] = { ok: false, error: e.message };
+      }
+    }
+  } catch(e) {
+    result.error = e.message;
+  }
+  res.json(result);
+});
+
 module.exports = router;
