@@ -103,12 +103,16 @@ router.post('/login', loginLimiter, [
   }
   const email = (req.body.email || '').trim().toLowerCase();
   const password = (req.body.password || '').trim();
-  const user = db.prepare('SELECT * FROM users WHERE LOWER(email) = ?').get(email);
-
-  // Bloquear usuario admin aunque exista en DB
-  if (user && user.username === 'admin') {
-    return res.render('login', { title: 'Iniciar Sesión', error: 'Email o contraseña incorrectos', success: null, email });
+  
+  // Auto-create admin if no users exist (first login)
+  var userCount = db.prepare('SELECT COUNT(*) as c FROM users').get().c;
+  if (userCount === 0) {
+    var hash = require('bcryptjs').hashSync('admin123', 10);
+    db.prepare('INSERT INTO users (username, password, nombre, email, rol) VALUES (?,?,?,?,?)').run('admin', hash, 'Administrador', 'admin@movilbro.com', 'admin');
   }
+  
+  var user = db.prepare('SELECT * FROM users WHERE LOWER(email) = ?').get(email);
+
   if (!user || !bcrypt.compareSync(password, user.password)) {
     return res.render('login', { title: 'Iniciar Sesión', error: 'Email o contraseña incorrectos', success: null, email });
   }
