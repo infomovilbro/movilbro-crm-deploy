@@ -9,6 +9,7 @@
     <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#ui"><i class="bi bi-palette"></i> Personalizar</a></li>
     <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#api"><i class="bi bi-plug"></i> API Likes Telecom</a></li>
     <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#smtp"><i class="bi bi-envelope"></i> Correo SMTP</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#stripe-tab"><i class="bi bi-credit-card"></i> Stripe</a></li>
     <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#telegram"><i class="bi bi-telegram"></i> Telegram Backup</a></li>
     <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#temas"><i class="bi bi-palette2"></i> Temas</a></li>
     <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#usuarios"><i class="bi bi-people"></i> Usuarios</a></li>
@@ -199,6 +200,59 @@
             <li>Copia esa contrase&ntilde;a y p&eacute;gala en <code>SMTP_PASS</code> del archivo <code>.env</code></li>
             <li>Reinicia el servidor</li>
           </ol>
+          <hr>
+          <h6>Configuraci&oacute;n alternativa (base de datos)</h6>
+          <p class="small text-muted">Usa este formulario si prefieres configurar SMTP desde la interfaz. Los datos se guardan en la base de datos.</p>
+          <form method="POST" action="/configuracion/smtp">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">Servidor SMTP</label>
+                <input type="text" name="smtp_host" class="form-control" value="<%= settings.smtp_host || '' %>" placeholder="smtp.ejemplo.com">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Puerto</label>
+                <input type="number" name="smtp_port" class="form-control" value="<%= settings.smtp_port || '587' %>">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Email desde</label>
+                <input type="email" name="email_from" class="form-control" value="<%= settings.email_from || '' %>" placeholder="facturas@movilbro.com">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Usuario SMTP</label>
+                <input type="text" name="smtp_user" class="form-control" value="<%= settings.smtp_user || '' %>">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Contrase&ntilde;a SMTP</label>
+                <input type="password" name="smtp_pass" class="form-control" value="<%= settings.smtp_pass || '' %>">
+              </div>
+              <div class="col-12">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Guardar</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-pane" id="stripe-tab">
+      <div class="card">
+        <div class="card-body">
+          <p class="text-muted">Configuraci&oacute;n de Stripe para cobro autom&aacute;tico de facturas.</p>
+          <form method="POST" action="/configuracion/stripe">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">Clave secreta (sk_live_xxx / sk_test_xxx)</label>
+                <input type="password" name="stripe_secret_key" class="form-control" value="<%= settings.stripe_secret_key || '' %>">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Clave publicable (pk_live_xxx / pk_test_xxx)</label>
+                <input type="text" name="stripe_public_key" class="form-control" value="<%= settings.stripe_public_key || '' %>">
+              </div>
+              <div class="col-12">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Guardar Stripe</button>
+              </div>
+            </div>
+          </form>
         </div>
       </div>
     </div>
@@ -274,6 +328,7 @@
           <button type="submit" class="btn btn-primary">Crear</button>
         </div>
       </form>
+      </div>
     </div>
   </div>
 </div>

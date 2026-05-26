@@ -1,0 +1,70 @@
+<section class="row justify-content-center">
+  <div class="col-md-8">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h2><i class="bi bi-plus-circle"></i> Nuevo Workflow</h2>
+      <a href="/isp/workflows" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Volver</a>
+    </div>
+    <% if (errors.length > 0) { %><div class="alert alert-danger"><%= errors.join(', ') %></div><% } %>
+    <div class="card">
+      <div class="card-body">
+        <form method="POST" action="/isp/workflows/create">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Tipo *</label>
+              <select name="tipo_id" class="form-select" required>
+                <option value="">Seleccionar tipo...</option>
+                <% tipos.forEach(t => { %>
+                <option value="<%= t.id %>" <%= workflow.tipo_id == t.id ? 'selected' : '' %>><%= t.nombre %></option>
+                <% }) %>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Cliente</label>
+              <select name="client_id" class="form-select">
+                <option value="">Sin cliente</option>
+                <% clientes.forEach(c => { %>
+                <option value="<%= c.id %>" <%= workflow.client_id == c.id ? 'selected' : '' %>><%= c.nombre %> <%= c.apellidos || '' %></option>
+                <% }) %>
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label">T&iacute;tulo *</label>
+              <input type="text" name="titulo" class="form-control" value="<%= workflow.titulo || '' %>" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Descripci&oacute;n</label>
+              <textarea name="descripcion" class="form-control" rows="4"><%= workflow.descripcion || '' %></textarea>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Prioridad</label>
+              <select name="prioridad" class="form-select">
+                <option value="baja" <%= workflow.prioridad === 'baja' ? 'selected' : '' %>>Baja</option>
+                <option value="normal" <%= !workflow.prioridad || workflow.prioridad === 'normal' ? 'selected' : '' %>>Normal</option>
+                <option value="alta" <%= workflow.prioridad === 'alta' ? 'selected' : '' %>>Alta</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Departamento</label>
+              <select name="departamento" class="form-select">
+                <option value="">Seleccionar...</option>
+                <option value="ventas" <%= workflow.departamento === 'ventas' ? 'selected' : '' %>>Ventas</option>
+                <option value="soporte" <%= workflow.departamento === 'soporte' ? 'selected' : '' %>>Soporte</option>
+                <option value="instalacion" <%= workflow.departamento === 'instalacion' ? 'selected' : '' %>>Instalaci&oacute;n</option>
+                <option value="administracion" <%= workflow.departamento === 'administracion' ? 'selected' : '' %>>Administraci&oacute;n</option>
+                <option value="tecnico" <%= workflow.departamento === 'tecnico' ? 'selected' : '' %>>T&eacute;cnico</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Fecha Prevista</label>
+              <input type="date" name="fecha_prevista" class="form-control" value="<%= workflow.fecha_prevista || '' %>">
+            </div>
+          </div>
+          <div class="mt-4">
+            <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Crear Workflow</button>
+            <a href="/isp/workflows" class="btn btn-outline-secondary">Cancelar</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>

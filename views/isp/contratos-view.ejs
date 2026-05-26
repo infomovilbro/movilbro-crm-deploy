@@ -1,0 +1,73 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2><i class="bi bi-file-text"></i> Contrato #<%= contrato.id %></h2>
+      <span class="text-muted"><%= contrato.cliente_nombre || 'Sin cliente' %></span>
+    </div>
+    <a href="/isp/contratos" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Volver</a>
+  </div>
+  <div class="row g-3">
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header">Detalles del Contrato</div>
+        <div class="card-body">
+          <table class="table table-sm">
+            <tr><th>ID</th><td>#<%= contrato.id %></td></tr>
+            <tr><th>Cliente</th><td><%= contrato.cliente_nombre || '-' %></td></tr>
+            <tr><th>Tipo</th><td><span class="badge bg-secondary"><%= contrato.tipo %></span></td></tr>
+            <tr><th>Estado</th>
+              <td>
+                <span class="badge bg-<%= contrato.estado === 'activo' ? 'success' : contrato.estado === 'pendiente' ? 'warning' : 'danger' %> fs-6"><%= contrato.estado %></span>
+              </td>
+            </tr>
+            <tr><th>Tarifa</th><td><%= contrato.tarifa || '-' %></td></tr>
+            <tr><th>Precio</th><td><%= contrato.precio ? contrato.precio + '€' : '-' %></td></tr>
+            <tr><th>Línea</th><td><%= contrato.linea || '-' %></td></tr>
+            <tr><th>ICCID</th><td><%= contrato.iccid || '-' %></td></tr>
+            <tr><th>PIN</th><td><%= contrato.pin || '-' %></td></tr>
+            <tr><th>PUK</th><td><%= contrato.puk || '-' %></td></tr>
+            <tr><th>Fecha Alta</th><td><%= contrato.fecha_alta ? new Date(contrato.fecha_alta).toLocaleDateString('es-ES') : '-' %></td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header">Cambiar Estado</div>
+        <div class="card-body">
+          <div class="d-flex gap-2 flex-wrap">
+            <% if (contrato.estado !== 'activo') { %>
+            <form method="POST" action="/isp/contratos/<%= contrato.id %>/estado" class="d-inline">
+              <input type="hidden" name="estado" value="activo">
+              <button type="submit" class="btn btn-success" onclick="return confirm('¿Activar contrato?')"><i class="bi bi-check-circle"></i> Activar</button>
+            </form>
+            <% } %>
+            <% if (contrato.estado !== 'pendiente') { %>
+            <form method="POST" action="/isp/contratos/<%= contrato.id %>/estado" class="d-inline">
+              <input type="hidden" name="estado" value="pendiente">
+              <button type="submit" class="btn btn-warning" onclick="return confirm('¿Poner como pendiente?')"><i class="bi bi-pause-circle"></i> Pendiente</button>
+            </form>
+            <% } %>
+            <% if (contrato.estado !== 'baja') { %>
+            <form method="POST" action="/isp/contratos/<%= contrato.id %>/estado" class="d-inline">
+              <input type="hidden" name="estado" value="baja">
+              <button type="submit" class="btn btn-secondary" onclick="return confirm('¿Dar de baja?')"><i class="bi bi-x-circle"></i> Dar de Baja</button>
+            </form>
+            <% } %>
+            <% if (contrato.estado !== 'cancelado') { %>
+            <form method="POST" action="/isp/contratos/<%= contrato.id %>/estado" class="d-inline">
+              <input type="hidden" name="estado" value="cancelado">
+              <button type="submit" class="btn btn-danger" onclick="return confirm('¿Cancelar contrato?')"><i class="bi bi-trash"></i> Cancelar</button>
+            </form>
+            <% } %>
+          </div>
+          <% if (contrato.notas) { %>
+          <hr>
+          <h6>Notas</h6>
+          <p class="text-muted mb-0"><%= contrato.notas %></p>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

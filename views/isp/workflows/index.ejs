@@ -1,0 +1,110 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0"><i class="bi bi-diagram-3"></i> Workflows <span class="badge bg-secondary fs-6"><%= workflows.length %></span></h5>
+    <a href="/isp/workflows/create" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg"></i> Nuevo Workflow</a>
+  </div>
+  <div class="card mb-3">
+    <div class="card-body py-2">
+      <div class="row g-2 align-items-center">
+        <div class="col-md-4">
+          <input type="text" class="form-control form-control-sm" id="searchWorkflow" placeholder="Buscar t&iacute;tulo o cliente...">
+        </div>
+        <div class="col-md-2">
+          <select class="form-select form-select-sm" id="filterTipo">
+            <option value="">Todos los tipos</option>
+            <% tipos.forEach(t => { %>
+            <option value="<%= t.id %>"><%= t.nombre %></option>
+            <% }) %>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <select class="form-select form-select-sm" id="filterEstado">
+            <option value="">Todos los estados</option>
+            <option value="pendiente">Pendiente</option>
+            <option value="en_curso">En curso</option>
+            <option value="completado">Completado</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <button class="btn btn-outline-secondary btn-sm w-100" id="btnLimpiarFiltros"><i class="bi bi-x-circle"></i> Limpiar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle" id="workflowsTable">
+          <thead class="table-dark">
+            <tr>
+              <th>ID</th>
+              <th>T&iacute;tulo</th>
+              <th>Tipo</th>
+              <th>Cliente</th>
+              <th>Estado</th>
+              <th>Prioridad</th>
+              <th>Asignado</th>
+              <th>Creaci&oacute;n</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (workflows.length === 0) { %>
+            <tr><td colspan="9" class="text-center text-muted py-4"><i class="bi bi-diagram-3"></i> No hay workflows registrados</td></tr>
+            <% } else { %>
+              <% workflows.forEach(w => { %>
+              <tr class="workflow-row">
+                <td><%= w.id %></td>
+                <td><a href="/isp/workflows/<%= w.id %>" class="fw-bold"><%= w.titulo %></a></td>
+                <td><%= w.tipo_nombre || '-' %></td>
+                <td><%= w.cliente_nombre || '-' %></td>
+                <td>
+                  <span class="badge bg-<%= w.estado === 'completado' ? 'success' : w.estado === 'en_curso' ? 'warning' : 'secondary' %> fs-6"><%= w.estado %></span>
+                </td>
+                <td>
+                  <span class="badge bg-<%= w.prioridad === 'alta' ? 'danger' : w.prioridad === 'normal' ? 'warning' : 'info' %>"><%= w.prioridad %></span>
+                </td>
+                <td><%= w.user_name || '-' %></td>
+                <td class="small"><%= w.created_at ? new Date(w.created_at).toLocaleDateString('es-ES') : '-' %></td>
+                <td class="text-end"><a href="/isp/workflows/<%= w.id %>" class="btn btn-sm btn-outline-info"><i class="bi bi-eye"></i></a></td>
+              </tr>
+              <% }) %>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const searchInput = document.getElementById('searchWorkflow');
+  const filterTipo = document.getElementById('filterTipo');
+  const filterEstado = document.getElementById('filterEstado');
+  const btnLimpiar = document.getElementById('btnLimpiarFiltros');
+  function filtrar() {
+    const q = searchInput ? searchInput.value.toLowerCase().trim() : '';
+    const tipo = filterTipo ? filterTipo.value : '';
+    const estado = filterEstado ? filterEstado.value : '';
+    document.querySelectorAll('.workflow-row').forEach(function(row) {
+      const titulo = row.querySelector('td:nth-child(2) a')?.textContent.toLowerCase() || '';
+      const cliente = row.querySelector('td:nth-child(4)')?.textContent.toLowerCase() || '';
+      const rowTipo = row.querySelector('td:nth-child(3)')?.textContent.trim() || '';
+      const rowEstado = row.querySelector('td:nth-child(5) .badge')?.textContent.trim().toLowerCase() || '';
+      const matchTexto = !q || titulo.includes(q) || cliente.includes(q);
+      const matchTipo = !tipo || rowTipo === tipo;
+      const matchEstado = !estado || rowEstado === estado;
+      row.style.display = matchTexto && matchTipo && matchEstado ? '' : 'none';
+    });
+  }
+  if (searchInput) searchInput.addEventListener('input', filtrar);
+  if (filterTipo) filterTipo.addEventListener('change', filtrar);
+  if (filterEstado) filterEstado.addEventListener('change', filtrar);
+  if (btnLimpiar) btnLimpiar.addEventListener('click', function() {
+    if (searchInput) searchInput.value = '';
+    if (filterTipo) filterTipo.value = '';
+    if (filterEstado) filterEstado.value = '';
+    filtrar();
+  });
+});
+</script>

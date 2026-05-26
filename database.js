@@ -313,6 +313,32 @@ function initDatabase() {
       notas TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
+
+    -- ISP Gestion tables
+    CREATE TABLE IF NOT EXISTS isp_workflow_tipos (id INTEGER PRIMARY KEY AUTOINCREMENT, nombre TEXT NOT NULL, descripcion TEXT, departamento TEXT DEFAULT 'General', icono TEXT DEFAULT 'fa-tasks', activo INTEGER DEFAULT 1, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
+    CREATE TABLE IF NOT EXISTS isp_workflows (id INTEGER PRIMARY KEY AUTOINCREMENT, tipo_id INTEGER, client_id INTEGER, titulo TEXT NOT NULL, descripcion TEXT, estado TEXT DEFAULT 'pendiente', prioridad TEXT DEFAULT 'normal', departamento TEXT DEFAULT 'General', user_id INTEGER, fecha_prevista DATE, activo INTEGER DEFAULT 1, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP);
+    CREATE TABLE IF NOT EXISTS isp_workflow_tareas (id INTEGER PRIMARY KEY AUTOINCREMENT, workflow_id INTEGER NOT NULL, nombre TEXT NOT NULL, descripcion TEXT, completada INTEGER DEFAULT 0, orden INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
+    CREATE TABLE IF NOT EXISTS isp_contratos (id INTEGER PRIMARY KEY AUTOINCREMENT, client_id INTEGER NOT NULL, tipo TEXT NOT NULL, estado TEXT DEFAULT 'borrador', producto TEXT, tarifa TEXT, precio REAL DEFAULT 0, descuento REAL DEFAULT 0, permanencia_meses INTEGER DEFAULT 0, fecha_alta DATE, fecha_baja DATE, motivo_baja TEXT, linea TEXT, iccid TEXT, pin TEXT, puk TEXT, notas TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP);
+    CREATE TABLE IF NOT EXISTS isp_portabilidades (id INTEGER PRIMARY KEY AUTOINCREMENT, contrato_id INTEGER, client_id INTEGER NOT NULL, linea TEXT NOT NULL, operador_origen TEXT, operador_destino TEXT DEFAULT 'Movilbro', estado TEXT DEFAULT 'pendiente', fecha_solicitud DATE, fecha_portabilidad DATE, referencia TEXT, notas TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP);
+    CREATE TABLE IF NOT EXISTS isp_tarifas (id INTEGER PRIMARY KEY AUTOINCREMENT, nombre TEXT NOT NULL, tipo TEXT NOT NULL, descripcion TEXT, precio REAL DEFAULT 0, precio_instalacion REAL DEFAULT 0, permanencia_meses INTEGER DEFAULT 0, velocidad TEXT, datos_gb TEXT, minutos TEXT, activo INTEGER DEFAULT 1, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
+    CREATE TABLE IF NOT EXISTS isp_descuentos (id INTEGER PRIMARY KEY AUTOINCREMENT, nombre TEXT NOT NULL, tipo TEXT DEFAULT 'porcentaje', valor REAL DEFAULT 0, meses_duracion INTEGER DEFAULT 0, aplica_a TEXT DEFAULT 'todos', activo INTEGER DEFAULT 1, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
+    CREATE TABLE IF NOT EXISTS isp_permanencias (id INTEGER PRIMARY KEY AUTOINCREMENT, nombre TEXT NOT NULL, meses INTEGER NOT NULL, penalizacion REAL DEFAULT 0, tipo_penalizacion TEXT DEFAULT 'fijo', activo INTEGER DEFAULT 1, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
+    CREATE TABLE IF NOT EXISTS isp_documentos (id INTEGER PRIMARY KEY AUTOINCREMENT, nombre TEXT NOT NULL, tipo TEXT DEFAULT 'documento', categoria TEXT, archivo TEXT, ruta TEXT, tamanio INTEGER DEFAULT 0, client_id INTEGER, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
+    CREATE TABLE IF NOT EXISTS isp_plantillas (id INTEGER PRIMARY KEY AUTOINCREMENT, nombre TEXT NOT NULL, tipo TEXT NOT NULL, contenido TEXT, descripcion TEXT, activo INTEGER DEFAULT 1, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
+    CREATE TABLE IF NOT EXISTS isp_campanas (id INTEGER PRIMARY KEY AUTOINCREMENT, nombre TEXT NOT NULL, descripcion TEXT, tipo TEXT DEFAULT 'email', fecha_inicio DATE, fecha_fin DATE, estado TEXT DEFAULT 'borrador', presupuesto REAL DEFAULT 0, activo INTEGER DEFAULT 1, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
+    CREATE TABLE IF NOT EXISTS isp_noticias (id INTEGER PRIMARY KEY AUTOINCREMENT, titulo TEXT NOT NULL, contenido TEXT, categoria TEXT DEFAULT 'general', importante INTEGER DEFAULT 0, activo INTEGER DEFAULT 1, user_id INTEGER, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
+    CREATE TABLE IF NOT EXISTS isp_eventos (id INTEGER PRIMARY KEY AUTOINCREMENT, titulo TEXT NOT NULL, descripcion TEXT, fecha_inicio DATETIME NOT NULL, fecha_fin DATETIME, tipo TEXT DEFAULT 'evento', client_id INTEGER, user_id INTEGER, color TEXT DEFAULT '#3c8dbc', created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
+    CREATE TABLE IF NOT EXISTS isp_nodos (id INTEGER PRIMARY KEY AUTOINCREMENT, nombre TEXT NOT NULL, direccion TEXT, tipo TEXT DEFAULT 'nodo', latitud REAL, longitud REAL, estado TEXT DEFAULT 'activo', notas TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
+    CREATE TABLE IF NOT EXISTS isp_equipos (id INTEGER PRIMARY KEY AUTOINCREMENT, nombre TEXT NOT NULL, nodo_id INTEGER, tipo TEXT DEFAULT 'router', fabricante TEXT, modelo TEXT, numero_serie TEXT, mac TEXT, ip TEXT, cliente_id INTEGER, estado TEXT DEFAULT 'activo', notas TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
+    CREATE TABLE IF NOT EXISTS isp_articulos (id INTEGER PRIMARY KEY AUTOINCREMENT, codigo TEXT, nombre TEXT NOT NULL, fabricante TEXT, categoria TEXT, modelo TEXT, precio_compra REAL DEFAULT 0, precio_venta REAL DEFAULT 0, stock INTEGER DEFAULT 0, stock_minimo INTEGER DEFAULT 5, proveedor TEXT, notas TEXT, activo INTEGER DEFAULT 1, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
+    CREATE TABLE IF NOT EXISTS isp_caja (id INTEGER PRIMARY KEY AUTOINCREMENT, fecha DATE NOT NULL, tipo TEXT NOT NULL, concepto TEXT NOT NULL, importe REAL NOT NULL, metodo_pago TEXT DEFAULT 'efectivo', categoria TEXT, descripcion TEXT, client_id INTEGER, user_id INTEGER, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
+    CREATE TABLE IF NOT EXISTS isp_arqueos (id INTEGER PRIMARY KEY AUTOINCREMENT, fecha DATE NOT NULL, ingresos_efectivo REAL DEFAULT 0, ingresos_tarjeta REAL DEFAULT 0, ingresos_transferencia REAL DEFAULT 0, total_ingresos REAL DEFAULT 0, gastos REAL DEFAULT 0, saldo REAL DEFAULT 0, observaciones TEXT, user_id INTEGER, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
+    CREATE TABLE IF NOT EXISTS isp_incidencias (id INTEGER PRIMARY KEY AUTOINCREMENT, categoria TEXT DEFAULT 'general', tipo TEXT, client_id INTEGER, asunto TEXT NOT NULL, descripcion TEXT, estado TEXT DEFAULT 'abierta', prioridad TEXT DEFAULT 'normal', user_id INTEGER, solucion TEXT, fecha_resolucion DATETIME, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
+    CREATE TABLE IF NOT EXISTS isp_listados (id INTEGER PRIMARY KEY AUTOINCREMENT, titulo TEXT NOT NULL, tipo TEXT DEFAULT 'listado', categoria TEXT DEFAULT 'General', descripcion TEXT, sql_query TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
+    CREATE TABLE IF NOT EXISTS isp_tareas (id INTEGER PRIMARY KEY AUTOINCREMENT, titulo TEXT NOT NULL, descripcion TEXT, prioridad TEXT DEFAULT 'normal', fecha_vencimiento DATE, user_id INTEGER, client_id INTEGER, completada INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
+    CREATE TABLE IF NOT EXISTS isp_facturas (id INTEGER PRIMARY KEY AUTOINCREMENT, cliente_nombre TEXT, cliente_email TEXT, fiscal_id TEXT, periodo TEXT, fecha_emision DATE, fecha_vencimiento DATE, importe_base REAL DEFAULT 0, importe_cdrs REAL DEFAULT 0, importe_total REAL DEFAULT 0, metodo_pago TEXT DEFAULT 'stripe', estado TEXT DEFAULT 'pendiente', stripe_invoice_id TEXT, stripe_payment_intent TEXT, email_enviado INTEGER DEFAULT 0, pagada INTEGER DEFAULT 0, fecha_pago DATETIME, notas TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
+    CREATE TABLE IF NOT EXISTS isp_facturas_lineas (id INTEGER PRIMARY KEY AUTOINCREMENT, factura_id INTEGER NOT NULL, concepto TEXT NOT NULL, tipo TEXT DEFAULT 'cuota', importe REAL NOT NULL, linea TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
+    CREATE TABLE IF NOT EXISTS isp_pagos (id INTEGER PRIMARY KEY AUTOINCREMENT, factura_id INTEGER, client_id INTEGER, importe REAL NOT NULL, metodo TEXT NOT NULL, referencia TEXT, estado TEXT DEFAULT 'completado', fecha_pago DATE, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
   `);
 
   try { db.prepare("ALTER TABLE users ADD COLUMN permissions TEXT DEFAULT '{}'").run(); } catch(e) {}
@@ -321,6 +347,8 @@ function initDatabase() {
   try { db.prepare("ALTER TABLE tienda_presupuestos ADD COLUMN tipo TEXT DEFAULT 'presupuesto'").run(); } catch(e) {}
   try { db.prepare("ALTER TABLE tienda_devoluciones ADD COLUMN resolucion TEXT").run(); } catch(e) {}
   try { db.prepare("ALTER TABLE tienda_plantilla ADD COLUMN user_id INTEGER").run(); } catch(e) {}
+  try { db.prepare("ALTER TABLE tickets ADD COLUMN departamento TEXT DEFAULT 'General'").run(); } catch(e) {}
+  try { db.prepare("ALTER TABLE tickets ADD COLUMN user_id INTEGER").run(); } catch(e) {}
 
   // Migrate: ensure all users have an email (copy from username if empty)
   const usersSinEmail = db.prepare('SELECT id, username FROM users WHERE email IS NULL OR email = ?').all('');
@@ -331,23 +359,16 @@ function initDatabase() {
   // Eliminar usuario admin/admin si existe (seguridad)
   db.prepare("DELETE FROM users WHERE username = 'admin'").run();
   
-  const ivanUser = db.prepare('SELECT id FROM users WHERE username = ?').get('infomovilbro');
-  if (!ivanUser) {
-    const hash = bcrypt.hashSync('movilbro2026', 10);
-    db.prepare('INSERT INTO users (username, password, nombre, email, rol) VALUES (?, ?, ?, ?, ?)').run(
-      'infomovilbro', hash, 'Ivan', 'infomovilbro@gmail.com', 'admin'
-    );
-  }
-  // Seed usuarios adicionales si no existen
-  const usuariosSeed = [
-    { username: 'eloyfuentesbermudez', nombre: 'Eloy Fuentes', email: 'eloyfuentesbermudez@gmail.com', password: 'eloy2026', rol: 'admin' }
-  ];
-  for (const u of usuariosSeed) {
-    const existente = db.prepare('SELECT id FROM users WHERE username = ?').get(u.username);
-    if (!existente) {
-      const hash = bcrypt.hashSync(u.password, 10);
+  // Crear admin desde variables de entorno (para producción)
+  const adminEmail = process.env.ADMIN_EMAIL;
+  const adminPass = process.env.ADMIN_PASSWORD;
+  if (adminEmail && adminPass) {
+    const existingAdmin = db.prepare('SELECT id FROM users WHERE email = ? OR username = ?').get(adminEmail, adminEmail);
+    if (!existingAdmin) {
+      const hash = bcrypt.hashSync(adminPass, 10);
+      const adminUser = adminEmail.split('@')[0];
       db.prepare('INSERT INTO users (username, password, nombre, email, rol) VALUES (?, ?, ?, ?, ?)').run(
-        u.username, hash, u.nombre, u.email, u.rol
+        adminUser, hash, 'Administrador', adminEmail, 'admin'
       );
     }
   }

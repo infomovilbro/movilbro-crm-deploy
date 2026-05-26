@@ -1,0 +1,95 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0"><i class="bi bi-percent"></i> Descuentos <span class="badge bg-secondary fs-6"><%= descuentos.length %></span></h5>
+    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalCrear"><i class="bi bi-plus-lg"></i> Nuevo</button>
+  </div>
+
+  <div class="card">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-dark">
+            <tr>
+              <th>Nombre</th>
+              <th>Tipo</th>
+              <th>Valor</th>
+              <th>Duración (meses)</th>
+              <th>Aplica a</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (descuentos.length === 0) { %>
+            <tr><td colspan="6" class="text-center text-muted py-4"><i class="bi bi-inbox"></i> No hay descuentos registrados</td></tr>
+            <% } else { %>
+              <% descuentos.forEach(function(d) { %>
+              <tr>
+                <td class="fw-semibold"><%= d.nombre %></td>
+                <td><span class="badge bg-info"><%= d.tipo %></span></td>
+                <td><%= d.tipo === 'porcentaje' ? d.valor + '%' : d.valor + '€' %></td>
+                <td><%= d.meses_duracion || 'Ilimitado' %></td>
+                <td><%= d.aplica_a || '-' %></td>
+                <td class="text-end">
+                  <form method="POST" action="/isp/descuentos/<%= d.id %>/delete" class="d-inline" onsubmit="return confirm('¿Eliminar descuento?')">
+                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                  </form>
+                </td>
+              </tr>
+              <% }) %>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Modal Crear -->
+<div class="modal fade" id="modalCrear" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" action="/isp/descuentos">
+        <div class="modal-header">
+          <h5 class="modal-title">Nuevo Descuento</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label">Nombre *</label>
+              <input type="text" name="nombre" class="form-control" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Tipo</label>
+              <select name="tipo" class="form-select">
+                <option value="porcentaje">Porcentaje</option>
+                <option value="fijo">Fijo (€)</option>
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Valor *</label>
+              <input type="number" step="0.01" name="valor" class="form-control" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Duración (meses)</label>
+              <input type="number" name="meses_duracion" class="form-control" value="0" placeholder="0 = ilimitado">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Aplica a</label>
+              <select name="aplica_a" class="form-select">
+                <option value="">General</option>
+                <option value="movil">Móvil</option>
+                <option value="fibra">Fibra</option>
+                <option value="fijo">Fijo</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Crear</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

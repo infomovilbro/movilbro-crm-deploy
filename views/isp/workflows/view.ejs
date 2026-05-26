@@ -1,0 +1,111 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2><i class="bi bi-diagram-3"></i> <%= workflow.titulo %></h2>
+      <span class="text-muted"><%= new Date(workflow.created_at).toLocaleString('es-ES') %></span>
+    </div>
+    <a href="/isp/workflows" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Volver</a>
+  </div>
+  <div class="row g-3">
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header">Detalles del Workflow</div>
+        <div class="card-body">
+          <table class="table table-sm">
+            <tr><th>T&iacute;tulo</th><td><%= workflow.titulo %></td></tr>
+            <tr><th>Tipo</th><td><%= workflow.tipo_nombre || '-' %></td></tr>
+            <tr><th>Cliente</th><td><%= workflow.cliente_nombre || '-' %></td></tr>
+            <tr><th>Estado</th>
+              <td><span class="badge bg-<%= workflow.estado === 'completado' ? 'success' : workflow.estado === 'en_curso' ? 'warning' : 'secondary' %> fs-6"><%= workflow.estado %></span></td>
+            </tr>
+            <tr><th>Prioridad</th>
+              <td><span class="badge bg-<%= workflow.prioridad === 'alta' ? 'danger' : workflow.prioridad === 'normal' ? 'warning' : 'info' %>"><%= workflow.prioridad %></span></td>
+            </tr>
+            <tr><th>Descripci&oacute;n</th><td><%= workflow.descripcion || '-' %></td></tr>
+            <tr><th>Asignado</th><td><%= workflow.user_name || '-' %></td></tr>
+          </table>
+          <div class="d-flex gap-2 mt-3">
+            <% if (workflow.estado === 'pendiente') { %>
+            <button class="btn btn-warning btn-sm" onclick="cambiarEstado('en_curso')"><i class="bi bi-play-fill"></i> Iniciar</button>
+            <% } %>
+            <% if (workflow.estado === 'en_curso') { %>
+            <button class="btn btn-success btn-sm" onclick="cambiarEstado('completado')"><i class="bi bi-check-lg"></i> Completar</button>
+            <% } %>
+            <% if (workflow.estado !== 'pendiente') { %>
+            <button class="btn btn-secondary btn-sm" onclick="cambiarEstado('pendiente')"><i class="bi bi-arrow-counterclockwise"></i> Reabrir</button>
+            <% } %>
+          </div>
+        </div>
+      </div>
+      <div class="card mt-3">
+        <div class="card-header">Actividades</div>
+        <div class="card-body" style="max-height:300px;overflow-y:auto;">
+          <% if (!actividades || actividades.length === 0) { %>
+          <p class="text-muted mb-0">Sin actividades registradas</p>
+          <% } else { %>
+          <ul class="list-unstyled mb-0">
+            <% actividades.forEach(a => { %>
+            <li class="mb-2 pb-2 border-bottom">
+              <div class="d-flex justify-content-between">
+                <small class="fw-bold"><%= a.accion %></small>
+                <small class="text-muted"><%= new Date(a.created_at).toLocaleString('es-ES') %></small>
+              </div>
+              <% if (a.descripcion) { %><small class="text-muted"><%= a.descripcion %></small><% } %>
+              <br><small class="text-muted">por <%= a.user_name || '-' %></small>
+            </li>
+            <% }) %>
+          </ul>
+          <% } %>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header">Lista de Tareas</div>
+        <div class="card-body" id="tareasContainer">
+          <% if (!tareas || tareas.length === 0) { %>
+          <p class="text-muted mb-0">No hay tareas asociadas</p>
+          <% } else { %>
+          <div class="list-group">
+            <% tareas.forEach(t => { %>
+            <div class="list-group-item list-group-item-action d-flex align-items-center gap-2 tarea-item" data-id="<%= t.id %>">
+              <input type="checkbox" class="form-check-input tarea-checkbox" <%= t.completada ? 'checked' : '' %> <%= t.completada ? 'disabled' : '' %>>
+              <span class="<%= t.completada ? 'text-decoration-line-through text-muted' : '' %> flex-grow-1"><%= t.descripcion || t.titulo %></span>
+              <span class="badge bg-<%= t.prioridad === 'alta' ? 'danger' : t.prioridad === 'normal' ? 'warning' : 'info' %>"><%= t.prioridad %></span>
+            </div>
+            <% }) %>
+          </div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<script>
+function cambiarEstado(estado) {
+  fetch('/isp/workflows/<%= workflow.id %>/estado', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ estado: estado })
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.success) { location.reload(); }
+    else { alert('Error: ' + (d.error || 'Desconocido')); }
+  }).catch(function() { alert('Error de conexi&oacute;n'); });
+}
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.tarea-checkbox:not(:disabled)').forEach(function(cb) {
+    cb.addEventListener('change', function() {
+      var id = this.closest('.tarea-item').dataset.id;
+      var checked = this.checked;
+      fetch('/isp/tareas/' + id + '/completar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ completada: checked ? 1 : 0 })
+      }).then(function(r) { return r.json(); }).then(function(d) {
+        if (d.success) { location.reload(); }
+        else { alert('Error al actualizar tarea'); }
+      }).catch(function() { alert('Error de conexi&oacute;n'); });
+    });
+  });
+});
+</script>

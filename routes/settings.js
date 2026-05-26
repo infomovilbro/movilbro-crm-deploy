@@ -160,6 +160,26 @@ router.post('/api', requireAuth, (req, res) => {
   res.redirect('/configuracion?success=API configurada');
 });
 
+router.post('/stripe', requireAuth, (req, res) => {
+  saveFields({
+    stripe_secret_key: req.body.stripe_secret_key,
+    stripe_public_key: req.body.stripe_public_key
+  });
+  res.redirect('/configuracion?success=Stripe configurado');
+});
+
+router.post('/smtp', requireAuth, (req, res) => {
+  saveFields({
+    smtp_host: req.body.smtp_host,
+    smtp_port: req.body.smtp_port,
+    smtp_user: req.body.smtp_user,
+    smtp_pass: req.body.smtp_pass,
+    email_from: req.body.email_from,
+    email_from_name: req.body.email_from_name
+  });
+  res.redirect('/configuracion?success=SMTP configurado');
+});
+
 router.post('/usuario/nuevo', requireAuth, (req, res) => {
   const { username, password, nombre, email, rol } = req.body;
   const hash = bcrypt.hashSync(password, 10);

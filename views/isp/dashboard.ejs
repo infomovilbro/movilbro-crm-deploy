@@ -1,0 +1,44 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-broadcast"></i> Panel ISP</h2>
+    <small class="text-muted"><i class="bi bi-arrow-repeat"></i> Datos vía API</small>
+  </div>
+  <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-warning"><i class="bi bi-exclamation-triangle"></i> <%= error %></div><% } %>
+
+  <% if (stats) { %>
+  <div class="row g-3 mb-4" id="cardsContainer">
+    <div class="col-md-3 col-6 card-item stat-card-item" data-filter="totalWorkflows"><a href="/isp/workflows" class="text-decoration-none"><div class="stat-card"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle primary"><span>⚙️</span></div><div><div class="stat-value"><%= stats.totalWorkflows %></div><div class="stat-label">Workflows</div></div></div></div></a></div>
+    <div class="col-md-3 col-6 card-item stat-card-item" data-filter="totalContratos"><a href="/isp/contratos" class="text-decoration-none"><div class="stat-card"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle primary"><span>📄</span></div><div><div class="stat-value"><%= stats.totalContratos %></div><div class="stat-label">Contratos</div></div></div></div></a></div>
+    <div class="col-md-3 col-6 card-item stat-card-item" data-filter="contratosActivos"><a href="/isp/contratos" class="text-decoration-none"><div class="stat-card"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle success"><span>✅</span></div><div><div class="stat-value"><%= stats.contratosActivos %></div><div class="stat-label">Contratos Activos</div></div></div></div></a></div>
+    <div class="col-md-3 col-6 card-item stat-card-item" data-filter="totalIncidencias"><a href="/isp/incidencias" class="text-decoration-none"><div class="stat-card"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle info"><span>⚠️</span></div><div><div class="stat-value"><%= stats.totalIncidencias %></div><div class="stat-label">Incidencias</div></div></div></div></a></div>
+    <div class="col-md-3 col-6 card-item stat-card-item" data-filter="incAbiertas"><a href="/isp/incidencias" class="text-decoration-none"><div class="stat-card"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle warning"><span>🔴</span></div><div><div class="stat-value"><%= stats.incAbiertas %></div><div class="stat-label">Incidencias Abiertas</div></div></div></div></a></div>
+    <div class="col-md-3 col-6 card-item stat-card-item" data-filter="totalTareas"><a href="/isp/tareas" class="text-decoration-none"><div class="stat-card"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle primary"><span>📋</span></div><div><div class="stat-value"><%= stats.totalTareas %></div><div class="stat-label">Tareas</div></div></div></div></a></div>
+    <div class="col-md-3 col-6 card-item stat-card-item" data-filter="tareasPend"><a href="/isp/tareas" class="text-decoration-none"><div class="stat-card"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle warning"><span>⏳</span></div><div><div class="stat-value"><%= stats.tareasPend %></div><div class="stat-label">Tareas Pendientes</div></div></div></div></a></div>
+    <div class="col-md-3 col-6 card-item stat-card-item" data-filter="ingresosHoy"><a href="/isp/caja" class="text-decoration-none"><div class="stat-card"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle success"><span>💰</span></div><div><div class="stat-value"><%= parseFloat(stats.ingresosHoy || 0).toFixed(2) %>€</div><div class="stat-label">Ingresos Hoy</div></div></div></div></a></div>
+    <div class="col-md-3 col-6 card-item stat-card-item" data-filter="gastosHoy"><a href="/isp/caja" class="text-decoration-none"><div class="stat-card"><div class="d-flex align-items-center gap-3"><div class="stat-icon-circle danger"><span>💸</span></div><div><div class="stat-value"><%= parseFloat(stats.gastosHoy || 0).toFixed(2) %>€</div><div class="stat-label">Gastos Hoy</div></div></div></div></a></div>
+  </div>
+  <% } %>
+
+  <div class="row g-3 hideable-section" data-card-id="ultimos-contratos">
+    <div class="col-md-6"><div class="card"><div class="card-header d-flex justify-content-between"><span><i class="bi bi-file-text"></i> Últimos Contratos</span><a href="/isp/contratos" class="btn btn-sm btn-outline-primary">Ver todos</a></div><div class="card-body p-0">
+      <table class="table table-hover mb-0"><thead><tr><th>#</th><th>Cliente</th><th>Tipo</th><th>Estado</th><th>Fecha</th></tr></thead><tbody>
+      <% if (ultimosContratos.length === 0) { %><tr><td colspan="5" class="text-center text-muted py-3">Sin contratos</td></tr>
+      <% } else { ultimosContratos.forEach(function(c) { %>
+        <tr><td><a href="/isp/contratos/<%= c.id %>">#<%= c.id %></a></td><td><%= c.cliente_nombre || '-' %></td>
+        <td><span class="badge bg-secondary"><%= c.tipo %></span></td>
+        <td><span class="badge bg-<%= c.estado === 'activo' ? 'success' : c.estado === 'pendiente' ? 'warning' : 'danger' %>"><%= c.estado %></span></td>
+        <td class="small"><%= c.fecha_alta ? new Date(c.fecha_alta).toLocaleDateString('es-ES') : '-' %></td></tr>
+      <% }); } %></tbody></table>
+    </div></div></div>
+    <div class="col-md-6"><div class="card"><div class="card-header d-flex justify-content-between"><span><i class="bi bi-exclamation-triangle"></i> Últimas Incidencias</span><a href="/isp/incidencias" class="btn btn-sm btn-outline-primary">Ver todas</a></div><div class="card-body p-0">
+      <table class="table table-hover mb-0"><thead><tr><th>#</th><th>Cliente</th><th>Tipo</th><th>Estado</th><th>Fecha</th></tr></thead><tbody>
+      <% if (ultimasIncidencias.length === 0) { %><tr><td colspan="5" class="text-center text-muted py-3">Sin incidencias</td></tr>
+      <% } else { ultimasIncidencias.forEach(function(i) { %>
+        <tr><td>#<%= i.id %></td><td><%= i.cliente_nombre || '-' %></td>
+        <td><span class="badge bg-info"><%= i.tipo %></span></td>
+        <td><span class="badge bg-<%= i.estado === 'abierta' ? 'warning' : i.estado === 'en_curso' ? 'info' : 'success' %>"><%= i.estado %></span></td>
+        <td class="small"><%= i.created_at ? new Date(i.created_at).toLocaleDateString('es-ES') : '-' %></td></tr>
+      <% }); } %></tbody></table>
+    </div></div></div>
+  </div>
+</section>

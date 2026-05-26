@@ -1,0 +1,121 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Incidencias <span class="badge bg-secondary fs-6"><%= incidencias.length %></span></h5>
+  </div>
+  <div class="card mb-3">
+    <div class="card-body py-2">
+      <div class="row g-2 align-items-center">
+        <div class="col-md-3">
+          <input type="text" class="form-control form-control-sm" id="searchIncidencia" placeholder="Buscar asunto o cliente...">
+        </div>
+        <div class="col-md-2">
+          <select class="form-select form-select-sm" id="filterCategoria">
+            <option value="">Todas las categor&iacute;as</option>
+            <% if (typeof categorias !== 'undefined') { categorias.forEach(c => { %>
+            <option value="<%= c %>"><%= c %></option>
+            <% }) } %>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <select class="form-select form-select-sm" id="filterEstado">
+            <option value="">Todos los estados</option>
+            <option value="abierta">Abierta</option>
+            <option value="en_curso">En curso</option>
+            <option value="cerrada">Cerrada</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <select class="form-select form-select-sm" id="filterPrioridad">
+            <option value="">Todas las prioridades</option>
+            <option value="alta">Alta</option>
+            <option value="media">Media</option>
+            <option value="baja">Baja</option>
+          </select>
+        </div>
+        <div class="col-md-1">
+          <button class="btn btn-outline-secondary btn-sm w-100" id="btnLimpiarFiltros"><i class="bi bi-x-circle"></i></button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle" id="incidenciasTable">
+          <thead class="table-dark">
+            <tr>
+              <th>ID</th>
+              <th>Categor&iacute;a</th>
+              <th>Cliente</th>
+              <th>Asunto</th>
+              <th>Estado</th>
+              <th>Prioridad</th>
+              <th>Asignado</th>
+              <th>Creaci&oacute;n</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (incidencias.length === 0) { %>
+            <tr><td colspan="8" class="text-center text-muted py-4"><i class="bi bi-exclamation-triangle"></i> No hay incidencias registradas</td></tr>
+            <% } else { %>
+              <% incidencias.forEach(i => { %>
+              <tr class="incidencia-row">
+                <td><%= i.id %></td>
+                <td><%= i.categoria || '-' %></td>
+                <td><%= i.cliente_nombre || '-' %></td>
+                <td><a href="/isp/incidencias/<%= i.id %>" class="fw-bold"><%= i.asunto %></a></td>
+                <td>
+                  <span class="badge bg-<%= i.estado === 'abierta' ? 'danger' : i.estado === 'en_curso' ? 'warning' : 'success' %> fs-6"><%= i.estado %></span>
+                </td>
+                <td>
+                  <span class="badge bg-<%= i.prioridad === 'alta' ? 'danger' : i.prioridad === 'media' ? 'warning' : 'info' %>"><%= i.prioridad %></span>
+                </td>
+                <td><%= i.user_name || '-' %></td>
+                <td class="small"><%= i.created_at ? new Date(i.created_at).toLocaleDateString('es-ES') : '-' %></td>
+              </tr>
+              <% }) %>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const searchInput = document.getElementById('searchIncidencia');
+  const filterCategoria = document.getElementById('filterCategoria');
+  const filterEstado = document.getElementById('filterEstado');
+  const filterPrioridad = document.getElementById('filterPrioridad');
+  const btnLimpiar = document.getElementById('btnLimpiarFiltros');
+  function filtrar() {
+    const q = searchInput ? searchInput.value.toLowerCase().trim() : '';
+    const cat = filterCategoria ? filterCategoria.value : '';
+    const est = filterEstado ? filterEstado.value : '';
+    const pri = filterPrioridad ? filterPrioridad.value : '';
+    document.querySelectorAll('.incidencia-row').forEach(function(row) {
+      const asunto = row.querySelector('td:nth-child(4) a')?.textContent.toLowerCase() || '';
+      const cliente = row.querySelector('td:nth-child(3)')?.textContent.toLowerCase() || '';
+      const rowCat = row.querySelector('td:nth-child(2)')?.textContent.trim() || '';
+      const rowEst = row.querySelector('td:nth-child(5) .badge')?.textContent.trim().toLowerCase() || '';
+      const rowPri = row.querySelector('td:nth-child(6) .badge')?.textContent.trim().toLowerCase() || '';
+      const matchTexto = !q || asunto.includes(q) || cliente.includes(q);
+      const matchCat = !cat || rowCat === cat;
+      const matchEst = !est || rowEst === est;
+      const matchPri = !pri || rowPri === pri;
+      row.style.display = matchTexto && matchCat && matchEst && matchPri ? '' : 'none';
+    });
+  }
+  if (searchInput) searchInput.addEventListener('input', filtrar);
+  if (filterCategoria) filterCategoria.addEventListener('change', filtrar);
+  if (filterEstado) filterEstado.addEventListener('change', filtrar);
+  if (filterPrioridad) filterPrioridad.addEventListener('change', filtrar);
+  if (btnLimpiar) btnLimpiar.addEventListener('click', function() {
+    if (searchInput) searchInput.value = '';
+    if (filterCategoria) filterCategoria.value = '';
+    if (filterEstado) filterEstado.value = '';
+    if (filterPrioridad) filterPrioridad.value = '';
+    filtrar();
+  });
+});
+</script>

@@ -1,0 +1,84 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0"><i class="bi bi-lock"></i> Permanencias <span class="badge bg-secondary fs-6"><%= permanencias.length %></span></h5>
+    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalCrear"><i class="bi bi-plus-lg"></i> Nueva</button>
+  </div>
+
+  <div class="card">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-dark">
+            <tr>
+              <th>Nombre</th>
+              <th>Meses</th>
+              <th>Penalización</th>
+              <th>Tipo Penalización</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (permanencias.length === 0) { %>
+            <tr><td colspan="5" class="text-center text-muted py-4"><i class="bi bi-inbox"></i> No hay permanencias registradas</td></tr>
+            <% } else { %>
+              <% permanencias.forEach(function(p) { %>
+              <tr>
+                <td class="fw-semibold"><%= p.nombre %></td>
+                <td><%= p.meses %> meses</td>
+                <td><%= p.penalizacion ? (p.tipo_penalizacion === 'porcentaje' ? p.penalizacion + '%' : p.penalizacion + '€') : '-' %></td>
+                <td><span class="badge bg-<%= p.tipo_penalizacion === 'porcentaje' ? 'info' : 'warning' %>"><%= p.tipo_penalizacion || '-' %></span></td>
+                <td class="text-end">
+                  <form method="POST" action="/isp/permanencias/<%= p.id %>/delete" class="d-inline" onsubmit="return confirm('¿Eliminar permanencia?')">
+                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                  </form>
+                </td>
+              </tr>
+              <% }) %>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Modal Crear -->
+<div class="modal fade" id="modalCrear" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" action="/isp/permanencias">
+        <div class="modal-header">
+          <h5 class="modal-title">Nueva Permanencia</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label">Nombre *</label>
+              <input type="text" name="nombre" class="form-control" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Meses *</label>
+              <input type="number" name="meses" class="form-control" required min="1">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Penalización</label>
+              <input type="number" step="0.01" name="penalizacion" class="form-control" value="0">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Tipo Penalización</label>
+              <select name="tipo_penalizacion" class="form-select">
+                <option value="fijo">Fijo (€)</option>
+                <option value="porcentaje">Porcentaje (%)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Crear</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

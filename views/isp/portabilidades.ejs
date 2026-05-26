@@ -1,0 +1,103 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0"><i class="bi bi-arrow-left-right"></i> Portabilidades <span class="badge bg-secondary fs-6"><%= portabilidades.length %></span></h5>
+    <div>
+      <a href="/isp/portabilidades/nueva" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg"></i> Nueva</a>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-body py-2">
+      <div class="row g-2 align-items-center">
+        <div class="col-md-4">
+          <input type="text" class="form-control form-control-sm" id="searchPort" placeholder="Buscar cliente o línea...">
+        </div>
+        <div class="col-md-2">
+          <select class="form-select form-select-sm" id="filterEstadoPort">
+            <option value="">Todos los estados</option>
+            <option value="pendiente">Pendiente</option>
+            <option value="en_curso">En curso</option>
+            <option value="completada">Completada</option>
+            <option value="rechazada">Rechazada</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <button class="btn btn-outline-secondary btn-sm w-100" id="btnLimpiarPort"><i class="bi bi-x-circle"></i> Limpiar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-dark">
+            <tr>
+              <th>#</th>
+              <th>Cliente</th>
+              <th>Línea</th>
+              <th>Operador Origen</th>
+              <th>Operador Destino</th>
+              <th>Estado</th>
+              <th>Referencia</th>
+              <th>Fecha Solicitud</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (portabilidades.length === 0) { %>
+            <tr><td colspan="9" class="text-center text-muted py-4"><i class="bi bi-inbox"></i> No hay portabilidades registradas</td></tr>
+            <% } else { %>
+              <% portabilidades.forEach(function(p) { %>
+              <tr class="port-row">
+                <td>#<%= p.id %></td>
+                <td><%= p.cliente_nombre || '-' %></td>
+                <td><%= p.linea || '-' %></td>
+                <td><%= p.operador_origen || '-' %></td>
+                <td><%= p.operador_destino || '-' %></td>
+                <td><span class="badge bg-<%= p.estado === 'completada' ? 'success' : p.estado === 'en_curso' ? 'info' : p.estado === 'rechazada' ? 'danger' : 'warning' %>"><%= p.estado %></span></td>
+                <td class="small"><%= p.referencia || '-' %></td>
+                <td class="small"><%= p.fecha_solicitud ? new Date(p.fecha_solicitud).toLocaleDateString('es-ES') : '-' %></td>
+                <td class="text-end">
+                  <a href="/isp/portabilidades/<%= p.id %>" class="btn btn-sm btn-outline-info"><i class="bi bi-eye"></i></a>
+                </td>
+              </tr>
+              <% }) %>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const searchInput = document.getElementById('searchPort');
+  const filterEstado = document.getElementById('filterEstadoPort');
+  const btnLimpiar = document.getElementById('btnLimpiarPort');
+
+  function filtrar() {
+    const q = searchInput ? searchInput.value.toLowerCase().trim() : '';
+    const est = filterEstado ? filterEstado.value : '';
+
+    document.querySelectorAll('.port-row').forEach(function(row) {
+      const cliente = row.querySelector('td:nth-child(2)')?.textContent.toLowerCase() || '';
+      const linea = row.querySelector('td:nth-child(3)')?.textContent.toLowerCase() || '';
+      const estado = row.querySelector('td:nth-child(6) .badge')?.textContent.trim().toLowerCase() || '';
+      const matchTexto = !q || cliente.includes(q) || linea.includes(q);
+      const matchEstado = !est || estado === est;
+      row.style.display = matchTexto && matchEstado ? '' : 'none';
+    });
+  }
+
+  if (searchInput) searchInput.addEventListener('input', filtrar);
+  if (filterEstado) filterEstado.addEventListener('change', filtrar);
+  if (btnLimpiar) btnLimpiar.addEventListener('click', function() {
+    if (searchInput) searchInput.value = '';
+    if (filterEstado) filterEstado.value = '';
+    filtrar();
+  });
+});
+</script>
