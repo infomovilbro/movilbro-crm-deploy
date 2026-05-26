@@ -410,18 +410,24 @@ function initDatabase() {
   if (process.env.TELEGRAM_CHAT_ID) {
     db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('telegram_chat_id', ?)").run(process.env.TELEGRAM_CHAT_ID);
   }
-  // Auto-configurar API Likes Telecom desde variables de entorno
-  if (process.env.LIKES_API_URL) {
-    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('likes_api_url', ?)").run(process.env.LIKES_API_URL);
+  // Auto-configurar API Likes Telecom (desde env vars o valores por defecto)
+  var defaultApi = {
+    likes_api_url: 'https://api.likestelecom.com',
+    likes_client_id: 'eloyfuentesbermudez@gmail.com',
+    likes_client_secret: 'Teresa88.',
+    likes_brand_id: '264'
+  };
+  var upsert = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
+  for (var _k in defaultApi) {
+    upsert.run(_k, process.env[_k.toUpperCase()] || defaultApi[_k]);
   }
-  if (process.env.LIKES_CLIENT_ID) {
-    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('likes_client_id', ?)").run(process.env.LIKES_CLIENT_ID);
+
+  // Stripe keys desde variables de entorno
+  if (process.env.STRIPE_SECRET_KEY) {
+    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('stripe_secret_key', ?)").run(process.env.STRIPE_SECRET_KEY);
   }
-  if (process.env.LIKES_CLIENT_SECRET) {
-    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('likes_client_secret', ?)").run(process.env.LIKES_CLIENT_SECRET);
-  }
-  if (process.env.LIKES_BRAND_ID) {
-    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('likes_brand_id', ?)").run(process.env.LIKES_BRAND_ID);
+  if (process.env.STRIPE_PUBLIC_KEY) {
+    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('stripe_public_key', ?)").run(process.env.STRIPE_PUBLIC_KEY);
   }
 
   // Auto-seed tienda data if empty (for Render restarts)
