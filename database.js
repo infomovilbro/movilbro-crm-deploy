@@ -363,14 +363,16 @@ function initDatabase() {
     db.prepare('UPDATE users SET email = ? WHERE id = ?').run(u.username + '@movilbro.com', u.id);
   });
 
-  // Eliminar usuario admin/admin si existe (seguridad)
+  // Eliminar usuarios hardcodeados (solo login por email)
   db.prepare("DELETE FROM users WHERE username = 'admin'").run();
+  db.prepare("DELETE FROM users WHERE username = 'infomovilbro'").run();
+  db.prepare("DELETE FROM users WHERE username = 'eloyfuentesbermudez'").run();
   
-  // Crear admin desde variables de entorno (para producción)
+  // Crear admin desde variables de entorno (Render)
   const adminEmail = process.env.ADMIN_EMAIL;
   const adminPass = process.env.ADMIN_PASSWORD;
   if (adminEmail && adminPass) {
-    const existingAdmin = db.prepare('SELECT id FROM users WHERE email = ? OR username = ?').get(adminEmail, adminEmail);
+    const existingAdmin = db.prepare('SELECT id FROM users WHERE email = ?').get(adminEmail);
     if (!existingAdmin) {
       const hash = bcrypt.hashSync(adminPass, 10);
       const adminUser = adminEmail.split('@')[0];
@@ -378,6 +380,9 @@ function initDatabase() {
         adminUser, hash, 'Administrador', adminEmail, 'admin'
       );
     }
+  } else if (process.env.NODE_ENV === 'production') {
+    // En producción sin ADMIN_EMAIL, no crear usuarios - obliga a configurarlo
+    console.log('WARNING: ADMIN_EMAIL and ADMIN_PASSWORD must be set in production');
   }
 
   // Ensure all users have email set

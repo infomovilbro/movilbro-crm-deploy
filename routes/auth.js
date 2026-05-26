@@ -103,7 +103,7 @@ router.post('/login', loginLimiter, [
   }
   const email = (req.body.email || '').trim().toLowerCase();
   const password = (req.body.password || '').trim();
-  const user = db.prepare('SELECT * FROM users WHERE LOWER(email) = ? OR LOWER(username) = ?').get(email, email);
+  const user = db.prepare('SELECT * FROM users WHERE LOWER(email) = ?').get(email);
 
   // Bloquear usuario admin aunque exista en DB
   if (user && user.username === 'admin') {
