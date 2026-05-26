@@ -89,7 +89,7 @@ router.post('/webhook', function(req, res) {
   if (up.callback_query) {
     var cq = up.callback_query;
     var cid = cq.message.chat.id;
-    if (!isAllowed(cid)) { res.sendStatus(200); return; }
+    if (!isAllowed(cid)) { tg('answerCallbackQuery', { callback_query_id: cq.id, text: 'No autorizado. ID: ' + cid }); res.sendStatus(200); return; }
     var mid = cq.message.message_id;
     var cbdata = cq.data || '';
     var cbid = cq.id;
@@ -103,7 +103,7 @@ router.post('/webhook', function(req, res) {
   // Mensaje de texto
   if (up.message && up.message.text) {
     var cid = up.message.chat.id;
-    if (!isAllowed(cid)) { res.sendStatus(200); return; }
+    if (!isAllowed(cid)) { tg('sendMessage', { chat_id: cid, text: 'No autorizado. Tu ID: ' + cid + '\nPide al admin que ejecute: /autorizar ' + cid }); res.sendStatus(200); return; }
     var txt = up.message.text.trim();
 
     // Esperando respuesta del usuario
