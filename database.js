@@ -368,30 +368,18 @@ function initDatabase() {
   db.prepare("DELETE FROM users WHERE username = 'infomovilbro'").run();
   db.prepare("DELETE FROM users WHERE username = 'eloyfuentesbermudez'").run();
   
-  // Crear admin desde variables de entorno (Render) o fallback por defecto
-  const adminEmail = process.env.ADMIN_EMAIL;
-  const adminPass = process.env.ADMIN_PASSWORD;
-  const totalUsers = db.prepare('SELECT COUNT(*) as c FROM users').get().c;
-  
-  if (adminEmail && adminPass) {
-    const existingAdmin = db.prepare('SELECT id FROM users WHERE email = ?').get(adminEmail);
-    if (!existingAdmin) {
-      const hash = bcrypt.hashSync(adminPass, 10);
-      const adminUser = adminEmail.split('@')[0];
-      db.prepare('INSERT INTO users (username, password, nombre, email, rol) VALUES (?, ?, ?, ?, ?)').run(
-        adminUser, hash, 'Administrador', adminEmail, 'admin'
-      );
-      console.log('Admin user created from env vars');
-    }
-  } else if (totalUsers === 0) {
-    // Fallback: crear admin por defecto si no hay usuarios
-    const hash = bcrypt.hashSync('admin123', 10);
-    db.prepare('INSERT INTO users (username, password, nombre, email, rol) VALUES (?, ?, ?, ?, ?)').run(
-      'admin', hash, 'Administrador', 'admin@movilbro.com', 'admin'
-    );
-    console.log('WARNING: Default admin created. Change password immediately.');
-    console.log('  Email: admin@movilbro.com');
-    console.log('  Password: admin123');
+  // Crear admin (siempre disponible para login)
+  var adminEmail = process.env.ADMIN_EMAIL || 'admin@movilbro.com';
+  var adminPass = process.env.ADMIN_PASSWORD || 'admin123';
+  var existingAdmin = db.prepare('SELECT id FROM users WHERE username = ?').get('admin');
+  var hash = bcrypt.hashSync(adminPass, 10);
+  if (existingAdmin) {
+    db.prepare('UPDATE users SET password=?, email=? WHERE username=?').run(hash, adminEmail, 'admin');
+  } else {
+    db.prepare('INSERT INTO users (username, password, nombre, email, rol) VALUES (?,?,?,?,?)').run('admin', hash, 'Administrador', adminEmail, 'admin');
+  }
+  if (!process.env.ADMIN_EMAIL) {
+    console.log('Default admin: admin@movilbro.com / admin123');
   }
 
   // Ensure all users have email set
