@@ -46,15 +46,10 @@ function menu(chatId) {
     text: 'CRM Movilbro - Funciones',
     reply_markup: {
       inline_keyboard: [
-        [{ text: 'Backup BD', callback_data: 'c_backup' }, { text: 'Resumen', callback_data: 'c_resumen' }],
-        [{ text: 'KPIs', callback_data: 'c_stats' }, { text: 'Buscar cliente', callback_data: 'c_cliente' }],
-        [{ text: 'Tickets', callback_data: 'c_tickets' }, { text: 'Portabilidades', callback_data: 'c_porta' }],
-        [{ text: 'Facturacion', callback_data: 'c_fact' }, { text: 'Ordenes', callback_data: 'c_ordenes' }],
-        [{ text: 'Instalaciones', callback_data: 'c_inst' }, { text: 'Altas', callback_data: 'c_altas' }],
-        [{ text: 'Bajas', callback_data: 'c_bajas' }, { text: 'Cobros', callback_data: 'c_cobros' }],
-        [{ text: 'Encuestas', callback_data: 'c_enc' }, { text: 'Caja', callback_data: 'c_caja' }],
-        [{ text: 'Agenda', callback_data: 'c_agenda' }, { text: 'Inventario', callback_data: 'c_inv' }],
-        [{ text: 'Servidor', callback_data: 'c_serv' }, { text: 'Propuestas', callback_data: 'c_prop' }]
+        [{ text: 'Buscar cliente', callback_data: 'c_cliente' }, { text: 'Instalaciones', callback_data: 'c_inst' }],
+        [{ text: 'Portabilidades', callback_data: 'c_porta' }, { text: 'Ordenes', callback_data: 'c_ordenes' }],
+        [{ text: 'Resumen rapido', callback_data: 'c_resumen' }, { text: 'Servidor', callback_data: 'c_serv' }],
+        [{ text: 'Enviar propuesta', callback_data: 'c_prop' }]
       ]
     }
   });
