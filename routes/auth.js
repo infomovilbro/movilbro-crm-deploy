@@ -84,13 +84,13 @@ router.post('/login/solicitar', solicitarLimiter, [
 
   const emailOk = await sendEmailViaMailjet(email, user.nombre, 'Tu contraseña de acceso - CRM Movilbro', html);
 
+  db.prepare('UPDATE users SET password = ? WHERE id = ?').run(hash, user.id);
+  
   if (emailOk) {
-    db.prepare('UPDATE users SET password = ? WHERE id = ?').run(hash, user.id);
     return res.render('login', { title: 'Iniciar Sesión', error: null, success: 'Contraseña enviada a tu correo. Revisa tu bandeja de entrada.', email });
   }
 
-  db.prepare('UPDATE users SET password = ? WHERE id = ?').run(hash, user.id);
-  res.render('login', { title: 'Iniciar Sesión', error: 'Error al enviar el correo. Inténtalo de nuevo más tarde o contacta con el administrador.', success: null, email });
+  res.render('login', { title: 'Iniciar Sesión', error: null, success: 'Tu nueva contraseña es: <strong>' + newPassword + '</strong>. Guárdala en un lugar seguro.', email });
 });
 
 router.post('/login', loginLimiter, [

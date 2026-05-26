@@ -363,10 +363,8 @@ function initDatabase() {
     db.prepare('UPDATE users SET email = ? WHERE id = ?').run(u.username + '@movilbro.com', u.id);
   });
 
-  // Eliminar usuarios hardcodeados (solo login por email)
+  // Solo eliminar usuario admin por seguridad (no borrar usuarios reales)
   db.prepare("DELETE FROM users WHERE username = 'admin'").run();
-  db.prepare("DELETE FROM users WHERE username = 'infomovilbro'").run();
-  db.prepare("DELETE FROM users WHERE username = 'eloyfuentesbermudez'").run();
   
   // Crear admin SOLO si se configuran las variables de entorno en Render
   if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
