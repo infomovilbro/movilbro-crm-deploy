@@ -56,7 +56,7 @@ const tiendaRoutes = require('./routes/tienda');
 const apiProxyRoutes = require('./routes/api-proxy');
 const externalApiRoutes = require('./routes/external-api');
 const { router: backupRouter, sendBackup } = require('./routes/backup');
-const { router: telegramBotRouter, notifyServerStart, sendDailySummary } = require('./routes/telegram-bot');
+const { router: telegramBotRouter, notifyServerStart, sendDailySummary, registerBotCommands } = require('./routes/telegram-bot');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -360,6 +360,7 @@ cron.schedule('5 0 * * *', () => {
 const server = app.listen(PORT, () => {
   console.log(`CRM Movilbro iniciado en puerto ${PORT} (${isProd ? 'produccion' : 'desarrollo'})`);
   setTimeout(() => notifyServerStart(), 3000);
+  setTimeout(() => registerBotCommands(), 5000);
 });
 
 // ---- BACKUP + RESUMEN DIARIO a Telegram a las 22:00 (cierre de tienda) ----
