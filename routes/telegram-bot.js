@@ -275,31 +275,38 @@ function ordenes(cid) {
   var api = likes.getApiInstance();
   api.getToken().then(function() { return api.getCustomers(); }).then(function(clientes) {
     if (!clientes || clientes.length === 0) { throw new Error('no customers'); }
-    var promesas = clientes.slice(0, 5).map(function(c) {
-      var fid = c.fiscalId || c.fiscal_id || c.customerId || c.id;
-      return api.request('GET', '/orders?brand_id=264&fiscalId=' + encodeURIComponent(fid)).then(function(r) { return api.extractData(r); }).catch(function() { return []; });
-    });
+    // Buscar ordenes en los primeros 30 clientes (o todos si hay pocos)
+    var limite = Math.min(30, clientes.length);
+    var promesas = [];
+    for (var i = 0; i < limite; i++) {
+      var fid = clientes[i].fiscalId;
+      if (fid) {
+        (function(fiscalId) {
+          promesas.push(api.request('GET', '/orders?brand_id=264&fiscalId=' + encodeURIComponent(fiscalId)).then(function(r) {
+            var datos = api.extractData(r);
+            return datos.map(function(o) { o._fiscalId = fiscalId; return o; });
+          }).catch(function() { return []; }));
+        })(fid);
+      }
+    }
     return Promise.all(promesas);
   }).then(function(resultados) {
     var todas = [];
     resultados.forEach(function(r) { todas = todas.concat(r); });
     if (todas.length > 0) {
-      var t = '\uD83D\uDCE6 Ordenes pendientes (' + todas.length + '):\n';
-      todas.slice(0, 10).forEach(function(o) { t += '\u2022 ' + (o.productName || o.tipo || o.type || '-') + ' [' + est(o.estado || o.status) + ']\n'; });
+      var t = '\uD83D\uDCE6 Ordenes (' + todas.length + '):\n';
+      todas.slice(0, 15).forEach(function(o) {
+        var nom = o.customer_name || o.customerName || (o.customer && o.customer.name) || o.name || '';
+        t += '\u2022 ' + (o.product_name || o.productName || o.tipo || o.type || 'Orden') + '\n';
+        if (nom) t += '  Cliente: ' + nom + '\n';
+        t += '  Estado: ' + est(o.status || o.estado) + ' | ID: ' + (o.id || o.order_id || o.orderId || '').toString().slice(0, 12) + '\n';
+      });
       msg(cid, t);
     } else {
-      msg(cid, '\u2705 No hay ordenes pendientes en la API.');
+      msg(cid, '\u2705 No se encontraron ordenes en los ultimos 30 clientes. Revisa en el CRM web.');
     }
-  }).catch(function() {
-    // Fallback local
-    var local = db.prepare("SELECT id, tipo, estado FROM orders WHERE estado NOT IN ('completada','cancelada') ORDER BY id DESC LIMIT 10").all();
-    if (local.length > 0) {
-      var t = '\uD83D\uDCE6 Ordenes pendientes (local):\n';
-      local.forEach(function(r) { t += '#' + r.id + ' ' + r.tipo + ' [' + r.estado + ']\n'; });
-      msg(cid, t);
-    } else {
-      msg(cid, '\u2705 No hay ordenes pendientes.');
-    }
+  }).catch(function(e) {
+    msg(cid, '\u274C Error: ' + e.message);
   });
 }
 
