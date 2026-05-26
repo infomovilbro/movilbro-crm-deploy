@@ -7,11 +7,13 @@ const https = require('https');
 const router = express.Router();
 
 function getToken() {
+  if (process.env.TELEGRAM_BOT_TOKEN) return process.env.TELEGRAM_BOT_TOKEN;
   const row = db.prepare("SELECT value FROM settings WHERE key = 'telegram_bot_token'").get();
   return row ? row.value : null;
 }
 
 function getChatId() {
+  if (process.env.TELEGRAM_CHAT_ID) return process.env.TELEGRAM_CHAT_ID;
   const row = db.prepare("SELECT value FROM settings WHERE key = 'telegram_chat_id'").get();
   return row ? row.value : null;
 }
