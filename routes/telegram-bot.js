@@ -133,8 +133,8 @@ router.post('/webhook', function(req, res) {
     else if (first === '/portabilidades' || first === '/porta') safeRun(cmdPortabilidades, chatId, null);
     else if (first === '/facturacion' || first === '/billing') safeRun(cmdFacturacion, chatId, null);
     else if (first === '/ordenes' || first === '/orders') safeRun(cmdOrdenes, chatId, null);
-    else if (first === '/instalaciones') sendMsg(chatId, 'Modulo de instalaciones no disponible en la BD actual.');
-    else if (first === '/encuestas') sendMsg(chatId, 'Modulo de encuestas no disponible en la BD actual.');
+    else if (first === '/instalaciones') safeRun(cmdInstalaciones, chatId, null);
+    else if (first === '/encuestas') safeRun(cmdEncuestas, chatId, null);
     else if (first === '/servidor' || first === '/health') safeRun(cmdServidor, chatId, null);
     else if (first === '/caja') safeRun(cmdCaja, chatId, null);
     else if (first === '/agenda') safeRun(cmdAgenda, chatId, null);
@@ -182,11 +182,11 @@ function ejecutarComando(data, chatId, msgId) {
     case 'cmd_portabilidades': return safeRun(cmdPortabilidades, chatId, msgId);
     case 'cmd_facturacion': return safeRun(cmdFacturacion, chatId, msgId);
     case 'cmd_ordenes': return safeRun(cmdOrdenes, chatId, msgId);
-    case 'cmd_instalaciones': return safeRun(function(chatId, msgId) { sendMsg(chatId, 'Modulo de instalaciones no disponible en la BD actual.'); }, chatId, msgId);
+    case 'cmd_instalaciones': return safeRun(cmdInstalaciones, chatId, msgId);
     case 'cmd_altas': return safeRun(cmdAltas, chatId, msgId);
     case 'cmd_bajas': return safeRun(cmdBajas, chatId, msgId);
     case 'cmd_cobros': return safeRun(cmdCobros, chatId, msgId);
-    case 'cmd_encuestas': return safeRun(function(chatId, msgId) { sendMsg(chatId, 'Modulo de encuestas no disponible en la BD actual.'); }, chatId, msgId);
+    case 'cmd_encuestas': return safeRun(cmdEncuestas, chatId, msgId);
     case 'cmd_caja': return safeRun(cmdCaja, chatId, msgId);
     case 'cmd_agenda': return safeRun(cmdAgenda, chatId, msgId);
     case 'cmd_inventario': return safeRun(cmdInventario, chatId, msgId);
