@@ -167,14 +167,59 @@ router.get('/bot-test', async (req, res) => {
       try {
         var r = await api[tests[i][1]]();
         result.endpoints[tests[i][0]] = { ok: true, count: Array.isArray(r) ? r.length : 0 };
-      } catch(e) {
-        result.endpoints[tests[i][0]] = { ok: false, error: e.message };
-      }
+    } catch(e) {
+      result.endpoints[tests[i][0]] = { ok: false, error: e.message };
     }
-  } catch(e) {
-    result.error = e.message;
   }
-  res.json(result);
+} catch(e) {
+  result.error = e.message;
+}
+res.json(result);
+});
+
+// GET /api/bot-data - muestra campos reales de la API
+router.get('/bot-data', async (req, res) => {
+var result = {};
+try {
+var LikesAPI = require('../likes-api');
+var api = LikesAPI.getApiInstance();
+await api.getToken();
+var customers = await api.getCustomers();
+if (customers.length > 0) {
+result.customer_fields = Object.keys(customers[0]);
+result.customer_sample = customers[0];
+// buscar ivan
+var ivan = customers.filter(c => (c.nombre||c.name||c.fullName||'').toLowerCase().indexOf('ivan')>=0 || (c.telefono||c.phone||'').indexOf('677350267')>=0);
+result.ivan_search = ivan.length > 0 ? ivan[0] : null;
+}
+var inst = await api.getInstallations();
+if (inst.length > 0) {
+result.installation_fields = Object.keys(inst[0]);
+result.installation_sample = inst[0];
+}
+var portas = await api.getPortabilities();
+if (portas.length > 0) {
+result.portability_fields = Object.keys(portas[0]);
+result.portability_sample = portas[0];
+}
+// intentar orders con fiscalId de un customer
+try {
+var orders = await api.getOrders();
+result.orders_count = orders.length;
+result.orders_sample = orders.length > 0 ? orders[0] : null;
+} catch(e) {
+result.orders_error = e.message;
+// intentar con fiscalId
+if (customers.length > 0) {
+try {
+var fid = customers[0].fiscalId || customers[0].fiscal_id || customers[0].customerId || customers[0].id;
+var r2 = await api.request('GET', '/orders?brand_id=264&fiscalId=' + encodeURIComponent(fid));
+result.orders_with_fiscalid = r2;
+} catch(e2) { result.orders_with_fiscalid = e2.message; }
+}
+}
+} catch(e) { result.error = e.message; }
+res.json(result);
 });
 
 module.exports = router;
