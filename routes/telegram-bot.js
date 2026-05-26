@@ -125,20 +125,20 @@ router.post('/webhook', function(req, res) {
       return;
     }
 
-    if (first === '/backup') ejecutarBackup(chatId, null);
-    else if (first === '/resumen' || first === '/summary') cmdResumen(chatId, null);
-    else if (first === '/stats' || first === '/kpi') cmdStats(chatId, null);
-    else if (first === '/cliente' || first === '/clientes') { if (rest) buscarCliente(chatId, rest, null); else pedirCliente(chatId); }
-    else if (first === '/tickets' || first === '/ticket') cmdTickets(chatId, null);
-    else if (first === '/portabilidades' || first === '/porta') cmdPortabilidades(chatId, null);
-    else if (first === '/facturacion' || first === '/billing') cmdFacturacion(chatId, null);
-    else if (first === '/ordenes' || first === '/orders') cmdOrdenes(chatId, null);
-    else if (first === '/instalaciones') cmdInstalaciones(chatId, null);
-    else if (first === '/encuestas') cmdEncuestas(chatId, null);
-    else if (first === '/servidor' || first === '/health') cmdServidor(chatId, null);
-    else if (first === '/caja') cmdCaja(chatId, null);
-    else if (first === '/agenda') cmdAgenda(chatId, null);
-    else if (first === '/inventario') cmdInventario(chatId, null);
+    if (first === '/backup') safeRun(ejecutarBackup, chatId, null);
+    else if (first === '/resumen' || first === '/summary') safeRun(cmdResumen, chatId, null);
+    else if (first === '/stats' || first === '/kpi') safeRun(cmdStats, chatId, null);
+    else if (first === '/cliente' || first === '/clientes') { if (rest) safeRun(function(c,m){buscarCliente(c,rest,m);}, chatId, null); else pedirCliente(chatId); }
+    else if (first === '/tickets' || first === '/ticket') safeRun(cmdTickets, chatId, null);
+    else if (first === '/portabilidades' || first === '/porta') safeRun(cmdPortabilidades, chatId, null);
+    else if (first === '/facturacion' || first === '/billing') safeRun(cmdFacturacion, chatId, null);
+    else if (first === '/ordenes' || first === '/orders') safeRun(cmdOrdenes, chatId, null);
+    else if (first === '/instalaciones') sendMsg(chatId, 'Modulo de instalaciones no disponible en la BD actual.');
+    else if (first === '/encuestas') sendMsg(chatId, 'Modulo de encuestas no disponible en la BD actual.');
+    else if (first === '/servidor' || first === '/health') safeRun(cmdServidor, chatId, null);
+    else if (first === '/caja') safeRun(cmdCaja, chatId, null);
+    else if (first === '/agenda') safeRun(cmdAgenda, chatId, null);
+    else if (first === '/inventario') safeRun(cmdInventario, chatId, null);
     else sendMsg(chatId, 'No te entiendo. Escribe /funciones para ver el menu.');
 
     res.sendStatus(200);
@@ -162,26 +162,35 @@ function getMenuKeyboard() {
   ];
 }
 
-// ---- ejecutor de comandos ----
+// ---- ejecutor de comandos con proteccion ----
+function safeRun(fn, chatId, msgId) {
+  try {
+    var r = fn(chatId, msgId);
+    if (r && typeof r.then === 'function') r.catch(function(e) { sendMsg(chatId, 'Error: ' + e.message); });
+  } catch (e) {
+    sendMsg(chatId, 'Error: ' + e.message);
+  }
+}
+
 function ejecutarComando(data, chatId, msgId) {
   switch (data) {
-    case 'cmd_backup': return ejecutarBackup(chatId, msgId);
-    case 'cmd_resumen': return cmdResumen(chatId, msgId);
-    case 'cmd_stats': return cmdStats(chatId, msgId);
+    case 'cmd_backup': return safeRun(ejecutarBackup, chatId, msgId);
+    case 'cmd_resumen': return safeRun(cmdResumen, chatId, msgId);
+    case 'cmd_stats': return safeRun(cmdStats, chatId, msgId);
     case 'cmd_cliente': return pedirCliente(chatId);
-    case 'cmd_tickets': return cmdTickets(chatId, msgId);
-    case 'cmd_portabilidades': return cmdPortabilidades(chatId, msgId);
-    case 'cmd_facturacion': return cmdFacturacion(chatId, msgId);
-    case 'cmd_ordenes': return cmdOrdenes(chatId, msgId);
-    case 'cmd_instalaciones': return cmdInstalaciones(chatId, msgId);
-    case 'cmd_altas': return cmdAltas(chatId, msgId);
-    case 'cmd_bajas': return cmdBajas(chatId, msgId);
-    case 'cmd_cobros': return cmdCobros(chatId, msgId);
-    case 'cmd_encuestas': return cmdEncuestas(chatId, msgId);
-    case 'cmd_caja': return cmdCaja(chatId, msgId);
-    case 'cmd_agenda': return cmdAgenda(chatId, msgId);
-    case 'cmd_inventario': return cmdInventario(chatId, msgId);
-    case 'cmd_servidor': return cmdServidor(chatId, msgId);
+    case 'cmd_tickets': return safeRun(cmdTickets, chatId, msgId);
+    case 'cmd_portabilidades': return safeRun(cmdPortabilidades, chatId, msgId);
+    case 'cmd_facturacion': return safeRun(cmdFacturacion, chatId, msgId);
+    case 'cmd_ordenes': return safeRun(cmdOrdenes, chatId, msgId);
+    case 'cmd_instalaciones': return safeRun(function(chatId, msgId) { sendMsg(chatId, 'Modulo de instalaciones no disponible en la BD actual.'); }, chatId, msgId);
+    case 'cmd_altas': return safeRun(cmdAltas, chatId, msgId);
+    case 'cmd_bajas': return safeRun(cmdBajas, chatId, msgId);
+    case 'cmd_cobros': return safeRun(cmdCobros, chatId, msgId);
+    case 'cmd_encuestas': return safeRun(function(chatId, msgId) { sendMsg(chatId, 'Modulo de encuestas no disponible en la BD actual.'); }, chatId, msgId);
+    case 'cmd_caja': return safeRun(cmdCaja, chatId, msgId);
+    case 'cmd_agenda': return safeRun(cmdAgenda, chatId, msgId);
+    case 'cmd_inventario': return safeRun(cmdInventario, chatId, msgId);
+    case 'cmd_servidor': return safeRun(cmdServidor, chatId, msgId);
     default: return sendMsg(chatId, 'Comando no reconocido.');
   }
 }
