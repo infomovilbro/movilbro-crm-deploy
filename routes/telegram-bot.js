@@ -153,7 +153,16 @@ router.post('/webhook', function(req, res) {
     else if (first === '/agenda') safeRun(cmdAgenda, chatId, null);
     else if (first === '/inventario') safeRun(cmdInventario, chatId, null);
     else if (first === '/servidor' || first === '/health') safeRun(cmdServidor, chatId, null);
-    else sendMsg(chatId, '\u2753 No te entiendo. Escribe /funciones para ver el men\u00fa.');
+    else if (first === '/propuesta' || first === '/propuestas' || first === '/sugerencia' || first === '/ideas') {
+      if (rest) {
+        db.prepare('INSERT INTO bot_propuestas (chat_id, texto) VALUES (?, ?)').run(String(chatId), rest);
+        sendMsg(chatId, 'Propuesta guardada. La revisare en la proxima sesion.');
+      } else {
+        var count = db.prepare("SELECT COUNT(*) as c FROM bot_propuestas WHERE leido = 0").get().c;
+        sendMsg(chatId, 'Tienes ' + count + ' propuesta(s) pendientes.\nEscribe /propuestas + lo que quieras proponer.');
+      }
+    }
+    else sendMsg(chatId, 'No te entiendo. Escribe /funciones para ver el menu.');
 
     res.sendStatus(200);
     return;
@@ -758,7 +767,8 @@ function registerBotCommands() {
     { command: 'caja', description: 'Caja del dia de hoy (Panel Tienda)' },
     { command: 'agenda', description: 'Agenda de hoy (Panel Tienda)' },
     { command: 'inventario', description: 'Inventario bajo minimo (Panel Tienda)' },
-    { command: 'servidor', description: 'Salud del servidor' }
+    { command: 'servidor', description: 'Salud del servidor' },
+    { command: 'propuestas', description: 'Enviar propuesta o sugerencia' }
   ];
   var body = JSON.stringify({ commands: commands });
   var opts = {

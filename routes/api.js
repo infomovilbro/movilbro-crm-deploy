@@ -137,4 +137,16 @@ router.get('/search', requireAuth, async (req, res) => {
   res.json(results);
 });
 
+// GET /api/propuestas - leer propuestas del bot (para que el dev las lea)
+router.get('/propuestas', (req, res) => {
+  var lista = db.prepare("SELECT id, chat_id, texto, leido, created_at FROM bot_propuestas WHERE leido = 0 ORDER BY created_at DESC").all();
+  res.json(lista);
+});
+
+// POST /api/propuestas/:id/leer - marcar como leida
+router.post('/propuestas/:id/leer', (req, res) => {
+  db.prepare("UPDATE bot_propuestas SET leido = 1 WHERE id = ?").run(req.params.id);
+  res.json({ ok: true });
+});
+
 module.exports = router;
