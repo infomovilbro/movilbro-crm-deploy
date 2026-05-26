@@ -423,4 +423,37 @@ async function notifyNewTicket(detalles) {
   sendMsg(chatId, 'Nuevo ticket: ' + detalles);
 }
 
-module.exports = { router, sendMsg, notifyServerStart, sendDailySummary, notifyNewOrder, notifyNewTicket };
+module.exports = { router, sendMsg, notifyServerStart, sendDailySummary, notifyNewOrder, notifyNewTicket, registerBotCommands: registerBotCommands };
+
+// ---- registrar comandos en el menu de Telegram (junto al input) ----
+function registerBotCommands() {
+  var token = getToken();
+  if (!token) return;
+  var commands = [
+    { command: 'funciones', description: 'Menu principal con todas las funciones' },
+    { command: 'backup', description: 'Enviar backup de la base de datos' },
+    { command: 'resumen', description: 'Resumen diario del CRM' },
+    { command: 'stats', description: 'KPIs generales del CRM' },
+    { command: 'cliente', description: 'Buscar cliente por telefono o nombre' },
+    { command: 'tickets', description: 'Tickets pendientes' },
+    { command: 'portabilidades', description: 'Estado de portabilidades' },
+    { command: 'facturacion', description: 'Facturacion del mes' },
+    { command: 'ordenes', description: 'Ordenes pendientes' },
+    { command: 'instalaciones', description: 'Instalaciones programadas' },
+    { command: 'servidor', description: 'Salud del servidor' },
+    { command: 'caja', description: 'Caja del dia de hoy' },
+    { command: 'agenda', description: 'Agenda de hoy' },
+    { command: 'inventario', description: 'Inventario bajo minimo' }
+  ];
+  var body = JSON.stringify({ commands: commands });
+  var opts = {
+    hostname: 'api.telegram.org',
+    path: '/bot' + token + '/setMyCommands',
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Content-Length': body.length }
+  };
+  var req = https.request(opts, function(res) { var d = ''; res.on('data', function(c) { d += c; }); res.on('end', function() { console.log('[Bot] Comandos registrados:', d); }); });
+  req.on('error', function(e) { console.log('[Bot] Error al registrar comandos:', e.message); });
+  req.write(body);
+  req.end();
+}
