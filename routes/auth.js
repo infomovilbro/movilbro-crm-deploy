@@ -104,13 +104,6 @@ router.post('/login', loginLimiter, [
   const email = (req.body.email || '').trim().toLowerCase();
   const password = (req.body.password || '').trim();
   
-  // Auto-create admin if no users exist (first login)
-  var userCount = db.prepare('SELECT COUNT(*) as c FROM users').get().c;
-  if (userCount === 0) {
-    var hash = require('bcryptjs').hashSync('admin123', 10);
-    db.prepare('INSERT INTO users (username, password, nombre, email, rol) VALUES (?,?,?,?,?)').run('admin', hash, 'Administrador', 'admin@movilbro.com', 'admin');
-  }
-  
   var user = db.prepare('SELECT * FROM users WHERE LOWER(email) = ?').get(email);
 
   if (!user || !bcrypt.compareSync(password, user.password)) {
@@ -135,18 +128,6 @@ router.get('/logout', (req, res) => {
     res.clearCookie('movilbro.sid');
     res.redirect('/auth/login');
   });
-});
-
-// Debug: create admin user (solo para primeros inicio)
-router.get('/setup', (req, res) => {
-  try {
-    var bcrypt = require('bcryptjs');
-    var hash = bcrypt.hashSync('admin123', 10);
-    db.prepare("DELETE FROM users WHERE username = 'admin'").run();
-    db.prepare("DELETE FROM users WHERE username = 'infomovilbro'").run();
-    db.prepare("INSERT INTO users (username, password, nombre, email, rol) VALUES (?,?,?,?,?)").run('admin', hash, 'Admin', 'admin@movilbro.com', 'admin');
-    res.send('Admin user created. Login with admin@movilbro.com / admin123');
-  } catch(e) { res.send('Error: ' + e.message); }
 });
 
 module.exports = router;
