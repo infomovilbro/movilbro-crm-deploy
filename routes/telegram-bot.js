@@ -73,7 +73,7 @@ function answerCb(callbackId, text) {
 // ---- webhook ----
 router.post('/webhook', function(req, res) {
   var update = req.body;
-  if (!update) return res.sendStatus(200);
+  if (!update) { res.sendStatus(200); return; }
 
   // Callback query (boton inline pulsado)
   if (update.callback_query) {
@@ -85,12 +85,13 @@ router.post('/webhook', function(req, res) {
 
     if (data === 'cmd_ayuda' || data === 'cmd_menu') {
       editMsg(chatId, msgId, '\uD83E\uDD16 CRM Movilbro - Funciones\n\nPulsa cualquier boton para ejecutar una accion.', getMenuKeyboard());
-      return answerCb(cbId, 'Menu actualizado');
+      answerCb(cbId, 'Menu actualizado');
+    } else {
+      answerCb(cbId, 'Procesando...');
+      ejecutarComando(data, chatId, msgId);
     }
-
-    answerCb(cbId, 'Procesando...');
-    ejecutarComando(data, chatId, msgId);
-    return res.sendStatus(200);
+    res.sendStatus(200);
+    return;
   }
 
   // Mensaje de texto
@@ -102,15 +103,10 @@ router.post('/webhook', function(req, res) {
     if (esperando[chatId]) {
       var accion = esperando[chatId];
       delete esperando[chatId];
-
-      if (accion === 'cliente') {
-        buscarCliente(chatId, text, null);
-        return res.sendStatus(200);
-      }
-      if (accion === 'backup') {
-        ejecutarBackup(chatId, null);
-        return res.sendStatus(200);
-      }
+      if (accion === 'cliente') buscarCliente(chatId, text, null);
+      else if (accion === 'backup') ejecutarBackup(chatId, null);
+      res.sendStatus(200);
+      return;
     }
 
     var parts = text.split(' ');
@@ -121,27 +117,32 @@ router.post('/webhook', function(req, res) {
       if (rest && !isNaN(rest)) {
         var num = parseInt(rest);
         var mapa = { 1:'cmd_backup',2:'cmd_resumen',3:'cmd_stats',4:'cmd_cliente',5:'cmd_tickets',6:'cmd_portabilidades',7:'cmd_facturacion',8:'cmd_ordenes',9:'cmd_instalaciones',10:'cmd_altas',11:'cmd_bajas',12:'cmd_cobros',13:'cmd_encuestas',14:'cmd_caja',15:'cmd_agenda',16:'cmd_inventario',17:'cmd_servidor' };
-        if (mapa[num]) return ejecutarComando(mapa[num], chatId, null);
+        if (mapa[num]) ejecutarComando(mapa[num], chatId, null);
+      } else {
+        sendMenu(chatId);
       }
-      return sendMenu(chatId);
+      res.sendStatus(200);
+      return;
     }
 
-    if (first === '/backup') return ejecutarBackup(chatId, null);
-    if (first === '/resumen' || first === '/summary') return cmdResumen(chatId, null);
-    if (first === '/stats' || first === '/kpi') return cmdStats(chatId, null);
-    if (first === '/cliente' || first === '/clientes') return rest ? buscarCliente(chatId, rest, null) : pedirCliente(chatId);
-    if (first === '/tickets' || first === '/ticket') return cmdTickets(chatId, null);
-    if (first === '/portabilidades' || first === '/porta') return cmdPortabilidades(chatId, null);
-    if (first === '/facturacion' || first === '/billing') return cmdFacturacion(chatId, null);
-    if (first === '/ordenes' || first === '/orders') return cmdOrdenes(chatId, null);
-    if (first === '/instalaciones') return cmdInstalaciones(chatId, null);
-    if (first === '/encuestas') return cmdEncuestas(chatId, null);
-    if (first === '/servidor' || first === '/health') return cmdServidor(chatId, null);
-    if (first === '/caja') return cmdCaja(chatId, null);
-    if (first === '/agenda') return cmdAgenda(chatId, null);
-    if (first === '/inventario') return cmdInventario(chatId, null);
+    if (first === '/backup') ejecutarBackup(chatId, null);
+    else if (first === '/resumen' || first === '/summary') cmdResumen(chatId, null);
+    else if (first === '/stats' || first === '/kpi') cmdStats(chatId, null);
+    else if (first === '/cliente' || first === '/clientes') { if (rest) buscarCliente(chatId, rest, null); else pedirCliente(chatId); }
+    else if (first === '/tickets' || first === '/ticket') cmdTickets(chatId, null);
+    else if (first === '/portabilidades' || first === '/porta') cmdPortabilidades(chatId, null);
+    else if (first === '/facturacion' || first === '/billing') cmdFacturacion(chatId, null);
+    else if (first === '/ordenes' || first === '/orders') cmdOrdenes(chatId, null);
+    else if (first === '/instalaciones') cmdInstalaciones(chatId, null);
+    else if (first === '/encuestas') cmdEncuestas(chatId, null);
+    else if (first === '/servidor' || first === '/health') cmdServidor(chatId, null);
+    else if (first === '/caja') cmdCaja(chatId, null);
+    else if (first === '/agenda') cmdAgenda(chatId, null);
+    else if (first === '/inventario') cmdInventario(chatId, null);
+    else sendMsg(chatId, 'No te entiendo. Escribe /funciones para ver el menu.');
 
-    return sendMsg(chatId, 'No te entiendo. Escribe /funciones para ver el menu.');
+    res.sendStatus(200);
+    return;
   }
 
   res.sendStatus(200);
