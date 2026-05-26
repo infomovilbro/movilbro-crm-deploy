@@ -154,7 +154,8 @@ router.post('/nuevo', requireAuth, (req, res) => {
     const clientes = db.prepare('SELECT id, nombre, apellidos FROM clients ORDER BY nombre').all();
     return res.render('tickets/create', { title: 'Nuevo Ticket', clientes, ticket: req.body, errors: ['El asunto es obligatorio'] });
   }
-  db.prepare('INSERT INTO tickets (client_id, asunto, descripcion, prioridad) VALUES (?, ?, ?, ?)').run(client_id || null, asunto, descripcion, prioridad || 'normal');
+  const r = db.prepare('INSERT INTO tickets (client_id, asunto, descripcion, prioridad) VALUES (?, ?, ?, ?)').run(client_id || null, asunto, descripcion, prioridad || 'normal');
+  try { const { notifyNewTicket } = require('./telegram-bot'); notifyNewTicket('\uD83C\uDFAB <b>' + asunto + '</b> (#' + r.lastInsertRowid + ', prioridad: ' + (prioridad || 'normal') + ')'); } catch(e) {}
   res.redirect('/tickets');
 });
 

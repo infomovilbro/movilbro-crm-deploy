@@ -56,6 +56,7 @@ const tiendaRoutes = require('./routes/tienda');
 const apiProxyRoutes = require('./routes/api-proxy');
 const externalApiRoutes = require('./routes/external-api');
 const { router: backupRouter, sendBackup } = require('./routes/backup');
+const { router: telegramBotRouter, notifyServerStart, sendDailySummary } = require('./routes/telegram-bot');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -259,6 +260,7 @@ app.use('/email', emailRoutes);
 app.use('/correo', emailRoutes);
 app.use('/stripe', stripeRoutes);
 app.use('/backup', backupRouter);
+app.use('/telegram', telegramBotRouter);
 app.use('/proxy', proxyRoutes);
 app.use('/api', apiRoutes);
 app.use('/analytics', analyticsRoutes);
@@ -357,6 +359,7 @@ cron.schedule('5 0 * * *', () => {
 
 const server = app.listen(PORT, () => {
   console.log(`CRM Movilbro iniciado en puerto ${PORT} (${isProd ? 'produccion' : 'desarrollo'})`);
+  setTimeout(() => notifyServerStart(), 3000);
 });
 
 // ---- BACKUP AUTOMATICO a Telegram a las 23:59 ----
@@ -366,6 +369,30 @@ cron.schedule('59 23 * * *', () => {
     console.log('[Backup] Resultado:', r.success ? 'OK' : 'ERROR: ' + (r.error || 'desconocido'));
   });
 });
+
+// ---- RESUMEN DIARIO a Telegram a las 22:00 ----
+cron.schedule('0 22 * * *', () => {
+  console.log('[Bot] Enviando resumen diario...');
+  sendDailySummary();
+});
+
+// ---- REGISTRAR WEBHOOK DEL BOT al iniciar ----
+setTimeout(() => {
+  try {
+    const row = db.prepare("SELECT value FROM settings WHERE key = 'telegram_bot_token'").get();
+    const token = row ? row.value : (process.env.TELEGRAM_BOT_TOKEN || null);
+    if (token) {
+      const extUrl = process.env.RENDER_EXTERNAL_URL || process.env.EXTERNAL_URL || 'https://movilbro-crm.onrender.com';
+      const body = JSON.stringify({ url: extUrl + '/telegram/webhook', drop_pending_updates: true });
+      const wr = https.request({ hostname: 'api.telegram.org', path: '/bot' + token + '/setWebhook', method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': body.length } }, (res) => {
+        let d = ''; res.on('data', c => d += c); res.on('end', () => console.log('[Bot] Webhook registrado:', d));
+      });
+      wr.on('error', (e) => console.log('[Bot] Error webhook:', e.message));
+      wr.write(body);
+      wr.end();
+    }
+  } catch(e) { console.log('[Bot] Error al registrar webhook:', e.message); }
+}, 2000);
 
 // ---- AUTO KEEP-AWAKE - Evita que Render duerma el servidor ----
 // Ping a localhost (interno) + a la URL externa de Render si está disponible

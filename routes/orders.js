@@ -121,6 +121,7 @@ router.post('/nueva', requireAuth, (req, res) => {
   const result = db.prepare('INSERT INTO orders (client_id, tipo, producto, detalles) VALUES (?, ?, ?, ?)').run(client_id, tipo, producto, detalles);
   const cliente = db.prepare('SELECT nombre, apellidos FROM clients WHERE id = ?').get(client_id);
   db.prepare('INSERT INTO activity_log (tipo, descripcion, client_id) VALUES (?, ?, ?)').run('orden_creada', `Orden ${tipo} creada para ${cliente.nombre}`, client_id);
+  try { const { notifyNewOrder } = require('./telegram-bot'); notifyNewOrder('\uD83D\uDCE6 <b>' + tipo + '</b> para <b>' + cliente.nombre + '</b> (#' + result.lastInsertRowid + ')'); } catch(e) {}
   res.redirect('/ordenes');
 });
 
