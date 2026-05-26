@@ -203,6 +203,26 @@
       </div>
     </div>
 
+    <div class="tab-pane" id="telegram">
+      <div class="card">
+        <div class="card-body">
+          <h5><i class="bi bi-telegram"></i> Backup por Telegram</h5>
+          <p class="text-muted">Configura un bot de Telegram para recibir la base de datos del CRM autom&aacute;ticamente cada d&iacute;a a las 23:59.</p>
+          <div class="mb-3">
+            <label class="form-label">Token del Bot</label>
+            <input type="text" id="tgToken" class="form-control" placeholder="123456:ABCdef...">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Chat ID</label>
+            <input type="text" id="tgChatId" class="form-control" placeholder="-1001234567890">
+          </div>
+          <button class="btn btn-primary me-2" id="btnGuardarTelegram"><i class="bi bi-save"></i> Guardar</button>
+          <button class="btn btn-outline-secondary" id="btnProbarTelegram"><i class="bi bi-send"></i> Enviar backup ahora</button>
+          <div id="tgStatus" class="mt-2 small"></div>
+        </div>
+      </div>
+    </div>
+
     <div class="tab-pane" id="temas">
       <div class="card">
         <div class="card-body">
@@ -507,4 +527,31 @@
     });
   }
 })();
+
+// Telegram Backup
+document.getElementById('btnGuardarTelegram')?.addEventListener('click', function() {
+  var token = document.getElementById('tgToken').value.trim();
+  var chatId = document.getElementById('tgChatId').value.trim();
+  var st = document.getElementById('tgStatus');
+  if (!token || !chatId) { st.innerHTML = '<span class="text-danger">Completa ambos campos</span>'; return; }
+  fetch('/backup/telegram-config', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: token, chatId: chatId })
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    st.innerHTML = d.success ? '<span class="text-success">Configurado correctamente</span>' : '<span class="text-danger">Error: ' + d.error + '</span>';
+  });
+});
+
+document.getElementById('btnProbarTelegram')?.addEventListener('click', function() {
+  var st = document.getElementById('tgStatus');
+  st.innerHTML = '<span class="text-muted">Enviando backup...</span>';
+  this.disabled = true;
+  fetch('/backup/send', { method: 'POST' }).then(function(r) { return r.json(); }).then(function(d) {
+    st.innerHTML = d.success ? '<span class="text-success">Backup enviado a Telegram</span>' : '<span class="text-danger">Error: ' + (d.error || 'desconocido') + '</span>';
+    document.getElementById('btnProbarTelegram').disabled = false;
+  }).catch(function(e) {
+    st.innerHTML = '<span class="text-danger">Error de conexi\u00f3n</span>';
+    document.getElementById('btnProbarTelegram').disabled = false;
+  });
+});
 </script>
