@@ -5,9 +5,14 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "postinstall": "npx playwright install chromium 2>/dev/null || true"
   },
   "dependencies": {
+    "@aws-sdk/client-cognito-identity": "^3.1054.0",
+    "@aws-sdk/client-cognito-identity-provider": "^3.1054.0",
+    "@aws-sdk/client-s3": "^3.1054.0",
+    "@aws-sdk/credential-providers": "^3.1054.0",
     "@sendgrid/mail": "^8.1.6",
     "axios": "^1.7.0",
     "bcryptjs": "^2.4.3",
@@ -25,6 +30,7 @@
     "helmet": "^8.1.0",
     "hpp": "^0.2.3",
     "morgan": "^1.10.0",
+    "multer": "^2.1.1",
     "node-cron": "^4.2.1",
     "nodemailer": "^8.0.7",
     "playwright": "^1.60.0",
