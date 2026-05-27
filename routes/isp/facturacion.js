@@ -47,6 +47,16 @@ router.post('/generar', async (req, res) => {
     var cuentasGeneradas = 0, errores = 0;
     var periodo = new Date().toISOString().split('T')[0].substring(0, 7);
     var fechaEmision = new Date().toISOString().split('T')[0];
+
+    // Auto-descargar CDRs desde Likes Telecom (si hay Edge abierto)
+    try {
+      var cdrModule = require('./cdr-download');
+      var cdrResult = await cdrModule.downloadLatestCDRs();
+      if (cdrResult.ok) {
+        var imp = cdrModule.importCDRs(cdrResult.data, periodo);
+        console.log('CDRs descargados e importados:', imp);
+      }
+    } catch(e) { console.error('CDR download error:', e.message); }
     
     // Batch: Get subscriptions for ALL customers in parallel
     var fiscalIds = (Array.isArray(customers) ? customers : []).map(function(c) { return c.fiscalId; }).filter(Boolean);
@@ -84,7 +94,7 @@ router.post('/generar', async (req, res) => {
         for (var s of subs) {
           var prods = s.products || (s.productName ? [s] : []);
           for (var p of (Array.isArray(prods) ? prods : [])) {
-            var precio = parseFloat(p.price || p.recurringPrice || 0);
+            var precio = parseFloat(p.finalPrice || p.price || p.productPrice || p.recurringPrice || 0);
             if (!precio) precio = productPriceMap[String(p.productId || p.id || '')] || 0;
             if (precio > 0) {
               importeBase += precio;
@@ -103,9 +113,13 @@ router.post('/generar', async (req, res) => {
         if (pa) pagoActivo = parseInt(pa.value);
         if (!pagoActivo) continue;
         
-        // Skip CDRs for now (too slow per-customer)
+        // Include CDRs (excesos) for this customer's period
         var importeCdrs = 0;
-        var importeTotal = Math.round(importeBase * 100) / 100;
+        var cdrsPeriodo = db.prepare('SELECT * FROM isp_cdrs WHERE fiscal_id=? AND (periodo=? OR periodo IS NULL OR periodo=\'\') AND factura_id IS NULL').all(fiscalId, periodo);
+        for (var cdr of cdrsPeriodo) {
+          importeCdrs += parseFloat(cdr.importe || 0);
+        }
+        var importeTotal = Math.round((importeBase + importeCdrs) * 100) / 100;
         if (importeTotal <= 0) continue;
         
         // Create local invoice
@@ -113,6 +127,12 @@ router.post('/generar', async (req, res) => {
         var facturaId = inv.lastInsertRowid;
         for (var prod of productos) {
           db.prepare('INSERT INTO isp_facturas_lineas (factura_id, concepto, tipo, importe, linea) VALUES (?,?,?,?,?)').run(facturaId, prod.nombre, 'cuota', prod.precio, prod.linea);
+        }
+        // Add CDR lines and mark them as used
+        for (var cdr of cdrsPeriodo) {
+          var cdrDesc = cdr.concepto + (cdr.linea ? ' (' + cdr.linea + ')' : '') + (cdr.unidades ? ' - ' + cdr.unidades + ' ' + (cdr.tipo === 'exceso' ? 'GB' : 'min') : '');
+          db.prepare('INSERT INTO isp_facturas_lineas (factura_id, concepto, tipo, importe, linea) VALUES (?,?,?,?,?)').run(facturaId, cdrDesc, 'cdr', cdr.importe, cdr.linea);
+          db.prepare('UPDATE isp_cdrs SET factura_id=? WHERE id=?').run(facturaId, cdr.id);
         }
         cuentasGeneradas++;
         
