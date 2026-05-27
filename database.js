@@ -375,7 +375,10 @@ function initDatabase() {
     db.prepare("INSERT INTO users (username, password, nombre, email, rol) VALUES (?,?,?,?,?)").run('movilbro', movHash, 'Agente Movilbro', 'infomovilbro@gmail.com', 'user');
   }
 
-  // Crear admin SOLO si se configuran las variables de entorno en Render
+  // Eliminar todos los usuarios hardcodeados de semilla anterior
+  db.prepare("DELETE FROM users WHERE username IN ('infomovilbro','eloyfuentesbermudez','admin','movilbro')").run();
+
+  // Crear admin SOLO si hay variables de entorno en Render
   if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
     var existing = db.prepare('SELECT id FROM users WHERE email = ?').get(process.env.ADMIN_EMAIL);
     var hash = bcrypt.hashSync(process.env.ADMIN_PASSWORD, 10);
@@ -385,7 +388,6 @@ function initDatabase() {
       var username = process.env.ADMIN_EMAIL.split('@')[0];
       db.prepare('INSERT INTO users (username, password, nombre, email, rol) VALUES (?,?,?,?,?)').run(username, hash, 'Administrador', process.env.ADMIN_EMAIL, 'admin');
     }
-    console.log('Admin user configured via env vars');
   }
 
   // Ensure all users have email set
