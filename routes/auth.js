@@ -24,26 +24,48 @@ const solicitarLimiter = rateLimit({
 });
 
 async function sendEmailViaMailjet(toEmail, toName, subject, html) {
+  // Try Mailjet first
   const apiKey = process.env.MAILJET_API_KEY;
   const secretKey = process.env.MAILJET_SECRET_KEY;
-  if (!apiKey || !secretKey) return false;
-  try {
-    await axios.post('https://api.mailjet.com/v3.1/send', {
-      Messages: [{
-        From: { Email: 'infomovilbro@gmail.com', Name: 'CRM Movilbro' },
-        To: [{ Email: toEmail, Name: toName }],
-        Subject: subject,
-        HTMLPart: html
-      }]
-    }, {
-      auth: { username: apiKey, password: secretKey },
-      timeout: 15000
-    });
-    return true;
-  } catch (e) {
-    console.error('Mailjet error:', e.response?.data || e.message);
-    return false;
+  if (apiKey && secretKey) {
+    try {
+      await axios.post('https://api.mailjet.com/v3.1/send', {
+        Messages: [{
+          From: { Email: 'infomovilbro@gmail.com', Name: 'CRM Movilbro' },
+          To: [{ Email: toEmail, Name: toName }],
+          Subject: subject,
+          HTMLPart: html
+        }]
+      }, {
+        auth: { username: apiKey, password: secretKey },
+        timeout: 15000
+      });
+      return true;
+    } catch (e) {
+      console.error('Mailjet error:', e.response?.data || e.message);
+    }
   }
+  // Fallback: try nodemailer with DB settings
+  try {
+    const { db } = require('../database');
+    const smtpHost = db.prepare("SELECT value FROM settings WHERE key='smtp_host'").get()?.value;
+    const smtpUser = db.prepare("SELECT value FROM settings WHERE key='smtp_user'").get()?.value;
+    const smtpPass = db.prepare("SELECT value FROM settings WHERE key='smtp_pass'").get()?.value;
+    if (smtpHost && smtpUser && smtpPass) {
+      const nodemailer = require('nodemailer');
+      const transporter = nodemailer.createTransport({
+        host: smtpHost, port: parseInt(process.env.SMTP_PORT || '587'),
+        secure: false,
+        auth: { user: smtpUser, pass: smtpPass }
+      });
+      await transporter.sendMail({
+        from: process.env.SMTP_FROM || smtpUser,
+        to: toEmail, subject: subject, html: html
+      });
+      return true;
+    }
+  } catch(e) { console.error('SMTP error:', e.message); }
+  return false;
 }
 
 function generarContrasena() {
@@ -85,12 +107,12 @@ router.post('/login/solicitar', solicitarLimiter, [
   const emailOk = await sendEmailViaMailjet(email, user.nombre, 'Tu contraseña de acceso - CRM Movilbro', html);
 
   db.prepare('UPDATE users SET password = ? WHERE id = ?').run(hash, user.id);
-  
+
   if (emailOk) {
     return res.render('login', { title: 'Iniciar Sesión', error: null, success: 'Contraseña enviada a tu correo. Revisa tu bandeja de entrada.', email });
   }
 
-  res.render('login', { title: 'Iniciar Sesión', error: null, success: 'Tu nueva contraseña es: <strong>' + newPassword + '</strong>. Guárdala en un lugar seguro.', email });
+  res.render('login', { title: 'Iniciar Sesión', error: null, success: 'Tu nueva contraseña es: <strong>' + newPassword + '</strong>. Guardala en un lugar seguro.', email });
 });
 
 router.post('/login', loginLimiter, [
