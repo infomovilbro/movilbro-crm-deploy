@@ -112,7 +112,7 @@ router.post('/login/solicitar', solicitarLimiter, [
     return res.render('login', { title: 'Iniciar Sesión', error: null, success: 'Contraseña enviada a tu correo. Revisa tu bandeja de entrada.', email });
   }
 
-  res.render('login', { title: 'Iniciar Sesión', error: null, success: 'Tu nueva contraseña es: <strong>' + newPassword + '</strong>. Guardala en un lugar seguro.', email });
+  res.render('login', { title: 'Iniciar Sesión', error: 'Error al enviar el correo. Contacta con el administrador o inténtalo de nuevo.', success: null, email });
 });
 
 router.post('/login', loginLimiter, [
