@@ -1,0 +1,135 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5><i class="bi bi-graph-up-arrow"></i> CDRs y Excedentes</h5>
+    <div>
+      <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalSubirCSV"><i class="bi bi-upload"></i> Importar CSV</button>
+      <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalNuevoCDR"><i class="bi bi-plus-lg"></i> Nuevo manual</button>
+      <a href="/isp/cdrs/ejemplo" class="btn btn-outline-secondary btn-sm"><i class="bi bi-download"></i> CSV ejemplo</a>
+    </div>
+  </div>
+
+  <div class="row g-2 mb-3">
+    <div class="col-md-3"><div class="stat-card"><div class="stat-value"><%= total.c || 0 %></div><div class="stat-label">Excesos pendientes</div></div></div>
+    <div class="col-md-3"><div class="stat-card"><div class="stat-value"><%= (total.t || 0).toFixed(2) %>€</div><div class="stat-label">Importe total pendiente</div></div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead class="table-dark">
+            <tr>
+              <th>#</th>
+              <th>Cliente</th>
+              <th>Línea</th>
+              <th>Concepto</th>
+              <th>Tipo</th>
+              <th>Unidades</th>
+              <th>Importe</th>
+              <th>Periodo</th>
+              <th>Factura</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (cdrs.length === 0) { %>
+            <tr><td colspan="10" class="text-center text-muted py-4"><i class="bi bi-inbox"></i> No hay CDRs registrados.<br>Sube un CSV con los consumos de los operadores o añádelos manualmente.</td></tr>
+            <% } else { cdrs.forEach(function(c) { %>
+            <tr>
+              <td><%= c.id %></td>
+              <td><%= c.cliente || c.fiscal_id || '-' %></td>
+              <td><code><%= c.linea || '-' %></code></td>
+              <td><%= c.concepto %></td>
+              <td><span class="badge bg-info"><%= c.tipo %></span></td>
+              <td><%= c.unidades ? c.unidades + ' ' + (c.tipo === 'exceso' ? 'GB' : 'min') : '-' %></td>
+              <td class="fw-bold"><%= parseFloat(c.importe).toFixed(2) %>€</td>
+              <td><%= c.periodo || '-' %></td>
+              <td><%= c.factura_id ? '#'+c.factura_id : '<span class="text-warning">Pendiente</span>' %></td>
+              <td class="text-end">
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteCDR(<%= c.id %>)"><i class="bi bi-trash"></i></button>
+              </td>
+            </tr>
+            <% }); } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Modal Subir CSV -->
+<div class="modal" id="modalSubirCSV">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5>Importar CDRs desde CSV</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <form method="POST" action="/isp/cdrs/import" enctype="multipart/form-data">
+      <div class="modal-body">
+        <p class="text-muted">Formato CSV: <code>fiscalId,linea,concepto,tipo,importe,unidades,periodo</code></p>
+        <p class="small"><a href="/isp/cdrs/ejemplo">Descargar ejemplo CSV</a></p>
+        <input type="file" name="csv" class="form-control" accept=".csv" required>
+      </div>
+      <div class="modal-footer"><button type="submit" class="btn btn-primary">Importar</button></div>
+    </form>
+  </div></div>
+</div>
+
+<!-- Modal Nuevo CDR Manual -->
+<div class="modal" id="modalNuevoCDR">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5>Añadir excedente manual</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <form method="POST" action="/isp/cdrs/create">
+      <div class="modal-body">
+        <div class="mb-2">
+          <label class="form-label">Cliente (fiscalId)</label>
+          <select name="fiscal_id" class="form-select">
+            <option value="">Seleccionar cliente</option>
+            <% clientes.forEach(function(c) { %>
+            <option value="<%= c.likes_customer_id %>"><%= c.nombre %> (<%= c.likes_customer_id %>)</option>
+            <% }) %>
+          </select>
+        </div>
+        <div class="mb-2">
+          <label class="form-label">Línea</label>
+          <input type="text" name="linea" class="form-control" placeholder="633879873">
+        </div>
+        <div class="mb-2">
+          <label class="form-label">Concepto</label>
+          <input type="text" name="concepto" class="form-control" placeholder="GB extra, llamadas internacionales..." required>
+        </div>
+        <div class="row g-2">
+          <div class="col-4">
+            <label class="form-label">Tipo</label>
+            <select name="tipo" class="form-select">
+              <option value="exceso">Exceso</option>
+              <option value="llamadas">Llamadas</option>
+              <option value="sms">SMS</option>
+              <option value="otros">Otros</option>
+            </select>
+          </div>
+          <div class="col-4">
+            <label class="form-label">Unidades</label>
+            <input type="number" step="0.01" name="unidades" class="form-control" placeholder="0">
+          </div>
+          <div class="col-4">
+            <label class="form-label">Importe (€)</label>
+            <input type="number" step="0.01" name="importe" class="form-control" required>
+          </div>
+        </div>
+        <div class="mb-2 mt-2">
+          <label class="form-label">Periodo</label>
+          <input type="month" name="periodo" class="form-control" value="<%= new Date().toISOString().split('T')[0].substring(0,7) %>">
+        </div>
+      </div>
+      <div class="modal-footer"><button type="submit" class="btn btn-primary">Guardar</button></div>
+    </form>
+  </div></div>
+</div>
+
+<script>
+function deleteCDR(id) {
+  if (!confirm('¿Eliminar este CDR?')) return;
+  fetch('/isp/cdrs/delete', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:id}) })
+  .then(function(r){return r.json();})
+  .then(function(d){if(d.ok)location.reload();else alert('Error: '+d.error);})
+  .catch(function(){alert('Error de conexión');});
+}
+</script>

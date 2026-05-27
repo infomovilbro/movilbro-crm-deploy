@@ -216,11 +216,12 @@
             </ul>
           </li>
           <!-- PANEL ISP (grupo) -->
-          <li class="nav-item nav-group <%= ['Panel ISP','Panel de Mando ISP','Contratos','Portabilidades','Tarifas','Incidencias','Tareas','Tickets ISP','Workflows','Documentos','Noticias','Calendario','Caja','Nodos','Equipos','Artículos','Listados','Clientes ISP'].some(t => title === t || title.includes(t)) ? 'open' : '' %>" data-group="isp" data-group-key="isp" data-ui-draggable="group">
+          <li class="nav-item nav-group <%= ['Panel ISP','Panel de Mando ISP','Contratos','Portabilidades','Tarifas','Incidencias','Tareas','Tickets ISP','Workflows','Documentos','Noticias','Calendario','Caja','Nodos','Equipos','Artículos','Listados','Clientes ISP','Facturación','CDRs y Excedentes'].some(t => title === t || title.includes(t)) ? 'open' : '' %>" data-group="isp" data-group-key="isp" data-ui-draggable="group">
             <a class="nav-group-toggle <%= ['Panel ISP','Panel de Mando ISP','Contratos','Portabilidades','Tarifas','Incidencias','Tareas','Tickets ISP','Workflows','Documentos','Noticias','Calendario','Caja','Nodos','Equipos','Artículos','Listados','Clientes ISP'].some(t => title === t || title.includes(t)) ? 'active' : '' %>" data-toggle="nav-group" href="#"><span class="emoji-icon" data-group-icon>🌐</span><span class="nav-text" data-group-label>Panel ISP</span><i class="ri-arrow-down-s-line nav-arrow"></i></a>
             <ul class="nav-submenu">
               <li data-item-key="isp_dashboard"><a class="<%= title === 'Panel ISP' ? 'active' : '' %>" href="/isp/dashboard"><span class="emoji-icon">📊</span>Dashboard</a></li>
               <li data-item-key="isp_facturacion"><a class="<%= title === 'Facturación' ? 'active' : '' %>" href="/isp/facturacion"><span class="emoji-icon">🧾</span>Facturación</a></li>
+              <li data-item-key="isp_cdrs"><a class="<%= title === 'CDRs y Excedentes' ? 'active' : '' %>" href="/isp/cdrs"><span class="emoji-icon">📊</span>CDRs / Excesos</a></li>
               <li data-item-key="isp_panel_mando"><a class="<%= title === 'Panel de Mando ISP' ? 'active' : '' %>" href="/isp/panel-mando"><span class="emoji-icon">📈</span>Panel Mando</a></li>
               <li data-item-key="isp_contratos"><a class="<%= title === 'Contratos' ? 'active' : '' %>" href="/isp/contratos"><span class="emoji-icon">📄</span>Contratos</a></li>
               <li data-item-key="isp_portabilidades"><a class="<%= title === 'Portabilidades' ? 'active' : '' %>" href="/isp/portabilidades"><span class="emoji-icon">🔄</span>Portabilidades</a></li>

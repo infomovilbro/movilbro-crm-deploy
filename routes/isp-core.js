@@ -27,5 +27,6 @@ router.use('/clientes', require('./isp/clientes'));
 router.use('/tickets', require('./isp/tickets'));
 router.use('/facturacion', require('./isp/facturacion'));
 router.use('/facturas', require('./isp/facturacion'));
+router.use('/cdrs', require('./isp/cdrs'));
 
 module.exports = router;
