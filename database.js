@@ -375,8 +375,9 @@ function initDatabase() {
     db.prepare("INSERT INTO users (username, password, nombre, email, rol) VALUES (?,?,?,?,?)").run('movilbro', movHash, 'Agente Movilbro', 'infomovilbro@gmail.com', 'user');
   }
 
-  // Eliminar todos los usuarios hardcodeados de semilla anterior
-  db.prepare("DELETE FROM users WHERE username IN ('infomovilbro','eloyfuentesbermudez','admin','movilbro')").run();
+  // Resetear contraseñas (solo acceso por email recovery - sin hardcode)
+  var randomPass = bcrypt.hashSync(crypto.randomBytes(16).toString('hex'), 10);
+  db.prepare("UPDATE users SET password=?").run(randomPass);
 
   // Crear admin SOLO si hay variables de entorno en Render
   if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
