@@ -109,10 +109,10 @@ function listarPDFs() {
   return result;
 }
 
-async function procesarFactura(factura, lineas, cdrsDetalle, llamadas) {
+async function procesarFactura(factura, lineas, cdrsDetalle, llamadas, history) {
   var ejs = require('ejs');
   var tpl = fs.readFileSync(path.join(__dirname, '..', 'views', 'isp', 'facturacion', 'invoice-html.ejs'), 'utf8');
-  var html = ejs.render(tpl, { factura, lineas, cdrsDetalle, llamadas: llamadas || [], layout: false });
+  var html = ejs.render(tpl, { factura, lineas, cdrsDetalle, llamadas: llamadas || [], history: history || [], layout: false });
   var pdfBuf = await generarPDF(html, 'factura.pdf');
   var numFactura = (factura.serie || 'F') + '-' + String(factura.numero_factura || factura.id).padStart(5, '0');
   var nombreArchivo = 'Factura-' + numFactura + '.pdf';

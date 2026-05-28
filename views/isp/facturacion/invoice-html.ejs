@@ -20,7 +20,7 @@ var cdrs = Number(factura.importe_cdrs || 0);
 var total = Number(factura.importe_total || 0);
 var baseTotal = base + cdrs;
 var iva = total - baseTotal;
-var cuotasLineas = lineas.filter(function(l) { return l.tipo !== 'cdr'; });
+var todasLineas = lineas; // Show ALL line items including CDRs
 var months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 var periodParts = (factura.periodo || '').split('-');
 var monthName = periodParts[1] ? months[parseInt(periodParts[1]) - 1] : '';
@@ -57,7 +57,12 @@ var fmt = function(n) { return Number(n || 0).toFixed(2).replace('.', ','); };
 <div style="clear:both;"></div>
 </div>
 
-<p>&nbsp;</p>
+<div style="width:100%;font-size:9px;color:#888;padding:3px 0;border-bottom:1px solid #ddd;">
+<span style="color:#666;font-weight:600;">ATENCI&Oacute;N AL CLIENTE</span>
+&nbsp;&nbsp;www.movilbro.es | facturacion@movilbro.com | 694297048 | @movilbro
+</div>
+
+<p style="text-align:center;font-size:9px;color:#999;margin:4px 0 8px;">P&aacute;gina 1 de<%= cdrsDetalle && cdrsDetalle.length > 0 ? ' 2' : ' 1' %></p>
 
 <div style="width:100%"><span style="font-size:16px;"><strong><span style="color:#808080">TU FACTURA DE </span><span style="color:#3498db;"><%= monthName %> <%= yearName %></span></strong></span></div>
 <div style="width:100%"><span style="font-size:14px;"><strong><span style="color:#808080">TOTAL A PAGAR</span> <span style="color:#3498db;"> <%= fmt(total) %> &euro; </span></strong></span></div>
@@ -104,9 +109,9 @@ var fmt = function(n) { return Number(n || 0).toFixed(2).replace('.', ','); };
 <td style="width:80%;border-bottom:1px solid black;text-align:center;"><span style="font-size:12px;"><strong>CONCEPTO</strong></span></td>
 <td style="width:20%;border-bottom:1px solid black;text-align:right;"><strong>IMPORTE</strong></td>
 </tr>
-<% cuotasLineas.forEach(function(l) { %>
+<% todasLineas.forEach(function(l) { %>
 <tr>
-<td style="width:80%;"><span style="font-size:12px;"><%= l.concepto || '-' %></span></td>
+<td style="width:80%;"><span style="font-size:12px;"><%= l.concepto || '-' %><%= l.linea ? ' ' + l.linea : '' %></span></td>
 <td style="width:20%;text-align:right;"><span style="font-size:12px;"><%= fmt(l.importe) %> &euro;</span></td>
 </tr>
 <% }) %>
@@ -119,6 +124,14 @@ var fmt = function(n) { return Number(n || 0).toFixed(2).replace('.', ','); };
 <p>&nbsp;</p>
 
 <div style="width:100%">
+<div style="width:40%;margin-left:5%;float:left;border:1px solid #ccc;padding:5px;text-align:center;font-size:9px;color:#888;">
+<strong style="font-size:10px;color:#555;">Hist&oacute;rico de pagos</strong><br>
+<% if (history && history.length > 0) { history.forEach(function(h, i) { %>
+<%= h.periodo ? h.periodo.substring(5) + '/' + h.periodo.substring(0,4) : '' %> <%= fmt(h.total) %> &euro;<%= i < history.length - 1 ? ' | ' : '' %>
+<% }); } else { %>
+Sin historial
+<% } %>
+</div>
 <div style="width:45%;float:right">
 <table style="width:100%;border-top:1px solid black;border-collapse:collapse">
 <tr><td><span style="font-size:12px;">Base Imponible</span></td><td style="text-align:right;"><span style="font-size:12px;"><%= fmt(baseTotal) %> &euro;</span></td></tr>
