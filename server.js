@@ -22,8 +22,8 @@ global.getYesterday = () => { const d = new Date(); d.setDate(d.getDate() - 1); 
 global.getTomorrow = () => { const d = new Date(); d.setDate(d.getDate() + 1); return fmtDate(d); };
 
 const { initDatabase, db } = require('./database');
+const { loadUserPermissions, requireAuth } = require('./middleware/auth');
 const { loadSettings } = require('./middleware/settings-loader');
-const { loadUserPermissions } = require('./middleware/auth');
 const authRoutes = require('./routes/auth');
 const clientRoutes = require('./routes/clients');
 const orderRoutes = require('./routes/orders');
@@ -303,6 +303,10 @@ app.use('/channel', channelRoutes);
 app.use('/google-connections', googleConnectionsRoutes);
 app.use('/users', usersRoutes);
 app.use('/resources', resourcesRoutes);
+// Camera page
+app.get('/camera', requireAuth, (req, res) => {
+  res.render('camera', { title: 'Cámara - iCam365', layout: 'layout' });
+});
 
 // ---- HEALTH - Endpoint para monitoreo de uptime ----
 app.get('/health', (req, res) => {
