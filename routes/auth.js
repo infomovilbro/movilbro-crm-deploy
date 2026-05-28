@@ -65,6 +65,23 @@ async function sendEmailViaMailjet(toEmail, toName, subject, html) {
       return true;
     }
   } catch(e) { console.error('SMTP error:', e.message); }
+  // Fallback 2: Gmail app password from DB
+  try {
+    const { db } = require('../database');
+    const gmailUser = db.prepare("SELECT value FROM settings WHERE key='gmail_user'").get()?.value;
+    const gmailPass = db.prepare("SELECT value FROM settings WHERE key='gmail_pass'").get()?.value;
+    if (gmailUser && gmailPass) {
+      const nodemailer = require('nodemailer');
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: { user: gmailUser, pass: gmailPass }
+      });
+      await transporter.sendMail({
+        from: gmailUser, to: toEmail, subject: subject, html: html
+      });
+      return true;
+    }
+  } catch(e) { console.error('Gmail fallback error:', e.message); }
   return false;
 }
 
