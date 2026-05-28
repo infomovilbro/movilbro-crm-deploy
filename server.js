@@ -47,6 +47,7 @@ const aftersalesRoutes = require('./routes/aftersales');
 const surveysRoutes = require('./routes/surveys');
 const leadsRoutes = require('./routes/leads');
 const channelRoutes = require('./routes/channel');
+const googleConnectionsRoutes = require('./routes/google-connections');
 const usersRoutes = require('./routes/users');
 const paymentsRoutes = require('./routes/payments');
 const remittancesRoutes = require('./routes/remittances');
@@ -286,6 +287,7 @@ app.use('/massive-processes', massiveRoutes);
 app.use('/surveys', surveysRoutes);
 app.use('/leads', leadsRoutes);
 app.use('/channel', channelRoutes);
+app.use('/google-connections', googleConnectionsRoutes);
 app.use('/users', usersRoutes);
 app.use('/resources', resourcesRoutes);
 

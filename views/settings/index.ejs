@@ -9,6 +9,7 @@
     <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#ui"><i class="bi bi-palette"></i> Personalizar</a></li>
     <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#api"><i class="bi bi-plug"></i> API Likes Telecom</a></li>
     <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#smtp"><i class="bi bi-envelope"></i> Correo SMTP</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#gmail"><i class="bi bi-google"></i> Gmail</a></li>
     <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#stripe-tab"><i class="bi bi-credit-card"></i> Stripe</a></li>
     <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#telegram"><i class="bi bi-telegram"></i> Telegram Backup</a></li>
     <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#temas"><i class="bi bi-palette2"></i> Temas</a></li>
@@ -234,7 +235,45 @@
       </div>
     </div>
 
-    <div class="tab-pane" id="stripe-tab">
+    <div class="tab-pane" id="gmail">
+      <div class="card">
+        <div class="card-body">
+          <h5><i class="bi bi-google"></i> Configuraci&oacute;n Gmail para env&iacute;o de facturas</h5>
+          <p class="text-muted">Configura tu cuenta de Gmail para enviar facturas a los clientes. Necesitas una <strong>contrase&ntilde;a de aplicaci&oacute;n</strong> de Google.</p>
+          <div class="alert alert-info">
+            <strong>C&oacute;mo crear una contrase&ntilde;a de aplicaci&oacute;n:</strong>
+            <ol class="mb-0 mt-1 small">
+              <li>Ve a <a href="https://myaccount.google.com/security" target="_blank">Seguridad de Google</a></li>
+              <li>Activa la <strong>Verificaci&oacute;n en dos pasos</strong></li>
+              <li>Ve a "Contrase&ntilde;as de aplicaciones"</li>
+              <li>Selecciona "Correo" y "PC"</li>
+              <li>Copia la contrase&ntilde;a de 16 letras que te da Google</li>
+            </ol>
+          </div>
+          <form method="POST" action="/configuracion/gmail">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">Direcci&oacute;n Gmail</label>
+                <input type="email" name="gmail_user" class="form-control" value="<%= settings.gmail_user || 'infomovilbro@gmail.com' %>" placeholder="tucuenta@gmail.com">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Contrase&ntilde;a de aplicaci&oacute;n</label>
+                <input type="password" name="gmail_pass" class="form-control" value="<%= settings.gmail_pass || '' %>" placeholder="16 caracteres sin espacios">
+                <small class="text-muted">Es la contrase&ntilde;a de 16 letras que generaste en Google</small>
+              </div>
+            </div>
+            <div class="mt-4">
+              <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Guardar configuraci&oacute;n Gmail</button>
+            </div>
+          </form>
+          <% if (settings.gmail_user) { %>
+          <div class="mt-3 p-3 bg-light rounded">
+            <span class="badge bg-success fs-6"><i class="bi bi-check-circle"></i> Gmail configurado: <%= settings.gmail_user %></span>
+          </div>
+          <% } %>
+        </div>
+      </div>
+    </div>
       <div class="card">
         <div class="card-body">
           <p class="text-muted">Configuraci&oacute;n de Stripe para cobro autom&aacute;tico de facturas.</p>

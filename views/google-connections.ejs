@@ -1,0 +1,97 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-google"></i> Google Connections</h2>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header d-flex align-items-center gap-2">
+          <i class="bi bi-house-heart text-primary"></i> Dispositivos Google Home
+        </div>
+        <div class="card-body">
+          <p class="text-muted small">Accede a tus dispositivos conectados y controla tu hogar inteligente.</p>
+          <div class="d-flex flex-wrap gap-2" id="googleDevices">
+            <div class="text-center p-3 border rounded w-100">
+              <i class="bi bi-google" style="font-size:2rem;"></i>
+              <p class="mt-2 mb-0 small">Vincula tu cuenta de Google para ver dispositivos</p>
+              <a href="https://myaccount.google.com/connections" target="_blank" class="btn btn-outline-primary btn-sm mt-2">
+                <i class="bi bi-box-arrow-up-right"></i> Abrir Google Connections
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header d-flex align-items-center gap-2">
+          <i class="bi bi-motherboard text-success"></i> Google Nest / Home
+        </div>
+        <div class="card-body">
+          <p class="text-muted small">Controla tus dispositivos Google Nest y dispositivos compatibles.</p>
+          <div class="d-flex flex-wrap gap-2">
+            <a href="https://home.google.com" target="_blank" class="btn btn-outline-success btn-sm">
+              <i class="bi bi-house"></i> Google Home App
+            </a>
+            <a href="https://nest.google.com" target="_blank" class="btn btn-outline-info btn-sm">
+              <i class="bi bi-thermometer-half"></i> Google Nest
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header d-flex align-items-center gap-2">
+          <i class="bi bi-grid-3x3-gap text-warning"></i> Google Services Dashboard
+        </div>
+        <div class="card-body">
+          <div class="row g-2">
+            <div class="col-md-3 col-6">
+              <a href="https://myaccount.google.com/connections?utm_source=CRM" target="_blank" class="text-decoration-none">
+                <div class="card card-body p-3 text-center h-100">
+                  <i class="bi bi-people" style="font-size:1.5rem;"></i>
+                  <small class="mt-1 d-block">Apps & Servicios</small>
+                </div>
+              </a>
+            </div>
+            <div class="col-md-3 col-6">
+              <a href="https://myaccount.google.com/device-activity" target="_blank" class="text-decoration-none">
+                <div class="card card-body p-3 text-center h-100">
+                  <i class="bi bi-phone" style="font-size:1.5rem;"></i>
+                  <small class="mt-1 d-block">Dispositivos</small>
+                </div>
+              </a>
+            </div>
+            <div class="col-md-3 col-6">
+              <a href="https://myaccount.google.com/security" target="_blank" class="text-decoration-none">
+                <div class="card card-body p-3 text-center h-100">
+                  <i class="bi bi-shield-check" style="font-size:1.5rem;"></i>
+                  <small class="mt-1 d-block">Seguridad</small>
+                </div>
+              </a>
+            </div>
+            <div class="col-md-3 col-6">
+              <a href="https://myaccount.google.com/data-and-privacy" target="_blank" class="text-decoration-none">
+                <div class="card card-body p-3 text-center h-100">
+                  <i class="bi bi-lock" style="font-size:1.5rem;"></i>
+                  <small class="mt-1 d-block">Privacidad</small>
+                </div>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Try to load Google's device list via iframe or simple fetch
+  // For now, show the embedded connection overview
+});
+</script>

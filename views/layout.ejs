@@ -239,18 +239,20 @@
               <li data-item-key="isp_articulos"><a class="<%= title === 'Artículos' ? 'active' : '' %>" href="/isp/articulos"><span class="emoji-icon">📦</span>Artículos</a></li>
               <li data-item-key="isp_listados"><a class="<%= title === 'Listados' ? 'active' : '' %>" href="/isp/listados"><span class="emoji-icon">📋</span>Listados</a></li>
               <li data-item-key="isp_clientes"><a class="<%= title === 'Clientes ISP' ? 'active' : '' %>" href="/isp/clientes"><span class="emoji-icon">👥</span>Clientes ISP</a></li>
+              <li data-item-key="isp_nube"><a class="<%= title === 'Nube - Facturas' || title === 'Configurar Google Drive' ? 'active' : '' %>" href="/isp/nube"><span class="emoji-icon">☁️</span>Nube</a></li>
             </ul>
           </li>
 
         <ul class="sidebar-nav">
           <!-- REDES Y HERRAMIENTAS (grupo) -->
-          <li class="nav-item nav-group <%= ['Canales','Correo','Stripe','WhatsApp','IA'].includes(title) ? 'open' : '' %>" data-group="redes" data-group-key="redes" data-ui-draggable="group">
-            <a class="nav-group-toggle <%= ['Canales','Correo','Stripe','WhatsApp','IA'].includes(title) ? 'active' : '' %>" data-toggle="nav-group" href="#"><span class="emoji-icon" data-group-icon>🌐</span><span class="nav-text" data-group-label>Redes y Herramientas</span><i class="ri-arrow-down-s-line nav-arrow"></i></a>
+          <li class="nav-item nav-group <%= ['Canales','Correo','Stripe','WhatsApp','IA','Google'].includes(title) ? 'open' : '' %>" data-group="redes" data-group-key="redes" data-ui-draggable="group">
+            <a class="nav-group-toggle <%= ['Canales','Correo','Stripe','WhatsApp','IA','Google'].includes(title) ? 'active' : '' %>" data-toggle="nav-group" href="#"><span class="emoji-icon" data-group-icon>🔗</span><span class="nav-text" data-group-label>Redes y Herramientas</span><i class="ri-arrow-down-s-line nav-arrow"></i></a>
             <ul class="nav-submenu">
               <li data-item-key="redes_canales" data-ui-draggable="item"><a class="<%= title === 'Canales' ? 'active' : '' %>" href="/channel"><span class="emoji-icon">🔗</span>Canales</a></li>
               <li><a class="<%= title.includes('Correo') ? 'active' : '' %>" href="/email"><span class="emoji-icon">✉️</span><%= ui.moduleName.email %></a></li>
               <li><a class="<%= title.includes('Stripe') ? 'active' : '' %>" href="/stripe"><span class="emoji-icon">💳</span><%= ui.moduleName.stripe %></a></li>
               <li><a class="<%= title.includes('WhatsApp') ? 'active' : '' %>" href="/whatsapp"><span class="emoji-icon">💬</span><%= ui.moduleName.whatsapp %></a></li>
+              <li data-item-key="redes_google"><a class="<%= title === 'Google Connections' ? 'active' : '' %>" href="/google-connections"><span class="emoji-icon">📶</span>Google Connections</a></li>
               <li data-item-key="redes_ia"><a class="<%= title.includes('IA') ? 'active' : '' %>" href="#" id="sidebarAiToggle"><span class="emoji-icon">🤖</span>IA</a></li>
             </ul>
           </li>
@@ -469,28 +471,63 @@
       document.getElementById('aiChatToggle')?.click();
     });
 
-    // Bottom nav handlers (mobile)
+    // Bottom nav handlers (mobile) - fixed: close others, show correct group
     document.querySelectorAll('.bottom-nav-item').forEach(function(btn) {
       btn.addEventListener('click', function(e) {
+        e.stopPropagation();
         var targetGroup = this.dataset.navGroup;
         var sidebar = document.getElementById('sidebar');
         var backdrop = document.getElementById('sidebarBackdrop');
 
+        // If this group is already active and sidebar is showing, close it
+        if (btn.classList.contains('active') && sidebar && sidebar.classList.contains('show')) {
+          sidebar.classList.remove('show');
+          if (backdrop) backdrop.classList.remove('show');
+          document.querySelectorAll('.bottom-nav-item').forEach(function(i) { i.classList.remove('active'); });
+          document.querySelectorAll('.nav-group').forEach(function(g) { g.classList.remove('open'); });
+          return;
+        }
+
         // Close all groups first
         document.querySelectorAll('.nav-group').forEach(function(g) { g.classList.remove('open'); });
 
-        // Open the target group
+        // Open ONLY the target group, close all others
         var group = document.querySelector('.nav-group[data-group-key="' + targetGroup + '"]');
-        if (group) group.classList.add('open');
+        if (group) {
+          group.classList.add('open');
+          // Scroll to this group in sidebar
+          setTimeout(function() {
+            group.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 100);
+        }
 
         // Show sidebar
-        if (sidebar) sidebar.classList.add('show');
+        if (sidebar) {
+          sidebar.classList.add('show');
+          sidebar.style.display = 'block';
+        }
         if (backdrop) backdrop.classList.add('show');
 
         // Update active state
         document.querySelectorAll('.bottom-nav-item').forEach(function(i) { i.classList.remove('active'); });
         btn.classList.add('active');
       });
+    });
+
+    // Close sidebar when clicking outside sidebar-content on mobile
+    document.addEventListener('click', function(e) {
+      var sidebar = document.getElementById('sidebar');
+      var backdrop = document.getElementById('sidebarBackdrop');
+      var bottomNav = document.getElementById('bottomNav');
+      if (!sidebar || !sidebar.classList.contains('show')) return;
+      // Only on mobile
+      if (window.innerWidth > 767.98) return;
+      // Check if click is outside sidebar and not on bottom-nav
+      if (!sidebar.contains(e.target) && bottomNav && !bottomNav.contains(e.target)) {
+        sidebar.classList.remove('show');
+        if (backdrop) backdrop.classList.remove('show');
+        document.querySelectorAll('.bottom-nav-item').forEach(function(i) { i.classList.remove('active'); });
+      }
     });
 
     // Close sidebar when clicking backdrop
@@ -873,6 +910,20 @@
       </div>
 
       <div class="mb-2">
+        <label class="form-label small mb-1">Fondo de grupos</label>
+        <div class="d-flex gap-2 align-items-center">
+          <input id="uiGroupBgColor" type="color" class="form-control form-control-color" style="width:50px;">
+          <span id="uiGroupBgValue" class="small text-muted">#ffffff</span>
+          <button id="uiApplyGroupBg" class="btn btn-outline-dark btn-sm">Aplicar</button>
+        </div>
+      </div>
+
+      <div class="mb-2">
+        <label class="form-label small mb-1">Visibilidad de grupos</label>
+        <div id="uiGroupVisibility" class="d-flex flex-wrap gap-2"></div>
+      </div>
+
+      <div class="mb-2">
         <label class="form-label small mb-1">Iconos rápidos</label>
         <input id="uiIconSearch" class="form-control form-control-sm mb-1" placeholder="buscar icono (home, chart, user, ...)">
         <div id="uiIconGrid" style="max-height:120px;overflow:auto;border:1px solid #eee;border-radius:8px;padding:6px;display:grid;grid-template-columns:repeat(6,1fr);gap:6px;"></div>
@@ -977,8 +1028,25 @@
             if (labelEl.matches('a')) {
               const textNode = Array.from(labelEl.childNodes).find(n => n.nodeType === 3);
               if (textNode) textNode.nodeValue = ' ' + cfg.label;
+              else labelEl.appendChild(document.createTextNode(' ' + cfg.label));
             } else labelEl.textContent = cfg.label;
           }
+          if (cfg.icon && iconEl) iconEl.textContent = cfg.icon;
+          if (cfg.bg) el.style.backgroundColor = cfg.bg;
+          if (cfg.color) el.style.color = cfg.color;
+        });
+        // Apply group background
+        const savedGroupBg = localStorage.getItem('ui_group_bg') || '#ffffff';
+        document.querySelector('.sidebar-scroll')?.style.setProperty('background', savedGroupBg, 'important');
+        // Apply group visibility
+        try {
+          const hiddenGroups = JSON.parse(localStorage.getItem('ui_hidden_groups') || '[]');
+          hiddenGroups.forEach(function(key) {
+            const el = document.querySelector('[data-group-key="' + key + '"]');
+            if (el) el.style.display = 'none';
+          });
+        } catch(e) {}
+      }
           if (cfg.icon && iconEl) iconEl.textContent = cfg.icon;
           if (cfg.bg) el.style.backgroundColor = cfg.bg;
           if (cfg.color) el.style.color = cfg.color;
@@ -1094,6 +1162,72 @@
       }
       renderIconGrid('');
       iconSearch && iconSearch.addEventListener('input', function() { renderIconGrid(iconSearch.value); });
+
+      // Group background color
+      const groupBgInput = document.getElementById('uiGroupBgColor');
+      const groupBgValue = document.getElementById('uiGroupBgValue');
+      const applyGroupBg = document.getElementById('uiApplyGroupBg');
+      if (groupBgInput) {
+        const savedBg = localStorage.getItem('ui_group_bg') || '#ffffff';
+        groupBgInput.value = savedBg;
+        if (groupBgValue) groupBgValue.textContent = savedBg;
+        groupBgInput.addEventListener('input', function() {
+          if (groupBgValue) groupBgValue.textContent = this.value;
+        });
+      }
+      if (applyGroupBg) {
+        applyGroupBg.addEventListener('click', function() {
+          const color = groupBgInput ? groupBgInput.value : '#ffffff';
+          document.querySelector('.sidebar-scroll')?.style.setProperty('background', color, 'important');
+          localStorage.setItem('ui_group_bg', color);
+          // Also save to server
+          if (!liveLayout.overrides) liveLayout.overrides = {};
+          liveLayout.overrides['_groupBg'] = { bg: color };
+        });
+      }
+
+      // Group visibility
+      function renderGroupVisibility() {
+        const container = document.getElementById('uiGroupVisibility');
+        if (!container) return;
+        const hidden = (function() { try { return JSON.parse(localStorage.getItem('ui_hidden_groups') || '[]'); } catch(e) { return []; } })();
+        container.innerHTML = '';
+        document.querySelectorAll('.nav-group[data-group-key]').forEach(function(group) {
+          const key = group.getAttribute('data-group-key');
+          const label = (group.querySelector('[data-group-label]') || {}).textContent || key;
+          const isHidden = hidden.indexOf(key) !== -1;
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'btn btn-sm ' + (isHidden ? 'btn-outline-danger' : 'btn-outline-success');
+          btn.innerHTML = (isHidden ? '<i class="bi bi-eye-slash"></i> ' : '<i class="bi bi-eye"></i> ') + label;
+          btn.addEventListener('click', function() {
+            let h = (function() { try { return JSON.parse(localStorage.getItem('ui_hidden_groups') || '[]'); } catch(e) { return []; } })();
+            const idx = h.indexOf(key);
+            if (idx !== -1) { h.splice(idx, 1); } else { h.push(key); }
+            localStorage.setItem('ui_hidden_groups', JSON.stringify(h));
+            renderGroupVisibility();
+            // Apply immediately
+            if (idx !== -1) {
+              group.style.display = '';
+            } else {
+              group.style.display = 'none';
+            }
+          });
+          container.appendChild(btn);
+        });
+        // Add Restore button
+        const restoreBtn = document.createElement('button');
+        restoreBtn.type = 'button';
+        restoreBtn.className = 'btn btn-sm btn-outline-warning ms-1';
+        restoreBtn.innerHTML = '<i class="bi bi-arrow-counterclockwise"></i> Restaurar';
+        restoreBtn.addEventListener('click', function() {
+          localStorage.removeItem('ui_hidden_groups');
+          document.querySelectorAll('.nav-group').forEach(function(g) { g.style.display = ''; });
+          renderGroupVisibility();
+        });
+        container.appendChild(restoreBtn);
+      }
+      renderGroupVisibility();
 
       document.addEventListener('click', function(e) {
         if (!editSwitch.checked) return;

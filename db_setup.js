@@ -10,6 +10,8 @@ db.exec(`
     stripe_invoice_id TEXT, stripe_payment_intent TEXT,
     email_enviado INTEGER DEFAULT 0, pagada INTEGER DEFAULT 0,
     fecha_pago DATETIME, notas TEXT,
+    serie TEXT DEFAULT 'F',
+    numero_factura INTEGER DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
   CREATE TABLE IF NOT EXISTS isp_facturas_lineas (
@@ -24,11 +26,31 @@ db.exec(`
     metodo TEXT NOT NULL, referencia TEXT, estado TEXT DEFAULT 'completado',
     fecha_pago DATE, created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
+  CREATE TABLE IF NOT EXISTS isp_series (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    serie TEXT NOT NULL UNIQUE,
+    nombre TEXT NOT NULL,
+    ultimo_numero INTEGER DEFAULT 0,
+    ultimo_ejercicio INTEGER DEFAULT 0,
+    activo INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
 `);
 
 try { db.prepare("ALTER TABLE clients ADD COLUMN stripe_customer_id TEXT DEFAULT ''").run(); } catch(e) {}
 try { db.prepare("ALTER TABLE clients ADD COLUMN iban TEXT DEFAULT ''").run(); } catch(e) {}
 try { db.prepare("ALTER TABLE clients ADD COLUMN metodo_pago TEXT DEFAULT 'stripe'").run(); } catch(e) {}
 try { db.prepare("ALTER TABLE clients ADD COLUMN pago_activo INTEGER DEFAULT 1").run(); } catch(e) {}
+
+// Migrate existing facturas table
+try { db.prepare("ALTER TABLE isp_facturas ADD COLUMN serie TEXT DEFAULT 'F'").run(); } catch(e) {}
+try { db.prepare("ALTER TABLE isp_facturas ADD COLUMN numero_factura INTEGER DEFAULT 0").run(); } catch(e) {}
+
+// Seed default series
+try {
+  db.prepare("INSERT OR IGNORE INTO isp_series (serie, nombre, ultimo_ejercicio) VALUES ('F', 'Factura', 0)").run();
+  db.prepare("INSERT OR IGNORE INTO isp_series (serie, nombre, ultimo_ejercicio) VALUES ('R', 'Recibo', 0)").run();
+  db.prepare("INSERT OR IGNORE INTO isp_series (serie, nombre, ultimo_ejercicio) VALUES ('A', 'Abono', 0)").run();
+} catch(e) {}
 
 console.log('Billing tables and columns created successfully');

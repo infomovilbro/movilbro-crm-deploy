@@ -1,7 +1,10 @@
 <section>
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h2><i class="bi bi-list-ul"></i> Facturas <span class="badge bg-secondary fs-6"><%= facturas.length %></span></h2>
-    <a href="/isp/facturacion" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Volver</a>
+    <div class="d-flex gap-2">
+      <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalFacturaManual"><i class="bi bi-plus-circle"></i> Manual</button>
+      <a href="/isp/facturacion" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Volver</a>
+    </div>
   </div>
 
   <div class="card mb-3">
@@ -16,6 +19,14 @@
             <option value="pendiente">Pendiente</option>
             <option value="pagada">Pagada</option>
             <option value="vencida">Vencida</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <select class="form-select form-select-sm" id="filterMes">
+            <option value="">Todos los meses</option>
+            <% (meses || []).forEach(function(m) { %>
+            <option value="<%= m.mes %>"><%= m.mes %></option>
+            <% }) %>
           </select>
         </div>
         <div class="col-md-2">
@@ -43,27 +54,46 @@
           <tbody>
             <% if (facturas.length === 0) { %>
             <tr><td colspan="7" class="text-center text-muted py-4"><i class="bi bi-inbox"></i> No hay facturas registradas</td></tr>
-            <% } else { facturas.forEach(function(f) { %>
-            <tr class="factura-row">
-              <td class="fw-bold">#<%= f.id %></td>
-              <td><%= f.cliente_nombre || '-' %></td>
-              <td><%= f.periodo || '-' %></td>
-              <td class="fw-bold"><%= parseFloat(f.importe_total || 0).toFixed(2) %>€</td>
-              <td>
-                <span class="badge fs-6 bg-<%= f.estado === 'pendiente' ? 'warning' : f.estado === 'pagada' ? 'success' : 'danger' %>">
-                  <%= f.estado %>
-                </span>
-              </td>
-              <td class="small"><%= f.fecha_emision ? new Date(f.fecha_emision).toLocaleDateString('es-ES') : '-' %></td>
-              <td class="text-end">
-                <a href="/isp/facturacion/facturas/<%= f.id %>" class="btn btn-sm btn-outline-info" title="Ver"><i class="bi bi-eye"></i></a>
-                <button class="btn btn-sm btn-outline-primary btn-enviar-email" data-id="<%= f.id %>" title="Enviar email"><i class="bi bi-envelope"></i></button>
-                <% if (f.estado !== 'pagada') { %>
-                <button class="btn btn-sm btn-outline-success btn-pagar" data-id="<%= f.id %>" title="Pagar"><i class="bi bi-check-lg"></i></button>
-                <% } %>
-              </td>
-            </tr>
-            <% }) } %>
+            <% } else { %>
+              <% (meses || []).forEach(function(m) { 
+                var totalMes = 0;
+                m.facturas.forEach(function(f) { totalMes += parseFloat(f.importe_total || 0); });
+              %>
+              <tr class="table-secondary month-header">
+                <td colspan="7" class="fw-bold py-2">
+                  <i class="bi bi-calendar-month"></i> <%= m.mes %> 
+                  <span class="badge bg-info ms-2"><%= m.facturas.length %> facturas</span>
+                  <span class="badge bg-primary ms-1"><%= totalMes.toFixed(2) %>€</span>
+                  <button class="btn btn-sm btn-link toggle-month" data-month="<%= m.mes %>">
+                    <i class="bi bi-chevron-up"></i>
+                  </button>
+                </td>
+              </tr>
+              <% m.facturas.forEach(function(f) { %>
+                <tr class="factura-row month-group-<%= m.mes %>" data-periodo="<%= f.periodo || '' %>">
+                  <td class="fw-bold"><%= (f.serie || 'F') + '-' + String(f.numero_factura || f.id).padStart(5, '0') %></td>
+                  <td><%= f.cliente_nombre || '-' %></td>
+                  <td><%= f.periodo || '-' %></td>
+                  <td class="fw-bold"><%= parseFloat(f.importe_total || 0).toFixed(2) %>€</td>
+                  <td>
+                    <span class="badge fs-6 bg-<%= f.estado === 'pendiente' ? 'warning' : f.estado === 'pagada' ? 'success' : 'danger' %>">
+                      <%= f.estado %>
+                    </span>
+                  </td>
+                  <td class="small"><%= f.fecha_emision ? new Date(f.fecha_emision).toLocaleDateString('es-ES') : '-' %></td>
+                  <td class="text-end">
+                    <button class="btn btn-sm btn-outline-info btn-ver-factura" data-id="<%= f.id %>" title="Ver factura HTML"><i class="bi bi-eye"></i></button>
+                    <button class="btn btn-sm btn-outline-primary btn-enviar-email" data-id="<%= f.id %>" title="Enviar email"><i class="bi bi-envelope"></i></button>
+                    <% if (!f.pagada && f.estado !== 'pagada') { %>
+                    <button class="btn btn-sm btn-outline-success btn-pagar" data-id="<%= f.id %>" title="Pagar"><i class="bi bi-check-lg"></i></button>
+                    <% } else { %>
+                    <span class="badge bg-success"><i class="bi bi-check"></i> Pagada</span>
+                    <% } %>
+                  </td>
+                </tr>
+              <% }) %>
+              <% }) %>
+            <% } %>
           </tbody>
         </table>
       </div>
@@ -71,43 +101,151 @@
   </div>
 </section>
 
+<!-- Modal Factura Manual -->
+<div class="modal fade" id="modalFacturaManual" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-plus-circle"></i> Crear Factura Manual</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formFacturaManual">
+          <div class="mb-2">
+            <label class="form-label">Serie</label>
+            <select class="form-select" name="serie">
+              <option value="F">F - Factura</option>
+              <option value="R">R - Recibo</option>
+              <option value="A">A - Abono</option>
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Cliente *</label>
+            <input type="text" class="form-control" name="cliente_nombre" required>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-control" name="cliente_email">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">NIF/CIF</label>
+            <input type="text" class="form-control" name="fiscal_id">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Período</label>
+            <input type="month" class="form-control" name="periodo" value="<%= new Date().toISOString().split('T')[0].substring(0,7) %>">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Concepto</label>
+            <input type="text" class="form-control" name="concepto" value="Cuota servicio mensual">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Línea (opcional)</label>
+            <input type="text" class="form-control" name="linea">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Importe (€) *</label>
+            <input type="number" step="0.01" class="form-control" name="importe" required>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btnGuardarFacturaManual"><i class="bi bi-save"></i> Crear Factura</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>document.addEventListener('DOMContentLoaded',function(){document.getElementById('btnGuardarFacturaManual')?.addEventListener('click',function(){var btn=this;btn.disabled=true;btn.innerHTML='<span class="spinner-border spinner-border-sm"></span> Creando...';var form=document.getElementById('formFacturaManual');var data={};new FormData(form).forEach(function(v,k){data[k]=v;});fetch('/isp/facturacion/facturas/manual',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(function(r){return r.json();}).then(function(d){if(d.ok){alert('Factura '+d.numero+' creada correctamente');location.reload();}else{alert('Error: '+(d.error||'desconocido'));btn.disabled=false;btn.innerHTML='<i class="bi bi-save"></i> Crear Factura';}}).catch(function(){alert('Error de conexión');btn.disabled=false;btn.innerHTML='<i class="bi bi-save"></i> Crear Factura';});});});</script>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   const searchInput = document.getElementById('searchFactura');
   const filterEstado = document.getElementById('filterEstado');
+  const filterMes = document.getElementById('filterMes');
   const btnLimpiar = document.getElementById('btnLimpiarFiltros');
 
   function filtrar() {
     const q = searchInput ? searchInput.value.toLowerCase().trim() : '';
     const est = filterEstado ? filterEstado.value : '';
-    document.querySelectorAll('.factura-row').forEach(function(row) {
-      const id = row.querySelector('td:nth-child(1)')?.textContent.toLowerCase() || '';
-      const cliente = row.querySelector('td:nth-child(2)')?.textContent.toLowerCase() || '';
-      const estado = row.querySelector('td:nth-child(5) .badge')?.textContent.trim().toLowerCase() || '';
-      const matchTexto = !q || id.includes(q) || cliente.includes(q);
-      const matchEstado = !est || estado === est;
-      row.style.display = matchTexto && matchEstado ? '' : 'none';
+    const mes = filterMes ? filterMes.value : '';
+    
+    // Show/hide month headers based on whether they have visible rows
+    document.querySelectorAll('.month-header').forEach(function(header) {
+      var month = header.querySelector('.toggle-month')?.dataset.month;
+      if (!month) return;
+      var rows = document.querySelectorAll('.month-group-' + CSS.escape(month));
+      var anyVisible = false;
+      rows.forEach(function(row) {
+        const id = row.querySelector('td:nth-child(1)')?.textContent.toLowerCase() || '';
+        const cliente = row.querySelector('td:nth-child(2)')?.textContent.toLowerCase() || '';
+        const estado = row.querySelector('td:nth-child(5) .badge')?.textContent.trim().toLowerCase() || '';
+        const matchTexto = !q || id.includes(q) || cliente.includes(q);
+        const matchEstado = !est || estado === est;
+        const matchMes = !mes || month === mes;
+        var visible = matchTexto && matchEstado && matchMes;
+        row.style.display = visible ? '' : 'none';
+        if (visible) anyVisible = true;
+      });
+      header.style.display = anyVisible ? '' : 'none';
     });
   }
 
   if (searchInput) searchInput.addEventListener('input', filtrar);
   if (filterEstado) filterEstado.addEventListener('change', filtrar);
+  if (filterMes) filterMes.addEventListener('change', filtrar);
   if (btnLimpiar) btnLimpiar.addEventListener('click', function() {
     if (searchInput) searchInput.value = '';
     if (filterEstado) filterEstado.value = '';
+    if (filterMes) filterMes.value = '';
     filtrar();
   });
 
-  document.querySelectorAll('.btn-enviar-email').forEach(function(b) {
+  // Toggle month groups
+  document.querySelectorAll('.toggle-month').forEach(function(b) {
     b.addEventListener('click', function() {
-      const id = this.dataset.id;
-      fetch('/isp/facturacion/facturas/' + id + '/enviar', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
-        .then(r => r.json())
-        .then(d => { alert(d.ok ? 'Email enviado correctamente' : 'Error: ' + (d.error || 'desconocido')); })
-        .catch(() => { alert('Error de conexión'); });
+      var month = this.dataset.month;
+      var rows = document.querySelectorAll('.month-group-' + CSS.escape(month));
+      var isHidden = rows.length > 0 && rows[0].style.display === 'none';
+      rows.forEach(function(row) {
+        row.style.display = isHidden ? '' : 'none';
+      });
+      this.querySelector('i').className = isHidden ? 'bi bi-chevron-up' : 'bi bi-chevron-down';
     });
   });
 
+  // Ver factura - open in new tab
+  document.querySelectorAll('.btn-ver-factura').forEach(function(b) {
+    b.addEventListener('click', function() {
+      var id = this.dataset.id;
+      window.open('/isp/facturacion/facturas/' + id + '/view', '_blank');
+    });
+  });
+
+  // Enviar email
+  document.querySelectorAll('.btn-enviar-email').forEach(function(b) {
+    b.addEventListener('click', function() {
+      const id = this.dataset.id;
+      const btn = this;
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+      fetch('/isp/facturacion/facturas/' + id + '/enviar', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+        .then(r => r.json())
+        .then(d => {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="bi bi-envelope"></i>';
+          alert(d.ok ? 'Email enviado correctamente' : 'Error: ' + (d.error || 'desconocido'));
+        })
+        .catch(() => {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="bi bi-envelope"></i>';
+          alert('Error de conexión');
+        });
+    });
+  });
+
+  // Pagar
   document.querySelectorAll('.btn-pagar').forEach(function(b) {
     b.addEventListener('click', function() {
       if (!confirm('¿Marcar esta factura como pagada?')) return;

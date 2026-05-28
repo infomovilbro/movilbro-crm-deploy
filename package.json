@@ -27,13 +27,16 @@
     "express-rate-limit": "^8.5.2",
     "express-session": "^1.18.0",
     "express-validator": "^7.0.0",
+    "googleapis": "^172.0.0",
     "helmet": "^8.1.0",
     "hpp": "^0.2.3",
     "morgan": "^1.10.0",
     "multer": "^2.1.1",
     "node-cron": "^4.2.1",
     "nodemailer": "^8.0.7",
+    "pdf-parse": "^2.4.5",
     "playwright": "^1.60.0",
-    "stripe": "^22.1.1"
+    "stripe": "^22.1.1",
+    "ws": "^8.21.0"
   }
 }
