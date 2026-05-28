@@ -138,7 +138,6 @@ router.post('/generar', async (req, res) => {
       } catch(e) { errores++; }
     }
     
-    // Guardar PDFs en la nube local + Google Drive
     try {
       var facturasNuevas = db.prepare('SELECT * FROM isp_facturas WHERE periodo=? ORDER BY id DESC').all(periodo);
       for (var fn of facturasNuevas) {
@@ -146,7 +145,7 @@ router.post('/generar', async (req, res) => {
           var lineas = db.prepare('SELECT * FROM isp_facturas_lineas WHERE factura_id=?').all(fn.id);
           var cdrsDetalle = db.prepare('SELECT * FROM isp_cdrs WHERE factura_id=?').all(fn.id);
           var result = await nube.procesarFactura(fn, lineas, cdrsDetalle);
-          console.log('PDF guardado en nube:', result.nombreArchivo, '- Drive:', result.drive.ok ? 'OK' : 'No configurado');
+          console.log('PDF guardado en nube:', result.nombreArchivo);
         } catch(e2) {
           console.error('Error guardando PDF factura ' + fn.id + ':', e2.message);
         }
@@ -187,20 +186,39 @@ router.post('/facturas/manual', (req, res) => {
 // Listar todas las facturas
 router.get('/facturas', (req, res) => {
   try {
-    var facturas = db.prepare('SELECT * FROM isp_facturas ORDER BY fecha_emision DESC, created_at DESC').all();
+    var facturas = db.prepare('SELECT id, serie, numero_factura, cliente_nombre, fecha_emision, importe_total, estado FROM isp_facturas ORDER BY fecha_emision DESC, id DESC').all();
     
-    // Group by month/year
-    var meses = {};
+    var MES_NOMBRES = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    var yearsMap = {};
     facturas.forEach(function(f) {
-      var key = f.periodo || (f.fecha_emision ? f.fecha_emision.substring(0, 7) : 'desconocido');
-      if (!meses[key]) meses[key] = [];
-      meses[key].push(f);
+      var year = f.fecha_emision ? f.fecha_emision.substring(0, 4) : '2026';
+      var month = f.fecha_emision ? parseInt(f.fecha_emision.substring(5, 7)) : 5;
+      if (!yearsMap[year]) yearsMap[year] = {};
+      if (!yearsMap[year][month]) yearsMap[year][month] = { facturas: [], total: 0, count: 0 };
+      yearsMap[year][month].facturas.push({
+        id: f.id,
+        numFactura: (f.serie || 'F') + '-' + String(f.numero_factura || f.id).padStart(5, '0'),
+        cliente: f.cliente_nombre,
+        importe: f.importe_total,
+        estado: f.estado
+      });
+      yearsMap[year][month].total += parseFloat(f.importe_total || 0);
+      yearsMap[year][month].count++;
     });
-    var mesesArray = Object.keys(meses).sort().reverse().map(function(m) {
-      return { mes: m, facturas: meses[m] };
-    });
-    
-    res.render('isp/facturacion/facturas', { title: 'Facturas', facturas, meses: mesesArray });
+
+    var currentYear = new Date().getFullYear();
+    var years = [];
+    for (var y = 2024; y <= currentYear + 1; y++) {
+      var yearData = yearsMap[y] || {};
+      var meses = [];
+      for (var m = 1; m <= 12; m++) {
+        var mesData = yearData[m] || { facturas: [], total: 0, count: 0 };
+        meses.push({ num: m, nombre: MES_NOMBRES[m], facturas: mesData.facturas, total: mesData.total, count: mesData.count });
+      }
+      years.push({ year: y, meses: meses });
+    }
+
+    res.render('isp/facturacion/facturas', { title: 'Facturas', facturas, years: years, mesNombres: MES_NOMBRES });
   } catch(e) { res.status(500).send('Error: ' + e.message); }
 });
 
@@ -295,12 +313,21 @@ router.post('/facturas/:id/enviar', async (req, res) => {
     var ejs = require('ejs');
     var path = require('path');
     var tpl = fs.readFileSync(path.join(__dirname, '..', '..', 'views', 'isp', 'facturacion', 'invoice-html.ejs'), 'utf8');
-    var html = ejs.render(tpl, { factura, lineas, cdrsDetalle, layout: false });
+    var llamadas = [];
+    var history = [];
+    try { llamadas = db.prepare('SELECT * FROM isp_llamadas WHERE factura_id=? ORDER BY fecha, hora').all(req.params.id); } catch(e) {}
+    try {
+      var histFiscalId = factura.fiscal_id;
+      if (histFiscalId) {
+        var histRows = db.prepare("SELECT periodo, SUM(importe_total) as total FROM isp_facturas WHERE fiscal_id=? AND id<=? GROUP BY periodo ORDER BY periodo DESC LIMIT 6").all(histFiscalId, factura.id);
+        history = histRows.reverse();
+      }
+    } catch(e) {}
+    var html = ejs.render(tpl, { factura, lineas, cdrsDetalle, llamadas, history, layout: false });
     
     var toEmail = req.body.to || factura.cliente_email;
     var subject = 'Factura ' + numFactura + ' - Movilbro - ' + factura.periodo;
     
-    // Generate PDF for attachment and nube
     var pdfBuf = null;
     try {
       var nubeResult = await nube.procesarFactura(factura, lineas, cdrsDetalle);

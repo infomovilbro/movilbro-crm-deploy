@@ -202,6 +202,39 @@ async function getAllStats() {
     return st && !['COMPLETED', 'CANCELED', 'CANCELLED', 'DONE', 'FINISHED'].includes(st);
   }).length;
 
+  // CRM database stats
+  var invTotal = 0, invPagadas = 0, invPendientes = 0, invTotalImporte = 0;
+  var invByMonth = {}, invByStatus = {};
+  try {
+    var invRows = db.prepare('SELECT periodo, importe_total, estado, pagada, fecha_emision FROM isp_facturas').all();
+    invTotal = invRows.length;
+    invRows.forEach(function(r) {
+      if (r.pagada || r.estado === 'pagada') invPagadas++;
+      else invPendientes++;
+      invTotalImporte += parseFloat(r.importe_total || 0);
+      var m = (r.periodo || (r.fecha_emision ? r.fecha_emision.substring(0,7) : 'desconocido'));
+      invByMonth[m] = (invByMonth[m] || 0) + parseFloat(r.importe_total || 0);
+      var st = r.pagada ? 'Pagada' : (r.estado === 'pagada' ? 'Pagada' : 'Pendiente');
+      invByStatus[st] = (invByStatus[st] || 0) + 1;
+    });
+  } catch(e) {}
+  var revenueTimeline = Object.entries(invByMonth).sort(function(a,b){return a[0].localeCompare(b[0])}).map(function(e){return{month:e[0],total:e[1]}});
+
+  // Local client stats
+  var localClientes = 0, clientesConContrato = 0;
+  try {
+    localClientes = db.prepare('SELECT COUNT(*) as c FROM clients').get().c;
+    clientesConContrato = db.prepare('SELECT COUNT(DISTINCT fiscal_id) as c FROM isp_facturas').get().c;
+  } catch(e) {}
+
+  // Subscription breakdown by product family from API
+  var subByProduct = {};
+  apiMapped.forEach(function(s) {
+    var p = s.producto || 'Sin producto';
+    subByProduct[p] = (subByProduct[p] || 0) + 1;
+  });
+  var topSubProducts = Object.entries(subByProduct).sort(function(a,b){return b[1]-a[1]}).slice(0,15).map(function(e){return{name:e[0],count:e[1]}});
+
   return {
     totalCustomers, totalProducts, totalPortabilities, totalTickets, totalSubscriptions, totalLines,
     familyCount: families.length,
@@ -216,6 +249,10 @@ async function getAllStats() {
     clientesConLineasActivas,
     recurrenteTotal,
     mixTarifas,
+    // New CRM stats
+    invTotal, invPagadas, invPendientes, invTotalImporte,
+    invByStatus, revenueTimeline, topSubProducts,
+    localClientes, clientesConContrato,
   };
 }
 

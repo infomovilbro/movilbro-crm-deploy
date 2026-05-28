@@ -9,8 +9,8 @@ echo  Puerto: %PORT%
 echo  URL:    http://localhost:%PORT%/isp/dashboard
 echo ============================================
 echo.
-echo  Usuario: infomovilbro
-echo  Clave:   movilbro2026
+echo  Usuario: aaa
+echo  Clave:   aaa123
 echo.
 echo  Para seed data: node seed-demo.js
 echo  Para borrar demo: di #borrardemo en OpenCode

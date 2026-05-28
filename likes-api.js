@@ -211,7 +211,7 @@ class LikesAPI {
   }
 
   async getLineCDRs(lineNumber) {
-    return this.request('GET', `/line/cdrs?line=${encodeURIComponent(lineNumber)}`);
+    return this.request('GET', `/line/cdrs?lineNumber=${encodeURIComponent(lineNumber)}`);
   }
 
   async blockLine(lineNumber, blocked = true) {

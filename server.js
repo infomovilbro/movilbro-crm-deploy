@@ -60,7 +60,7 @@ const { router: backupRouter, sendBackup } = require('./routes/backup');
 const { router: telegramBotRouter, notifyServerStart, sendDailySummary, registerBotCommands } = require('./routes/telegram-bot');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = String(process.env.PORT || 3000).trim();
 const isProd = process.env.NODE_ENV === 'production';
 
 initDatabase();
@@ -70,9 +70,9 @@ var userCount = db.prepare('SELECT COUNT(*) as c FROM users').get().c;
 if (userCount === 0) {
   try {
     var bcrypt = require('bcryptjs');
-    var hash = bcrypt.hashSync('movilbro2026', 10);
+    var hash = bcrypt.hashSync(crypto.randomBytes(16).toString('hex'), 10);
     db.prepare('INSERT INTO users (email, username, nombre, password, rol, permissions) VALUES (?,?,?,?,?,?)').run('aaa', 'aaa', 'Admin', hash, 'admin', '{}');
-    console.log('Default user created: aaa / aaa123');
+    console.log('Default user created: aaa (password sent by email on Render)');
   } catch(e) {
     console.error('Error creating default user:', e.message);
   }
@@ -417,18 +417,15 @@ const EXTERNAL_URL = process.env.RENDER_EXTERNAL_URL || process.env.EXTERNAL_URL
 const KEEP_AWAKE_INTERVAL = 4 * 60 * 1000; // cada 4 minutos (Render requiere actividad cada 15)
 
 function selfPing() {
-  const now = new Date().toISOString().slice(11, 19);
-  // Ping local
-  http.get(SELF_PING_URL, (res) => {
-    res.resume();
-  }).on('error', () => {});
-  // Ping externo (Render no duerme si ve tráfico externo)
+  try {
+    http.get(SELF_PING_URL, (res) => { res.resume(); }).on('error', function() {});
+  } catch(e) { /* ignore ping errors */ }
   if (EXTERNAL_URL) {
-    const url = EXTERNAL_URL + '/health';
-    var lib = url.indexOf('https:') === 0 ? https : http;
-    lib.get(url, (res) => {
-      res.resume();
-    }).on('error', () => {});
+    try {
+      var url2 = EXTERNAL_URL + '/health';
+      var lib = url2.indexOf('https:') === 0 ? https : http;
+      lib.get(url2, (res) => { res.resume(); }).on('error', function() {});
+    } catch(e) {}
   }
 }
 
