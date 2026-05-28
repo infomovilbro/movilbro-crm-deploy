@@ -216,12 +216,21 @@ router.get('/facturas/:id/view', (req, res) => {
     var llamadas = [];
     try { llamadas = db.prepare('SELECT * FROM isp_llamadas WHERE factura_id=? ORDER BY fecha, hora').all(req.params.id); } catch(e) {}
     
+    // Get payment history (last 6 months) for the chart
+    var history = [];
+    var histFiscalId = factura.fiscal_id;
+    if (histFiscalId) {
+      var histRows = db.prepare("SELECT periodo, SUM(importe_total) as total FROM isp_facturas WHERE fiscal_id=? AND id<=? GROUP BY periodo ORDER BY periodo DESC LIMIT 6").all(histFiscalId, factura.id);
+      history = histRows.reverse();
+    }
+    
     res.render('isp/facturacion/invoice-html', {
       title: 'Factura #' + factura.id,
       factura,
       lineas,
       cdrsDetalle,
       llamadas,
+      history,
       layout: false
     });
   } catch(e) { res.status(500).send('Error: ' + e.message); }
