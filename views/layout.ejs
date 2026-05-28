@@ -239,7 +239,7 @@
               <li data-item-key="isp_articulos"><a class="<%= title === 'Artículos' ? 'active' : '' %>" href="/isp/articulos"><span class="emoji-icon">📦</span>Artículos</a></li>
               <li data-item-key="isp_listados"><a class="<%= title === 'Listados' ? 'active' : '' %>" href="/isp/listados"><span class="emoji-icon">📋</span>Listados</a></li>
               <li data-item-key="isp_clientes"><a class="<%= title === 'Clientes ISP' ? 'active' : '' %>" href="/isp/clientes"><span class="emoji-icon">👥</span>Clientes ISP</a></li>
-              <li data-item-key="isp_nube"><a class="<%= title === 'Nube - Facturas' || title === 'Configurar Google Drive' ? 'active' : '' %>" href="/isp/nube"><span class="emoji-icon">☁️</span>Nube</a></li>
+              <li data-item-key="isp_nube"><a class="<%= title && title.includes('Nube') ? 'active' : '' %>" href="/isp/nube"><span class="emoji-icon">☁️</span>Nube</a></li>
             </ul>
           </li>
 
@@ -428,6 +428,21 @@
               g.items.forEach(key => {
                 const li = itemMap[key];
                 if (li) submenu.appendChild(li);
+              });
+            }
+          }
+          // Apply visibility: hidden groups
+          if (g.hidden) {
+            if (groupEl) groupEl.style.display = 'none';
+          }
+          // Apply visibility: hidden items
+          if (Array.isArray(g.hiddenItems) && g.hiddenItems.length && groupEl) {
+            const submenu = groupEl.querySelector('.nav-submenu');
+            if (submenu) {
+              submenu.querySelectorAll('li[data-item-key]').forEach(function(li) {
+                if (g.hiddenItems.indexOf(li.getAttribute('data-item-key')) !== -1) {
+                  li.style.display = 'none';
+                }
               });
             }
           }
@@ -892,15 +907,6 @@
       </div>
 
       <div class="mb-2">
-        <label class="form-label small mb-1">Elemento seleccionado</label>
-        <input id="uiSelLabel" class="form-control form-control-sm mb-1" placeholder="Nombre">
-        <input id="uiSelIcon" class="form-control form-control-sm mb-1" placeholder="Emoji/Icono">
-        <input id="uiSelBg" type="color" class="form-control form-control-color mb-1" title="Color fondo elemento">
-        <input id="uiSelText" type="color" class="form-control form-control-color mb-1" title="Color texto elemento">
-        <button id="uiApplySel" class="btn btn-outline-primary btn-sm w-100">Aplicar al seleccionado</button>
-      </div>
-
-      <div class="mb-2">
         <label class="form-label small mb-1">Posición barra izquierda</label>
         <select id="uiSidebarPos" class="form-select form-select-sm">
           <option value="left">Izquierda</option>
@@ -1038,7 +1044,7 @@
         // Apply group background
         const savedGroupBg = localStorage.getItem('ui_group_bg') || '#ffffff';
         document.querySelector('.sidebar-scroll')?.style.setProperty('background', savedGroupBg, 'important');
-        // Apply group visibility
+        // Apply group visibility from localStorage (designer panel)
         try {
           const hiddenGroups = JSON.parse(localStorage.getItem('ui_hidden_groups') || '[]');
           hiddenGroups.forEach(function(key) {
@@ -1046,11 +1052,39 @@
             if (el) el.style.display = 'none';
           });
         } catch(e) {}
-      }
-          if (cfg.icon && iconEl) iconEl.textContent = cfg.icon;
-          if (cfg.bg) el.style.backgroundColor = cfg.bg;
-          if (cfg.color) el.style.color = cfg.color;
-        });
+        // Apply group/item visibility from server config
+        var cfg = window.__UI_NAV_CONFIG;
+        if (cfg && Array.isArray(cfg.groups)) {
+          cfg.groups.forEach(function(g) {
+            if (g.hidden) {
+              var el = document.querySelector('[data-group-key="' + g.key + '"]');
+              if (el) el.style.display = 'none';
+            }
+            if (Array.isArray(g.hiddenItems) && g.hiddenItems.length) {
+              var groupEl = document.querySelector('[data-group-key="' + g.key + '"]');
+              if (groupEl) {
+                groupEl.querySelectorAll('li[data-item-key]').forEach(function(li) {
+                  if (g.hiddenItems.indexOf(li.getAttribute('data-item-key')) !== -1) {
+                    li.style.display = 'none';
+                  }
+                });
+              }
+            }
+          });
+        }
+        // Apply local hidden items (from designer panel)
+        try {
+          var localHiddenItems = JSON.parse(localStorage.getItem('ui_hidden_items') || '{}');
+          Object.keys(localHiddenItems).forEach(function(gk) {
+            var items = localHiddenItems[gk];
+            if (Array.isArray(items)) {
+              items.forEach(function(ik) {
+                var li = document.querySelector('[data-group-key="' + gk + '"] li[data-item-key="' + ik + '"]');
+                if (li) li.style.display = 'none';
+              });
+            }
+          });
+        } catch(e) {}
       }
 
       function setSelected(el) {
@@ -1080,9 +1114,18 @@
             const key = groupEl.getAttribute('data-group-key');
             const label = (groupEl.querySelector('[data-group-label]') || {}).textContent || key;
             const icon = (groupEl.querySelector('[data-group-icon]') || {}).textContent || '•';
+            const hidden = groupEl.style.display === 'none';
             const items = [];
-            groupEl.querySelectorAll('.nav-submenu li[data-item-key]').forEach(li => items.push(li.getAttribute('data-item-key')));
-            groups.push({ key, label: label.trim(), icon: icon.trim(), items });
+            const hiddenItems = [];
+            groupEl.querySelectorAll('.nav-submenu li[data-item-key]').forEach(li => {
+              var itemKey = li.getAttribute('data-item-key');
+              items.push(itemKey);
+              if (li.style.display === 'none') hiddenItems.push(itemKey);
+            });
+            var g = { key, label: label.trim(), icon: icon.trim(), items };
+            if (hidden) g.hidden = true;
+            if (hiddenItems.length) g.hiddenItems = hiddenItems;
+            groups.push(g);
           });
         }
         return { groups };
@@ -1190,39 +1233,82 @@
       function renderGroupVisibility() {
         const container = document.getElementById('uiGroupVisibility');
         if (!container) return;
+        var cfg = window.__UI_NAV_CONFIG;
+        var serverHidden = {};
+        var serverHiddenItems = {};
+        if (cfg && Array.isArray(cfg.groups)) {
+          cfg.groups.forEach(function(g) {
+            if (g.hidden) serverHidden[g.key] = true;
+            if (Array.isArray(g.hiddenItems)) serverHiddenItems[g.key] = g.hiddenItems;
+          });
+        }
         const hidden = (function() { try { return JSON.parse(localStorage.getItem('ui_hidden_groups') || '[]'); } catch(e) { return []; } })();
+        const hiddenItems = (function() { try { return JSON.parse(localStorage.getItem('ui_hidden_items') || '{}'); } catch(e) { return {}; } })();
         container.innerHTML = '';
         document.querySelectorAll('.nav-group[data-group-key]').forEach(function(group) {
           const key = group.getAttribute('data-group-key');
           const label = (group.querySelector('[data-group-label]') || {}).textContent || key;
-          const isHidden = hidden.indexOf(key) !== -1;
+          const isHidden = hidden.indexOf(key) !== -1 || serverHidden[key];
+          var serverHiddenForKey = serverHiddenItems[key] || [];
+          
+          const wrapper = document.createElement('div');
+          wrapper.className = 'w-100 mb-1';
+          
+          // Group toggle button
           const btn = document.createElement('button');
           btn.type = 'button';
-          btn.className = 'btn btn-sm ' + (isHidden ? 'btn-outline-danger' : 'btn-outline-success');
-          btn.innerHTML = (isHidden ? '<i class="bi bi-eye-slash"></i> ' : '<i class="bi bi-eye"></i> ') + label;
+          btn.className = 'btn btn-sm w-100 text-start ' + (isHidden ? 'btn-outline-danger' : 'btn-outline-success');
+          btn.innerHTML = (isHidden ? '<i class="bi bi-eye-slash"></i> ' : '<i class="bi bi-eye"></i> ') + '<strong>' + label + '</strong>';
           btn.addEventListener('click', function() {
             let h = (function() { try { return JSON.parse(localStorage.getItem('ui_hidden_groups') || '[]'); } catch(e) { return []; } })();
             const idx = h.indexOf(key);
             if (idx !== -1) { h.splice(idx, 1); } else { h.push(key); }
             localStorage.setItem('ui_hidden_groups', JSON.stringify(h));
             renderGroupVisibility();
-            // Apply immediately
-            if (idx !== -1) {
-              group.style.display = '';
-            } else {
-              group.style.display = 'none';
-            }
+            if (idx !== -1) { group.style.display = ''; } else { group.style.display = 'none'; }
           });
-          container.appendChild(btn);
+          wrapper.appendChild(btn);
+          
+          // Item toggles within this group
+          if (!isHidden) {
+            var itemDiv = document.createElement('div');
+            itemDiv.className = 'd-flex flex-wrap gap-1 mt-1 ms-2';
+            group.querySelectorAll('.nav-submenu li[data-item-key]').forEach(function(li) {
+              var itemKey = li.getAttribute('data-item-key');
+              var itemLabel = (li.textContent || '').trim().substring(0, 20);
+              var itemHidden = (hiddenItems[key] && hiddenItems[key].indexOf(itemKey) !== -1) || serverHiddenForKey.indexOf(itemKey) !== -1;
+              var iBtn = document.createElement('button');
+              iBtn.type = 'button';
+              iBtn.className = 'btn btn-sm ' + (itemHidden ? 'btn-outline-secondary' : 'btn-outline-light');
+              iBtn.style.fontSize = '0.65rem';
+              iBtn.style.padding = '1px 6px';
+              iBtn.innerHTML = (itemHidden ? '<i class="bi bi-eye-slash"></i> ' : '<i class="bi bi-eye"></i> ') + itemLabel;
+              iBtn.addEventListener('click', function() {
+                let hi = (function() { try { return JSON.parse(localStorage.getItem('ui_hidden_items') || '{}'); } catch(e) { return {}; } })();
+                if (!hi[key]) hi[key] = [];
+                var idx2 = hi[key].indexOf(itemKey);
+                if (idx2 !== -1) { hi[key].splice(idx2, 1); } else { hi[key].push(itemKey); }
+                if (!hi[key].length) delete hi[key];
+                localStorage.setItem('ui_hidden_items', JSON.stringify(hi));
+                renderGroupVisibility();
+                if (idx2 !== -1) { li.style.display = ''; } else { li.style.display = 'none'; }
+              });
+              itemDiv.appendChild(iBtn);
+            });
+            wrapper.appendChild(itemDiv);
+          }
+          
+          container.appendChild(wrapper);
         });
-        // Add Restore button
         const restoreBtn = document.createElement('button');
         restoreBtn.type = 'button';
-        restoreBtn.className = 'btn btn-sm btn-outline-warning ms-1';
-        restoreBtn.innerHTML = '<i class="bi bi-arrow-counterclockwise"></i> Restaurar';
+        restoreBtn.className = 'btn btn-sm btn-outline-warning mt-1';
+        restoreBtn.innerHTML = '<i class="bi bi-arrow-counterclockwise"></i> Restaurar todo';
         restoreBtn.addEventListener('click', function() {
           localStorage.removeItem('ui_hidden_groups');
+          localStorage.removeItem('ui_hidden_items');
           document.querySelectorAll('.nav-group').forEach(function(g) { g.style.display = ''; });
+          document.querySelectorAll('.nav-submenu li').forEach(function(li) { li.style.display = ''; });
           renderGroupVisibility();
         });
         container.appendChild(restoreBtn);

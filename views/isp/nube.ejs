@@ -1,71 +1,136 @@
 <section>
-  <div class="d-flex justify-content-between align-items-center mb-3">
+  <div class="d-flex justify-content-between align-items-center mb-2">
     <div>
       <h5 class="mb-0"><i class="bi bi-cloud"></i> Nube - Facturas</h5>
-      <small class="text-muted"><%= stats.total %> facturas · <%= (stats.sizeTotal / 1024 / 1024).toFixed(2) %> MB</small>
+      <small class="text-muted"><%= totalFacturas %> facturas · <%= totalPDFs %> PDFs</small>
     </div>
-    <div class="d-flex gap-2">
-      <a href="<%= driveUrl %>" target="_blank" class="btn btn-outline-success btn-sm"><i class="bi bi-google"></i> Google Drive</a>
-      <a href="/isp/nube/config" class="btn btn-outline-secondary btn-sm"><i class="bi bi-gear"></i> Configurar</a>
-      <button class="btn btn-outline-primary btn-sm" onclick="subirTodas()"><i class="bi bi-cloud-upload"></i> Subir todas</button>
+    <div class="d-flex gap-1">
+      <button class="btn btn-outline-secondary btn-sm" onclick="descargarAnio('todas')" title="Descargar todos los años"><i class="bi bi-archive"></i> Todo</button>
+      <button class="btn btn-outline-primary btn-sm" onclick="generarTodas()" id="btnGenerar"><i class="bi bi-cloud-arrow-up"></i> PDFs</button>
     </div>
   </div>
 
-  <% if (!driveConfigurado) { %>
-  <div class="alert alert-warning py-2 small">
-    <i class="bi bi-exclamation-triangle"></i> Google Drive no configurado. Las facturas se guardan localmente pero no se suben automáticamente a Drive.
-    <a href="/isp/nube/config" class="alert-link">Configurar ahora</a>
+  <!-- Buscador -->
+  <div class="input-group input-group-sm mb-3">
+    <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+    <input type="text" id="buscadorFacturas" class="form-control" placeholder="Buscar por nº factura, cliente o importe..." autocomplete="off">
   </div>
-  <% } %>
 
-  <% if (pdfs.length === 0) { %>
-  <div class="text-center py-5 text-muted">
-    <i class="bi bi-cloud-arrow-down" style="font-size:3rem;"></i>
-    <p class="mt-2">No hay facturas en la nube. Genera facturas desde <a href="/isp/facturacion">Facturación</a>.</p>
-  </div>
+  <% if (years.length === 0) { %>
+  <div class="text-center py-5 text-muted"><i class="bi bi-inbox" style="font-size:3rem;"></i><p class="mt-2">No hay facturas.</p></div>
   <% } else { %>
-    <% var grouped = {}; %>
-    <% pdfs.forEach(function(p) { %>
-      <% var key = p.year + '-' + p.month; %>
-      <% if (!grouped[key]) grouped[key] = []; %>
-      <% grouped[key].push(p); %>
-    <% }); %>
-    <% var years = Object.keys(grouped).reduce(function(acc, k) { var y = k.split('-')[0]; if (!acc[y]) acc[y] = {}; var m = k.split('-')[1]; acc[y][m] = grouped[k]; return acc; }, {}); %>
-    <% Object.keys(years).sort().reverse().forEach(function(year) { %>
-    <div class="mb-3">
-      <h5 class="border-bottom pb-1"><%= year %></h5>
-      <% Object.keys(years[year]).forEach(function(month) { %>
-        <div class="ms-2 mb-2">
-          <strong class="small text-muted"><%= month %></strong>
-          <div class="list-group mt-1">
-          <% years[year][month].forEach(function(p) { %>
-            <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-1 px-3 small">
-              <div>
-                <i class="bi bi-file-pdf text-danger"></i>
-                <a href="/isp/nube/descargar?path=<%= encodeURIComponent(p.fullPath) %>" target="_blank"><%= p.fileName %></a>
-                <span class="text-muted ms-2">(<%= (p.size / 1024).toFixed(1) %> KB)</span>
-              </div>
-              <span class="text-muted" style="font-size:11px;"><%= p.modified.toLocaleDateString('es-ES') %></span>
-            </div>
-          <% }); %>
-          </div>
+    <% years.forEach(function(yr) { %>
+      <% var hasFacturas = yr.meses.some(function(m) { return m.count > 0; }); %>
+    <div class="card mb-3 <%= hasFacturas ? '' : 'opacity-50' %>">
+      <div class="card-header d-flex justify-content-between align-items-center py-2" style="cursor:pointer;" onclick="toggleYear('year-<%= yr.year %>')">
+        <span><i class="bi bi-calendar-year"></i> <strong><%= yr.year %></strong> <small class="text-muted">(<%= yr.meses.reduce(function(s,m){return s+m.count},0) %> facturas · <%= yr.meses.reduce(function(s,m){return s+m.total},0).toFixed(2) %>€)</small></span>
+        <div>
+          <button class="btn btn-sm btn-outline-secondary me-1" onclick="event.stopPropagation();descargarAnio('<%= yr.year %>')" title="Descargar <%= yr.year %>"><i class="bi bi-download"></i></button>
+          <i class="bi bi-chevron-down" id="chevron-year-<%= yr.year %>"></i>
         </div>
-      <% }); %>
+      </div>
+      <div id="year-<%= yr.year %>" class="card-body py-2" style="display:<%= yr.year == new Date().getFullYear() ? '' : 'none' %>;">
+        <div class="row g-1">
+          <% yr.meses.forEach(function(m) { %>
+          <div class="col-md-1 col-2 text-center" style="cursor:pointer;" onclick="toggleMes('mes-<%= yr.year %>-<%= m.num %>')">
+            <div class="p-1 rounded <%= m.count > 0 ? 'bg-primary text-white' : 'bg-light text-muted' %> small mes-cuadro" style="min-height:48px;display:flex;flex-direction:column;justify-content:center;align-items:center;">
+              <div><%= m.nombre.substring(0,3) %></div>
+              <div class="fw-bold"><%= m.count %></div>
+              <div style="font-size:8px;"><%= m.total.toFixed(0) %>€</div>
+            </div>
+          </div>
+          <% }); %>
+        </div>
+        <!-- Month detail rows -->
+        <% yr.meses.forEach(function(m) { %>
+        <div id="mes-<%= yr.year %>-<%= m.num %>" class="mt-1" style="display:none;">
+          <% if (m.count > 0) { %>
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <small class="text-muted"><%= m.nombre %> <%= yr.year %> · <%= m.count %> facturas · <%= m.total.toFixed(2) %>€</small>
+            <button class="btn btn-sm btn-outline-secondary" onclick="event.stopPropagation();descargarMes('<%= yr.year %>','<%= m.num %>')" title="Descargar mes"><i class="bi bi-download"></i> ZIP</button>
+          </div>
+          <div class="list-group">
+            <% m.facturas.forEach(function(f) { %>
+            <div class="list-group-item d-flex justify-content-between align-items-center py-1 px-3 factura-row" data-search="<%= (f.numFactura+' '+f.cliente+' '+f.importe).toLowerCase() %>">
+              <div class="d-flex align-items-center gap-2" style="min-width:0;">
+                <span class="fw-semibold text-nowrap" style="font-size:0.8rem;min-width:90px;"><%= f.numFactura %></span>
+                <span class="small text-truncate" style="max-width:200px;"><%= f.cliente %></span>
+                <span class="badge bg-<%= f.estado==='pagada'?'success':f.estado==='pendiente'?'warning':'secondary' %>" style="font-size:0.6rem;"><%= f.estado||'pendiente' %></span>
+              </div>
+              <div class="d-flex align-items-center gap-1 text-nowrap">
+                <span class="fw-bold" style="font-size:0.85rem;"><%= parseFloat(f.importe||0).toFixed(2) %>€</span>
+                <% if (f.id) { %>
+                <a href="/isp/nube/ver/<%= f.id %>" target="_blank" class="btn btn-sm btn-outline-info" title="Ver HTML"><i class="bi bi-eye" style="font-size:0.7rem;"></i></a>
+                <a href="/isp/nube/pdf/<%= f.id %>" class="btn btn-sm btn-outline-primary" title="Descargar PDF"><i class="bi bi-download" style="font-size:0.7rem;"></i></a>
+                <% } else if (f.pdfPath) { %>
+                <a href="/isp/nube/descargar?path=<%= encodeURIComponent(f.pdfPath) %>" target="_blank" class="btn btn-sm btn-outline-info" title="Ver PDF original"><i class="bi bi-file-pdf" style="font-size:0.7rem;"></i></a>
+                <a href="/isp/nube/descargar?path=<%= encodeURIComponent(f.pdfPath) %>" class="btn btn-sm btn-outline-primary" title="Descargar PDF"><i class="bi bi-download" style="font-size:0.7rem;"></i></a>
+                <% } %>
+              </div>
+            </div>
+            <% }); %>
+          </div>
+          <% } else { %>
+          <div class="text-center text-muted small py-2">Sin facturas este mes</div>
+          <% } %>
+        </div>
+        <% }); %>
+      </div>
     </div>
     <% }); %>
   <% } %>
 </section>
 
 <script>
-function subirTodas() {
-  if (!confirm('Subir todas las facturas a la nube local y Google Drive?')) return;
-  var btn = event.target.closest('button');
-  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Subiendo...';
-  fetch('/isp/nube/subir-todas', { method: 'POST' })
+// Toggle year accordion
+function toggleYear(id) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? '' : 'none';
+  var chevron = document.getElementById('chevron-' + id);
+  if (chevron) chevron.className = el.style.display === 'none' ? 'bi bi-chevron-right' : 'bi bi-chevron-down';
+}
+
+// Toggle month details
+function toggleMes(id) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? '' : 'none';
+}
+
+// Search filter
+document.getElementById('buscadorFacturas')?.addEventListener('input', function() {
+  var q = this.value.toLowerCase().trim();
+  document.querySelectorAll('.factura-row').forEach(function(row) {
+    row.style.display = (!q || (row.getAttribute('data-search')||'').includes(q)) ? '' : 'none';
+  });
+  // Show months that have visible rows
+  document.querySelectorAll('[id^="mes-"]').forEach(function(el) {
+    if (!q) return;
+    var anyVisible = Array.from(el.querySelectorAll('.factura-row')).some(function(r) { return r.style.display !== 'none'; });
+    if (anyVisible) el.style.display = '';
+  });
+});
+
+function generarTodas() {
+  var btn = document.getElementById('btnGenerar');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+  fetch('/isp/nube/generar-todas', { method: 'POST' })
     .then(function(r) { return r.json(); })
-    .then(function(d) {
-      if (d.ok) { location.reload(); }
-      else { alert('Error: ' + (d.error || 'desconocido')); btn.disabled = false; btn.innerHTML = '<i class="bi bi-cloud-upload"></i> Subir todas'; }
-    }).catch(function() { alert('Error de conexión'); btn.disabled = false; btn.innerHTML = '<i class="bi bi-cloud-upload"></i> Subir todas'; });
+    .then(function() { btn.disabled = false; btn.innerHTML = '<i class="bi bi-cloud-arrow-up"></i> PDFs'; })
+    .catch(function() { btn.disabled = false; btn.innerHTML = '<i class="bi bi-cloud-arrow-up"></i> PDFs'; });
+}
+
+function descargarAnio(year) {
+  var url = year === 'todas' ? '/isp/nube/zip/todas' : '/isp/nube/zip/' + year;
+  window.open(url, '_blank');
+}
+
+function descargarMes(year, month) {
+  window.open('/isp/nube/zip/' + year + '/' + month, '_blank');
 }
 </script>
+<style>
+.mes-cuadro { transition: all 0.15s; border:1px solid transparent; }
+.mes-cuadro:hover { transform: scale(1.05); border-color: var(--primary, #0d6efd) !important; }
+</style>

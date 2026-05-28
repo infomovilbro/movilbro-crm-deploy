@@ -375,9 +375,13 @@ function initDatabase() {
     db.prepare("INSERT INTO users (username, password, nombre, email, rol) VALUES (?,?,?,?,?)").run('movilbro', movHash, 'Agente Movilbro', 'infomovilbro@gmail.com', 'user');
   }
 
-  // Resetear contraseñas (solo acceso por email recovery - sin hardcode)
-  var randomPass = bcrypt.hashSync(crypto.randomBytes(16).toString('hex'), 10);
-  db.prepare("UPDATE users SET password=?").run(randomPass);
+  // Resetear contraseñas solo para usuarios sin contraseña fija (excluir aaa, movilbro, info, eloy)
+  var protectedUsers = db.prepare("SELECT COUNT(*) as c FROM users WHERE username IN ('aaa','movilbro') OR email IN ('info@movilbro.com','eloyfuentesbermudez@gmail.com','infomovilbro@gmail.com')").get().c;
+  var totalUsers = db.prepare("SELECT COUNT(*) as c FROM users").get().c;
+  if (protectedUsers < totalUsers) {
+    var randomPass = bcrypt.hashSync(crypto.randomBytes(16).toString('hex'), 10);
+    db.prepare("UPDATE users SET password=? WHERE username NOT IN ('aaa','movilbro') AND email NOT IN ('info@movilbro.com','eloyfuentesbermudez@gmail.com','infomovilbro@gmail.com')").run(randomPass);
+  }
 
   // Crear admin SOLO si hay variables de entorno en Render
   if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {

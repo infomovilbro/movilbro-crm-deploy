@@ -108,7 +108,7 @@
             </div>
 
             <h6 class="border-bottom pb-2 mb-3"><i class="bi bi-layout-sidebar"></i> Editor visual del menu</h6>
-            <p class="text-muted small">Arrastra grupos y elementos entre columnas. Puedes mover "Cobertura" a PostVenta o donde quieras.</p>
+            <p class="text-muted small">Arrastra grupos y elementos entre columnas. Usa los botones <span class="badge bg-success"><i class="bi bi-eye"></i></span>/<span class="badge bg-secondary"><i class="bi bi-eye-slash"></i></span> para mostrar/ocultar grupos o elementos individuales.</p>
             <div id="uiEditor" class="row g-3 mb-4"></div>
 
             <h6 class="border-bottom pb-2 mb-3"><i class="bi bi-grid-1x2"></i> Botones personalizados (barra superior)</h6>
@@ -408,32 +408,73 @@
     const col = document.createElement('div');
     col.className = 'col-md-6';
     col.dataset.group = group.key;
+    var gHidden = group.hidden ? true : false;
     col.innerHTML = `
-      <div class="card h-100">
+      <div class="card h-100 ${gHidden ? 'opacity-50' : ''}">
         <div class="card-header d-flex gap-2 align-items-center">
           <span class="drag-handle" style="cursor:grab">☰</span>
           <input class="form-control form-control-sm group-label" value="${group.label || ''}">
           <input class="form-control form-control-sm group-icon" value="${group.icon || ''}" style="max-width:90px" title="Emoji/Icono">
+          <button class="btn btn-sm ${gHidden ? 'btn-outline-secondary' : 'btn-outline-success'} toggle-group-vis" title="${gHidden ? 'Mostrar grupo' : 'Ocultar grupo'}"><i class="bi ${gHidden ? 'bi-eye-slash' : 'bi-eye'}"></i></button>
         </div>
         <div class="card-body p-2">
           <ul class="list-group item-list" style="min-height:120px"></ul>
         </div>
       </div>`;
     const ul = col.querySelector('.item-list');
+    var itemHiddenList = group.hiddenItems || [];
     (group.items || []).forEach(itemKey => {
+      var iHidden = itemHiddenList.indexOf(itemKey) !== -1;
       const li = document.createElement('li');
       li.className = 'list-group-item d-flex justify-content-between align-items-center py-1';
       li.dataset.itemKey = itemKey;
-      li.innerHTML = `<span>${labels[itemKey] || itemKey}</span><small class="text-muted">${itemKey}</small>`;
+      li.style.opacity = iHidden ? '0.4' : '1';
+      li.innerHTML = `<span>${labels[itemKey] || itemKey}</span>
+        <div><small class="text-muted me-2">${itemKey}</small>
+        <button class="btn btn-sm ${iHidden ? 'btn-outline-secondary' : 'btn-outline-success'} toggle-item-vis" title="${iHidden ? 'Mostrar' : 'Ocultar'}"><i class="bi ${iHidden ? 'bi-eye-slash' : 'bi-eye'}"></i></button></div>`;
       ul.appendChild(li);
     });
     groupsOrder.appendChild(col);
   });
 
-  Sortable.create(groupsOrder, { handle: '.drag-handle', animation: 120 });
+  // Visibility toggles for groups
+  document.querySelectorAll('.toggle-group-vis').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var card = this.closest('.card');
+      card.classList.toggle('opacity-50');
+      var hidden = card.classList.contains('opacity-50');
+      this.className = 'btn btn-sm ' + (hidden ? 'btn-outline-secondary' : 'btn-outline-success');
+      this.title = hidden ? 'Mostrar grupo' : 'Ocultar grupo';
+      this.innerHTML = '<i class="bi ' + (hidden ? 'bi-eye-slash' : 'bi-eye') + '"></i>';
+    });
+  });
+
+  // Visibility toggles for items
+  document.querySelectorAll('.toggle-item-vis').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var li = this.closest('li');
+      li.style.opacity = li.style.opacity === '0.4' ? '1' : '0.4';
+      var hidden = li.style.opacity === '0.4';
+      this.className = 'btn btn-sm ' + (hidden ? 'btn-outline-secondary' : 'btn-outline-success');
+      this.title = hidden ? 'Mostrar' : 'Ocultar';
+      this.innerHTML = '<i class="bi ' + (hidden ? 'bi-eye-slash' : 'bi-eye') + '"></i>';
+    });
+  });
+
+  Sortable.create(groupsOrder, {
+    handle: '.drag-handle',
+    animation: 120,
+    onEnd: function() { reindexGroups(); }
+  });
   groupsOrder.querySelectorAll('.item-list').forEach(ul => {
     Sortable.create(ul, { group: 'menu-items', animation: 120 });
   });
+
+  function reindexGroups() {
+    groupsOrder.querySelectorAll('[data-group]').forEach(function(col, idx) {
+      col.className = 'col-md-6';
+    });
+  }
 
   let customButtons;
   try { customButtons = JSON.parse(document.getElementById('ui_custom_buttons').value || '[]'); } catch(e) { customButtons = []; }
@@ -477,9 +518,18 @@
       const key = col.dataset.group;
       const label = col.querySelector('.group-label').value.trim() || key;
       const icon = col.querySelector('.group-icon').value.trim() || '•';
+      const card = col.querySelector('.card');
+      const gHidden = card.classList.contains('opacity-50');
       const items = [];
-      col.querySelectorAll('.item-list li').forEach(li => items.push(li.dataset.itemKey));
-      groups.push({ key, label, icon, items });
+      const hiddenItems = [];
+      col.querySelectorAll('.item-list li').forEach(li => {
+        items.push(li.dataset.itemKey);
+        if (li.style.opacity === '0.4') hiddenItems.push(li.dataset.itemKey);
+      });
+      var groupObj = { key, label, icon, items };
+      if (gHidden) groupObj.hidden = true;
+      if (hiddenItems.length) groupObj.hiddenItems = hiddenItems;
+      groups.push(groupObj);
     });
     document.getElementById('ui_nav_config').value = JSON.stringify({ groups });
     document.getElementById('ui_custom_buttons').value = JSON.stringify(customButtons);
