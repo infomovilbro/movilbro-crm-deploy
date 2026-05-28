@@ -5,7 +5,7 @@ const { db } = require('../database');
 const agentesLogin = require('./agentes-login');
 const router = express.Router();
 
-// Agentes login routes (before agentes page)
+// Agentes login routes (submount)
 router.use('/agentes', agentesLogin.router);
 
 // ============================================================
