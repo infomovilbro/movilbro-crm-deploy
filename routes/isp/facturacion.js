@@ -200,22 +200,11 @@ router.post('/facturas/:id/stripe', async (req, res) => {
   }
 });
 
-// Enviar factura por email
+// Enviar factura por email (Mailjet + SMTP fallback)
 router.post('/facturas/:id/enviar', async (req, res) => {
   try {
     var factura = db.prepare('SELECT * FROM isp_facturas WHERE id=?').get(req.params.id);
     if (!factura) return res.status(404).json({ ok: false, error: 'No encontrada' });
-    
-    // Get SMTP config
-    var smtpHost = db.prepare("SELECT value FROM settings WHERE key='smtp_host'").get()?.value;
-    var smtpPort = db.prepare("SELECT value FROM settings WHERE key='smtp_port'").get()?.value;
-    var smtpUser = db.prepare("SELECT value FROM settings WHERE key='smtp_user'").get()?.value;
-    var smtpPass = db.prepare("SELECT value FROM settings WHERE key='smtp_pass'").get()?.value;
-    var emailFrom = db.prepare("SELECT value FROM settings WHERE key='email_from'").get()?.value;
-    
-    if (!smtpHost || !smtpUser || !smtpPass) {
-      return res.json({ ok: false, error: 'SMTP no configurado. Ve a Configuración > Email' });
-    }
     
     // Build email HTML
     var lineas = db.prepare('SELECT * FROM isp_facturas_lineas WHERE factura_id=?').all(req.params.id);
@@ -223,31 +212,67 @@ router.post('/facturas/:id/enviar', async (req, res) => {
       return '<tr><td>' + l.concepto + '</td><td>' + (l.linea || '-') + '</td><td>' + l.tipo + '</td><td class=\"text-end\">' + parseFloat(l.importe).toFixed(2) + '€</td></tr>';
     }).join('');
     
+    var totalCdr = factura.importe_cdrs > 0 ? '<tr><td colspan="2"><strong>CDRs / Excesos</strong></td><td>consumo</td><td class="text-end">' + parseFloat(factura.importe_cdrs).toFixed(2) + '€</td></tr>' : '';
+    
     var html = '<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">' +
       '<h2 style="color:#0050A1;">Factura #' + factura.id + '</h2>' +
       '<p><strong>Cliente:</strong> ' + factura.cliente_nombre + '</p>' +
-      '<p><strong>Periodo:</strong> ' + factura.periodo + '</p>' +
+      '<p><strong>Período:</strong> ' + factura.periodo + '</p>' +
       '<p><strong>Fecha emisión:</strong> ' + factura.fecha_emision + '</p>' +
       '<table style="width:100%;border-collapse:collapse;margin:20px 0;">' +
       '<tr style="background:#f0f0f0;"><th style="padding:8px;text-align:left;">Concepto</th><th style="padding:8px;text-align:left;">Línea</th><th style="padding:8px;text-align:left;">Tipo</th><th style="padding:8px;text-align:right;">Importe</th></tr>' +
       lineasHtml +
+      totalCdr +
       '<tr style="font-weight:bold;border-top:2px solid #333;"><td colspan="3" style="padding:8px;text-align:right;">Total:</td><td style="padding:8px;text-align:right;">' + parseFloat(factura.importe_total).toFixed(2) + '€</td></tr>' +
       '</table>' +
       '<p style="color:#666;font-size:12px;">Este email se ha generado automáticamente. No respondas a este mensaje.</p>' +
       '</div>';
     
-    var nodemailer = require('nodemailer');
-    var transporter = nodemailer.createTransport({
-      host: smtpHost, port: parseInt(smtpPort || 587),
-      secure: parseInt(smtpPort || 587) === 465,
-      auth: { user: smtpUser, pass: smtpPass }
-    });
+    var toEmail = req.body.to || factura.cliente_email;
+    var subject = 'Factura #' + factura.id + ' - Movilbro';
     
-    await transporter.sendMail({
-      from: emailFrom || smtpUser, to: factura.cliente_email,
-      subject: 'Factura #' + factura.id + ' - Movilbro',
-      html: html
-    });
+    // Try Mailjet first (from env vars)
+    var sent = false;
+    if (process.env.MAILJET_API_KEY && process.env.MAILJET_SECRET_KEY) {
+      try {
+        var axios = require('axios');
+        await axios.post('https://api.mailjet.com/v3.1/send', {
+          Messages: [{
+            From: { Email: 'infomovilbro@gmail.com', Name: 'CRM Movilbro' },
+            To: [{ Email: toEmail, Name: factura.cliente_nombre }],
+            Subject: subject,
+            HTMLPart: html
+          }]
+        }, {
+          auth: { username: process.env.MAILJET_API_KEY, password: process.env.MAILJET_SECRET_KEY },
+          timeout: 15000
+        });
+        sent = true;
+      } catch(e) { console.error('Mailjet error:', e.response?.data || e.message); }
+    }
+    
+    // Fallback: try SMTP from DB settings
+    if (!sent) {
+      var smtpHost = db.prepare("SELECT value FROM settings WHERE key='smtp_host'").get()?.value;
+      var smtpUser = db.prepare("SELECT value FROM settings WHERE key='smtp_user'").get()?.value;
+      var smtpPass = db.prepare("SELECT value FROM settings WHERE key='smtp_pass'").get()?.value;
+      if (smtpHost && smtpUser && smtpPass) {
+        var nodemailer = require('nodemailer');
+        var transporter = nodemailer.createTransport({
+          host: smtpHost, port: 587, secure: false,
+          auth: { user: smtpUser, pass: smtpPass }
+        });
+        await transporter.sendMail({
+          from: db.prepare("SELECT value FROM settings WHERE key='email_from'").get()?.value || smtpUser,
+          to: toEmail, subject: subject, html: html
+        });
+        sent = true;
+      }
+    }
+    
+    if (!sent) {
+      return res.json({ ok: false, error: 'No hay método de envío configurado (Mailjet ni SMTP)' });
+    }
     
     db.prepare('UPDATE isp_facturas SET email_enviado=1 WHERE id=?').run(factura.id);
     res.json({ ok: true });
