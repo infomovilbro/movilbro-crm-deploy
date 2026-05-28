@@ -180,6 +180,14 @@ router.post('/smtp', requireAuth, (req, res) => {
   res.redirect('/configuracion?success=SMTP configurado');
 });
 
+router.post('/gmail', requireAuth, (req, res) => {
+  saveFields({
+    gmail_user: req.body.gmail_user,
+    gmail_pass: req.body.gmail_pass
+  });
+  res.redirect('/configuracion?success=Gmail configurado');
+});
+
 router.post('/usuario/nuevo', requireAuth, (req, res) => {
   const { username, password, nombre, email, rol } = req.body;
   const hash = bcrypt.hashSync(password, 10);

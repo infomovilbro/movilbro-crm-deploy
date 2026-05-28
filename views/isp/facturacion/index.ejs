@@ -54,7 +54,10 @@
     </div>
   </div>
 
-  <div class="d-flex justify-content-end mb-3">
+  <div class="d-flex justify-content-end gap-2 mb-3">
+    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalFacturaManual">
+      <i class="bi bi-plus-circle"></i> Factura Manual
+    </button>
     <button class="btn btn-primary" id="btnGenerarFacturas">
       <i class="bi bi-file-earmark-plus"></i> Generar Facturas del Mes
     </button>
@@ -84,7 +87,7 @@
             <tr><td colspan="7" class="text-center text-muted py-4"><i class="bi bi-inbox"></i> No hay facturas</td></tr>
             <% } else { facturas.forEach(function(f) { %>
             <tr>
-              <td class="fw-bold">#<%= f.id %></td>
+              <td class="fw-bold"><%= (f.serie || 'F') + '-' + String(f.numero_factura || f.id).padStart(5, '0') %></td>
               <td><%= f.cliente_nombre || '-' %></td>
               <td><%= f.periodo || '-' %></td>
               <td class="fw-bold"><%= parseFloat(f.importe_total || 0).toFixed(2) %>€</td>
@@ -109,6 +112,64 @@
     </div>
   </div>
 </section>
+
+<!-- Modal Factura Manual -->
+<div class="modal fade" id="modalFacturaManual" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-plus-circle"></i> Crear Factura Manual</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formFacturaManual">
+          <div class="mb-2">
+            <label class="form-label">Serie</label>
+            <select class="form-select" name="serie">
+              <option value="F">F - Factura</option>
+              <option value="R">R - Recibo</option>
+              <option value="A">A - Abono</option>
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Cliente *</label>
+            <input type="text" class="form-control" name="cliente_nombre" required>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-control" name="cliente_email">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">NIF/CIF</label>
+            <input type="text" class="form-control" name="fiscal_id">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Período</label>
+            <input type="month" class="form-control" name="periodo" value="<%= new Date().toISOString().split('T')[0].substring(0,7) %>">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Concepto</label>
+            <input type="text" class="form-control" name="concepto" value="Cuota servicio mensual">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Línea (opcional)</label>
+            <input type="text" class="form-control" name="linea">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Importe (€) *</label>
+            <input type="number" step="0.01" class="form-control" name="importe" required>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btnGuardarFacturaManual"><i class="bi bi-save"></i> Crear Factura</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>document.addEventListener('DOMContentLoaded',function(){document.getElementById('btnGuardarFacturaManual')?.addEventListener('click',function(){var btn=this;btn.disabled=true;btn.innerHTML='<span class="spinner-border spinner-border-sm"></span> Creando...';var form=document.getElementById('formFacturaManual');var data={};new FormData(form).forEach(function(v,k){data[k]=v;});fetch('/isp/facturacion/facturas/manual',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(function(r){return r.json();}).then(function(d){if(d.ok){alert('Factura '+d.numero+' creada correctamente');location.reload();}else{alert('Error: '+(d.error||'desconocido'));btn.disabled=false;btn.innerHTML='<i class="bi bi-save"></i> Crear Factura';}}).catch(function(){alert('Error de conexión');btn.disabled=false;btn.innerHTML='<i class="bi bi-save"></i> Crear Factura';});});});</script>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {

@@ -1,25 +1,35 @@
-# Sensible data
-.env
-.env.production
-*.db
-*.db-shm
-*.db-wal
-*.sqlite
-*.sqlite3
-*.log
+# CDP scripts
+cdp_*.js
+pw_template.js
 
-# Dependencies
+# Downloaded files
+isp_*.html
+isp_*.pdf
+isp_*.txt
+*.csv
+
+# Generated files
+test_invoice_output.html
+nube/
+
+# Scripts
+parse_pdf*.js
+extract_*.js
+decode_*.js
+download_*.js
+fetch_*.js
+find_*.js
+check_*.js
+generate_*.js
+resend_email.js
+read_edge_cookies.js
+analyze_*.js
+
+# DB
+movilbro.db
+
+# Temp
 node_modules/
 
-# OS
-.DS_Store
-Thumbs.db
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-cookies.txt
-
-# Render deploy hook (contains API key).opencode/render-hook.txt
+# Summary
+ANCHORED_SUMMARY.md

@@ -2,6 +2,8 @@ const express = require('express');
 const { requireAuth } = require('../../middleware/auth');
 const { db } = require('../../database');
 const LikesAPI = require('../../likes-api');
+const { getNextNumeroFactura, formatNumeroFactura } = require('../../facturacion_helper');
+const nube = require('../../helpers/nube');
 const router = express.Router();
 
 router.use(requireAuth);
@@ -37,7 +39,6 @@ router.post('/generar', async (req, res) => {
     var allProducts = [];
     try { allProducts = await api.getProducts(); } catch(e) {}
     
-    // Build product price map once
     var productPriceMap = {};
     for (var ap of (Array.isArray(allProducts) ? allProducts : [])) {
       var pid = String(ap.productId || ap.id || '');
@@ -47,8 +48,8 @@ router.post('/generar', async (req, res) => {
     var cuentasGeneradas = 0, errores = 0;
     var periodo = new Date().toISOString().split('T')[0].substring(0, 7);
     var fechaEmision = new Date().toISOString().split('T')[0];
-
-    // Auto-descargar CDRs desde Likes Telecom (si hay Edge abierto)
+    
+    // Auto-descargar CDRs desde Likes Telecom
     try {
       var cdrModule = require('./cdr-download');
       var cdrResult = await cdrModule.downloadLatestCDRs();
@@ -58,7 +59,6 @@ router.post('/generar', async (req, res) => {
       }
     } catch(e) { console.error('CDR download error:', e.message); }
     
-    // Batch: Get subscriptions for ALL customers in parallel
     var fiscalIds = (Array.isArray(customers) ? customers : []).map(function(c) { return c.fiscalId; }).filter(Boolean);
     var batchSize = 20;
     var allSubsData = [];
@@ -76,7 +76,6 @@ router.post('/generar', async (req, res) => {
       });
     }
     
-    // Process each customer
     for (var sd of allSubsData) {
       try {
         var fiscalId = sd.fiscalId;
@@ -88,7 +87,6 @@ router.post('/generar', async (req, res) => {
         var nombre = c.name + ' ' + (c.firstSurname || '');
         var email = c.email || '';
         
-        // Calculate base price
         var importeBase = 0;
         var productos = [];
         for (var s of subs) {
@@ -104,7 +102,6 @@ router.post('/generar', async (req, res) => {
         }
         if (importeBase === 0) continue;
         
-        // Check payment status
         var metodoPago = 'stripe';
         var pagoActivo = 1;
         var mp = db.prepare("SELECT value FROM settings WHERE key='metodo_pago_" + fiscalId + "'").get();
@@ -113,7 +110,6 @@ router.post('/generar', async (req, res) => {
         if (pa) pagoActivo = parseInt(pa.value);
         if (!pagoActivo) continue;
         
-        // Include CDRs (excesos) for this customer's period
         var importeCdrs = 0;
         var cdrsPeriodo = db.prepare('SELECT * FROM isp_cdrs WHERE fiscal_id=? AND (periodo=? OR periodo IS NULL OR periodo=\'\') AND factura_id IS NULL').all(fiscalId, periodo);
         for (var cdr of cdrsPeriodo) {
@@ -122,13 +118,16 @@ router.post('/generar', async (req, res) => {
         var importeTotal = Math.round((importeBase + importeCdrs) * 100) / 100;
         if (importeTotal <= 0) continue;
         
-        // Create local invoice
-        var inv = db.prepare('INSERT INTO isp_facturas (cliente_nombre, cliente_email, fiscal_id, periodo, fecha_emision, importe_base, importe_cdrs, importe_total, metodo_pago) VALUES (?,?,?,?,?,?,?,?,?)').run(nombre, email, fiscalId, periodo, fechaEmision, importeBase, importeCdrs, importeTotal, metodoPago);
+        var fechaVenc = new Date();
+        fechaVenc.setDate(fechaVenc.getDate() + 28);
+        var fechaVencStr = fechaVenc.toISOString().split('T')[0];
+        
+        var numbering = getNextNumeroFactura('F');
+        var inv = db.prepare('INSERT INTO isp_facturas (cliente_nombre, cliente_email, fiscal_id, periodo, fecha_emision, fecha_vencimiento, importe_base, importe_cdrs, importe_total, metodo_pago, serie, numero_factura) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)').run(nombre, email, fiscalId, periodo, fechaEmision, fechaVencStr, importeBase, importeCdrs, importeTotal, metodoPago, numbering.serie, numbering.numero);
         var facturaId = inv.lastInsertRowid;
         for (var prod of productos) {
           db.prepare('INSERT INTO isp_facturas_lineas (factura_id, concepto, tipo, importe, linea) VALUES (?,?,?,?,?)').run(facturaId, prod.nombre, 'cuota', prod.precio, prod.linea);
         }
-        // Add CDR lines and mark them as used
         for (var cdr of cdrsPeriodo) {
           var cdrDesc = cdr.concepto + (cdr.linea ? ' (' + cdr.linea + ')' : '') + (cdr.unidades ? ' - ' + cdr.unidades + ' ' + (cdr.tipo === 'exceso' ? 'GB' : 'min') : '');
           db.prepare('INSERT INTO isp_facturas_lineas (factura_id, concepto, tipo, importe, linea) VALUES (?,?,?,?,?)').run(facturaId, cdrDesc, 'cdr', cdr.importe, cdr.linea);
@@ -139,9 +138,48 @@ router.post('/generar', async (req, res) => {
       } catch(e) { errores++; }
     }
     
+    // Guardar PDFs en la nube local + Google Drive
+    try {
+      var facturasNuevas = db.prepare('SELECT * FROM isp_facturas WHERE periodo=? ORDER BY id DESC').all(periodo);
+      for (var fn of facturasNuevas) {
+        try {
+          var lineas = db.prepare('SELECT * FROM isp_facturas_lineas WHERE factura_id=?').all(fn.id);
+          var cdrsDetalle = db.prepare('SELECT * FROM isp_cdrs WHERE factura_id=?').all(fn.id);
+          var result = await nube.procesarFactura(fn, lineas, cdrsDetalle);
+          console.log('PDF guardado en nube:', result.nombreArchivo, '- Drive:', result.drive.ok ? 'OK' : 'No configurado');
+        } catch(e2) {
+          console.error('Error guardando PDF factura ' + fn.id + ':', e2.message);
+        }
+      }
+    } catch(e2) {
+      console.error('Error en proceso nube:', e2.message);
+    }
+    
     res.json({ ok: true, generadas: cuentasGeneradas, errores: errores, periodo: periodo });
   } catch(e) {
     console.error(e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Crear factura manual
+router.post('/facturas/manual', (req, res) => {
+  try {
+    var { cliente_nombre, cliente_email, fiscal_id, periodo, concepto, importe, linea, serie } = req.body;
+    if (!cliente_nombre || !importe) return res.json({ ok: false, error: 'Nombre e importe requeridos' });
+
+    var s = serie || 'F';
+    var fe = new Date().toISOString().split('T')[0];
+    var fv = new Date(); fv.setDate(fv.getDate() + 28);
+    var fvStr = fv.toISOString().split('T')[0];
+    var per = periodo || fe.substring(0, 7);
+
+    var numbering = getNextNumeroFactura(s);
+    var inv = db.prepare('INSERT INTO isp_facturas (cliente_nombre, cliente_email, fiscal_id, periodo, fecha_emision, fecha_vencimiento, importe_base, importe_cdrs, importe_total, metodo_pago, serie, numero_factura) VALUES (?,?,?,?,?,?,?,0,?,?,?,?)').run(cliente_nombre, cliente_email || '', fiscal_id || '', per, fe, fvStr, parseFloat(importe), parseFloat(importe), 'manual', numbering.serie, numbering.numero);
+    var fid = inv.lastInsertRowid;
+    db.prepare('INSERT INTO isp_facturas_lineas (factura_id, concepto, tipo, importe, linea) VALUES (?,?,?,?,?)').run(fid, concepto || 'Cuota servicio', 'cuota', parseFloat(importe), linea || '');
+    res.json({ ok: true, id: fid, numero: numbering.full });
+  } catch(e) {
     res.status(500).json({ ok: false, error: e.message });
   }
 });
@@ -150,7 +188,42 @@ router.post('/generar', async (req, res) => {
 router.get('/facturas', (req, res) => {
   try {
     var facturas = db.prepare('SELECT * FROM isp_facturas ORDER BY fecha_emision DESC, created_at DESC').all();
-    res.render('isp/facturacion/facturas', { title: 'Facturas', facturas });
+    
+    // Group by month/year
+    var meses = {};
+    facturas.forEach(function(f) {
+      var key = f.periodo || (f.fecha_emision ? f.fecha_emision.substring(0, 7) : 'desconocido');
+      if (!meses[key]) meses[key] = [];
+      meses[key].push(f);
+    });
+    var mesesArray = Object.keys(meses).sort().reverse().map(function(m) {
+      return { mes: m, facturas: meses[m] };
+    });
+    
+    res.render('isp/facturacion/facturas', { title: 'Facturas', facturas, meses: mesesArray });
+  } catch(e) { res.status(500).send('Error: ' + e.message); }
+});
+
+// Ver factura como HTML profesional (para impresión/visualización)
+router.get('/facturas/:id/view', (req, res) => {
+  try {
+    var factura = db.prepare('SELECT * FROM isp_facturas WHERE id=?').get(req.params.id);
+    if (!factura) return res.status(404).send('No encontrada');
+    var lineas = db.prepare('SELECT * FROM isp_facturas_lineas WHERE factura_id=?').all(req.params.id);
+    
+    // Get CDR details for this invoice
+    var cdrsDetalle = db.prepare('SELECT * FROM isp_cdrs WHERE factura_id=?').all(req.params.id);
+    var llamadas = [];
+    try { llamadas = db.prepare('SELECT * FROM isp_llamadas WHERE factura_id=? ORDER BY fecha, hora').all(req.params.id); } catch(e) {}
+    
+    res.render('isp/facturacion/invoice-html', {
+      title: 'Factura #' + factura.id,
+      factura,
+      lineas,
+      cdrsDetalle,
+      llamadas,
+      layout: false
+    });
   } catch(e) { res.status(500).send('Error: ' + e.message); }
 });
 
@@ -177,7 +250,6 @@ router.post('/facturas/:id/stripe', async (req, res) => {
     var stripe = require('stripe')(stripeKey);
     var lineas = db.prepare('SELECT * FROM isp_facturas_lineas WHERE factura_id=?').all(req.params.id);
     
-    // Find or create Stripe customer
     var sid = db.prepare("SELECT value FROM settings WHERE key='stripe_customer_" + factura.fiscal_id + "'").get();
     var scid = sid ? sid.value : null;
     if (!scid) {
@@ -200,82 +272,97 @@ router.post('/facturas/:id/stripe', async (req, res) => {
   }
 });
 
-// Enviar factura por email (Mailjet + SMTP fallback)
+// Enviar factura por email vía Gmail SMTP
 router.post('/facturas/:id/enviar', async (req, res) => {
   try {
     var factura = db.prepare('SELECT * FROM isp_facturas WHERE id=?').get(req.params.id);
     if (!factura) return res.status(404).json({ ok: false, error: 'No encontrada' });
     
-    // Build email HTML
     var lineas = db.prepare('SELECT * FROM isp_facturas_lineas WHERE factura_id=?').all(req.params.id);
-    var lineasHtml = lineas.map(function(l) {
-      return '<tr><td>' + l.concepto + '</td><td>' + (l.linea || '-') + '</td><td>' + l.tipo + '</td><td class=\"text-end\">' + parseFloat(l.importe).toFixed(2) + '€</td></tr>';
-    }).join('');
+    var cdrsDetalle = db.prepare('SELECT * FROM isp_cdrs WHERE factura_id=?').all(req.params.id);
     
-    var totalCdr = factura.importe_cdrs > 0 ? '<tr><td colspan="2"><strong>CDRs / Excesos</strong></td><td>consumo</td><td class="text-end">' + parseFloat(factura.importe_cdrs).toFixed(2) + '€</td></tr>' : '';
-    
-    var html = '<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">' +
-      '<h2 style="color:#0050A1;">Factura #' + factura.id + '</h2>' +
-      '<p><strong>Cliente:</strong> ' + factura.cliente_nombre + '</p>' +
-      '<p><strong>Período:</strong> ' + factura.periodo + '</p>' +
-      '<p><strong>Fecha emisión:</strong> ' + factura.fecha_emision + '</p>' +
-      '<table style="width:100%;border-collapse:collapse;margin:20px 0;">' +
-      '<tr style="background:#f0f0f0;"><th style="padding:8px;text-align:left;">Concepto</th><th style="padding:8px;text-align:left;">Línea</th><th style="padding:8px;text-align:left;">Tipo</th><th style="padding:8px;text-align:right;">Importe</th></tr>' +
-      lineasHtml +
-      totalCdr +
-      '<tr style="font-weight:bold;border-top:2px solid #333;"><td colspan="3" style="padding:8px;text-align:right;">Total:</td><td style="padding:8px;text-align:right;">' + parseFloat(factura.importe_total).toFixed(2) + '€</td></tr>' +
-      '</table>' +
-      '<p style="color:#666;font-size:12px;">Este email se ha generado automáticamente. No respondas a este mensaje.</p>' +
-      '</div>';
+    var numFactura = (factura.serie || 'F') + '-' + String(factura.numero_factura || factura.id).padStart(5, '0');
+    var fs = require('fs');
+    var ejs = require('ejs');
+    var path = require('path');
+    var tpl = fs.readFileSync(path.join(__dirname, '..', '..', 'views', 'isp', 'facturacion', 'invoice-html.ejs'), 'utf8');
+    var html = ejs.render(tpl, { factura, lineas, cdrsDetalle, layout: false });
     
     var toEmail = req.body.to || factura.cliente_email;
-    var subject = 'Factura #' + factura.id + ' - Movilbro';
+    var subject = 'Factura ' + numFactura + ' - Movilbro - ' + factura.periodo;
     
-    // Try Mailjet first (from env vars)
+    // Generate PDF for attachment and nube
+    var pdfBuf = null;
+    try {
+      var nubeResult = await nube.procesarFactura(factura, lineas, cdrsDetalle);
+      pdfBuf = nubeResult.pdfBuf;
+      console.log('PDF guardado en nube:', nubeResult.nombreArchivo);
+    } catch(e) { console.error('Error generando PDF:', e.message); }
+    
     var sent = false;
-    if (process.env.MAILJET_API_KEY && process.env.MAILJET_SECRET_KEY) {
+    var mailOptions = { from: '', to: toEmail, subject: subject, html: html };
+    if (pdfBuf) mailOptions.attachments = [{ filename: 'Factura-' + numFactura + '.pdf', content: pdfBuf, contentType: 'application/pdf' }];
+    
+    // Try Gmail SMTP with nodemailer
+    var gmailUser = db.prepare("SELECT value FROM settings WHERE key='gmail_user'").get()?.value;
+    var gmailPass = db.prepare("SELECT value FROM settings WHERE key='gmail_pass'").get()?.value;
+    var smtpHost = db.prepare("SELECT value FROM settings WHERE key='smtp_host'").get()?.value;
+    var smtpUser = db.prepare("SELECT value FROM settings WHERE key='smtp_user'").get()?.value;
+    var smtpPass = db.prepare("SELECT value FROM settings WHERE key='smtp_pass'").get()?.value;
+    
+    // Priority: Gmail app password > SMTP from settings
+    if (gmailUser && gmailPass) {
       try {
-        var axios = require('axios');
-        await axios.post('https://api.mailjet.com/v3.1/send', {
-          Messages: [{
-            From: { Email: 'infomovilbro@gmail.com', Name: 'CRM Movilbro' },
-            To: [{ Email: toEmail, Name: factura.cliente_nombre }],
-            Subject: subject,
-            HTMLPart: html
-          }]
-        }, {
-          auth: { username: process.env.MAILJET_API_KEY, password: process.env.MAILJET_SECRET_KEY },
-          timeout: 15000
+        var nodemailer = require('nodemailer');
+        var transporter = nodemailer.createTransport({
+          service: 'gmail',
+          auth: { user: gmailUser, pass: gmailPass }
         });
+        var opts = Object.assign({}, mailOptions, { from: gmailUser });
+        await transporter.sendMail(opts);
         sent = true;
-      } catch(e) { console.error('Mailjet error:', e.response?.data || e.message); }
+        console.log('Email enviado vía Gmail a', toEmail);
+      } catch(e) {
+        console.error('Gmail error:', e.message);
+        try {
+          var transporter2 = nodemailer.createTransport({
+            host: 'smtp.gmail.com', port: 587, secure: false,
+            auth: { user: gmailUser, pass: gmailPass }
+          });
+          var opts2 = Object.assign({}, mailOptions, { from: gmailUser });
+          await transporter2.sendMail(opts2);
+          sent = true;
+          console.log('Email enviado vía Gmail SMTP directo a', toEmail);
+        } catch(e2) {
+          console.error('Gmail SMTP direct error:', e2.message);
+        }
+      }
     }
     
-    // Fallback: try SMTP from DB settings
-    if (!sent) {
-      var smtpHost = db.prepare("SELECT value FROM settings WHERE key='smtp_host'").get()?.value;
-      var smtpUser = db.prepare("SELECT value FROM settings WHERE key='smtp_user'").get()?.value;
-      var smtpPass = db.prepare("SELECT value FROM settings WHERE key='smtp_pass'").get()?.value;
-      if (smtpHost && smtpUser && smtpPass) {
+    // Fallback: SMTP from DB settings
+    if (!sent && smtpHost && smtpUser && smtpPass) {
+      try {
         var nodemailer = require('nodemailer');
         var transporter = nodemailer.createTransport({
           host: smtpHost, port: 587, secure: false,
           auth: { user: smtpUser, pass: smtpPass }
         });
-        await transporter.sendMail({
-          from: db.prepare("SELECT value FROM settings WHERE key='email_from'").get()?.value || smtpUser,
-          to: toEmail, subject: subject, html: html
-        });
+        var opts3 = Object.assign({}, mailOptions);
+        opts3.from = db.prepare("SELECT value FROM settings WHERE key='email_from'").get()?.value || smtpUser;
+        await transporter.sendMail(opts3);
         sent = true;
+        console.log('Email enviado vía SMTP a', toEmail);
+      } catch(e) {
+        console.error('SMTP fallback error:', e.message);
       }
     }
     
     if (!sent) {
-      return res.json({ ok: false, error: 'No hay método de envío configurado (Mailjet ni SMTP)' });
+      return res.json({ ok: false, error: 'No hay método de envío configurado. Configura Gmail en Ajustes > Correo SMTP.' });
     }
     
     db.prepare('UPDATE isp_facturas SET email_enviado=1 WHERE id=?').run(factura.id);
-    res.json({ ok: true });
+    res.json({ ok: true, message: 'Email enviado correctamente a ' + toEmail });
   } catch(e) {
     console.error(e);
     res.status(500).json({ ok: false, error: e.message });

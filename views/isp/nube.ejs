@@ -1,0 +1,71 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h5 class="mb-0"><i class="bi bi-cloud"></i> Nube - Facturas</h5>
+      <small class="text-muted"><%= stats.total %> facturas · <%= (stats.sizeTotal / 1024 / 1024).toFixed(2) %> MB</small>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="<%= driveUrl %>" target="_blank" class="btn btn-outline-success btn-sm"><i class="bi bi-google"></i> Google Drive</a>
+      <a href="/isp/nube/config" class="btn btn-outline-secondary btn-sm"><i class="bi bi-gear"></i> Configurar</a>
+      <button class="btn btn-outline-primary btn-sm" onclick="subirTodas()"><i class="bi bi-cloud-upload"></i> Subir todas</button>
+    </div>
+  </div>
+
+  <% if (!driveConfigurado) { %>
+  <div class="alert alert-warning py-2 small">
+    <i class="bi bi-exclamation-triangle"></i> Google Drive no configurado. Las facturas se guardan localmente pero no se suben automáticamente a Drive.
+    <a href="/isp/nube/config" class="alert-link">Configurar ahora</a>
+  </div>
+  <% } %>
+
+  <% if (pdfs.length === 0) { %>
+  <div class="text-center py-5 text-muted">
+    <i class="bi bi-cloud-arrow-down" style="font-size:3rem;"></i>
+    <p class="mt-2">No hay facturas en la nube. Genera facturas desde <a href="/isp/facturacion">Facturación</a>.</p>
+  </div>
+  <% } else { %>
+    <% var grouped = {}; %>
+    <% pdfs.forEach(function(p) { %>
+      <% var key = p.year + '-' + p.month; %>
+      <% if (!grouped[key]) grouped[key] = []; %>
+      <% grouped[key].push(p); %>
+    <% }); %>
+    <% var years = Object.keys(grouped).reduce(function(acc, k) { var y = k.split('-')[0]; if (!acc[y]) acc[y] = {}; var m = k.split('-')[1]; acc[y][m] = grouped[k]; return acc; }, {}); %>
+    <% Object.keys(years).sort().reverse().forEach(function(year) { %>
+    <div class="mb-3">
+      <h5 class="border-bottom pb-1"><%= year %></h5>
+      <% Object.keys(years[year]).forEach(function(month) { %>
+        <div class="ms-2 mb-2">
+          <strong class="small text-muted"><%= month %></strong>
+          <div class="list-group mt-1">
+          <% years[year][month].forEach(function(p) { %>
+            <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-1 px-3 small">
+              <div>
+                <i class="bi bi-file-pdf text-danger"></i>
+                <a href="/isp/nube/descargar?path=<%= encodeURIComponent(p.fullPath) %>" target="_blank"><%= p.fileName %></a>
+                <span class="text-muted ms-2">(<%= (p.size / 1024).toFixed(1) %> KB)</span>
+              </div>
+              <span class="text-muted" style="font-size:11px;"><%= p.modified.toLocaleDateString('es-ES') %></span>
+            </div>
+          <% }); %>
+          </div>
+        </div>
+      <% }); %>
+    </div>
+    <% }); %>
+  <% } %>
+</section>
+
+<script>
+function subirTodas() {
+  if (!confirm('Subir todas las facturas a la nube local y Google Drive?')) return;
+  var btn = event.target.closest('button');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Subiendo...';
+  fetch('/isp/nube/subir-todas', { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.ok) { location.reload(); }
+      else { alert('Error: ' + (d.error || 'desconocido')); btn.disabled = false; btn.innerHTML = '<i class="bi bi-cloud-upload"></i> Subir todas'; }
+    }).catch(function() { alert('Error de conexión'); btn.disabled = false; btn.innerHTML = '<i class="bi bi-cloud-upload"></i> Subir todas'; });
+}
+</script>

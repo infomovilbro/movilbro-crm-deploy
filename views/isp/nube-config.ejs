@@ -1,0 +1,92 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0"><i class="bi bi-google"></i> Configurar Google Drive</h5>
+    <a href="/isp/nube" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Volver a Nube</a>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header"><i class="bi bi-info-circle"></i> Instrucciones</div>
+    <div class="card-body small">
+      <ol class="mb-0">
+        <li>Ve a <a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a></li>
+        <li>Crea un proyecto o selecciona uno existente</li>
+        <li>Habilita la <strong>Google Drive API</strong></li>
+        <li>Ve a <strong>Credenciales</strong> → <strong>Crear credenciales</strong> → <strong>ID de cliente OAuth</strong></li>
+        <li>Tipo: <strong>Aplicación web</strong></li>
+        <li>Origen autorizado: <code><%= _protocol %>://<%= _host %></code></li>
+        <li>URI de redirección: <code><%= redirectUri %></code></li>
+        <li>Copia el <strong>Client ID</strong> y <strong>Client Secret</strong> y pégalos abajo</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-key"></i> Credenciales OAuth2</div>
+        <div class="card-body">
+          <form id="formCreds" onsubmit="return guardarCreds(event)">
+            <div class="mb-2">
+              <label class="form-label small">Client ID</label>
+              <input type="text" class="form-control form-control-sm" id="client_id" required placeholder="123...apps.googleusercontent.com">
+            </div>
+            <div class="mb-2">
+              <label class="form-label small">Client Secret</label>
+              <input type="text" class="form-control form-control-sm" id="client_secret" required placeholder="GOCSPX-...">
+            </div>
+            <div class="mb-2">
+              <label class="form-label small">Redirect URI</label>
+              <input type="text" class="form-control form-control-sm" id="redirect_uri" value="<%= redirectUri %>">
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-save"></i> Guardar</button>
+          </form>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <% if (hasCreds) { %>
+      <div class="card">
+        <div class="card-header"><i class="bi bi-shield-check"></i> Autenticación</div>
+        <div class="card-body text-center py-4">
+          <% if (hasToken) { %>
+          <p class="text-success"><i class="bi bi-check-circle" style="font-size:2rem;"></i></p>
+          <p class="mb-2">Google Drive autenticado correctamente</p>
+          <small class="text-muted">Carpeta: <code><%= driveFolderId %></code></small>
+          <% } else { %>
+          <p class="text-muted mb-3">Credenciales guardadas. Ahora autentícate con Google.</p>
+          <button class="btn btn-success btn-sm" onclick="authDrive()"><i class="bi bi-google"></i> Autenticar con Google</button>
+          <p class="text-muted mt-2 small">Se abrirá una ventana para que autorices el acceso a Drive.</p>
+          <% } %>
+        </div>
+      </div>
+      <% } %>
+    </div>
+  </div>
+</section>
+
+<script>
+function guardarCreds(e) {
+  e.preventDefault();
+  var btn = e.target.querySelector('button[type=submit]');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Guardando...';
+  fetch('/isp/nube/config/save-credentials', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      client_id: document.getElementById('client_id').value,
+      client_secret: document.getElementById('client_secret').value,
+      redirect_uri: document.getElementById('redirect_uri').value
+    })
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.ok) { location.reload(); }
+    else { alert('Error: ' + d.error); btn.disabled = false; btn.innerHTML = '<i class="bi bi-save"></i> Guardar'; }
+  }).catch(function() { alert('Error de conexión'); btn.disabled = false; btn.innerHTML = '<i class="bi bi-save"></i> Guardar'; });
+  return false;
+}
+function authDrive() {
+  fetch('/isp/nube/auth-url').then(function(r) { return r.json(); }).then(function(d) {
+    if (d.ok) { window.open(d.url, '_blank', 'width=600,height=700'); }
+    else { alert('Error: ' + (d.error || 'desconocido')); }
+  }).catch(function() { alert('Error de conexión'); });
+}
+</script>
