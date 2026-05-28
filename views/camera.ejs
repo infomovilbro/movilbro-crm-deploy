@@ -1,0 +1,93 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0"><i class="bi bi-camera-video"></i> Cámara - iCam365</h5>
+    <div>
+      <span class="badge bg-success me-1">UID: 633H78YXCP5G</span>
+      <span class="badge bg-info">IP: 192.168.1.130</span>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-body p-2 text-center" style="background:#000;min-height:400px;display:flex;align-items:center;justify-content:center;">
+          <div id="cameraPlaceholder">
+            <i class="bi bi-camera-video-off" style="font-size:4rem;color:#555;"></i>
+            <p class="text-muted mt-2">Stream no disponible en la nube</p>
+            <p class="small text-muted">La cámara iCam365 usa conexión P2P local</p>
+          </div>
+          <img id="camImage" style="display:none;max-width:100%;max-height:500px;" />
+          <video id="camVideo" style="display:none;max-width:100%;max-height:500px;" autoplay muted playsinline></video>
+        </div>
+        <div class="card-footer text-center small text-muted py-1">
+          <span class="badge bg-secondary" id="camStatus">No conectado</span>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card mb-2">
+        <div class="card-header py-1"><small class="fw-semibold"><i class="bi bi-link"></i> Acceso directo</small></div>
+        <div class="card-body py-2">
+          <a href="https://www.icam365.com/" target="_blank" class="btn btn-outline-primary btn-sm w-100 mb-1"><i class="bi bi-globe"></i> iCam365 Cloud</a>
+          <button class="btn btn-outline-success btn-sm w-100 mb-1" onclick="abrirLocal()"><i class="bi bi-house-door"></i> Abrir iCam365 Player</button>
+          <button class="btn btn-outline-warning btn-sm w-100" onclick="probarRTSP()"><i class="bi bi-play-btn"></i> Probar RTSP</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header py-1"><small class="fw-semibold"><i class="bi bi-info-circle"></i> Información</small></div>
+        <div class="card-body py-2 small">
+          <div class="mb-1"><strong>UID:</strong> 633H78YXCP5G</div>
+          <div class="mb-1"><strong>IP Local:</strong> 192.168.1.130</div>
+          <div class="mb-1"><strong>Puerto P2P:</strong> 19325</div>
+          <div class="mb-1"><strong>Software:</strong> iCam365 Player v5.0.9.0</div>
+          <div class="mb-1"><strong>Estado:</strong> <span class="badge bg-success">Online</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+function abrirLocal() {
+  // Intenta abrir iCam365 Player vía protocolo o ruta local
+  try {
+    window.location.href = 'icam365://';
+  } catch(e) {}
+  // Si no funciona, muestra instrucciones
+  alert('Abre iCam365 Player desde el escritorio o Inicio');
+}
+
+function probarRTSP() {
+  var status = document.getElementById('camStatus');
+  status.textContent = 'Probando RTSP...';
+  status.className = 'badge bg-warning';
+  
+  // Intentar conectar via RTSP (solo funciona en local)
+  var video = document.getElementById('camVideo');
+  var placeholder = document.getElementById('cameraPlaceholder');
+  
+  // Intentar varias URLs comunes para cámaras iCam365
+  var urls = [
+    'rtsp://192.168.1.130:554/live/ch00_0',
+    'rtsp://192.168.1.130:554/onvif1',
+    'http://192.168.1.130/cgi-bin/snapshot.cgi'
+  ];
+  
+  // Probar snapshot primero (más compatible)
+  var img = document.getElementById('camImage');
+  img.onload = function() {
+    placeholder.style.display = 'none';
+    img.style.display = 'block';
+    status.textContent = 'Conectado (snapshot)';
+    status.className = 'badge bg-success';
+  };
+  img.onerror = function() {
+    status.textContent = 'No disponible en la nube';
+    status.className = 'badge bg-secondary';
+  };
+  img.src = urls[2] + '?_t=' + Date.now();
+}
+</script>
+<style>
+.card-body video, .card-body img { object-fit: contain; }
+</style>
