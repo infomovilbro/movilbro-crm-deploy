@@ -65,6 +65,19 @@ const isProd = process.env.NODE_ENV === 'production';
 
 initDatabase();
 
+// Auto-create default admin user if no users exist
+var userCount = db.prepare('SELECT COUNT(*) as c FROM users').get().c;
+if (userCount === 0) {
+  try {
+    var bcrypt = require('bcryptjs');
+    var hash = bcrypt.hashSync('movilbro2026', 10);
+    db.prepare('INSERT INTO users (email, username, nombre, password, rol, permissions) VALUES (?,?,?,?,?,?)').run('aaa', 'aaa', 'Admin', hash, 'admin', '{}');
+    console.log('Default user created: aaa / aaa123');
+  } catch(e) {
+    console.error('Error creating default user:', e.message);
+  }
+}
+
 // ============================================================
 // SEGURIDAD - Middleware global (orden crítico: Helmet > CORS > hpp > Body > ...)
 // ============================================================
