@@ -10,56 +10,57 @@
   <div class="row g-3">
     <div class="col-md-8">
       <div class="card">
-        <div class="card-body p-2 text-center" style="background:#000;min-height:400px;display:flex;align-items:center;justify-content:center;">
+        <div class="card-body p-2 text-center" style="background:#000;min-height:400px;display:flex;align-items:center;justify-content:center;position:relative;">
           <div id="cameraPlaceholder">
             <i class="bi bi-camera-video-off" style="font-size:4rem;color:#555;"></i>
-            <p class="text-muted mt-2">Stream no disponible en la nube</p>
-            <p class="small text-muted">Configura la URL del stream en los ajustes</p>
+            <p class="text-muted mt-2" id="statusText">Esperando stream...</p>
           </div>
+          <canvas id="camCanvas" style="display:none;max-width:100%;max-height:500px;image-rendering:pixelated;"></canvas>
           <img id="camImage" style="display:none;max-width:100%;max-height:500px;" crossorigin="anonymous" />
         </div>
         <div class="card-footer text-center py-1 d-flex justify-content-between align-items-center">
-          <span class="badge bg-secondary" id="camStatus">No conectado</span>
-          <small class="text-muted" id="camFps"></small>
+          <span class="badge bg-secondary" id="camStatus">Desconectado</span>
+          <small class="text-muted" id="camInfo"></small>
         </div>
       </div>
     </div>
     <div class="col-md-4">
       <div class="card mb-2">
-        <div class="card-header py-1"><small class="fw-semibold"><i class="bi bi-link"></i> Acceso directo</small></div>
+        <div class="card-header py-1"><small class="fw-semibold"><i class="bi bi-link"></i> Stream</small></div>
         <div class="card-body py-2">
-          <button class="btn btn-outline-success btn-sm w-100 mb-1" onclick="conectarCamara()"><i class="bi bi-play-btn"></i> Conectar cámara</button>
-          <button class="btn btn-outline-primary btn-sm w-100 mb-1" onclick="abrirLocal()"><i class="bi bi-house-door"></i> Abrir iCam365 Player</button>
+          <div class="d-flex gap-1 mb-1">
+            <button class="btn btn-outline-success btn-sm flex-fill" onclick="conectarWS()"><i class="bi bi-wifi"></i> WebSocket</button>
+            <button class="btn btn-outline-primary btn-sm flex-fill" onclick="conectarHTTP()"><i class="bi bi-globe"></i> HTTP</button>
+          </div>
+          <button class="btn btn-outline-secondary btn-sm w-100 mb-1" onclick="abrirLocal()"><i class="bi bi-house-door"></i> Abrir iCam365 Player</button>
         </div>
       </div>
       <div class="card mb-2">
-        <div class="card-header py-1"><small class="fw-semibold"><i class="bi bi-gear"></i> Configuración stream</small></div>
+        <div class="card-header py-1"><small class="fw-semibold"><i class="bi bi-gear"></i> Configuración</small></div>
         <div class="card-body py-2">
           <div class="mb-1">
-            <label class="small text-muted">URL del snapshot (HTTP/MJPEG)</label>
+            <label class="small text-muted">URL snapshot HTTP</label>
             <input type="text" id="inputStreamUrl" class="form-control form-control-sm" value="<%= streamUrl %>" placeholder="http://ip:puerto/snapshot.jpg">
           </div>
           <div class="mb-1">
-            <label class="small text-muted">IP local</label>
-            <input type="text" id="inputCamIp" class="form-control form-control-sm" value="<%= camIp %>">
+            <label class="small text-muted">URL relay WebSocket</label>
+            <input type="text" id="inputRelayUrl" class="form-control form-control-sm" value="<%= relayUrl || 'ws://localhost:3456' %>" placeholder="ws://localhost:3456">
           </div>
-          <div class="mb-1">
-            <label class="small text-muted">UID</label>
-            <input type="text" id="inputCamUid" class="form-control form-control-sm" value="<%= camUid %>">
-          </div>
-          <button class="btn btn-sm btn-primary w-100" onclick="guardarConfig()"><i class="bi bi-save"></i> Guardar configuración</button>
+          <button class="btn btn-sm btn-primary w-100" onclick="guardarConfig()"><i class="bi bi-save"></i> Guardar</button>
         </div>
       </div>
       <div class="card">
-        <div class="card-header py-1"><small class="fw-semibold"><i class="bi bi-info-circle"></i> Información</small></div>
+        <div class="card-header py-1"><small class="fw-semibold"><i class="bi bi-info-circle"></i> Conexión</small></div>
         <div class="card-body py-2 small">
-          <div class="mb-1"><strong>UID:</strong> <%= camUid %></div>
-          <div class="mb-1"><strong>IP Local:</strong> <%= camIp %></div>
-          <div class="mb-1"><strong>Estado:</strong> <span class="badge bg-success">Online</span></div>
+          <div><strong>UID:</strong> <%= camUid %></div>
+          <div><strong>IP:</strong> <%= camIp %></div>
+          <div><strong>Relay:</strong> <span class="badge bg-secondary" id="relayStatus">offline</span></div>
           <hr class="my-1">
           <p class="text-muted mb-0" style="font-size:11px;">
-            Para ver la cámara desde fuera de la red local, necesitas una URL pública de snapshot o MJPEG.<br>
-            <strong>iCam365 Player</strong> usa conexión P2P y solo funciona en local.
+            Para ver la cámara desde la nube:<br>
+            1. Ejecuta en tu PC: <code>node camera-relay.js</code><br>
+            2. PIN: C<%= (''+Math.random()).substring(2,8) %> (verifica en local)<br>
+            3. El relay se conectará automáticamente aquí
           </p>
         </div>
       </div>
@@ -68,74 +69,123 @@
 </section>
 
 <script>
+var ws = null;
+var wsRelay = null;
+var frameTimer = null;
+
 function abrirLocal() {
   try { window.location.href = 'icam365://'; } catch(e) {}
   alert('Abre iCam365 Player desde el escritorio o Inicio');
 }
 
-function conectarCamara() {
+function conectarWS() {
+  var status = document.getElementById('camStatus');
+  var placeholder = document.getElementById('cameraPlaceholder');
+  var canvas = document.getElementById('camCanvas');
+  var ctx = canvas.getContext('2d');
+  var img = document.getElementById('camImage');
+
+  if (ws) { ws.close(); ws = null; }
+
+  var protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  var wsUrl = protocol + '//' + location.host + '/camera-ws';
+
+  status.textContent = 'Conectando WebSocket...';
+  status.className = 'badge bg-warning';
+
+  ws = new WebSocket(wsUrl);
+  ws.binaryType = 'arraybuffer';
+
+  ws.onopen = function() {
+    status.textContent = 'Conectado';
+    status.className = 'badge bg-success';
+    placeholder.innerHTML = '<canvas id="camCanvas" style="max-width:100%;max-height:500px;"></canvas>';
+    ws.send('viewer');
+  };
+
+  ws.onmessage = function(e) {
+    if (e.data instanceof ArrayBuffer) {
+      var blob = new Blob([e.data], { type: 'image/jpeg' });
+      var url = URL.createObjectURL(blob);
+      img.onload = function() {
+        img.style.display = 'block';
+        canvas.style.display = 'none';
+        URL.revokeObjectURL(url);
+      };
+      img.src = url;
+      placeholder.style.display = 'none';
+    }
+  };
+
+  ws.onerror = function() {
+    status.textContent = 'Error WebSocket';
+    status.className = 'badge bg-danger';
+  };
+
+  ws.onclose = function() {
+    if (status.textContent !== 'Desconectado') {
+      status.textContent = 'Desconectado';
+      status.className = 'badge bg-secondary';
+    }
+  };
+}
+
+function conectarHTTP() {
   var status = document.getElementById('camStatus');
   var placeholder = document.getElementById('cameraPlaceholder');
   var img = document.getElementById('camImage');
   var url = document.getElementById('inputStreamUrl').value.trim();
 
   if (!url) {
-    status.textContent = 'No hay URL configurada';
-    status.className = 'badge bg-warning';
-    return;
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      url = 'http://192.168.1.130:8080/cgi-bin/snapshot.cgi';
+    } else {
+      status.textContent = 'No hay URL configurada';
+      status.className = 'badge bg-warning';
+      return;
+    }
   }
 
-  status.textContent = 'Conectando...';
+  status.textContent = 'Conectando HTTP...';
   status.className = 'badge bg-warning';
 
-  var tryUrl = url + (url.indexOf('?') === -1 ? '?' : '&') + '_t=' + Date.now();
+  function loadFrame() {
+    var t = Date.now();
+    img.src = url + (url.indexOf('?') === -1 ? '?' : '&') + '_t=' + t;
+  }
 
   img.onload = function() {
     placeholder.style.display = 'none';
     img.style.display = 'block';
-    status.textContent = 'Conectado';
+    status.textContent = 'Streaming';
     status.className = 'badge bg-success';
-    iniciarAutoRefresh(url);
+    if (frameTimer) clearInterval(frameTimer);
+    frameTimer = setInterval(loadFrame, 2000);
   };
 
   img.onerror = function() {
-    status.textContent = 'Error de conexión';
+    status.textContent = 'Error';
     status.className = 'badge bg-danger';
+    if (frameTimer) clearInterval(frameTimer);
   };
 
-  img.src = tryUrl;
-}
-
-var refreshTimer = null;
-function iniciarAutoRefresh(baseUrl) {
-  if (refreshTimer) clearInterval(refreshTimer);
-  refreshTimer = setInterval(function() {
-    var img = document.getElementById('camImage');
-    img.src = baseUrl + (baseUrl.indexOf('?') === -1 ? '?' : '&') + '_t=' + Date.now();
-  }, 2000);
+  loadFrame();
 }
 
 function guardarConfig() {
   var streamUrl = document.getElementById('inputStreamUrl').value.trim();
-  var camIp = document.getElementById('inputCamIp').value.trim();
-  var camUid = document.getElementById('inputCamUid').value.trim();
-
+  var relayUrl = document.getElementById('inputRelayUrl').value.trim();
   fetch('/camera/settings', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ stream_url: streamUrl, cam_ip: camIp, cam_uid: camUid })
-  })
-  .then(function(r) { return r.json(); })
-  .then(function(d) {
+    body: JSON.stringify({ stream_url: streamUrl })
+  }).then(function(r) { return r.json(); }).then(function(d) {
     if (d.ok) alert('Configuración guardada');
-  })
-  .catch(function() { alert('Error al guardar'); });
+  }).catch(function() { alert('Error al guardar'); });
 }
 
-if ('<%= streamUrl %>') {
-  conectarCamara();
-}
+conectarWS();
 </script>
 <style>
-.card-body img { object-fit: contain; }
+.card-body canvas, .card-body img { object-fit: contain; }
 </style>

@@ -7,11 +7,13 @@ router.get('/', requireAuth, (req, res) => {
   var streamUrl = db.prepare("SELECT value FROM settings WHERE key = 'camera_stream_url'").get();
   var camIp = db.prepare("SELECT value FROM settings WHERE key = 'camera_ip'").get();
   var camUid = db.prepare("SELECT value FROM settings WHERE key = 'camera_uid'").get();
+  var relayUrl = db.prepare("SELECT value FROM settings WHERE key = 'camera_relay_url'").get();
   res.render('camera', {
     title: 'Cámara - iCam365',
     streamUrl: streamUrl ? streamUrl.value : '',
     camIp: camIp ? camIp.value : '192.168.1.130',
-    camUid: camUid ? camUid.value : '633H78YXCP5G'
+    camUid: camUid ? camUid.value : '633H78YXCP5G',
+    relayUrl: relayUrl ? relayUrl.value : 'ws://localhost:3456'
   });
 });
 
