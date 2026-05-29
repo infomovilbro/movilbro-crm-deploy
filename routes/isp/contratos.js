@@ -161,32 +161,10 @@ router.get('/:id/pdf', async (req, res) => {
       } catch(e) {}
     }
 
-    // If API fails, generate a local contract PDF
-    var c = contrato || {};
-    var ejs = require('ejs');
-    var fs = require('fs');
-    var path = require('path');
-    var plantillaPath = path.join(__dirname, '..', '..', 'views', 'isp', 'contratos', 'contrato-pdf.ejs');
-    var html = '';
-    if (fs.existsSync(plantillaPath)) {
-      html = ejs.render(fs.readFileSync(plantillaPath, 'utf8'), { contrato: c, layout: false });
-    } else {
-      html = '<html><body><h1>Contrato #' + req.params.id + '</h1><p>Cliente: ' + (c.cliente_nombre || '') + '</p><p>Descarga el PDF original desde el panel de gestión.</p></body></html>';
-    }
-    
-    var { chromium } = require('playwright');
-    var browser = await chromium.launch({ headless: true });
-    var page = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'networkidle' });
-    var pdfBuf = await page.pdf({ format: 'A4', printBackground: true });
-    await browser.close();
-
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'attachment; filename="contrato-' + req.params.id + '.pdf"');
-    res.send(pdfBuf);
+    res.status(404).send('PDF original no disponible. Descárgalo desde el panel de ISP Gestión: https://movilbro.ispgestion.com/contratosmadre');
   } catch(e) {
     console.error(e);
-    res.status(500).send('Error: ' + e.message);
+    res.status(500).send('Error al obtener el PDF original: ' + e.message + '. Descárgalo desde https://movilbro.ispgestion.com/contratosmadre');
   }
 });
 
