@@ -1336,14 +1336,10 @@
         document.querySelectorAll('.nav-group[data-group-key]').forEach(function(g) {
           var k = g.getAttribute('data-group-key');
           var l = (g.querySelector('[data-group-label]') || {}).textContent || k;
-          // Solo mostrar grupos que NO están ya en la barra
-          var already = document.querySelector('.bottom-nav-item[data-nav-group="' + k + '"]');
-          if (!already) {
-            var opt = document.createElement('option');
-            opt.value = k;
-            opt.textContent = l;
-            select.appendChild(opt);
-          }
+          var opt = document.createElement('option');
+          opt.value = k;
+          opt.textContent = l;
+          select.appendChild(opt);
         });
         select.addEventListener('change', function() {
           if (!this.value) return;
@@ -1352,16 +1348,25 @@
           var label = (group ? (group.querySelector('[data-group-label]') || {}).textContent : null) || key;
           var iconEl = group ? group.querySelector('[data-group-icon]') : null;
           var icon = iconEl ? iconEl.textContent : '📌';
-          var nav = document.getElementById('bottomNav');
-          if (nav) {
-            var newBtn = document.createElement('button');
-            newBtn.className = 'bottom-nav-item';
-            newBtn.setAttribute('data-nav-group', key);
-            newBtn.setAttribute('onclick', "openNavGroup('" + key + "')");
-            newBtn.innerHTML = '<span class="bottom-nav-icon">' + icon + '</span><span class="bottom-nav-label">' + label + '</span>';
-            nav.appendChild(newBtn);
-            renderBottomNavVisibility();
+          var existing = document.querySelector('.bottom-nav-item[data-nav-group="' + key + '"]');
+          if (existing) {
+            existing.style.display = '';
+            var h = (function() { try { return JSON.parse(localStorage.getItem('ui_hidden_bottomnav') || '[]'); } catch(e) { return []; } })();
+            var idx = h.indexOf(key);
+            if (idx !== -1) h.splice(idx, 1);
+            localStorage.setItem('ui_hidden_bottomnav', JSON.stringify(h));
+          } else {
+            var nav = document.getElementById('bottomNav');
+            if (nav) {
+              var newBtn = document.createElement('button');
+              newBtn.className = 'bottom-nav-item';
+              newBtn.setAttribute('data-nav-group', key);
+              newBtn.setAttribute('onclick', "openNavGroup('" + key + "')");
+              newBtn.innerHTML = '<span class="bottom-nav-icon">' + icon + '</span><span class="bottom-nav-label">' + label + '</span>';
+              nav.appendChild(newBtn);
+            }
           }
+          renderBottomNavVisibility();
           this.value = '';
         });
         addRow.appendChild(select);
