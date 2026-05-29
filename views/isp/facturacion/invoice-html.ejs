@@ -62,7 +62,7 @@ var fmt = function(n) { return Number(n || 0).toFixed(2).replace('.', ','); };
 &nbsp;&nbsp;www.movilbro.es | facturacion@movilbro.com | 694297048 | @movilbro
 </div>
 
-<p style="text-align:center;font-size:9px;color:#999;margin:4px 0 8px;">P&aacute;gina 1 de<%= cdrsDetalle && cdrsDetalle.length > 0 ? ' 2' : ' 1' %></p>
+<p style="text-align:center;font-size:9px;color:#999;margin:4px 0 8px;">P&aacute;gina 1 de<% var showPage2 = (cdrsDetalle && cdrsDetalle.length > 0) || (llamadas && llamadas.length > 0); %><%= showPage2 ? ' 2' : ' 1' %></p>
 
 <div style="width:100%"><span style="font-size:16px;"><strong><span style="color:#808080">TU FACTURA DE </span><span style="color:#3498db;"><%= monthName %> <%= yearName %></span></strong></span></div>
 <div style="width:100%"><span style="font-size:14px;"><strong><span style="color:#808080">TOTAL A PAGAR</span> <span style="color:#3498db;"> <%= fmt(total) %> &euro; </span></strong></span></div>
@@ -162,10 +162,10 @@ Sin historial
 </div>
 </div>
 
-<div style="width:100%;text-align:right;"><span style="font-size:10px;">P&aacute;gina 1 de<%= cdrsDetalle && cdrsDetalle.length > 0 ? ' 2' : ' 1' %></span></div>
+<div style="width:100%;text-align:right;"><span style="font-size:10px;">P&aacute;gina 1 de<%= showPage2 ? ' 2' : ' 1' %></span></div>
 </div>
 
-<% if (cdrsDetalle && cdrsDetalle.length > 0) { %>
+<% if (showPage2) { %>
 <div class="page" style="page-break-before:always">
 
 <div style="width:100%">
@@ -180,7 +180,7 @@ Sin historial
 <div style="clear:both;"></div>
 </div>
 
-<p style="text-align:center;font-size:10px;color:#999;">P&aacute;gina 2 de 2</p>
+<p style="text-align:center;font-size:10px;color:#999;">P&aacute;gina 2 de<% if (showPage2) { %> 2<% } else { %> 1<% } %></p>
 
 <div style="border:thin solid #ccc;padding:10px 30px;box-shadow:4px 4px 8px 1px #ddd;">
 <div style="background-color:#ccc;font-weight:bold;padding:0.5px 10px;"><span style="font-size:12px;"><strong>Datos del cliente</strong></span></div>
@@ -218,8 +218,35 @@ Sin historial
 <p>&nbsp;</p>
 
 <div style="border:thin solid #ccc;padding:10px 30px;box-shadow:4px 4px 8px 1px #ddd;">
-<div style="background-color:#ccc;font-weight:bold;padding:0.5px 10px;"><span style="font-size:12px;"><strong>Detalle de llamadas de la l&iacute;nea <%= (cdrsDetalle[0] && cdrsDetalle[0].linea) || '' %> desde 01/<%= periodParts[1] || '' %>/<%= periodParts[0] || '' %> hasta 31/<%= periodParts[1] || '' %>/<%= periodParts[0] || '' %></strong></span></div>
+<div style="background-color:#ccc;font-weight:bold;padding:0.5px 10px;"><span style="font-size:12px;"><strong>Detalle de llamadas de la l&iacute;nea <%= (llamadas && llamadas.length > 0 ? llamadas[0].linea : (cdrsDetalle[0] && cdrsDetalle[0].linea || '')) %> desde 01/<%= periodParts[1] || '' %>/<%= periodParts[0] || '' %> hasta 31/<%= periodParts[1] || '' %>/<%= periodParts[0] || '' %></strong></span></div>
 <p>&nbsp;</p>
+<% if (llamadas && llamadas.length > 0) { %>
+<table style="width:100%;border-collapse:collapse;font-size:8px;">
+<thead>
+<tr>
+<td style="border:1px solid #ADAAA9;padding:2px;"><strong>Fecha</strong></td>
+<td style="border:1px solid #ADAAA9;padding:2px;"><strong>Hora</strong></td>
+<td style="border:1px solid #ADAAA9;padding:2px;"><strong>Destino</strong></td>
+<td style="border:1px solid #ADAAA9;padding:2px;"><strong>Grupo</strong></td>
+<td style="border:1px solid #ADAAA9;padding:2px;text-align:right;"><strong>Duraci&oacute;n</strong></td>
+<td style="border:1px solid #ADAAA9;padding:2px;text-align:right;"><strong>Importe</strong></td>
+</tr>
+</thead>
+<tbody>
+<% llamadas.forEach(function(c) { %>
+<tr>
+<td style="border:1px solid #ADAAA9;padding:1px 2px;"><%= c.fecha || '-' %></td>
+<td style="border:1px solid #ADAAA9;padding:1px 2px;"><%= c.hora || '-' %></td>
+<td style="border:1px solid #ADAAA9;padding:1px 2px;"><%= c.destino || '-' %></td>
+<td style="border:1px solid #ADAAA9;padding:1px 2px;"><%= c.grupo || '-' %></td>
+<td style="border:1px solid #ADAAA9;padding:1px 2px;text-align:right;"><%= c.duracion || '-' %></td>
+<td style="border:1px solid #ADAAA9;padding:1px 2px;text-align:right;"><%= Number(c.importe || 0).toFixed(2) %> &euro;</td>
+</tr>
+<% }); %>
+</tbody>
+</table>
+<% } else if (cdrsDetalle && cdrsDetalle.length > 0) { %>
+<p style="text-align:center;color:#999;padding:10px;"><em>Detalle de llamadas no disponible. Los CDRs de consumo se muestran arriba.</em></p>
 <table style="width:100%;border-collapse:collapse;font-size:8px;">
 <thead>
 <tr>
@@ -231,21 +258,23 @@ Sin historial
 </tr>
 </thead>
 <tbody>
-<% var cdrTotal = 0; %>
-<% cdrsDetalle.forEach(function(c) { cdrTotal += Number(c.importe || 0); %>
+<% cdrsDetalle.forEach(function(c) { %>
 <tr>
 <td style="border:1px solid #ADAAA9;padding:1px 2px;"><%= c.concepto ? c.concepto.substring(0,10) : '-' %></td>
 <td style="border:1px solid #ADAAA9;padding:1px 2px;">-</td>
 <td style="border:1px solid #ADAAA9;padding:1px 2px;"><%= c.linea || '-' %></td>
 <td style="border:1px solid #ADAAA9;padding:1px 2px;text-align:right;"><%= c.unidades ? (c.tipo === 'exceso' ? Number(c.unidades).toFixed(0) + ' Mb' : c.unidades + ' min') : '-' %></td>
-<td style="border:1px solid #ADAAA9;padding:1px 2px;text-align:right;"><%= fmt(c.importe) %> &euro;</td>
+<td style="border:1px solid #ADAAA9;padding:1px 2px;text-align:right;"><%= Number(c.importe || 0).toFixed(2) %> &euro;</td>
 </tr>
 <% }); %>
 </tbody>
 </table>
+<% } else { %>
+<p style="text-align:center;color:#999;padding:10px;"><em>No hay llamadas ni CDRs detallados para este periodo.</em></p>
+<% } %>
 </div>
 
-<div style="width:100%;text-align:right;margin-top:20px;"><span style="font-size:10px;">P&aacute;gina 2 de 2</span></div>
+<div style="width:100%;text-align:right;margin-top:20px;"><span style="font-size:10px;">P&aacute;gina 2 de<% if (showPage2) { %> 2<% } else { %> 1<% } %></span></div>
 </div>
 <% } %>
 </body>

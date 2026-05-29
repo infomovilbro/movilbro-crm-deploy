@@ -60,7 +60,7 @@ const { router: backupRouter, sendBackup } = require('./routes/backup');
 const { router: telegramBotRouter, notifyServerStart, sendDailySummary, registerBotCommands } = require('./routes/telegram-bot');
 
 const app = express();
-const PORT = String(process.env.PORT || 3000).trim();
+const PORT = String(process.env.PORT || 3005).trim();
 const isProd = process.env.NODE_ENV === 'production';
 
 initDatabase();
@@ -110,7 +110,7 @@ app.use(helmet({
 }));
 
 // 2. CORS - Restringir orígenes permitidos (evita robo de datos cross-origin)
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000,http://localhost:5173,https://movilbro-crm.onrender.com,https://movilbro-pro-web-2026.web.app').split(',').map(s => s.trim());
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000,http://localhost:3005,http://localhost:5173,https://movilbro-crm.onrender.com,https://movilbro-pro-web-2026.web.app').split(',').map(s => s.trim());
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
@@ -293,6 +293,9 @@ app.use('/api/chat', chatRoutes);
 // ---- ISP GESTION MODULE ----
 const ispRoutes = require('./routes/isp-core');
 app.use('/isp', ispRoutes);
+
+// Redirect /pagos to /payments
+app.get('/pagos', (req, res) => res.redirect(301, '/payments'));
 
 // ---- NEW LIKES TELECOM PAGES ----
 app.use('/aftersales', aftersalesRoutes);

@@ -27,13 +27,29 @@ async function getCached(key, fetcher) {
 async function getAllStats() {
   const api = getApi();
 
-  const [customers, portabilities, products, tickets, apiSubsRaw] = await Promise.all([
+  const [customers, portabilities, products, tickets] = await Promise.all([
     getCached('customers', () => api.getCustomers()),
     getCached('portabilities', () => api.request('GET', '/portabilities?brand_id=' + api.brandId).then(r => Array.isArray(r) ? r : r.portabilities || r.data || [])),
     getCached('products', () => api.request('GET', '/products/brand?brand_id=' + api.brandId).then(r => Array.isArray(r) ? r : r.products || r.data || [])),
-    getCached('tickets', () => api.getTickets({ brand_id: api.brandId })),
-    getCached('subscriptions', () => api.getSubscriptions())
+    getCached('tickets', () => api.getTickets())
   ]);
+
+  const apiSubsRaw = await getCached('subscriptions', async () => {
+    var allSubs = [];
+    var fiscalIds = (customers || []).map(c => c.fiscalId).filter(Boolean);
+    var batchSize = 20;
+    for (var i = 0; i < fiscalIds.length; i += batchSize) {
+      var batch = fiscalIds.slice(i, i + batchSize);
+      var results = await Promise.allSettled(batch.map(fid => api.getSubscriptions(fid)));
+      results.forEach(function(r) {
+        if (r.status === 'fulfilled') {
+          var items = Array.isArray(r.value) ? r.value : (r.value && r.value.subscriptions ? r.value.subscriptions : r.value && r.value.data ? r.value.data : []);
+          allSubs = allSubs.concat(items);
+        }
+      });
+    }
+    return allSubs;
+  });
 
   const localSubscriptions = db.prepare(`
     SELECT s.*, c.id as client_id, c.nombre as client_nombre
@@ -202,7 +218,7 @@ async function getAllStats() {
     return st && !['COMPLETED', 'CANCELED', 'CANCELLED', 'DONE', 'FINISHED'].includes(st);
   }).length;
 
-  // CRM database stats
+  // CRM database stats (from isp_facturas)
   var invTotal = 0, invPagadas = 0, invPendientes = 0, invTotalImporte = 0;
   var invByMonth = {}, invByStatus = {};
   try {
@@ -219,6 +235,31 @@ async function getAllStats() {
     });
   } catch(e) {}
   var revenueTimeline = Object.entries(invByMonth).sort(function(a,b){return a[0].localeCompare(b[0])}).map(function(e){return{month:e[0],total:e[1]}});
+
+  // Simple billing stats (from invoices table)
+  var invSimpleTotal = 0, invSimplePagadas = 0, invSimplePendientes = 0, invSimpleVencidas = 0, invSimpleTotalImporte = 0;
+  var invSimpleByStatus = {}, invSimpleAmountByStatus = {}, invSimpleMonthly = {};
+  try {
+    var invSimpleRows = db.prepare('SELECT estado, importe, fecha_emision FROM invoices').all();
+    invSimpleTotal = invSimpleRows.length;
+    invSimpleRows.forEach(function(r) {
+      if (r.estado === 'pagada') invSimplePagadas++;
+      else if (r.estado === 'vencida') invSimpleVencidas++;
+      else invSimplePendientes++;
+      invSimpleTotalImporte += parseFloat(r.importe || 0);
+      var st = r.estado === 'pagada' ? 'Pagada' : (r.estado === 'vencida' ? 'Vencida' : 'Pendiente');
+      invSimpleByStatus[st] = (invSimpleByStatus[st] || 0) + 1;
+      invSimpleAmountByStatus[st] = (invSimpleAmountByStatus[st] || 0) + parseFloat(r.importe || 0);
+      if (r.fecha_emision) {
+        var d = new Date(r.fecha_emision);
+        if (!isNaN(d.getTime())) {
+          var mk = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+          invSimpleMonthly[mk] = (invSimpleMonthly[mk] || 0) + parseFloat(r.importe || 0);
+        }
+      }
+    });
+  } catch(e) {}
+  var invSimpleRevenueTimeline = Object.entries(invSimpleMonthly).sort(function(a,b){return a[0].localeCompare(b[0])}).map(function(e){return{month:e[0],total:e[1]}});
 
   // Local client stats
   var localClientes = 0, clientesConContrato = 0;
@@ -253,6 +294,9 @@ async function getAllStats() {
     invTotal, invPagadas, invPendientes, invTotalImporte,
     invByStatus, revenueTimeline, topSubProducts,
     localClientes, clientesConContrato,
+    // Simple billing stats (from invoices table)
+    invSimpleTotal, invSimplePagadas, invSimplePendientes, invSimpleVencidas, invSimpleTotalImporte,
+    invSimpleByStatus, invSimpleAmountByStatus, invSimpleRevenueTimeline,
   };
 }
 
