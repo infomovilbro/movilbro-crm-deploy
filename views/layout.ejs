@@ -37,6 +37,13 @@
         }
       } catch(e) { console.error('openNavGroup error:', e); }
     }
+    function aplicarGradiente(val) {
+      var nav = document.getElementById('bottomNav');
+      if (nav) nav.style.background = 'linear-gradient(' + val + ')';
+      localStorage.setItem('ui_bottomnav_bg', 'gradient:' + val);
+      var inp = document.getElementById('uiBottomNavBgValue');
+      if (inp) inp.textContent = 'gradiente';
+    }
   </script>
   <style>
     :root {
@@ -911,10 +918,19 @@
 
       <div class="mb-2">
         <label class="form-label small mb-1">Fondo barra inferior</label>
-        <div class="d-flex gap-2 align-items-center">
-          <input id="uiBottomNavBgColor" type="color" class="form-control form-control-color" style="width:50px;">
+        <div class="d-flex gap-2 align-items-center mb-1">
+          <input id="uiBottomNavBgColor" type="color" class="form-control form-control-color" style="width:50px;" title="Color inicio">
+          <input id="uiBottomNavBgColor2" type="color" class="form-control form-control-color" style="width:50px;" title="Color fin (gradiente)">
           <span id="uiBottomNavBgValue" class="small text-muted">#ffffff</span>
           <button id="uiApplyBottomNavBg" class="btn btn-outline-dark btn-sm">Aplicar</button>
+        </div>
+        <div class="d-flex gap-1 flex-wrap">
+          <button class="btn btn-sm btn-outline-secondary" style="flex:1;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;" onclick="aplicarGradiente('135deg,#667eea,#764ba2')">💜</button>
+          <button class="btn btn-sm btn-outline-secondary" style="flex:1;background:linear-gradient(135deg,#0050A1,#00a8cc);color:#fff;border:none;" onclick="aplicarGradiente('135deg,#0050A1,#00a8cc')">💙</button>
+          <button class="btn btn-sm btn-outline-secondary" style="flex:1;background:linear-gradient(135deg,#11998e,#38ef7d);color:#fff;border:none;" onclick="aplicarGradiente('135deg,#11998e,#38ef7d')">💚</button>
+          <button class="btn btn-sm btn-outline-secondary" style="flex:1;background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;border:none;" onclick="aplicarGradiente('135deg,#f093fb,#f5576c')">💗</button>
+          <button class="btn btn-sm btn-outline-secondary" style="flex:1;background:linear-gradient(135deg,#4facfe,#00f2fe);color:#fff;border:none;" onclick="aplicarGradiente('135deg,#4facfe,#00f2fe')">💠</button>
+          <button class="btn btn-sm btn-outline-secondary" style="flex:1;background:linear-gradient(135deg,#fa709a,#fee140);color:#fff;border:none;" onclick="aplicarGradiente('135deg,#fa709a,#fee140')">🧡</button>
         </div>
       </div>
 
@@ -1083,7 +1099,12 @@
         try {
           const savedBottomNavBg = localStorage.getItem('ui_bottomnav_bg');
           if (savedBottomNavBg) {
-            document.getElementById('bottomNav')?.style.setProperty('background', savedBottomNavBg, 'important');
+            if (savedBottomNavBg.startsWith('gradient:')) {
+              var grad = savedBottomNavBg.replace('gradient:', '');
+              document.getElementById('bottomNav')?.style.setProperty('background', 'linear-gradient(' + grad + ')', 'important');
+            } else {
+              document.getElementById('bottomNav')?.style.setProperty('background', savedBottomNavBg, 'important');
+            }
           }
         } catch(e) {}
         // Apply bottom nav visibility
@@ -1240,21 +1261,37 @@
 
       // Bottom nav background color
       const bottomNavBgInput = document.getElementById('uiBottomNavBgColor');
+      const bottomNavBgInput2 = document.getElementById('uiBottomNavBgColor2');
       const bottomNavBgValue = document.getElementById('uiBottomNavBgValue');
       const applyBottomNavBg = document.getElementById('uiApplyBottomNavBg');
       if (bottomNavBgInput) {
         const savedBg = localStorage.getItem('ui_bottomnav_bg') || '#ffffff';
-        bottomNavBgInput.value = savedBg;
-        if (bottomNavBgValue) bottomNavBgValue.textContent = savedBg;
+        if (savedBg.startsWith('gradient:')) {
+          bottomNavBgInput.value = '#ffffff';
+          if (bottomNavBgValue) bottomNavBgValue.textContent = 'gradiente';
+        } else {
+          bottomNavBgInput.value = savedBg;
+          if (bottomNavBgValue) bottomNavBgValue.textContent = savedBg;
+        }
+        if (bottomNavBgInput2) bottomNavBgInput2.value = '#ffffff';
         bottomNavBgInput.addEventListener('input', function() {
-          if (bottomNavBgValue) bottomNavBgValue.textContent = this.value;
+          if (bottomNavBgValue && !bottomNavBgInput2) bottomNavBgValue.textContent = this.value;
         });
       }
       if (applyBottomNavBg) {
         applyBottomNavBg.addEventListener('click', function() {
-          const color = bottomNavBgInput ? bottomNavBgInput.value : '#ffffff';
-          document.getElementById('bottomNav')?.style.setProperty('background', color, 'important');
-          localStorage.setItem('ui_bottomnav_bg', color);
+          const c1 = bottomNavBgInput ? bottomNavBgInput.value : '#ffffff';
+          const c2 = bottomNavBgInput2 ? bottomNavBgInput2.value : c1;
+          if (c1 !== c2) {
+            var grad = '135deg,' + c1 + ',' + c2;
+            document.getElementById('bottomNav')?.style.setProperty('background', 'linear-gradient(' + grad + ')', 'important');
+            localStorage.setItem('ui_bottomnav_bg', 'gradient:' + grad);
+            if (bottomNavBgValue) bottomNavBgValue.textContent = 'gradiente';
+          } else {
+            document.getElementById('bottomNav')?.style.setProperty('background', c1, 'important');
+            localStorage.setItem('ui_bottomnav_bg', c1);
+            if (bottomNavBgValue) bottomNavBgValue.textContent = c1;
+          }
         });
       }
 
