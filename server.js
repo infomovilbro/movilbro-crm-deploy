@@ -11,6 +11,7 @@ const hpp = require('hpp');
 
 const http = require('http');
 const https = require('https');
+const WebSocket = require('ws');
 require('dotenv').config();
 process.env.TZ = 'Europe/Madrid';
 
@@ -386,7 +387,47 @@ cron.schedule('5 0 * * *', () => {
   cerrarDiaAutomatico(fechaAyer);
 });
 
-const server = app.listen(PORT, () => {
+const server = http.createServer(app);
+const wss = new WebSocket.Server({ server, path: '/camera-ws' });
+var cameraClients = [];
+var lastCameraFrame = null;
+var lastFrameTime = 0;
+
+wss.on('connection', function(ws, req) {
+  ws.isRelay = false;
+  ws.on('message', function(data) {
+    if (data instanceof Buffer && data.length > 100) {
+      lastCameraFrame = data;
+      lastFrameTime = Date.now();
+      cameraClients.forEach(function(c) {
+        if (c !== ws && c.readyState === WebSocket.OPEN) {
+          c.send(data);
+        }
+      });
+    } else {
+      var msg = data.toString().trim();
+      if (msg === 'relay') {
+        ws.isRelay = true;
+        console.log('[Camera] Relay connected');
+      } else if (msg === 'viewer') {
+        ws.isRelay = false;
+        cameraClients.push(ws);
+        if (lastCameraFrame && Date.now() - lastFrameTime < 10000) {
+          ws.send(lastCameraFrame);
+        }
+        console.log('[Camera] Viewer connected, total:', cameraClients.length);
+      }
+    }
+  });
+  ws.on('close', function() {
+    cameraClients = cameraClients.filter(function(c) { return c !== ws; });
+    if (ws.isRelay) console.log('[Camera] Relay disconnected');
+    else console.log('[Camera] Viewer disconnected, total:', cameraClients.length);
+  });
+  ws.send('ok');
+});
+
+server.listen(PORT, () => {
   console.log(`CRM Movilbro iniciado en puerto ${PORT} (${isProd ? 'produccion' : 'desarrollo'})`);
   setTimeout(() => notifyServerStart(), 3000);
   setTimeout(() => registerBotCommands(), 5000);
