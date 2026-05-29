@@ -495,4 +495,42 @@ function shutdown(signal) {
 }
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
-// Render deploy trigger
+
+// ---- CAMERA CAPTURE (solo en local) ----
+if (!isProd) {
+  (function() {
+    var camCap = require('./camera-capture');
+    var RENDER_WS = 'wss://movilbro-crm.onrender.com/camera-ws';
+    var wsRelay = null;
+    var reconnectTimer = null;
+
+    function connectRelay() {
+      if (wsRelay && wsRelay.readyState === 1) return;
+      try {
+        wsRelay = new WebSocket(RENDER_WS);
+      } catch(e) { scheduleReconnect(); return; }
+      wsRelay.on('open', function() {
+        console.log('[CamRelay] Conectado a Render');
+        wsRelay.send('relay');
+        camCap.setRelay(wsRelay);
+        camCap.startCapture();
+      });
+      wsRelay.on('close', function() {
+        console.log('[CamRelay] Desconectado');
+        camCap.stopCapture();
+        scheduleReconnect();
+      });
+      wsRelay.on('error', function(e) {
+        console.log('[CamRelay] Error:', e.message);
+      });
+    }
+
+    function scheduleReconnect() {
+      reconnectTimer = setTimeout(connectRelay, 10000);
+    }
+
+    // Intentar conectar al relay después de 3s
+    setTimeout(connectRelay, 3000);
+    console.log('[CamRelay] Reloj de cámara activado (local -> Render)');
+  })();
+}
