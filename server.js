@@ -253,6 +253,14 @@ app.use('/external-api', externalApiRoutes);
 app.use('/', dashboardRoutes);
 app.use('/auth', authRoutes);
 
+// ---- SYNC PROGRESS (público, sin auth) ----
+app.get('/isp/sync-progress', (req, res) => {
+  res.json(getProgress());
+});
+app.get('/api/sync-progress', (req, res) => {
+  res.json(getProgress());
+});
+
 // ---- LIKES TELECOM ROUTES ----
 app.use('/altas', altasRoutes);
 app.use('/kpis', kpiRoutes);
@@ -403,14 +411,6 @@ setTimeout(() => {
     console.log('[AutoSync] Sincronización inicial:', r.ok ? 'OK (' + r.invoices + ' facturas)' : 'ERROR: ' + (r.error || ''));
   });
 }, 15000);
-
-// ---- ENDPOINT DE PROGRESO ----
-app.get('/isp/sync-progress', (req, res) => {
-  res.json(getProgress());
-});
-app.get('/api/sync-progress', (req, res) => {
-  res.json(getProgress());
-});
 
 // ---- RE-SYNC MANUAL ----
 app.post('/isp/re-sync', async (req, res) => {
