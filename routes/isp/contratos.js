@@ -8,7 +8,6 @@ router.use(requireAuth);
 
 router.get('/', async (req, res) => {
   try {
-    // First try local data
     var localCount = 0;
     try { var cr = db.prepare('SELECT COUNT(*) as c FROM isp_contratos').get(); localCount = cr.c; } catch(e) {}
     
@@ -17,7 +16,6 @@ router.get('/', async (req, res) => {
       return res.render('isp/contratos', { title: 'Contratos', contratos });
     }
 
-    // No local data - fetch from API
     var api = LikesAPI.getApiInstance();
     var customers = [];
     try { customers = await api.getCustomers(); } catch(e) {}
@@ -74,12 +72,10 @@ router.post('/create', (req, res) => {
 
 router.get('/:id', async (req, res) => {
   try {
-    // Try local first
     var contrato = null;
     try { contrato = db.prepare('SELECT c.*, cl.nombre as cliente_nombre, cl.dni_nif, cl.telefono, cl.email FROM isp_contratos c LEFT JOIN clients cl ON c.client_id=cl.id WHERE c.id=?').get(req.params.id); } catch(e) {}
     
     if (!contrato) {
-      // Try API - fetch subscriptions and find by id
       var api = LikesAPI.getApiInstance();
       var customers = [];
       try { customers = await api.getCustomers(); } catch(e) {}
@@ -102,7 +98,8 @@ router.get('/:id', async (req, res) => {
               fecha_alta: (found.created || '').split('T')[0],
               dni_nif: cliente ? cliente.fiscalId : '',
               telefono: cliente ? cliente.contactPhone : '',
-              email: cliente ? cliente.email : ''
+              email: cliente ? cliente.email : '',
+              orderId: found.orderId || found.draftOrderId || ''
             };
             break;
           }
@@ -113,6 +110,84 @@ router.get('/:id', async (req, res) => {
     if (!contrato) return res.status(404).send('No encontrado');
     res.render('isp/contratos-view', { title: 'Contrato #' + contrato.id, contrato });
   } catch (e) { res.status(500).send('Error: ' + e.message); }
+});
+
+// Download original contract PDF from API
+router.get('/:id/pdf', async (req, res) => {
+  try {
+    var contrato = null;
+    try { contrato = db.prepare('SELECT * FROM isp_contratos WHERE id=?').get(req.params.id); } catch(e) {}
+
+    if (!contrato) {
+      var api = LikesAPI.getApiInstance();
+      var customers = [];
+      try { customers = await api.getCustomers(); } catch(e) {}
+      var fiscalIds = customers.map(function(c) { return c.fiscalId; }).filter(Boolean).slice(0, 10);
+      for (var fid of fiscalIds) {
+        try {
+          var data = await api.request('GET', '/subscriptions?fiscalId=' + encodeURIComponent(fid) + '&brand_id=264');
+          var items = Array.isArray(data) ? data : [];
+          var found = items.find(function(s) { return String(s.subscriptionId || s.id) === req.params.id; });
+          if (found) {
+            contrato = { orderId: found.orderId || found.draftOrderId || '', fiscalId: found.fiscalId || fid };
+            break;
+          }
+        } catch(e) {}
+      }
+    }
+
+    var orderId = contrato?.orderId;
+    // Try to download the contract PDF from the API
+    // The API may have an endpoint to get draft order documents
+    if (orderId) {
+      try {
+        var api = LikesAPI.getApiInstance();
+        var pdfData = await api.request('GET', '/draft-order-v2/' + orderId + '/contract');
+        if (pdfData && pdfData.length > 100) {
+          res.setHeader('Content-Type', 'application/pdf');
+          res.setHeader('Content-Disposition', 'attachment; filename="contrato-' + req.params.id + '.pdf"');
+          return res.send(Buffer.isBuffer(pdfData) ? pdfData : Buffer.from(pdfData));
+        }
+      } catch(e) {}
+      // Try alternative endpoint
+      try {
+        var api = LikesAPI.getApiInstance();
+        var pdfData = await api.request('GET', '/contract/' + orderId + '/pdf');
+        if (pdfData && pdfData.length > 100) {
+          res.setHeader('Content-Type', 'application/pdf');
+          res.setHeader('Content-Disposition', 'attachment; filename="contrato-' + req.params.id + '.pdf"');
+          return res.send(Buffer.isBuffer(pdfData) ? pdfData : Buffer.from(pdfData));
+        }
+      } catch(e) {}
+    }
+
+    // If API fails, generate a local contract PDF
+    var c = contrato || {};
+    var ejs = require('ejs');
+    var fs = require('fs');
+    var path = require('path');
+    var plantillaPath = path.join(__dirname, '..', '..', 'views', 'isp', 'contratos', 'contrato-pdf.ejs');
+    var html = '';
+    if (fs.existsSync(plantillaPath)) {
+      html = ejs.render(fs.readFileSync(plantillaPath, 'utf8'), { contrato: c, layout: false });
+    } else {
+      html = '<html><body><h1>Contrato #' + req.params.id + '</h1><p>Cliente: ' + (c.cliente_nombre || '') + '</p><p>Descarga el PDF original desde el panel de gestión.</p></body></html>';
+    }
+    
+    var { chromium } = require('playwright');
+    var browser = await chromium.launch({ headless: true });
+    var page = await browser.newPage();
+    await page.setContent(html, { waitUntil: 'networkidle' });
+    var pdfBuf = await page.pdf({ format: 'A4', printBackground: true });
+    await browser.close();
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="contrato-' + req.params.id + '.pdf"');
+    res.send(pdfBuf);
+  } catch(e) {
+    console.error(e);
+    res.status(500).send('Error: ' + e.message);
+  }
 });
 
 router.post('/:id/estado', (req, res) => {

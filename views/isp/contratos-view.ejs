@@ -4,7 +4,10 @@
       <h2><i class="bi bi-file-text"></i> Contrato #<%= contrato.id %></h2>
       <span class="text-muted"><%= contrato.cliente_nombre || 'Sin cliente' %></span>
     </div>
-    <a href="/isp/contratos" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Volver</a>
+    <div class="d-flex gap-2">
+      <a href="/isp/contratos/<%= contrato.id %>/pdf" class="btn btn-success" target="_blank"><i class="bi bi-file-pdf"></i> Descargar Contrato PDF</a>
+      <a href="/isp/contratos" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Volver</a>
+    </div>
   </div>
   <div class="row g-3">
     <div class="col-md-6">

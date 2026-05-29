@@ -25,6 +25,7 @@ global.getTomorrow = () => { const d = new Date(); d.setDate(d.getDate() + 1); r
 const { initDatabase, db } = require('./database');
 const { loadUserPermissions, requireAuth } = require('./middleware/auth');
 const { loadSettings } = require('./middleware/settings-loader');
+const { runSync, getProgress } = require('./auto-sync');
 const authRoutes = require('./routes/auth');
 const clientRoutes = require('./routes/clients');
 const orderRoutes = require('./routes/orders');
@@ -385,6 +386,36 @@ if (!ayerCerrado || !ayerCerrado.cerrado) {
 cron.schedule('5 0 * * *', () => {
   const fechaAyer = getYesterday();
   cerrarDiaAutomatico(fechaAyer);
+});
+
+// ---- AUTO SYNC - Sincronización cada hora con API Likes Telecom ----
+cron.schedule('0 * * * *', () => {
+  console.log('[AutoSync] Ejecutando sincronización horaria...');
+  runSync().then(r => {
+    console.log('[AutoSync] Resultado:', r.ok ? 'OK (' + r.invoices + ' facturas)' : 'ERROR: ' + (r.error || ''));
+  });
+});
+
+// Sincronización inicial al arrancar (con retardo para que todo esté listo)
+setTimeout(() => {
+  console.log('[AutoSync] Ejecutando sincronización inicial...');
+  runSync().then(r => {
+    console.log('[AutoSync] Sincronización inicial:', r.ok ? 'OK (' + r.invoices + ' facturas)' : 'ERROR: ' + (r.error || ''));
+  });
+}, 15000);
+
+// ---- ENDPOINT DE PROGRESO ----
+app.get('/isp/sync-progress', (req, res) => {
+  res.json(getProgress());
+});
+app.get('/api/sync-progress', (req, res) => {
+  res.json(getProgress());
+});
+
+// ---- RE-SYNC MANUAL ----
+app.post('/isp/re-sync', async (req, res) => {
+  var r = await runSync();
+  res.json(r);
 });
 
 const server = http.createServer(app);

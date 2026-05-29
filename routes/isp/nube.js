@@ -12,7 +12,8 @@ var MES_NOMBRES = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','
 
 router.get('/', (req, res) => {
   var pdfs = nube.listarPDFs();
-  var stats = { total: pdfs.length, sizeTotal: 0 };
+  var zipPdfs = nube.getAllPDFNamesFromZips();
+  var stats = { total: pdfs.length + Object.keys(zipPdfs).length, sizeTotal: 0 };
   pdfs.forEach(function(p) { stats.sizeTotal += p.size; });
 
   var facturas = db.prepare('SELECT id, serie, numero_factura, cliente_nombre, periodo, fecha_emision, importe_total, estado FROM isp_facturas ORDER BY fecha_emision DESC, id DESC').all();
@@ -20,10 +21,8 @@ router.get('/', (req, res) => {
   var pdfMap = {};
   pdfs.forEach(function(p) { pdfMap[p.fileName] = p; });
 
-  // Group by year from both DB invoices and filesystem PDFs
   var yearsMap = {};
-  
-  // Add DB invoices
+
   facturas.forEach(function(f) {
     var year = f.fecha_emision ? f.fecha_emision.substring(0, 4) : '2026';
     var month = f.fecha_emision ? parseInt(f.fecha_emision.substring(5, 7)) : 5;
@@ -32,6 +31,7 @@ router.get('/', (req, res) => {
     var numFactura = (f.serie || 'F') + '-' + String(f.numero_factura || f.id).padStart(5, '0');
     var pdfName = 'Factura-' + numFactura + '.pdf';
     var pdfInfo = pdfMap[pdfName] || null;
+    var inZip = zipPdfs[pdfName] || null;
     yearsMap[year][month].facturas.push({
       id: f.id,
       numFactura: numFactura,
@@ -41,14 +41,15 @@ router.get('/', (req, res) => {
       estado: f.estado,
       pdfPath: pdfInfo ? pdfInfo.fullPath : null,
       pdfSize: pdfInfo ? pdfInfo.size : null,
-      origen: 'db'
+      origen: 'db',
+      inZip: inZip ? inZip.zipPath : null
     });
     yearsMap[year][month].total += parseFloat(f.importe_total || 0);
     yearsMap[year][month].count++;
-    delete pdfMap[pdfName]; // Remove matched PDFs
+    delete pdfMap[pdfName];
+    if (inZip) delete zipPdfs[pdfName];
   });
 
-  // Add remaining filesystem PDFs (historical ISP invoices without DB records)
   var mesMap = { 'Enero':1,'Febrero':2,'Marzo':3,'Abril':4,'Mayo':5,'Junio':6,'Julio':7,'Agosto':8,'Septiembre':9,'Octubre':10,'Noviembre':11,'Diciembre':12 };
   Object.keys(pdfMap).forEach(function(pdfName) {
     var pdfInfo = pdfMap[pdfName];
@@ -70,7 +71,29 @@ router.get('/', (req, res) => {
     yearsMap[year][month].count++;
   });
 
-  // Build years array from 2024 to current year+1
+  // Add PDFs that are only in ZIPS (not yet extracted)
+  Object.keys(zipPdfs).forEach(function(pdfName) {
+    var zipInfo = zipPdfs[pdfName];
+    var year = zipInfo.year;
+    var month = mesMap[zipInfo.month];
+    if (!month) return;
+    if (!yearsMap[year]) yearsMap[year] = {};
+    if (!yearsMap[year][month]) yearsMap[year][month] = { facturas: [], total: 0, count: 0 };
+    yearsMap[year][month].facturas.push({
+      id: null,
+      numFactura: pdfName.replace(/^Factura-/,'').replace(/\.pdf$/,''),
+      cliente: pdfName.replace(/^Factura-/,'').replace(/\.pdf$/,''),
+      importe: 0,
+      fecha: year + '-' + String(month).padStart(2, '0') + '-01',
+      estado: 'archivada',
+      pdfPath: null,
+      pdfSize: null,
+      origen: 'zip',
+      inZip: zipInfo.zipPath
+    });
+    yearsMap[year][month].count++;
+  });
+
   var currentYear = new Date().getFullYear();
   var years = [];
   for (var y = 2024; y <= currentYear + 1; y++) {
@@ -89,13 +112,17 @@ router.get('/', (req, res) => {
     years.push({ year: y, meses: meses });
   }
 
+  // Also list ZIPS for display
+  var zipFiles = nube.listZips();
+
   res.render('isp/nube', {
     title: 'Nube - Facturas',
     years: years,
     totalFacturas: facturas.length,
     totalImporte: facturas.reduce(function(s, f) { return s + parseFloat(f.importe_total || 0); }, 0),
-    totalPDFs: pdfs.length,
-    mesNombres: MES_NOMBRES
+    totalPDFs: pdfs.length + Object.keys(zipPdfs).length,
+    mesNombres: MES_NOMBRES,
+    zipFiles: zipFiles
   });
 });
 
@@ -118,6 +145,28 @@ router.get('/ver/:id', (req, res) => {
     factura, lineas, cdrsDetalle, llamadas, history,
     layout: false
   });
+});
+
+// View a PDF from ZIP storage by filename
+router.get('/ver-zip', (req, res) => {
+  var pdfName = req.query.pdf;
+  if (!pdfName) return res.status(400).send('Falta nombre PDF');
+  var result = nube.findPDFInZips(pdfName);
+  if (!result) {
+    // Try with Factura- prefix
+    var altName = 'Factura-' + pdfName;
+    if (!altName.endsWith('.pdf')) altName += '.pdf';
+    result = nube.findPDFInZips(altName);
+    if (!altName.startsWith('Factura-')) {
+      var altName2 = 'Factura-' + pdfName.replace(/\.pdf$/i,'') + '.pdf';
+      result = nube.findPDFInZips(altName2);
+    }
+  }
+  if (!result) return res.status(404).send('No encontrado en ZIP');
+  var isDownload = req.query.download === '1';
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', (isDownload ? 'attachment' : 'inline') + '; filename="' + pdfName + '"');
+  res.send(result.data);
 });
 
 router.get('/pdf/:id', async (req, res) => {
@@ -143,6 +192,14 @@ router.get('/pdf/:id', async (req, res) => {
 
     if (fs.existsSync(cachedPath)) return res.download(cachedPath, nombreArchivo);
 
+    // Check ZIP storage
+    var zipResult = nube.findPDFInZips(nombreArchivo);
+    if (zipResult) {
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'attachment; filename="' + nombreArchivo + '"');
+      return res.send(zipResult.data);
+    }
+
     var result = await nube.procesarFactura(factura, lineas, cdrsDetalle, llamadas, history);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename="' + nombreArchivo + '"');
@@ -161,7 +218,6 @@ router.get('/descargar', (req, res) => {
   res.download(filePath);
 });
 
-// ZIP download by year/month
 router.get('/zip/:year/:month?', (req, res) => {
   try {
     var archiver = require('archiver');
@@ -173,7 +229,6 @@ router.get('/zip/:year/:month?', (req, res) => {
     var pdfs = nube.listarPDFs();
     var year = req.params.year;
     var month = req.params.month;
-    var MESES = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
     var MESES_INV = { 'Enero':1,'Febrero':2,'Marzo':3,'Abril':4,'Mayo':5,'Junio':6,'Julio':7,'Agosto':8,'Septiembre':9,'Octubre':10,'Noviembre':11,'Diciembre':12 };
 
     pdfs.forEach(function(p) {
@@ -184,7 +239,18 @@ router.get('/zip/:year/:month?', (req, res) => {
       }
     });
 
-    // Also add PDFs from DB that are not yet cached (generate on the fly? skip for now)
+    // Also add ZIP-internal PDFs
+    var zipPdfs = nube.getAllPDFNamesFromZips();
+    Object.keys(zipPdfs).forEach(function(pdfName) {
+      var info = zipPdfs[pdfName];
+      if (year !== 'todas' && info.year !== year) return;
+      if (month && MESES_INV[info.month] !== parseInt(month)) return;
+      var data = nube.getPDFDataFromZip(info.zipPath, info.entryName);
+      if (data) {
+        archive.append(data, { name: info.year + '/' + info.month + '/' + pdfName });
+      }
+    });
+
     archive.finalize();
   } catch(e) {
     console.error('Zip error:', e.message);
@@ -216,6 +282,16 @@ router.post('/generar-todas', async (req, res) => {
     } catch(e) { console.error('Error #' + f.id + ': ' + e.message); }
   }
   console.log('PDFs generados');
+});
+
+// Import ZIPs from local Downloads
+router.post('/importar-zips', (req, res) => {
+  try {
+    var result = nube.importZipsFromDownloads();
+    res.json(result);
+  } catch(e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
 });
 
 module.exports = router;
