@@ -105,6 +105,18 @@ async function syncInvoicesOnly() {
       } catch(e) { errors++; }
     }
 
+    // Clean orphan invoices (customers no longer active)
+    try {
+      var fids = allSubsData.filter(function(sd) { return sd.subs.length > 0; }).map(function(sd) { return sd.fiscalId; });
+      if (fids.length > 0) {
+        var orphans = db.prepare('SELECT id FROM isp_facturas WHERE periodo=? AND fiscal_id NOT IN (' + fids.map(function() { return '?'; }).join(',') + ')').all.apply(null, [periodo].concat(fids));
+        for (var o of orphans) {
+          db.prepare('DELETE FROM isp_facturas_lineas WHERE factura_id=?').run(o.id);
+          db.prepare('DELETE FROM isp_facturas WHERE id=?').run(o.id);
+        }
+      }
+    } catch(e) {}
+
     syncProgress.status = 'completed';
     syncProgress.lastSync = new Date().toISOString();
     syncProgress.step = 'Completado';
