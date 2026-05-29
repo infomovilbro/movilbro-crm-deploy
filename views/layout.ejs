@@ -912,6 +912,20 @@
       </div>
 
       <div class="mb-2">
+        <label class="form-label small mb-1">Fondo barra inferior</label>
+        <div class="d-flex gap-2 align-items-center">
+          <input id="uiBottomNavBgColor" type="color" class="form-control form-control-color" style="width:50px;">
+          <span id="uiBottomNavBgValue" class="small text-muted">#ffffff</span>
+          <button id="uiApplyBottomNavBg" class="btn btn-outline-dark btn-sm">Aplicar</button>
+        </div>
+      </div>
+
+      <div class="mb-2">
+        <label class="form-label small mb-1">Visibilidad barra inferior</label>
+        <div id="uiBottomNavVisibility" class="d-flex flex-wrap gap-2"></div>
+      </div>
+
+      <div class="mb-2">
         <label class="form-label small mb-1">Iconos rápidos</label>
         <input id="uiIconSearch" class="form-control form-control-sm mb-1" placeholder="buscar icono (home, chart, user, ...)">
         <div id="uiIconGrid" style="max-height:120px;overflow:auto;border:1px solid #eee;border-radius:8px;padding:6px;display:grid;grid-template-columns:repeat(6,1fr);gap:6px;"></div>
@@ -1067,6 +1081,21 @@
             }
           });
         } catch(e) {}
+        // Apply bottom nav background
+        try {
+          const savedBottomNavBg = localStorage.getItem('ui_bottomnav_bg');
+          if (savedBottomNavBg) {
+            document.getElementById('bottomNav')?.style.setProperty('background', savedBottomNavBg, 'important');
+          }
+        } catch(e) {}
+        // Apply bottom nav visibility
+        try {
+          const hiddenBottomNav = JSON.parse(localStorage.getItem('ui_hidden_bottomnav') || '[]');
+          hiddenBottomNav.forEach(function(key) {
+            var btn = document.querySelector('.bottom-nav-item[data-nav-group="' + key + '"]');
+            if (btn) btn.style.display = 'none';
+          });
+        } catch(e) {}
       }
 
       function setSelected(el) {
@@ -1211,6 +1240,71 @@
         });
       }
 
+      // Bottom nav background color
+      const bottomNavBgInput = document.getElementById('uiBottomNavBgColor');
+      const bottomNavBgValue = document.getElementById('uiBottomNavBgValue');
+      const applyBottomNavBg = document.getElementById('uiApplyBottomNavBg');
+      if (bottomNavBgInput) {
+        const savedBg = localStorage.getItem('ui_bottomnav_bg') || '#ffffff';
+        bottomNavBgInput.value = savedBg;
+        if (bottomNavBgValue) bottomNavBgValue.textContent = savedBg;
+        bottomNavBgInput.addEventListener('input', function() {
+          if (bottomNavBgValue) bottomNavBgValue.textContent = this.value;
+        });
+      }
+      if (applyBottomNavBg) {
+        applyBottomNavBg.addEventListener('click', function() {
+          const color = bottomNavBgInput ? bottomNavBgInput.value : '#ffffff';
+          document.getElementById('bottomNav')?.style.setProperty('background', color, 'important');
+          localStorage.setItem('ui_bottomnav_bg', color);
+        });
+      }
+
+      // Bottom nav visibility
+      function renderBottomNavVisibility() {
+        const container = document.getElementById('uiBottomNavVisibility');
+        if (!container) return;
+        const hidden = (function() { try { return JSON.parse(localStorage.getItem('ui_hidden_bottomnav') || '[]'); } catch(e) { return []; } })();
+        container.innerHTML = '';
+        var items = [
+          { key: 'tienda', label: 'Tienda', icon: '🏪' },
+          { key: 'clientes', label: 'Clientes', icon: '🖥️' },
+          { key: 'isp', label: 'ISP', icon: '🌐' },
+          { key: 'redes', label: 'Herramientas', icon: '🔗' }
+        ];
+        items.forEach(function(item) {
+          const isHidden = hidden.indexOf(item.key) !== -1;
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'btn btn-sm w-100 text-start ' + (isHidden ? 'btn-outline-danger' : 'btn-outline-success');
+          btn.innerHTML = (isHidden ? '<i class="bi bi-eye-slash"></i> ' : '<i class="bi bi-eye"></i> ') + '<strong>' + item.icon + ' ' + item.label + '</strong>';
+          btn.addEventListener('click', function() {
+            let h = (function() { try { return JSON.parse(localStorage.getItem('ui_hidden_bottomnav') || '[]'); } catch(e) { return []; } })();
+            const idx = h.indexOf(item.key);
+            if (idx !== -1) { h.splice(idx, 1); } else { h.push(item.key); }
+            localStorage.setItem('ui_hidden_bottomnav', JSON.stringify(h));
+            renderBottomNavVisibility();
+            var navBtn = document.querySelector('.bottom-nav-item[data-nav-group="' + item.key + '"]');
+            if (navBtn) navBtn.style.display = (idx !== -1) ? '' : 'none';
+          });
+          container.appendChild(btn);
+        });
+        const restoreBtn = document.createElement('button');
+        restoreBtn.type = 'button';
+        restoreBtn.className = 'btn btn-sm btn-outline-warning mt-1 w-100';
+        restoreBtn.innerHTML = '<i class="bi bi-arrow-counterclockwise"></i> Restaurar barra inferior';
+        restoreBtn.addEventListener('click', function() {
+          localStorage.removeItem('ui_hidden_bottomnav');
+          localStorage.removeItem('ui_bottomnav_bg');
+          document.querySelectorAll('.bottom-nav-item').forEach(function(b) { b.style.display = ''; });
+          document.getElementById('bottomNav')?.style.removeProperty('background');
+          renderBottomNavVisibility();
+          if (bottomNavBgInput) { bottomNavBgInput.value = '#ffffff'; if (bottomNavBgValue) bottomNavBgValue.textContent = '#ffffff'; }
+        });
+        container.appendChild(restoreBtn);
+      }
+      renderBottomNavVisibility();
+
       // Group visibility
       function renderGroupVisibility() {
         const container = document.getElementById('uiGroupVisibility');
@@ -1292,6 +1386,13 @@
           document.querySelectorAll('.nav-group').forEach(function(g) { g.style.display = ''; });
           document.querySelectorAll('.nav-submenu li').forEach(function(li) { li.style.display = ''; });
           renderGroupVisibility();
+          // Also reset bottom nav
+          localStorage.removeItem('ui_hidden_bottomnav');
+          localStorage.removeItem('ui_bottomnav_bg');
+          document.querySelectorAll('.bottom-nav-item').forEach(function(b) { b.style.display = ''; });
+          document.getElementById('bottomNav')?.style.removeProperty('background');
+          renderBottomNavVisibility();
+          if (bottomNavBgInput) { bottomNavBgInput.value = '#ffffff'; if (bottomNavBgValue) bottomNavBgValue.textContent = '#ffffff'; }
         });
         container.appendChild(restoreBtn);
       }
