@@ -46,6 +46,20 @@ router.post('/subir-zip', upload.single('zip'), (req, res) => {
   }
 });
 
+// Create a new folder in nube
+router.post('/crear-carpeta', (req, res) => {
+  try {
+    var nombre = (req.body.nombre || '').trim().replace(/[^a-zA-Z0-9_\-\u00C0-\u024F ]/g, '_');
+    if (!nombre) return res.json({ ok: false, error: 'Nombre inválido' });
+    var dir = path.join(nube.NUBE_DIR, nombre);
+    if (fs.existsSync(dir)) return res.json({ ok: false, error: 'La carpeta ya existe' });
+    nube.ensureDir(dir);
+    res.json({ ok: true, nombre: nombre });
+  } catch(e) {
+    res.json({ ok: false, error: e.message });
+  }
+});
+
 router.use(requireAuth);
 
 router.get('/', (req, res) => {

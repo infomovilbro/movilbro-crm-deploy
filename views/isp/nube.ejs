@@ -9,6 +9,7 @@
       <button class="btn btn-outline-primary btn-sm" onclick="generarTodas()" id="btnGenerar"><i class="bi bi-cloud-arrow-up"></i> PDFs</button>
       <button class="btn btn-outline-success btn-sm" onclick="importarZips()" id="btnImportZips"><i class="bi bi-folder-plus"></i> Importar ZIPs</button>
       <button class="btn btn-outline-warning btn-sm" onclick="document.getElementById('uploadZipInput').click()"><i class="bi bi-upload"></i> Subir ZIP</button>
+      <button class="btn btn-outline-info btn-sm" onclick="nuevaCarpeta()"><i class="bi bi-folder-plus"></i> Crear carpeta</button>
       <input type="file" id="uploadZipInput" accept=".zip" style="display:none" onchange="subirZip(this)">
       <div id="uploadStatus" class="small text-muted mt-1" style="display:none;"></div>
     </div>
@@ -201,6 +202,18 @@ function subirZip(input) {
       status.innerHTML = '<span class="text-danger">❌ Error de conexión</span>';
     });
   input.value = '';
+}
+
+function nuevaCarpeta() {
+  var nombre = prompt('Nombre de la nueva carpeta:');
+  if (!nombre || !nombre.trim()) return;
+  fetch('/isp/nube/crear-carpeta', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nombre: nombre.trim() }) })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.ok) { location.reload(); }
+      else { alert('Error: ' + (d.error || 'desconocido')); }
+    })
+    .catch(function() { alert('Error de conexión'); });
 }
 </script>
 <style>
