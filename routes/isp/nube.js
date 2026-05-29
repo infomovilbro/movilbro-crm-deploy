@@ -8,42 +8,41 @@ const router = express.Router();
 
 var MES_NOMBRES = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
-// Upload ZIP - no auth required for upload (files go to nube, harmless)
-var multer = require('multer');
-var upload = multer({ dest: path.join(__dirname, '..', '..', 'uploads') });
-var AdmZip = require('adm-zip');
-router.post('/subir-zip', upload.single('zip'), (req, res) => {
+// Ensure temp uploads directory exists
+var uploadsDir = path.join(__dirname, '..', '..', 'uploads');
+try { if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true }); } catch(e) {}
+
+router.use(requireAuth);
+
+// Upload ZIP file via browser and extract to nube
+router.post('/subir-zip', (req, res) => {
   try {
-    if (!req.file) return res.json({ ok: false, error: 'No se seleccionó ningún archivo' });
-    var zipPath = req.file.path;
-    var zip = new AdmZip(zipPath);
-    var entries = zip.getEntries();
-    var imported = 0;
-    entries.forEach(function(entry) {
-      if (entry.entryName.endsWith('.pdf')) {
-        var match = entry.entryName.match(/(\d{4})/);
-        var year = match ? match[1] : new Date().getFullYear().toString();
-        var monthName = MES_NOMBRES[new Date().getMonth() + 1];
-        for (var m = 1; m <= 12; m++) {
-          if (entry.entryName.toLowerCase().indexOf(MES_NOMBRES[m].toLowerCase()) > -1) {
-            monthName = MES_NOMBRES[m];
-            break;
+    var multer = require('multer');
+    var AdmZip = require('adm-zip');
+    var up = multer({ dest: uploadsDir }).single('zip');
+    up(req, res, function(err) {
+      if (err) return res.json({ ok: false, error: err.message });
+      if (!req.file) return res.json({ ok: false, error: 'No se seleccionó ningún archivo' });
+      var zip = new AdmZip(req.file.path);
+      var imported = 0;
+      zip.getEntries().forEach(function(entry) {
+        if (entry.entryName.endsWith('.pdf')) {
+          var match = entry.entryName.match(/(\d{4})/);
+          var year = match ? match[1] : new Date().getFullYear().toString();
+          var monthName = MES_NOMBRES[new Date().getMonth() + 1];
+          for (var m = 1; m <= 12; m++) {
+            if (entry.entryName.toLowerCase().indexOf(MES_NOMBRES[m].toLowerCase()) > -1) { monthName = MES_NOMBRES[m]; break; }
           }
+          var dir = path.join(nube.NUBE_DIR, year, monthName);
+          nube.ensureDir(dir);
+          var destPath = path.join(dir, path.basename(entry.entryName));
+          if (!fs.existsSync(destPath)) { fs.writeFileSync(destPath, zip.readFile(entry)); imported++; }
         }
-        var dir = path.join(nube.NUBE_DIR, year, monthName);
-        nube.ensureDir(dir);
-        var destPath = path.join(dir, path.basename(entry.entryName));
-        if (!fs.existsSync(destPath)) {
-          fs.writeFileSync(destPath, zip.readFile(entry));
-          imported++;
-        }
-      }
+      });
+      try { fs.unlinkSync(req.file.path); } catch(e) {}
+      res.json({ ok: true, imported: imported, message: imported + ' PDFs importados' });
     });
-    try { fs.unlinkSync(zipPath); } catch(e) {}
-    res.json({ ok: true, imported: imported, message: imported + ' PDFs importados' });
-  } catch(e) {
-    res.json({ ok: false, error: e.message });
-  }
+  } catch(e) { res.json({ ok: false, error: e.message }); }
 });
 
 // Create a new folder in nube
@@ -55,12 +54,8 @@ router.post('/crear-carpeta', (req, res) => {
     if (fs.existsSync(dir)) return res.json({ ok: false, error: 'La carpeta ya existe' });
     nube.ensureDir(dir);
     res.json({ ok: true, nombre: nombre });
-  } catch(e) {
-    res.json({ ok: false, error: e.message });
-  }
+  } catch(e) { res.json({ ok: false, error: e.message }); }
 });
-
-router.use(requireAuth);
 
 router.get('/', (req, res) => {
   var pdfs = nube.listarPDFs();
