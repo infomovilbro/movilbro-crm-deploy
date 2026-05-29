@@ -54,6 +54,7 @@ const remittancesRoutes = require('./routes/remittances');
 const resourcesRoutes = require('./routes/resources');
 const massiveRoutes = require('./routes/massive-processes');
 const tiendaRoutes = require('./routes/tienda');
+const neonRoutes = require('./routes/neon');
 const apiProxyRoutes = require('./routes/api-proxy');
 const externalApiRoutes = require('./routes/external-api');
 const { router: backupRouter, sendBackup } = require('./routes/backup');
@@ -293,6 +294,9 @@ app.use('/api/chat', chatRoutes);
 // ---- ISP GESTION MODULE ----
 const ispRoutes = require('./routes/isp-core');
 app.use('/isp', ispRoutes);
+
+// ---- NEON DEVICES ----
+app.use('/neon', neonRoutes);
 
 // Redirect /pagos to /payments
 app.get('/pagos', (req, res) => res.redirect(301, '/payments'));
