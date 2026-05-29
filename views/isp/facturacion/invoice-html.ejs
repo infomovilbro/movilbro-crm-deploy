@@ -2,14 +2,18 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Factura <%= (factura.serie || 'F') + '-' + String(factura.numero_factura || factura.id).padStart(5, '0') %> - <%= factura.cliente_nombre %></title>
+<title>Factura <%= facturaNum %> - <%= factura.cliente_nombre %></title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: 'Lucida Sans Unicode', 'Lucida Grande', sans-serif; font-size: 12px; background: #fff; color: #000; }
-.page { width: 210mm; margin: 0 auto; padding: 15mm 10mm; }
+.page { width: 210mm; margin: 0 auto; padding: 10mm; }
 table { border-collapse: collapse; }
 #tabla_resumen tr:nth-child(even) { background-color: #f2f2f2; }
-@media print { .page { padding: 10mm 8mm; } }
+@media print { .page { padding: 8mm; } }
+.clearfix::after { content: ""; display: table; clear: both; }
+.bordeado { border: thin solid #ccc; padding: 10px 30px; box-shadow: 4px 4px 8px 1px #ddd; }
+.centrado { text-align: center; }
+#titulo_cliente { background-color: #ccc; font-weight: bold; padding: 0.5px 10px; }
 </style>
 </head>
 <body>
@@ -20,36 +24,60 @@ var cdrs = Number(factura.importe_cdrs || 0);
 var total = Number(factura.importe_total || 0);
 var baseTotal = base + cdrs;
 var iva = total - baseTotal;
-var todasLineas = lineas; // Show ALL line items including CDRs
+var todasLineas = lineas;
 var months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 var periodParts = (factura.periodo || '').split('-');
 var monthName = periodParts[1] ? months[parseInt(periodParts[1]) - 1] : '';
 var yearName = periodParts[0] || '';
-var facturaNum = (factura.serie || 'F') + '-' + String(factura.numero_factura || factura.id).padStart(5, '0');
+var serieNum = factura.serie || 'F';
+var facturaNum = serieNum + '-' + String(factura.numero_factura || factura.id).padStart(5, '0');
 var fmt = function(n) { return Number(n || 0).toFixed(2).replace('.', ','); };
-%>
+var fechaEmision = factura.fecha_emision ? new Date(factura.fecha_emision).toLocaleDateString('es-ES') : '-';
+var fechaVenc = factura.fecha_vencimiento ? new Date(factura.fecha_vencimiento).toLocaleDateString('es-ES') : '-';
+var entidad = factura.metodo_pago === 'domiciliacion' ? 'BANCO BILBAO VIZCAYA ARGENTARIA, S.A.' : (factura.metodo_pago === 'stripe' ? 'STRIPE' : (factura.metodo_pago || '-'));
+var cuentaIban = factura.metodo_pago === 'stripe' ? 'Pago con tarjeta' : (factura.iban || '-');
+var direccion = factura.cliente_direccion || '';
+var poblacion = factura.cliente_poblacion || '';
+var provincia = factura.cliente_provincia || '';
+var codPostal = factura.codigo_postal || '';
 
+var showPage2 = (cdrsDetalle && cdrsDetalle.length > 0) || (llamadas && llamadas.length > 0);
+var lineaActual = '';
+if (llamadas && llamadas.length > 0) {
+  lineaActual = llamadas[0].linea || '';
+} else if (cdrsDetalle && cdrsDetalle.length > 0) {
+  lineaActual = cdrsDetalle[0].linea || '';
+}
+var periodoMes = periodParts[1] || '';
+var periodoAno = periodParts[0] || '';
+var fechaInicio = '01/' + periodoMes + '/' + periodoAno;
+var ultimoDia = new Date(periodoAno, parseInt(periodoMes), 0).getDate();
+var fechaFin = ultimoDia + '/' + periodoMes + '/' + periodoAno;
+var totalCdrs = 0;
+if (cdrsDetalle) cdrsDetalle.forEach(function(c) { totalCdrs += Number(c.importe || 0); });
+if (llamadas) llamadas.forEach(function(l) { totalCdrs += Number(l.importe || 0); });
+%>
 <div class="page">
 <div style="width:100%">
 <span style="font-size:14px;">
 <span style="font-family:Lucida Sans Unicode,Lucida Grande,sans-serif;">
-<img alt="" border="0" height="70" hspace="0" src="https://movilbro.ispgestion.com/documentos/open?doc=/PUBLICA/logo%20factura%20(3).png" style="float:left;margin-right:15px;">
+<img alt="" border="0" height="500" hspace="0" src="https://movilbro.ispgestion.com/documentos/open?doc=/PUBLICA/logo%20factura%20(3).png" style="width: 180px; height: auto; margin: 0px; border: 0px solid black;" vspace="0" width="500" />
 </span>
 </span>
-<div style="float:right;width:40%">
+<div style="width:30%;float:right">
 <table style="width:100%;border-bottom:1px solid black">
 <tbody>
 <tr>
 <td>
-<p style="font-family:Lucida Sans Unicode,Lucida Grande,sans-serif;font-size:14px;">Movilbro SL</p>
-<p style="font-family:Lucida Sans Unicode,Lucida Grande,sans-serif;font-size:14px;">C/ San Ricardo 17</p>
-<p style="font-family:Lucida Sans Unicode,Lucida Grande,sans-serif;font-size:14px;">29540, Antequera</p>
-<p style="font-family:Lucida Sans Unicode,Lucida Grande,sans-serif;font-size:14px;">Cif:B75559955</p>
-<p style="font-size:10px;"><strong>N&uacute;m. de Factura: <%= facturaNum %></strong></p>
+<p><span style="font-size:14px;"><span style="font-family:Lucida Sans Unicode,Lucida Grande,sans-serif;">Movilbro SL</span></span></p>
+<p><span style="font-size:14px;"><span style="font-family:Lucida Sans Unicode,Lucida Grande,sans-serif;">C/ San Ricardo 17</span></span></p>
+<p><span style="font-size:14px;"><span style="font-family:Lucida Sans Unicode,Lucida Grande,sans-serif;">29540, Antequera</span></span></p>
+<p><span style="font-size:14px;"><span style="font-family:Lucida Sans Unicode,Lucida Grande,sans-serif;">Cif:B75559955</span></span></p>
+<p><span style="font-size:10px;"><strong>N&uacute;m. de Factura: <%= serieNum %>/<%= String(factura.numero_factura || factura.id).padStart(5, '0') %></strong></span></p>
 </td>
 </tr>
 <tr>
-<td><span style="font-size:10px;"><strong>Fecha Factura: <%= factura.fecha_emision ? new Date(factura.fecha_emision).toLocaleDateString('es-ES') : '-' %></strong></span></td>
+<td><span style="font-size:10px;"><strong>Fecha Factura: <%= fechaEmision %></strong></span></td>
 </tr>
 </tbody>
 </table>
@@ -57,14 +85,10 @@ var fmt = function(n) { return Number(n || 0).toFixed(2).replace('.', ','); };
 <div style="clear:both;"></div>
 </div>
 
-<div style="width:100%;font-size:9px;color:#888;padding:3px 0;border-bottom:1px solid #ddd;">
-<span style="color:#666;font-weight:600;">ATENCI&Oacute;N AL CLIENTE</span>
-&nbsp;&nbsp;www.movilbro.es | facturacion@movilbro.com | 694297048 | @movilbro
-</div>
-
-<p style="text-align:center;font-size:9px;color:#999;margin:4px 0 8px;">P&aacute;gina 1 de<% var showPage2 = (cdrsDetalle && cdrsDetalle.length > 0) || (llamadas && llamadas.length > 0); %><%= showPage2 ? ' 2' : ' 1' %></p>
+<p>&nbsp;</p>
 
 <div style="width:100%"><span style="font-size:16px;"><strong><span style="color:#808080">TU FACTURA DE </span><span style="color:#3498db;"><%= monthName %> <%= yearName %></span></strong></span></div>
+
 <div style="width:100%"><span style="font-size:14px;"><strong><span style="color:#808080">TOTAL A PAGAR</span> <span style="color:#3498db;"> <%= fmt(total) %> &euro; </span></strong></span></div>
 
 <p>&nbsp;</p>
@@ -73,24 +97,60 @@ var fmt = function(n) { return Number(n || 0).toFixed(2).replace('.', ','); };
 <div style="width:58%;float:left">
 <table cellspacing="3" style="width:100%;">
 <tbody>
-<tr><td style="color:#808080"><span style="font-size:11px;">TITULAR</span></td><td><span style="font-size:11px;"><strong><%= factura.cliente_nombre || '-' %></strong></span></td></tr>
-<tr><td style="color:#808080"><span style="font-size:11px;">NIF / NIE / CIF</span></td><td><span style="font-size:11px;"><strong><%= factura.fiscal_id || '-' %></strong></span></td></tr>
-<tr><td style="color:#808080"><span style="font-size:11px;">N&ordm; FACTURA</span></td><td><span style="font-size:11px;"><strong><%= facturaNum %></strong></span></td></tr>
-<tr><td style="color:#808080"><span style="font-size:11px;">FECHA FACTURA</span></td><td><span style="font-size:11px;"><strong><%= factura.fecha_emision ? new Date(factura.fecha_emision).toLocaleDateString('es-ES') : '-' %></strong></span></td></tr>
-<tr><td style="color:#808080"><span style="font-size:11px;">FECHA VENCIMIENTO</span></td><td><span style="font-size:11px;"><strong><%= factura.fecha_vencimiento ? new Date(factura.fecha_vencimiento).toLocaleDateString('es-ES') : '-' %></strong></span></td></tr>
-<tr><td style="color:#808080"><span style="font-size:11px;">ENTIDAD</span></td><td><span style="font-size:11px;"><strong><%= factura.metodo_pago === 'domiciliacion' ? 'BANCO BILBAO VIZCAYA ARGENTARIA, S.A.' : (factura.metodo_pago === 'stripe' ? 'STRIPE' : (factura.metodo_pago || '-')) %></strong></span></td></tr>
-<tr><td style="color:#808080"><span style="font-size:11px;">CUENTA / IBAN</span></td><td><span style="font-size:11px;"><strong><%= factura.metodo_pago === 'stripe' ? 'Pago con tarjeta' : (factura.iban || '-') %></strong></span></td></tr>
-<tr><td style="color:#808080"><span style="font-size:11px;">PERIODO</span></td><td><span style="font-size:11px;"><strong><%= factura.periodo || '-' %></strong></span></td></tr>
+<tr>
+<td style="color:#808080"><span style="font-size:11px;">TITULAR</span></td>
+<td><span style="font-size:11px;"><strong><%= factura.cliente_nombre || '-' %></strong></span></td>
+</tr>
+<tr>
+<td style="color:#808080"><span style="font-size:11px;">NIF / NIE / CIF</span></td>
+<td><span style="font-size:11px;"><strong><%= factura.fiscal_id || '-' %></strong></span></td>
+</tr>
+<tr>
+<td style="color:#808080"><span style="font-size:11px;">N&ordm; FACTURA</span></td>
+<td><span style="font-size:11px;"><strong><%= facturaNum %></strong></span></td>
+</tr>
+<tr>
+<td style="color:#808080"><span style="font-size:11px;">FECHA FACTURA</span></td>
+<td><span style="font-size:11px;"><strong><%= fechaEmision %></strong></span></td>
+</tr>
+<tr>
+<td style="color:#808080"><span style="font-size:11px;">FECHA VENCIMIENTO</span></td>
+<td><span style="font-size:11px;"><strong><%= fechaVenc %></strong></span></td>
+</tr>
+<tr>
+<td style="color:#808080"><span style="font-size:11px;">ENTIDAD</span></td>
+<td><span style="font-size:11px;"><strong><%= entidad %></strong></span></td>
+</tr>
+<tr>
+<td style="color:#808080"><span style="font-size:11px;">CUENTA / IBAN</span></td>
+<td><span style="font-size:11px;"><strong><%= cuentaIban %></strong></span></td>
+</tr>
+<tr>
+<td style="color:#808080"><span style="font-size:11px;">PERIODO</span></td>
+<td><span style="font-size:11px;"><strong><%= factura.periodo || '-' %></strong></span></td>
+</tr>
 </tbody>
 </table>
 </div>
+
 <div style="width:40%;float:right">
 <table cellspacing="3" style="width:100%;">
 <tbody>
-<tr><td><span style="color:#3498db;font-size:14px;font-weight:bold;"><%= factura.cliente_nombre || '-' %></span></td></tr>
-<tr><td>&nbsp;</td></tr>
-<tr><td><span style="font-size:12px;"><%= factura.cliente_direccion || '' %></span></td></tr>
-<tr><td><span style="font-size:12px;"><%= factura.cliente_poblacion || '' %> <%= factura.cliente_provincia || '' %></span></td></tr>
+<tr>
+<td><span style="color:#3498db;"><strong><span style="font-size:14px;"><%= factura.cliente_nombre || '-' %></span></strong></span></td>
+</tr>
+<tr>
+<td>&nbsp;</td>
+</tr>
+<tr>
+<td><span style="font-size:12px;"><%= direccion %></span></td>
+</tr>
+<tr>
+<td><span style="font-size:12px;"><%= codPostal ? codPostal + ' ' : '' %><%= poblacion %></span></td>
+</tr>
+<tr>
+<td><span style="font-size:12px;"><%= provincia %></span></td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -100,19 +160,24 @@ var fmt = function(n) { return Number(n || 0).toFixed(2).replace('.', ','); };
 <p>&nbsp;</p>
 
 <div style="width:100%;color:#808080"><strong><span style="font-size:16px;">RESUMEN DE TU FACTURA</span></strong></div>
+
 <p>&nbsp;</p>
 
 <div style="width:100%">
 <table id="tabla_resumen" style="width:100%;border-collapse:collapse;border-bottom:1px solid black">
 <tbody>
 <tr>
-<td style="width:80%;border-bottom:1px solid black;text-align:center;"><span style="font-size:12px;"><strong>CONCEPTO</strong></span></td>
-<td style="width:20%;border-bottom:1px solid black;text-align:right;"><strong>IMPORTE</strong></td>
+<td style="width: 80%; border-bottom: 1px solid black; text-align: center;"><span style="font-size:12px;"><strong>CONCEPTO</strong></span></td>
+<td style="width: 20%; border-bottom: 1px solid black; text-align: right;"><strong>IMPORTE</strong></td>
 </tr>
 <% todasLineas.forEach(function(l) { %>
 <tr>
-<td style="width:80%;"><span style="font-size:12px;"><%= l.concepto || '-' %><%= l.linea ? ' ' + l.linea : '' %></span></td>
-<td style="width:20%;text-align:right;"><span style="font-size:12px;"><%= fmt(l.importe) %> &euro;</span></td>
+<td style="width:80%;">
+<span style="font-size:12px;">
+<%= l.concepto || '-' %>
+</span>
+</td>
+<td style="width: 20%; text-align: right;"><span style="font-size:12px;"><%= fmt(l.importe) %> &euro;</span></td>
 </tr>
 <% }) %>
 </tbody>
@@ -124,7 +189,7 @@ var fmt = function(n) { return Number(n || 0).toFixed(2).replace('.', ','); };
 <p>&nbsp;</p>
 
 <div style="width:100%">
-<div style="width:40%;margin-left:5%;float:left;border:1px solid #ccc;padding:5px;text-align:center;font-size:9px;color:#888;">
+<div style="width:40%;margin-left:5%;float:left;border:1px solid black;padding:3px">
 <strong style="font-size:10px;color:#555;">Hist&oacute;rico de pagos</strong><br>
 <% if (history && history.length > 0) { history.forEach(function(h, i) { %>
 <%= h.periodo ? h.periodo.substring(5) + '/' + h.periodo.substring(0,4) : '' %> <%= fmt(h.total) %> &euro;<%= i < history.length - 1 ? ' | ' : '' %>
@@ -132,149 +197,242 @@ var fmt = function(n) { return Number(n || 0).toFixed(2).replace('.', ','); };
 Sin historial
 <% } %>
 </div>
+
 <div style="width:45%;float:right">
 <table style="width:100%;border-top:1px solid black;border-collapse:collapse">
-<tr><td><span style="font-size:12px;">Base Imponible</span></td><td style="text-align:right;"><span style="font-size:12px;"><%= fmt(baseTotal) %> &euro;</span></td></tr>
-<tr><td><span style="font-size:12px;">Impuestos (IVA <%= (ivaRate * 100).toFixed(0) %>%)</span></td><td style="text-align:right;"><span style="font-size:12px;"><%= fmt(iva) %> &euro;</span></td></tr>
-<tr><td style="border-bottom:1px solid black"><strong><span style="font-size:12px;">Total Factura</span></strong></td><td style="border-bottom:1px solid black;text-align:right;"><strong><span style="font-size:12px;"><%= fmt(total) %> &euro;</span></strong></td></tr>
-<tr><td><span style="color:#3498db;font-size:14px;font-weight:bold;">TOTAL A PAGAR</span></td><td style="text-align:right;"><span style="color:#3498db;font-size:14px;font-weight:bold;"><%= fmt(total) %> &euro;</span></td></tr>
+<tbody>
+<tr>
+<td><span style="font-size:12px;">Base Imponible</span></td>
+<td style="text-align: right;"><span style="font-size:12px;"><%= fmt(baseTotal) %> &euro;</span></td>
+</tr>
+<tr>
+<td><span style="font-size:12px;">Impuestos (IVA 21%)</span></td>
+<td style="text-align: right;"><span style="font-size:12px;"><%= fmt(iva) %> &euro;</span></td>
+</tr>
+<tr>
+<td style="border-bottom:1px solid black"><strong><span style="font-size:12px;">Total Factura</span></strong></td>
+<td style="border-bottom: 1px solid black; text-align: right;"><strong><span style="font-size:12px;"><%= fmt(total) %> &euro;</span></strong></td>
+</tr>
+<tr>
+<td><span style="color:#3498db;"><strong><span style="font-size:14px;">TOTAL A PAGAR</span></strong></span></td>
+<td style="text-align: right;"><span style="color:#3498db;"><strong><span style="font-size:14px;"><%= fmt(total) %> &euro;</span></strong></span></td>
+</tr>
+</tbody>
 </table>
 </div>
 <div style="clear:both;"></div>
 </div>
 
 <p>&nbsp;</p>
+
 <hr style="color:black" />
 
 <div style="width:100%">
 <div style="width:48%;float:left">
 <table style="width:100%">
 <tbody>
-<tr><td><strong><span style="font-size:12px;">ATENCI&Oacute;N AL CLIENTE</span></strong></td></tr>
-<tr><td>&nbsp;</td></tr>
-<tr><td><span style="font-size:12px;">Entra en www.movilbro.es</span></td></tr>
-<tr><td><span style="font-size:12px;">o escr&iacute;benos a facturacion@movilbro.com</span></td></tr>
-<tr><td><span style="font-size:12px;">o ll&aacute;manos al 694297048, de lunes a viernes, de 9:00 a 19:00h</span></td></tr>
-<tr><td><span style="font-size:12px;">o Facebook @movilbro</span></td></tr>
-<tr><td><span style="font-size:12px;">o Instagram @movilbro</span></td></tr>
-</tbody>
-</table>
-</div>
-</div>
-
-<div style="width:100%;text-align:right;"><span style="font-size:10px;">P&aacute;gina 1 de<%= showPage2 ? ' 2' : ' 1' %></span></div>
-</div>
-
-<% if (showPage2) { %>
-<div class="page" style="page-break-before:always">
-
-<div style="width:100%">
-<div style="float:right;width:40%">
-<table style="width:100%;border-bottom:1px solid black">
-<tbody>
-<tr><td><p style="font-family:Lucida Sans Unicode,Lucida Grande,sans-serif;font-size:14px;">Movilbro SL</p><p style="font-family:Lucida Sans Unicode,Lucida Grande,sans-serif;font-size:14px;">C/ San Ricardo 17</p><p style="font-family:Lucida Sans Unicode,Lucida Grande,sans-serif;font-size:14px;">29540, Antequera</p><p style="font-family:Lucida Sans Unicode,Lucida Grande,sans-serif;font-size:14px;">Cif:B75559955</p><p style="font-size:10px;"><strong><%= facturaNum %></strong></p></td></tr>
-<tr><td><span style="font-size:10px;"><strong>Fecha Factura: <%= factura.fecha_emision ? new Date(factura.fecha_emision).toLocaleDateString('es-ES') : '-' %></strong></span></td></tr>
+<tr>
+<td><strong><span style="font-size:12px;">ATENCI&Oacute;N AL CLIENTE</span></strong></td>
+</tr>
+<tr>
+<td>&nbsp;</td>
+</tr>
+<tr>
+<td><span style="font-size:12px;">Entra en www.movilbro.es</span></td>
+</tr>
+<tr>
+<td><span style="font-size:12px;">o escr&iacute;benos a facturacion@movilbro.com</span></td>
+</tr>
+<tr>
+<td><span style="font-size:12px;">o ll&aacute;manos al 694297048, de lunes a viernes, de 9:00 a 19:00h</span></td>
+</tr>
+<tr>
+<td><span style="font-size:12px;">o Facebook @movilbro</span></td>
+</tr>
+<tr>
+<td><span style="font-size:12px;">o Instagram @movilbro</span></td>
+</tr>
 </tbody>
 </table>
 </div>
 <div style="clear:both;"></div>
 </div>
 
-<p style="text-align:center;font-size:10px;color:#999;">P&aacute;gina 2 de<% if (showPage2) { %> 2<% } else { %> 1<% } %></p>
+<div style="width:100%;text-align:right;margin-top:10px;"><span style="font-size:10px;">P&aacute;gina 1 de<%= showPage2 ? ' 2' : ' 1' %></span></div>
+</div>
 
-<div style="border:thin solid #ccc;padding:10px 30px;box-shadow:4px 4px 8px 1px #ddd;">
-<div style="background-color:#ccc;font-weight:bold;padding:0.5px 10px;"><span style="font-size:12px;"><strong>Datos del cliente</strong></span></div>
-<p><strong>Nombre</strong> <%= factura.cliente_nombre || '-' %></p>
-<p><strong>Direcci&oacute;n</strong> <%= factura.cliente_direccion || factura.cliente_nombre || '' %></p>
-<p><strong>Contacto</strong> Tel&eacute;fono/s &nbsp;&nbsp; E-mail</p>
-<p><%= (cdrsDetalle[0] && cdrsDetalle[0].linea) || '' %> &nbsp;&nbsp;&nbsp;&nbsp; <%= factura.cliente_email || '' %></p>
+<% if (showPage2) { %>
+<div class="page" style="page-break-before:always">
+
+<div style="width:100%">
+<span style="font-size:14px;">
+<span style="font-family:Lucida Sans Unicode,Lucida Grande,sans-serif;">
+<img alt="" border="0" height="500" hspace="0" src="https://movilbro.ispgestion.com/documentos/open?doc=/PUBLICA/logo%20factura%20(3).png" style="width: 180px; height: auto; margin: 0px; border: 0px solid black;" vspace="0" width="500" />
+</span>
+</span>
+<div style="width:30%;float:right">
+<table style="width:100%;border-bottom:1px solid black">
+<tbody>
+<tr>
+<td>
+<p><span style="font-size:14px;"><span style="font-family:Lucida Sans Unicode,Lucida Grande,sans-serif;">Movilbro SL</span></span></p>
+<p><span style="font-size:14px;"><span style="font-family:Lucida Sans Unicode,Lucida Grande,sans-serif;">C/ San Ricardo 17</span></span></p>
+<p><span style="font-size:14px;"><span style="font-family:Lucida Sans Unicode,Lucida Grande,sans-serif;">29540, Antequera</span></span></p>
+<p><span style="font-size:14px;"><span style="font-family:Lucida Sans Unicode,Lucida Grande,sans-serif;">Cif:B75559955</span></span></p>
+<p><span style="font-size:10px;"><strong><%= facturaNum %></strong></span></p>
+</td>
+</tr>
+<tr>
+<td><span style="font-size:10px;"><strong>Fecha Factura: <%= fechaEmision %></strong></span></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="clear:both;"></div>
+</div>
+
+<p style="text-align:center;font-size:10px;color:#999;">P&aacute;gina 2 de 2</p>
+
+<div class="bordeado centrado" style="text-align:center;border:thin solid #ccc;padding:10px 30px;box-shadow:4px 4px 8px 1px #ddd;">
+<h2>RESUMEN DEL SERVICIO TELEF&Oacute;NICO N&ordm;&nbsp;<%= lineaActual %></h2>
+</div>
+
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+
+<div class="bordeado" style="border:thin solid #ccc;padding:10px 30px;box-shadow:4px 4px 8px 1px #ddd;">
+<div id="titulo_cliente" style="background-color:#ccc;font-weight:bold;padding:0.5px 10px;"><span style="font-size:12px"><strong>Datos del cliente</strong></span></div>
+<p><%= factura.cliente_nombre || '-' %></p>
+<p><%= direccion %></p>
+<p><%= poblacion %></p>
+<p><%= codPostal %></p>
 </div>
 
 <p>&nbsp;</p>
 
-<div style="border:thin solid #ccc;padding:10px 30px;box-shadow:4px 4px 8px 1px #ddd;">
-<div style="background-color:#ccc;font-weight:bold;padding:0.5px 10px;"><span style="font-size:12px;"><strong>Resumen de consumo - L&iacute;nea <%= (cdrsDetalle[0] && cdrsDetalle[0].linea) || '' %></strong></span></div>
-<p>&nbsp;</p>
-<% var grupos = {}; %>
-<% cdrsDetalle.forEach(function(c) { var g = c.tipo || 'Otros'; if (!grupos[g]) grupos[g] = { count: 0, importe: 0, duracion: '', unidades: 0 }; grupos[g].count++; grupos[g].importe += Number(c.importe || 0); if (c.unidades) { grupos[g].unidades += Number(c.unidades); grupos[g].duracion = c.tipo === 'exceso' ? Number(c.unidades).toFixed(0) + ' Mb' : c.unidades + ' min'; } }); %>
-<table border="0" cellpadding="3" cellspacing="1" style="width:100%;font-size:11px;">
+<%
+var grupos = {};
+if (llamadas && llamadas.length > 0) {
+  llamadas.forEach(function(c) {
+    var g = c.grupo || 'Otros';
+    if (!grupos[g]) grupos[g] = { count: 0, destinos: {}, duracion: 0, importe: 0 };
+    grupos[g].count++;
+    grupos[g].destinos[c.destino || ''] = true;
+    var dur = parseInt(c.duracion) || 0;
+    grupos[g].duracion += dur;
+    grupos[g].importe += Number(c.importe || 0);
+  });
+} else if (cdrsDetalle && cdrsDetalle.length > 0) {
+  cdrsDetalle.forEach(function(c) {
+    var g = c.tipo === 'exceso' ? 'DATOS M\u00d3VILES' : (c.tipo || 'Otros');
+    if (!grupos[g]) grupos[g] = { count: 0, destinos: {}, duracion: 0, importe: 0 };
+    grupos[g].count++;
+    grupos[g].destinos[c.concepto || ''] = true;
+    if (c.unidades) grupos[g].duracion += Number(c.unidades);
+    grupos[g].importe += Number(c.importe || 0);
+  });
+}
+function fmtDur(d) {
+  if (!d) return '-';
+  if (d < 60) return d + ' min';
+  var h = Math.floor(d / 60);
+  var m = d % 60;
+  return h + 'h ' + m + 'min';
+}
+%>
+
+<div class="bordeado" style="border:thin solid #ccc;padding:10px 30px;box-shadow:4px 4px 8px 1px #ddd;">
+<div id="titulo_cliente" style="background-color:#ccc;font-weight:bold;padding:0.5px 10px;"><span style="font-size:12px"><strong>Resumen Destinos (</strong><%= monthName %>&nbsp;<strong>/ </strong><%= yearName %><strong>)</strong></span></div>
+&nbsp;
+
+<div>
+<table border="0" cellpadding="1" cellspacing="1" style="height:57px; width:100%">
+<tbody>
 <tr>
-<td style="width:30%;"><strong>Grupo</strong></td>
-<td style="width:20%;text-align:right;"><strong>N&ordm; Llamadas</strong></td>
-<td style="width:30%;text-align:right;"><strong>Duraci&oacute;n</strong></td>
-<td style="width:20%;text-align:right;"><strong>Importe</strong></td>
+<td style="width:25%"><span style="font-size:12px"><strong>Grupo</strong></span></td>
+<td style="text-align:right; width:15%"><span style="font-size:12px"><strong>Total Llamadas</strong></span></td>
+<td style="text-align:right; width:15%"><span style="font-size:12px"><strong>Total Destinos diferentes</strong></span></td>
+<td style="text-align:right; width:25%"><span style="font-size:12px"><strong>Duraci&oacute;n</strong></span></td>
+<td style="text-align:right; width:20%"><span style="font-size:12px"><strong>Importe</strong></span></td>
 </tr>
 <% Object.keys(grupos).forEach(function(g) { %>
 <tr>
-<td><%= g === 'exceso' ? 'DATOS M\u00d3VILES' : g === 'llamadas' ? 'MOVILES NACIONALES' : g %></td>
-<td style="text-align:right;"><%= grupos[g].count %></td>
-<td style="text-align:right;"><%= grupos[g].duracion || '-' %></td>
-<td style="text-align:right;"><%= fmt(grupos[g].importe) %>&euro;</td>
+<td><%= g %></td>
+<td style="text-align:right"><%= grupos[g].count %></td>
+<td style="text-align:right"><%= Object.keys(grupos[g].destinos).length %></td>
+<td style="text-align:right"><%= fmtDur(grupos[g].duracion) %></td>
+<td style="text-align:right"><%= fmt(grupos[g].importe) %> &euro;</td>
 </tr>
-<% }); %>
+<% }) %>
+</tbody>
+</table>
+
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+
+<table border="0" cellpadding="1" cellspacing="1" style="height:57px; width:100%">
+<tbody>
+<tr>
+<td style="width:1px">&nbsp;</td>
+<td style="text-align:right; width:1px">&nbsp;</td>
+<td style="text-align:right; width:1px">&nbsp;</td>
+<td style="text-align:right; width:1390px"><span style="font-size:24px"><strong>Total a facturar:&nbsp;<%= fmt(totalCdrs) %>&nbsp;&euro;</strong></span></td>
+</tr>
+</tbody>
 </table>
 </div>
+</div>
 
-<p>&nbsp;</p>
+<div style="page-break-after: always"><strong>&nbsp;</strong></div>
 
-<div style="border:thin solid #ccc;padding:10px 30px;box-shadow:4px 4px 8px 1px #ddd;">
-<div style="background-color:#ccc;font-weight:bold;padding:0.5px 10px;"><span style="font-size:12px;"><strong>Detalle de llamadas de la l&iacute;nea <%= (llamadas && llamadas.length > 0 ? llamadas[0].linea : (cdrsDetalle[0] && cdrsDetalle[0].linea || '')) %> desde 01/<%= periodParts[1] || '' %>/<%= periodParts[0] || '' %> hasta 31/<%= periodParts[1] || '' %>/<%= periodParts[0] || '' %></strong></span></div>
-<p>&nbsp;</p>
+<div class="bordeado" style="border:thin solid #ccc;padding:10px 30px;box-shadow:4px 4px 8px 1px #ddd;">
+<div id="titulo_cliente" style="background-color:#ccc;font-weight:bold;padding:0.5px 10px;"><span style="font-size:12px"><strong><strong>Detalle de llamadas de la l&iacute;nea&nbsp;</strong><%= lineaActual %> del&nbsp;</strong><%= fechaInicio %>&nbsp;al&nbsp;<%= fechaFin %></span></div>
+&nbsp;
+
+<div>
+<table style="width:100%;border-collapse:collapse;padding:3px;">
+<thead style="display:table-header-group">
+<tr>
+<td style="border:1px solid #ADAAA9"><span style="font-size:11px;"><strong>Fecha</strong></span></td>
+<td style="border:1px solid #ADAAA9"><span style="font-size:11px;"><strong>Hora</strong></span></td>
+<td style="border:1px solid #ADAAA9"><span style="font-size:11px;"><strong>Destino</strong></span></td>
+<td style="border:1px solid #ADAAA9"><span style="font-size:11px;"><strong>Nombre grupo</strong></span></td>
+<td style="border:1px solid #ADAAA9;text-align:right;"><span style="font-size:11px;"><strong>Duraci&oacute;n</strong></span></td>
+<td style="border:1px solid #ADAAA9;text-align:right;"><span style="font-size:11px;"><strong>Importe</strong></span></td>
+</tr>
+</thead>
+<tbody>
 <% if (llamadas && llamadas.length > 0) { %>
-<table style="width:100%;border-collapse:collapse;font-size:8px;">
-<thead>
-<tr>
-<td style="border:1px solid #ADAAA9;padding:2px;"><strong>Fecha</strong></td>
-<td style="border:1px solid #ADAAA9;padding:2px;"><strong>Hora</strong></td>
-<td style="border:1px solid #ADAAA9;padding:2px;"><strong>Destino</strong></td>
-<td style="border:1px solid #ADAAA9;padding:2px;"><strong>Grupo</strong></td>
-<td style="border:1px solid #ADAAA9;padding:2px;text-align:right;"><strong>Duraci&oacute;n</strong></td>
-<td style="border:1px solid #ADAAA9;padding:2px;text-align:right;"><strong>Importe</strong></td>
-</tr>
-</thead>
-<tbody>
 <% llamadas.forEach(function(c) { %>
-<tr>
-<td style="border:1px solid #ADAAA9;padding:1px 2px;"><%= c.fecha || '-' %></td>
-<td style="border:1px solid #ADAAA9;padding:1px 2px;"><%= c.hora || '-' %></td>
-<td style="border:1px solid #ADAAA9;padding:1px 2px;"><%= c.destino || '-' %></td>
-<td style="border:1px solid #ADAAA9;padding:1px 2px;"><%= c.grupo || '-' %></td>
-<td style="border:1px solid #ADAAA9;padding:1px 2px;text-align:right;"><%= c.duracion || '-' %></td>
-<td style="border:1px solid #ADAAA9;padding:1px 2px;text-align:right;"><%= Number(c.importe || 0).toFixed(2) %> &euro;</td>
+<tr style="page-break-inside:avoid;">
+<td><span style="font-size:11px;"><%= c.fecha || '-' %></span></td>
+<td><span style="font-size:11px;"><%= c.hora || '-' %></span></td>
+<td><span style="font-size:11px;"><%= c.destino || '-' %></span></td>
+<td><span style="font-size:10px;"><%= c.grupo || '-' %></span></td>
+<td style="text-align:right;"><span style="font-size:11px;"><%= c.duracion || '-' %></span></td>
+<td style="text-align:right;"><span style="font-size:11px;"><%= Number(c.importe || 0).toFixed(2) %> &euro;</span></td>
 </tr>
 <% }); %>
-</tbody>
-</table>
 <% } else if (cdrsDetalle && cdrsDetalle.length > 0) { %>
-<p style="text-align:center;color:#999;padding:10px;"><em>Detalle de llamadas no disponible. Los CDRs de consumo se muestran arriba.</em></p>
-<table style="width:100%;border-collapse:collapse;font-size:8px;">
-<thead>
-<tr>
-<td style="border:1px solid #ADAAA9;padding:2px;"><strong>Fecha</strong></td>
-<td style="border:1px solid #ADAAA9;padding:2px;"><strong>Hora</strong></td>
-<td style="border:1px solid #ADAAA9;padding:2px;"><strong>Destino</strong></td>
-<td style="border:1px solid #ADAAA9;padding:2px;text-align:right;"><strong>Duraci&oacute;n</strong></td>
-<td style="border:1px solid #ADAAA9;padding:2px;text-align:right;"><strong>Importe</strong></td>
-</tr>
-</thead>
-<tbody>
 <% cdrsDetalle.forEach(function(c) { %>
-<tr>
-<td style="border:1px solid #ADAAA9;padding:1px 2px;"><%= c.concepto ? c.concepto.substring(0,10) : '-' %></td>
-<td style="border:1px solid #ADAAA9;padding:1px 2px;">-</td>
-<td style="border:1px solid #ADAAA9;padding:1px 2px;"><%= c.linea || '-' %></td>
-<td style="border:1px solid #ADAAA9;padding:1px 2px;text-align:right;"><%= c.unidades ? (c.tipo === 'exceso' ? Number(c.unidades).toFixed(0) + ' Mb' : c.unidades + ' min') : '-' %></td>
-<td style="border:1px solid #ADAAA9;padding:1px 2px;text-align:right;"><%= Number(c.importe || 0).toFixed(2) %> &euro;</td>
+<tr style="page-break-inside:avoid;">
+<td><span style="font-size:11px;"><%= c.concepto ? c.concepto.substring(0,10) : '-' %></span></td>
+<td><span style="font-size:11px;">-</span></td>
+<td><span style="font-size:11px;"><%= c.linea || '-' %></span></td>
+<td><span style="font-size:10px;"><%= c.tipo === 'exceso' ? 'DATOS M\u00d3VILES' : (c.tipo || '-') %></span></td>
+<td style="text-align:right;"><span style="font-size:11px;"><%= c.unidades ? (c.tipo === 'exceso' ? Number(c.unidades).toFixed(0) + ' Mb' : c.unidades + ' min') : '-' %></span></td>
+<td style="text-align:right;"><span style="font-size:11px;"><%= Number(c.importe || 0).toFixed(2) %> &euro;</span></td>
 </tr>
 <% }); %>
+<% } else { %>
+<tr><td colspan="6" style="text-align:center;color:#999;padding:10px;"><em>No hay llamadas ni CDRs detallados para este periodo.</em></td></tr>
+<% } %>
 </tbody>
 </table>
-<% } else { %>
-<p style="text-align:center;color:#999;padding:10px;"><em>No hay llamadas ni CDRs detallados para este periodo.</em></p>
-<% } %>
+</div>
 </div>
 
-<div style="width:100%;text-align:right;margin-top:20px;"><span style="font-size:10px;">P&aacute;gina 2 de<% if (showPage2) { %> 2<% } else { %> 1<% } %></span></div>
+<div style="width:100%;text-align:right;margin-top:20px;"><span style="font-size:10px;">P&aacute;gina 2 de 2</span></div>
 </div>
 <% } %>
 </body>

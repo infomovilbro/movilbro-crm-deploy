@@ -1,0 +1,121 @@
+<div style="width:100%"><span style="font-size:16px;"><strong><span style="color:#808080">TU FACTURA DE </span><span style="color:#3498db;">{albaran.mes_texto} {albaran.anio}</span></strong></span></div>
+
+<div style="width:100%"><span style="font-size:14px;"><strong><span style="color:#808080">TOTAL A PAGAR</span> <span style="color:#3498db;"> {albaran.importe_remesar} &euro; </span></strong></span></div>
+
+<p>&nbsp;</p>
+
+<div style="width:100%">
+<div style="width:58%;float:left">
+<table cellspacing="3" style="width:100%;">
+	<tbody>
+		<tr>
+			<td style="color:#808080"><span style="font-size:11px;">TITULAR</span></td>
+			<td><span style="font-size:11px;"><strong>{cliente.nombrecompleto}</strong></span></td>
+		</tr>
+		<tr>
+			<td style="color:#808080"><span style="font-size:11px;">NIF / NIE / CIF</span></td>
+			<td><span style="font-size:11px;"><strong>{cliente.nif}{cliente.cif}</strong></span></td>
+		</tr>
+		<tr>
+			<td style="color:#808080"><span style="font-size:11px;">N&ordm; FACTURA</span></td>
+			<td><span style="font-size:11px;"><strong>{facturas.descripcion} {albaran.numero_operacion}</strong></span></td>
+		</tr>
+		<tr>
+			<td style="color:#808080"><span style="font-size:11px;">FECHA FACTURA</span></td>
+			<td><span style="font-size:11px;"><strong>{albaran.fecha_formato_dd_mm_yyyy}</strong></span></td>
+		</tr>
+		<tr>
+			<td style="color:#808080"><span style="font-size:11px;">FECHA VENCIMIENTO</span></td>
+			<td><span style="font-size:11px;"><strong>{efectos.vencimiento}</strong></span></td>
+		</tr>
+		<tr>
+			<td style="color:#808080"><span style="font-size:11px;">ENTIDAD</span></td>
+			<td><span style="font-size:11px;"><strong>{albaran.nombre_banco}</strong></span></td>
+		</tr>
+		<tr>
+			<td style="color:#808080"><span style="font-size:11px;">CUENTA / IBAN</span></td>
+			<td><span style="font-size:11px;"><strong>{efectos.banco_formateado}</strong></span></td>
+		</tr>
+		<tr>
+			<td style="color:#808080"><span style="font-size:11px;">PERIODO</span></td>
+			<td><span style="font-size:11px;"><strong>{ac.periodo_facturacion}</strong></span></td>
+		</tr>
+	</tbody>
+</table>
+</div>
+
+<div style="width:40%;float:right">
+<table cellspacing="3" style="width:100%;">
+	<tbody>
+		<tr>
+			<td style="color:#7C2F86"><span style="color:#3498db;"><strong><span style="font-size:14px;">{albaran.cuenta_nombre}</span></strong></span></td>
+		</tr>
+		<tr>
+			<td>&nbsp;</td>
+		</tr>
+		<tr>
+			<td style="color:#808080"><span style="color:#000000;"><span style="font-size:12px;">{albaran.cuenta_tipo_calle}&nbsp;{albaran.cuenta_direccion}&nbsp;{albaran.cuenta_numero}&nbsp;{albaran.cuenta_piso}&nbsp;{albaran.cuenta_puerta}</span></span></td>
+		</tr>
+		<tr>
+			<td style="color:#808080"><span style="color:#000000;"><span style="font-size:12px;">{albaran.cuenta_postal}&nbsp;{albaran.cuenta_municipio}</span></span></td>
+		</tr>
+		<tr>
+			<td style="color:#808080"><span style="color:#000000;"><span style="font-size:12px;">{albaran.cuenta_provincia}</span></span></td>
+		</tr>
+	</tbody>
+</table>
+</div>
+</div>
+
+<p>&nbsp;</p>
+
+<div style="width:100%;color:#808080"><strong><span style="font-size:16px;">RESUMEN DE TU FACTURA</span></strong></div>
+
+<p>&nbsp;</p>
+
+<div style="width:100%">
+<table id="tabla_resumen" style="width:100%;border-collapse:collapse;border-bottom:1px solid black">
+	<tbody>
+		<tr>
+			<td style="width: 80%; border-bottom: 1px solid black; text-align: center;"><span style="font-size:12px;"><strong>CONCEPTO</strong></span></td>
+			<td style="width: 20%; border-bottom: 1px solid black; text-align: right;"><strong>IMPORTE</strong>[listaR]</td>
+		</tr>
+		<tr>
+			<td style="width:80%;"><span style="font-size:12px;">{[tarifas.nombre]}&nbsp;{[articulo.nombre]}{[articulo.nombre2]}&nbsp;<br />
+			{[ac.texto_articulo]}</span></td>
+			<td style="width: 20%; text-align: right;"><span style="font-size:12px;">{[ac.total_sin_iva]} &euro;[/listaR]</span></td>
+		</tr>
+	</tbody>
+</table>
+
+<div style="width:100%;text-align:right"><span style="font-size:12px;"><strong>TOTAL CUOTAS TARIFAS Y CONSUMOS {albaran.base_imponible} &euro;</strong></span></div>
+</div>
+
+<p>&nbsp;</p>
+
+<div style="width:100%">
+<div style="width:40%;margin-left:5%;float:left;border:1px solid black;padding:3px">[grafica#5#{&quot;serie&quot;:&quot;{albaran.serie_facturacion}&quot;,&quot;fecha_fin&quot;:&quot;{albaran.fecha_fin}&quot;,&quot;clienteid&quot;:&quot;{cliente.clienteid}&quot;}/]</div>
+
+<div style="width:45%;float:right">
+<table style="width:100%;border-top:1px solid black;border-collapse:collapse">
+	<tbody>
+		<tr>
+			<td><span style="font-size:12px;">Base Imponible</span></td>
+			<td style="text-align: right;"><span style="font-size:12px;">{albaran.base_imponible} &euro;</span></td>
+		</tr>
+		<tr>
+			<td><span style="font-size:12px;">Impuestos (IVA 21%)</span></td>
+			<td style="text-align: right;"><span style="font-size:12px;">{albaran.iva} &euro;</span></td>
+		</tr>
+		<tr>
+			<td style="border-bottom:1px solid black"><strong><span style="font-size:12px;">Total Factura</span></strong></td>
+			<td style="border-bottom: 1px solid black; text-align: right;"><strong><span style="font-size:12px;">{albaran.importe_remesar} &euro;</span></strong></td>
+		</tr>
+		<tr>
+			<td style="color:#7C2F86"><span style="color:#3498db;"><strong><span style="font-size:14px;">TOTAL A PAGAR</span></strong></span></td>
+			<td style="color: rgb(124, 47, 134); text-align: right;"><span style="color:#3498db;"><strong><span style="font-size:14px;">{albaran.importe_remesar} &euro;</span></strong></span></td>
+		</tr>
+	</tbody>
+</table>
+</div>
+</div>
