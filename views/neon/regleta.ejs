@@ -8,43 +8,16 @@
     <div class="col-md-6 col-12">
       <div class="card shadow-sm">
         <div class="card-body text-center py-5">
-          <div style="font-size:4rem;margin-bottom:16px;" id="deviceEmoji">🔌</div>
+          <div style="font-size:4rem;margin-bottom:16px;">🔌</div>
           <h4 id="deviceStatus"><%= encendido ? 'Regleta Encendida' : 'Regleta Apagada' %></h4>
+          <p class="text-muted small">Pulsa el botón para abrir Google Home y controlar el dispositivo</p>
           <div class="mt-4">
-            <button class="btn <%= encendido ? 'btn-danger' : 'btn-success' %> btn-lg px-5" id="btnToggle" style="border-radius:50px;font-size:1.2rem;">
-              <i class="bi <%= encendido ? 'bi-power' : 'bi-play-circle' %>"></i>
-              <%= encendido ? 'Apagar' : 'Encender' %>
-            </button>
+            <a href="https://home.google.com/u/0/home/1-6ff6f6e3b2b29773e29edbafcd1db17d58c465324c48d6150735a2be622099ee/devices" target="_blank" class="btn btn-primary btn-lg px-5" style="border-radius:50px;font-size:1.2rem;">
+              <i class="bi bi-google"></i> Abrir en Google Home
+            </a>
           </div>
         </div>
       </div>
     </div>
   </div>
 </div>
-
-<script>
-document.getElementById('btnToggle')?.addEventListener('click', function() {
-  var btn = this;
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>...';
-  fetch('/neon/regleta/toggle', { method: 'POST' })
-    .then(function(r) { return r.json(); })
-    .then(function(d) {
-      var emoji = document.getElementById('deviceEmoji');
-      var status = document.getElementById('deviceStatus');
-      if (d.estado === 'on') {
-        status.textContent = 'Regleta Encendida';
-        btn.className = 'btn btn-danger btn-lg px-5';
-        btn.innerHTML = '<i class="bi bi-power"></i> Apagar';
-        if (emoji) emoji.textContent = '🔌';
-      } else {
-        status.textContent = 'Regleta Apagada';
-        btn.className = 'btn btn-success btn-lg px-5';
-        btn.innerHTML = '<i class="bi bi-play-circle"></i> Encender';
-        if (emoji) emoji.textContent = '🔌';
-      }
-    })
-    .catch(function() { alert('Error de conexión'); })
-    .finally(function() { btn.disabled = false; });
-});
-</script>
