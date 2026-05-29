@@ -33,3 +33,6 @@ node_modules/
 
 # Summary
 ANCHORED_SUMMARY.md
+
+movilbro.db-shm
+movilbro.db-wal

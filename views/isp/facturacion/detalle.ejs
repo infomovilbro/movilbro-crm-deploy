@@ -46,7 +46,7 @@
             </div>
             <div class="col-md-4">
               <small class="text-muted d-block">Email enviado</small>
-              <span><%= factura.email_enviado ? '<span class="badge bg-success"><i class="bi bi-check"></i> Sí</span>' : '<span class="badge bg-secondary">No</span>' %></span>
+              <span><%- factura.email_enviado ? '<span class="badge bg-success"><i class="bi bi-check"></i> Sí</span>' : '<span class="badge bg-secondary">No</span>' %></span>
             </div>
           </div>
         </div>
@@ -110,6 +110,78 @@
       </div>
     </div>
   </div>
+
+  <% if (cdrsDetalle && cdrsDetalle.length > 0) { %>
+  <div class="card mt-3">
+    <div class="card-header"><i class="bi bi-graph-up"></i> CDRs - Consumos del periodo</div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Concepto</th>
+              <th>Línea</th>
+              <th>Tipo</th>
+              <th class="text-end">Unidades</th>
+              <th class="text-end">Importe</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% cdrsDetalle.forEach(function(c) { %>
+            <tr>
+              <td><%= c.concepto || '-' %></td>
+              <td><%= c.linea || '-' %></td>
+              <td><span class="badge bg-warning"><%= c.tipo || '-' %></span></td>
+              <td class="text-end"><%= c.unidades || '-' %></td>
+              <td class="fw-bold text-end"><%= parseFloat(c.importe || 0).toFixed(2) %>€</td>
+            </tr>
+            <% }) %>
+          </tbody>
+          <tfoot>
+            <tr class="table-active">
+              <td colspan="4" class="fw-bold text-end">Total CDRs</td>
+              <td class="fw-bold text-end"><%= cdrsDetalle.reduce(function(s,c){ return s + parseFloat(c.importe||0); }, 0).toFixed(2) %>€</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+  <% } %>
+
+  <% if (llamadas && llamadas.length > 0) { %>
+  <div class="card mt-3">
+    <div class="card-header"><i class="bi bi-telephone"></i> Historial de llamadas (<%= llamadas.length %> registros)</div>
+    <div class="card-body p-0">
+      <div class="table-responsive" style="max-height:400px;">
+        <table class="table table-sm table-hover mb-0 align-middle">
+          <thead class="table-light" style="position:sticky;top:0;">
+            <tr>
+              <th>Fecha</th>
+              <th>Hora</th>
+              <th>Destino</th>
+              <th>Grupo</th>
+              <th>Duración</th>
+              <th class="text-end">Importe</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% llamadas.forEach(function(c) { %>
+            <tr>
+              <td><%= c.fecha || '-' %></td>
+              <td><%= c.hora || '-' %></td>
+              <td><%= c.destino || '-' %></td>
+              <td><%= c.grupo || '-' %></td>
+              <td><%= c.duracion || '-' %></td>
+              <td class="fw-bold text-end"><%= parseFloat(c.importe || 0).toFixed(2) %>€</td>
+            </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <% } %>
 </section>
 
 <script>
@@ -129,12 +201,17 @@ document.addEventListener('DOMContentLoaded', function() {
       .then(d => {
         btn.disabled = false;
         btn.innerHTML = '<i class="bi bi-envelope"></i> Enviar Email';
-        alert(d.ok ? 'Email enviado correctamente' : 'Error: ' + (d.error || 'desconocido'));
+        if (d.ok) {
+          alert('✅ Email enviado correctamente');
+          location.reload();
+        } else {
+          alert('❌ Error: ' + (d.error || 'desconocido'));
+        }
       })
-      .catch(() => {
+      .catch(function(err) {
         btn.disabled = false;
         btn.innerHTML = '<i class="bi bi-envelope"></i> Enviar Email';
-        alert('Error de conexión');
+        alert('❌ Error de conexión: ' + err.message);
       });
   });
 

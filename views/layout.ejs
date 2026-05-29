@@ -62,7 +62,7 @@
     .bottom-nav-item.active .bottom-nav-label { color: var(--primary, #0050A1); font-weight: 600; }
     .bottom-nav-item.active .bottom-nav-icon { filter: brightness(0.7) sepia(1) hue-rotate(190deg) saturate(3); }
 
-    @media (max-width: 767.98px) {
+    @media (max-width: 991.98px) {
       .bottom-nav { display: flex; }
       .sidebar { padding-bottom: 60px; }
       #page-content { padding-bottom: 56px; }
@@ -273,7 +273,7 @@
     <!-- MAIN CONTENT -->
     <div id="page-content">
       <div class="topbar">
-        <button class="btn btn-sm btn-outline-secondary d-md-none me-2" id="sidebarToggle"><i class="bi bi-list"></i></button>
+        <button class="btn btn-sm btn-outline-secondary d-lg-none me-2" id="sidebarToggle"><i class="bi bi-list"></i></button>
         <span class="date-display"><i class="bi bi-calendar3 me-1"></i> <%= new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) %></span>
         <div class="ms-auto d-flex align-items-center gap-2">
           <!-- Global Search -->
@@ -472,17 +472,19 @@
     })();
 
     var sidebar = document.getElementById('sidebar');
-    var backdrop = document.getElementById('sidebarBackdrop');
+    function getBackdrop() { return document.getElementById('sidebarBackdrop'); }
     document.getElementById('sidebarToggle')?.addEventListener('click', function() {
       sidebar.classList.toggle('show');
-      if (backdrop) backdrop.classList.toggle('show');
+      var bd = getBackdrop();
+      if (bd) bd.classList.toggle('show');
     });
-    if (backdrop) {
-      backdrop.addEventListener('click', function() {
+    document.addEventListener('click', function(e) {
+      if (e.target && e.target.id === 'sidebarBackdrop') {
         sidebar.classList.remove('show');
-        backdrop.classList.remove('show');
-      });
-    }
+        e.target.classList.remove('show');
+        document.querySelectorAll('.bottom-nav-item').forEach(function(i) { i.classList.remove('active'); });
+      }
+    });
 
     // Sidebar AI toggle
     document.getElementById('sidebarAiToggle')?.addEventListener('click', function(e) {

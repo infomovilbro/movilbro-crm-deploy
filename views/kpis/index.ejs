@@ -141,17 +141,29 @@
     <!-- ============ TAB FACTURACIÓN ============ -->
     <div class="tab-pane fade" id="kpiFacturacion" role="tabpanel">
       <div class="row g-2 mb-3">
-        <div class="col-md-2 col-4"><div class="card"><div class="card-body p-2 text-center"><div class="fs-5 fw-bold"><%= stats.invTotal || 0 %></div><small class="text-muted">Facturas</small></div></div></div>
-        <div class="col-md-2 col-4"><div class="card"><div class="card-body p-2 text-center"><div class="fs-5 fw-bold"><%= stats.invTotalImporte ? stats.invTotalImporte.toFixed(2) : '0.00' %>€</div><small class="text-muted">Importe Total</small></div></div></div>
-        <div class="col-md-2 col-4"><div class="card"><div class="card-body p-2 text-center"><div class="fs-5 fw-bold"><%= stats.invPagadas || 0 %></div><small class="text-muted">Pagadas</small></div></div></div>
-        <div class="col-md-2 col-4"><div class="card"><div class="card-body p-2 text-center"><div class="fs-5 fw-bold"><%= stats.invPendientes || 0 %></div><small class="text-muted">Pendientes</small></div></div></div>
+        <div class="col-md-2 col-4"><div class="card"><div class="card-body p-2 text-center"><div class="fs-5 fw-bold"><%= stats.invTotal || 0 %></div><small class="text-muted">Facturas ISP</small></div></div></div>
+        <div class="col-md-2 col-4"><div class="card"><div class="card-body p-2 text-center"><div class="fs-5 fw-bold"><%= stats.invTotalImporte ? stats.invTotalImporte.toFixed(2) : '0.00' %>€</div><small class="text-muted">Importe ISP</small></div></div></div>
+        <div class="col-md-2 col-4"><div class="card"><div class="card-body p-2 text-center"><div class="fs-5 fw-bold"><%= stats.invPagadas || 0 %></div><small class="text-muted">Pagadas ISP</small></div></div></div>
+        <div class="col-md-2 col-4"><div class="card"><div class="card-body p-2 text-center"><div class="fs-5 fw-bold"><%= stats.invPendientes || 0 %></div><small class="text-muted">Pendientes ISP</small></div></div></div>
         <div class="col-md-2 col-4"><div class="card"><div class="card-body p-2 text-center"><div class="fs-5 fw-bold"><%= stats.clientesConContrato || 0 %></div><small class="text-muted">Clientes facturados</small></div></div></div>
         <div class="col-md-2 col-4"><div class="card"><div class="card-body p-2 text-center"><div class="fs-5 fw-bold"><%= stats.recurrenteTotal ? stats.recurrenteTotal.toFixed(2) : '0.00' %>€</div><small class="text-muted">Recurrente Cat.</small></div></div></div>
+      </div>
+      <div class="row g-2 mb-3">
+        <div class="col-md-2 col-4"><div class="card"><div class="card-body p-2 text-center"><div class="fs-5 fw-bold"><%= stats.invSimpleTotal || 0 %></div><small class="text-muted">Facturas (CRM)</small></div></div></div>
+        <div class="col-md-2 col-4"><div class="card"><div class="card-body p-2 text-center"><div class="fs-5 fw-bold"><%= stats.invSimpleTotalImporte ? stats.invSimpleTotalImporte.toFixed(2) : '0.00' %>€</div><small class="text-muted">Importe CRM</small></div></div></div>
+        <div class="col-md-2 col-4"><div class="card"><div class="card-body p-2 text-center"><div class="fs-5 fw-bold"><%= stats.invSimplePagadas || 0 %></div><small class="text-muted">Pagadas CRM</small></div></div></div>
+        <div class="col-md-2 col-4"><div class="card"><div class="card-body p-2 text-center"><div class="fs-5 fw-bold"><%= stats.invSimplePendientes || 0 %></div><small class="text-muted">Pendientes CRM</small></div></div></div>
+        <div class="col-md-2 col-4"><div class="card"><div class="card-body p-2 text-center"><div class="fs-5 fw-bold"><%= stats.invSimpleVencidas || 0 %></div><small class="text-muted">Vencidas CRM</small></div></div></div>
+        <div class="col-md-2 col-4"><div class="card"><div class="card-body p-2 text-center"><div class="fs-5 fw-bold"><%= stats.invSimpleByStatus && Object.keys(stats.invSimpleByStatus).length || 0 %></div><small class="text-muted">Estados CRM</small></div></div></div>
       </div>
       <div class="row g-2 mb-3">
         <div class="col-md-4"><div class="card h-100"><div class="card-header py-1 px-2"><small class="fw-semibold"><i class="bi bi-currency-euro"></i> Ingresos por Mes</small></div><div class="card-body p-2"><div style="height:200px;"><canvas id="kpiRevenueTimeline"></canvas></div></div></div></div>
         <div class="col-md-4"><div class="card h-100"><div class="card-header py-1 px-2"><small class="fw-semibold"><i class="bi bi-pie-chart"></i> Facturas Pagadas vs Pendientes</small></div><div class="card-body p-2"><div style="height:200px;"><canvas id="kpiInvStatus"></canvas></div></div></div></div>
         <div class="col-md-4"><div class="card h-100"><div class="card-header py-1 px-2"><small class="fw-semibold"><i class="bi bi-bar-chart"></i> Precio Medio por Familia</small></div><div class="card-body p-2"><div style="height:200px;"><canvas id="kpiAvgPrices"></canvas></div></div></div></div>
+      </div>
+      <div class="row g-2 mb-3">
+        <div class="col-md-6"><div class="card h-100"><div class="card-header py-1 px-2"><small class="fw-semibold"><i class="bi bi-bar-chart"></i> Estado Facturas (Simple)</small></div><div class="card-body p-2"><div style="height:200px;"><canvas id="kpiInvSimpleStatus"></canvas></div></div></div></div>
+        <div class="col-md-6"><div class="card h-100"><div class="card-header py-1 px-2"><small class="fw-semibold"><i class="bi bi-bar-chart"></i> Importe por Estado</small></div><div class="card-body p-2"><div style="height:200px;"><canvas id="kpiInvSimpleAmount"></canvas></div></div></div></div>
       </div>
     </div>
 
@@ -271,6 +283,8 @@ document.addEventListener('DOMContentLoaded', function() {
   <% if (stats.revenueTimeline) { %>chart('kpiRevenueTimeline', 'line', <%= JSON.stringify(stats.revenueTimeline.map(x => x.month)) %>, <%= JSON.stringify(stats.revenueTimeline.map(x => x.total)) %>, { plugins:{ legend:{display:false} }, scales:{ y:{ beginAtZero:true, grid:{color:'#eee'} }, x:{ grid:{display:false} } } });<% } %>
   <% if (stats.invByStatus) { %>chart('kpiInvStatus', 'doughnut', <%= JSON.stringify(Object.keys(stats.invByStatus)) %>, <%= JSON.stringify(Object.values(stats.invByStatus)) %>, { cutout:'55%', plugins:{ legend:{ position:'right', labels:{ boxWidth:12, font:{size:12} } } } });<% } %>
   <% if (stats.families) { %>chart('kpiAvgPrices', 'bar', <%= JSON.stringify(stats.families.map(x => x.name)) %>, <%= JSON.stringify(stats.families.map(function(x){return x.avgPrice})) %>, { plugins:{ legend:{display:false} }, scales:{ y:{ beginAtZero:true, grid:{color:'#eee'} }, x:{ grid:{display:false} } } });<% } %>
+  <% if (stats.invSimpleByStatus) { %>chart('kpiInvSimpleStatus', 'bar', <%= JSON.stringify(Object.keys(stats.invSimpleByStatus)) %>, <%= JSON.stringify(Object.values(stats.invSimpleByStatus)) %>, { plugins:{ legend:{display:false} }, scales:{ y:{ beginAtZero:true, grid:{color:'#eee'} }, x:{ grid:{display:false} } } });<% } %>
+  <% if (stats.invSimpleAmountByStatus) { %>chart('kpiInvSimpleAmount', 'bar', <%= JSON.stringify(Object.keys(stats.invSimpleAmountByStatus)) %>, <%= JSON.stringify(Object.values(stats.invSimpleAmountByStatus)) %>, { plugins:{ legend:{display:false} }, scales:{ y:{ beginAtZero:true, grid:{color:'#eee'} }, x:{ grid:{display:false} } } });<% } %>
 
   // ---- TARIFAS ----
   <% if (stats.mixTarifas) { %>chart('kpiMixTarifasDetalle', 'doughnut', <%= JSON.stringify(stats.mixTarifas.map(x => x.name)) %>, <%= JSON.stringify(stats.mixTarifas.map(x => x.count)) %>, { cutout:'45%', plugins:{ legend:{ position:'right', labels:{ boxWidth:12, padding:8, font:{size:11} } } } });<% } %>

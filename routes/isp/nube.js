@@ -164,8 +164,8 @@ router.get('/descargar', (req, res) => {
 // ZIP download by year/month
 router.get('/zip/:year/:month?', (req, res) => {
   try {
-    var { ZipArchive } = require('archiver');
-    var archive = new ZipArchive();
+    var archiver = require('archiver');
+    var archive = archiver('zip', { zlib: { level: 9 } });
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader('Content-Disposition', 'attachment; filename="facturas-' + req.params.year + (req.params.month ? '-' + req.params.month : '') + '.zip"');
     archive.pipe(res);

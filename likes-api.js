@@ -1,9 +1,6 @@
 const axios = require('axios');
 const { db } = require('./database');
 
-let tokenCache = null;
-let tokenExpiry = null;
-
 function getApiInstance() {
   const s = db.prepare("SELECT key, value FROM settings WHERE key LIKE 'likes_%'").all();
   const c = {};
@@ -17,25 +14,36 @@ class LikesAPI {
     this.email = config.email;
     this.password = config.password;
     this.brandId = config.brandId;
+    this._tokenCache = null;
+    this._tokenExpiry = null;
   }
 
   async getToken() {
-    if (tokenCache && tokenExpiry && Date.now() < tokenExpiry) return tokenCache;
+    if (this._tokenCache && this._tokenExpiry && Date.now() < this._tokenExpiry) return this._tokenCache;
     try {
       const body = { email: this.email, password: this.password };
       if (this.brandId) body.brand = this.brandId;
       const response = await axios.post(`${this.apiUrl}/token`, body);
-      tokenCache = response.data.token || response.data.access_token;
-      tokenExpiry = Date.now() + (response.data.expires_in || 3600) * 1000 - 60000;
-      return tokenCache;
+      var token = response.data.token || response.data.access_token || response.data.auth_token || response.data.id_token;
+      if (!token && response.data.data) token = response.data.data.token || response.data.data.access_token;
+      if (!token && typeof response.data === 'string' && response.data.length > 20) token = response.data;
+      if (token) {
+        this._tokenCache = token;
+        this._tokenExpiry = Date.now() + (response.data.expires_in || 3600) * 1000 - 60000;
+      }
+      return this._tokenCache;
     } catch (error) {
-      console.error('Error obteniendo token:', error.message);
+      console.error('Error obteniendo token:', error.response?.data || error.message);
       throw new Error('No se pudo autenticar con Likes Telecom');
     }
   }
 
   async request(method, endpoint, data = null) {
-    const token = await this.getToken();
+    var token = await this.getToken();
+    if (!token) {
+      this._tokenCache = null;
+      token = await this.getToken();
+    }
     const config = {
       method,
       url: `${this.apiUrl}${endpoint}`,
@@ -91,8 +99,17 @@ class LikesAPI {
 
   async getTickets(params = {}) {
     const query = Object.entries({ brand_id: this.brandId, ...params }).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&');
-    const data = await this.request('GET', `/ticket${query ? '?' + query : ''}`);
-    return this.extractData(data);
+    // Try /tickets first (plural), fallback to /ticket (singular)
+    try {
+      const data = await this.request('GET', `/tickets${query ? '?' + query : ''}`);
+      return this.extractData(data);
+    } catch (e) {
+      if (e.response && e.response.status === 404) {
+        const data = await this.request('GET', `/ticket${query ? '?' + query : ''}`);
+        return this.extractData(data);
+      }
+      throw e;
+    }
   }
 
   async getLines() {
@@ -100,8 +117,9 @@ class LikesAPI {
     return this.extractData(data);
   }
 
-  async getSubscriptions() {
-    const data = await this.request('GET', `/subscriptions?brand_id=${this.brandId}`);
+  async getSubscriptions(fiscalId) {
+    const query = fiscalId ? `?fiscalId=${encodeURIComponent(fiscalId)}&brand_id=${this.brandId}` : `?brand_id=${this.brandId}`;
+    const data = await this.request('GET', `/subscriptions${query}`);
     return this.extractData(data);
   }
 

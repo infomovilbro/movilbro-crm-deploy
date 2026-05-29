@@ -341,6 +341,7 @@ function initDatabase() {
     CREATE TABLE IF NOT EXISTS isp_facturas_lineas (id INTEGER PRIMARY KEY AUTOINCREMENT, factura_id INTEGER NOT NULL, concepto TEXT NOT NULL, tipo TEXT DEFAULT 'cuota', importe REAL NOT NULL, linea TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
     CREATE TABLE IF NOT EXISTS isp_pagos (id INTEGER PRIMARY KEY AUTOINCREMENT, factura_id INTEGER, client_id INTEGER, importe REAL NOT NULL, metodo TEXT NOT NULL, referencia TEXT, estado TEXT DEFAULT 'completado', fecha_pago DATE, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
     CREATE TABLE IF NOT EXISTS isp_cdrs (id INTEGER PRIMARY KEY AUTOINCREMENT, fiscal_id TEXT, linea TEXT, concepto TEXT, tipo TEXT DEFAULT 'exceso', importe REAL DEFAULT 0, unidades REAL DEFAULT 0, periodo TEXT, factura_id INTEGER, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
+    CREATE TABLE IF NOT EXISTS isp_llamadas (id INTEGER PRIMARY KEY AUTOINCREMENT, fiscal_id TEXT, linea TEXT, fecha TEXT, hora TEXT, destino TEXT, grupo TEXT, duracion TEXT, importe REAL DEFAULT 0, periodo TEXT, factura_id INTEGER, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
     CREATE TABLE IF NOT EXISTS bot_propuestas (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       chat_id TEXT,
@@ -425,16 +426,23 @@ function initDatabase() {
   if (process.env.TELEGRAM_CHAT_ID) {
     db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('telegram_chat_id', ?)").run(process.env.TELEGRAM_CHAT_ID);
   }
-  // Auto-configurar API Likes Telecom (desde env vars o valores por defecto)
+  // Auto-configurar API Likes Telecom (solo si no existe ya en DB)
   var defaultApi = {
     likes_api_url: 'https://api.likestelecom.com',
     likes_client_id: 'eloyfuentesbermudez@gmail.com',
     likes_client_secret: 'Teresa88.',
     likes_brand_id: '264'
   };
-  var upsert = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
+  var checkSetting = db.prepare('SELECT value FROM settings WHERE key=?');
+  var insertSetting = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
   for (var _k in defaultApi) {
-    upsert.run(_k, process.env[_k.toUpperCase()] || defaultApi[_k]);
+    var envVal = process.env[_k.toUpperCase()];
+    if (envVal) {
+      db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(_k, envVal);
+    } else {
+      var existing = checkSetting.get(_k);
+      if (!existing) insertSetting.run(_k, defaultApi[_k]);
+    }
   }
 
   // Stripe keys desde variables de entorno
