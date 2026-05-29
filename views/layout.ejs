@@ -1434,13 +1434,22 @@
         if (!container) return;
         const hidden = (function() { try { return JSON.parse(localStorage.getItem('ui_hidden_bottomnav') || '[]'); } catch(e) { return []; } })();
         container.innerHTML = '';
-        // Grupos actuales por defecto en la barra inferior
+        // Collect ALL bottom nav items (both default groups and user-added items)
         var items = [
           { key: 'tienda', label: 'Tienda', icon: '🏪' },
           { key: 'clientes', label: 'Clientes', icon: '🖥️' },
           { key: 'isp', label: 'ISP', icon: '🌐' },
           { key: 'redes', label: 'Herramientas', icon: '🔗' }
         ];
+        // Add custom items found in the DOM
+        document.querySelectorAll('.bottom-nav-item').forEach(function(el) {
+          var k = el.getAttribute('data-nav-group');
+          if (!k || ['tienda','clientes','isp','redes'].indexOf(k) !== -1) return;
+          var lbl = el.querySelector('.bottom-nav-label');
+          var ico = el.querySelector('.bottom-nav-icon');
+          var exists = items.some(function(i) { return i.key === k; });
+          if (!exists) items.push({ key: k, label: lbl ? lbl.textContent : k, icon: ico ? ico.textContent : '•' });
+        });
         items.forEach(function(item) {
           const isHidden = hidden.indexOf(item.key) !== -1;
           var existingBtn = document.querySelector('.bottom-nav-item[data-nav-group="' + item.key + '"]');
@@ -1460,37 +1469,52 @@
           });
           container.appendChild(btn);
         });
-        // Botón para añadir grupos adicionales manualmente
+        // Añadir items individuales de grupos a la barra inferior
+        function buildItemSelector() {
+          var sel = document.createElement('select');
+          sel.className = 'form-select form-select-sm flex-fill';
+          sel.innerHTML = '<option value="">+ Añadir acceso rápido...</option>';
+          document.querySelectorAll('.nav-group[data-group-key]').forEach(function(g) {
+            var groupKey = g.getAttribute('data-group-key');
+            var groupLabel = (g.querySelector('[data-group-label]') || {}).textContent || groupKey;
+            var groupIcon = (g.querySelector('[data-group-icon]') || {}).textContent || '📌';
+            // Add group itself as option
+            var gOpt = document.createElement('option');
+            gOpt.value = 'group:' + groupKey;
+            gOpt.textContent = '📁 ' + groupLabel + ' (grupo)';
+            sel.appendChild(gOpt);
+            // Add all items within the group
+            g.querySelectorAll('.nav-submenu li a').forEach(function(a) {
+              var href = a.getAttribute('href');
+              var text = a.textContent.trim();
+              var iconSpan = a.querySelector('.emoji-icon');
+              var icon = iconSpan ? iconSpan.textContent : '•';
+              if (text && href) {
+                var opt = document.createElement('option');
+                opt.value = 'item:' + href + ':' + text + ':' + icon;
+                opt.textContent = '  ' + icon + ' ' + text + ' (' + groupLabel + ')';
+                sel.appendChild(opt);
+              }
+            });
+          });
+          return sel;
+        }
         var addRow = document.createElement('div');
         addRow.className = 'd-flex gap-1 mt-1';
-        var select = document.createElement('select');
-        select.className = 'form-select form-select-sm flex-fill';
-        select.innerHTML = '<option value="">+ Añadir grupo...</option>';
-        document.querySelectorAll('.nav-group[data-group-key]').forEach(function(g) {
-          var k = g.getAttribute('data-group-key');
-          var l = (g.querySelector('[data-group-label]') || {}).textContent || k;
-          var opt = document.createElement('option');
-          opt.value = k;
-          opt.textContent = l;
-          select.appendChild(opt);
-        });
+        var select = buildItemSelector();
         select.addEventListener('change', function() {
           if (!this.value) return;
-          var key = this.value;
-          var group = document.querySelector('.nav-group[data-group-key="' + key + '"]');
-          var label = (group ? (group.querySelector('[data-group-label]') || {}).textContent : null) || key;
-          var iconEl = group ? group.querySelector('[data-group-icon]') : null;
-          var icon = iconEl ? iconEl.textContent : '📌';
-          var existing = document.querySelector('.bottom-nav-item[data-nav-group="' + key + '"]');
-          if (existing) {
-            existing.style.display = '';
-            var h = (function() { try { return JSON.parse(localStorage.getItem('ui_hidden_bottomnav') || '[]'); } catch(e) { return []; } })();
-            var idx = h.indexOf(key);
-            if (idx !== -1) h.splice(idx, 1);
-            localStorage.setItem('ui_hidden_bottomnav', JSON.stringify(h));
-          } else {
-            var nav = document.getElementById('bottomNav');
-            if (nav) {
+          var val = this.value;
+          var nav = document.getElementById('bottomNav');
+          if (!nav) { this.value = ''; return; }
+          if (val.startsWith('group:')) {
+            var key = val.replace('group:', '');
+            var group = document.querySelector('.nav-group[data-group-key="' + key + '"]');
+            var label = (group ? (group.querySelector('[data-group-label]') || {}).textContent : null) || key;
+            var iconEl = group ? group.querySelector('[data-group-icon]') : null;
+            var icon = iconEl ? iconEl.textContent : '📌';
+            var existing = document.querySelector('.bottom-nav-item[data-nav-group="' + key + '"]');
+            if (existing) { existing.style.display = ''; } else {
               var newBtn = document.createElement('button');
               newBtn.className = 'bottom-nav-item';
               newBtn.setAttribute('data-nav-group', key);
@@ -1498,9 +1522,25 @@
               newBtn.innerHTML = '<span class="bottom-nav-icon">' + icon + '</span><span class="bottom-nav-label">' + label + '</span>';
               nav.appendChild(newBtn);
             }
+          } else if (val.startsWith('item:')) {
+            var parts = val.split(':');
+            var href = parts[1];
+            var label = parts[2];
+            var icon = parts[3] || '•';
+            // Generate unique key from href
+            var itemKey = 'item_' + href.replace(/[^a-zA-Z0-9]/g, '_');
+            var existing = document.querySelector('.bottom-nav-item[data-nav-group="' + itemKey + '"]');
+            if (existing) { existing.style.display = ''; } else {
+              var newBtn = document.createElement('button');
+              newBtn.className = 'bottom-nav-item';
+              newBtn.setAttribute('data-nav-group', itemKey);
+              newBtn.setAttribute('onclick', "window.location.href='" + href + "'");
+              newBtn.innerHTML = '<span class="bottom-nav-icon">' + icon + '</span><span class="bottom-nav-label">' + label + '</span>';
+              nav.appendChild(newBtn);
+            }
           }
-          renderBottomNavVisibility();
           this.value = '';
+          renderBottomNavVisibility();
         });
         addRow.appendChild(select);
         container.appendChild(addRow);

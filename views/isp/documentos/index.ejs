@@ -45,6 +45,16 @@
               <% }) %>
             </select>
           </div>
+          <div class="col-md-2">
+            <label class="form-label">Guardar en Nube</label>
+            <select name="destino_nube" class="form-select form-select-sm">
+              <option value="">Solo DB (local)</option>
+              <option value="facturasgestoria2026">📁 facturasgestoria2026</option>
+              <% (nubeFolders || []).forEach(function(f) { %>
+              <option value="<%= f.name %>">📂 <%= f.name %></option>
+              <% }) %>
+            </select>
+          </div>
           <div class="col-md-1">
             <button type="submit" class="btn btn-primary btn-sm w-100"><i class="bi bi-cloud-upload"></i></button>
           </div>
