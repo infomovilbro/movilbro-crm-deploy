@@ -33,6 +33,7 @@ router.get('/', async (req, res) => {
 
 // Generar facturas del mes (masivo - optimizado)
 router.post('/generar', async (req, res) => {
+  res.json({ ok: true, message: 'Generando facturas en segundo plano...' });
   try {
     var api = LikesAPI.getApiInstance();
     var customers = await api.getCustomers();
@@ -188,19 +189,14 @@ router.post('/generar', async (req, res) => {
           var llamadas = db.prepare('SELECT * FROM isp_llamadas WHERE factura_id=? ORDER BY fecha, hora').all(fn.id);
           var historia = db.prepare("SELECT periodo, SUM(importe_total) as total FROM isp_facturas WHERE fiscal_id=? AND id<=? GROUP BY periodo ORDER BY periodo DESC LIMIT 6").all(fn.fiscal_id, fn.id);
           var result = await nube.procesarFactura(fn, lineas, cdrsDetalle, llamadas, historia.reverse());
-          console.log('PDF guardado en nube:', result.nombreArchivo);
-        } catch(e2) {
-          console.error('Error guardando PDF factura ' + fn.id + ':', e2.message);
-        }
-      }
+          console.log('PDFs generados en nube para', periodo, ':', cuentasGeneradas, 'facturas');
     } catch(e2) {
       console.error('Error en proceso nube:', e2.message);
     }
     
-    res.json({ ok: true, generadas: cuentasGeneradas, errores: errores, periodo: periodo });
+    console.log('Generación completada:', { generadas: cuentasGeneradas, errores: errores });
   } catch(e) {
-    console.error(e);
-    res.status(500).json({ ok: false, error: e.message });
+    console.error('Error en generación:', e.message);
   }
 });
 
