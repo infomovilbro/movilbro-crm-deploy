@@ -507,18 +507,8 @@
       }
     })();
 
-    // Event delegation for sidebar toggle, backdrop, bottom nav, and AI toggle
+    // Event delegation for backdrop and AI toggle
     document.addEventListener('click', function(e) {
-      // Sidebar toggle (hamburger button)
-      var toggle = e.target.closest('#sidebarToggle');
-      if (toggle) {
-        var s = document.getElementById('sidebar');
-        if (s) { s.classList.toggle('show'); }
-        var bd = document.getElementById('sidebarBackdrop');
-        if (bd) { bd.classList.toggle('show'); }
-        return;
-      }
-
       // Backdrop click - close sidebar
       if (e.target && e.target.id === 'sidebarBackdrop') {
         var s = document.getElementById('sidebar');
@@ -527,45 +517,12 @@
         document.querySelectorAll('.bottom-nav-item').forEach(function(i) { i.classList.remove('active'); });
         return;
       }
-
       // Sidebar AI toggle
       var aiToggle = e.target.closest('#sidebarAiToggle');
       if (aiToggle) {
         e.preventDefault();
         var chatToggle = document.getElementById('aiChatToggle');
         if (chatToggle) chatToggle.click();
-        return;
-      }
-
-      // Bottom nav item - open sidebar with correct group
-      var navItem = e.target.closest('.bottom-nav-item');
-      if (navItem) {
-        e.stopPropagation();
-        var targetGroup = navItem.dataset.navGroup;
-        var s = document.getElementById('sidebar');
-        var bd = document.getElementById('sidebarBackdrop');
-
-        if (navItem.classList.contains('active') && s && s.classList.contains('show')) {
-          s.classList.remove('show');
-          if (bd) bd.classList.remove('show');
-          document.querySelectorAll('.bottom-nav-item').forEach(function(i) { i.classList.remove('active'); });
-          document.querySelectorAll('.nav-group').forEach(function(g) { g.classList.remove('open'); });
-          return;
-        }
-
-        document.querySelectorAll('.nav-group').forEach(function(g) { g.classList.remove('open'); });
-
-        var group = document.querySelector('.nav-group[data-group-key="' + targetGroup + '"]');
-        if (group) {
-          group.classList.add('open');
-          setTimeout(function() { group.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 100);
-        }
-
-        if (s) { s.classList.add('show'); s.style.display = 'block'; }
-        if (bd) bd.classList.add('show');
-
-        document.querySelectorAll('.bottom-nav-item').forEach(function(i) { i.classList.remove('active'); });
-        navItem.classList.add('active');
         return;
       }
     });
