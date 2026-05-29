@@ -401,11 +401,14 @@ cron.schedule('0 * * * *', () => {
   });
 });
 
-// Sincronización inicial al arrancar (con retardo para que todo esté listo)
+// Sincronización inicial al arrancar (solo facturas, sin CDRs - rápido)
 setTimeout(() => {
-  console.log('[AutoSync] Ejecutando sincronización inicial...');
-  runSync().then(r => {
-    console.log('[AutoSync] Sincronización inicial:', r.ok ? 'OK (' + r.invoices + ' facturas)' : 'ERROR: ' + (r.error || ''));
+  var { syncInvoicesOnly } = require('./auto-sync');
+  console.log('[AutoSync] Ejecutando sincronización inicial (solo facturas)...');
+  syncInvoicesOnly().then(r => {
+    console.log('[AutoSync] Sincronización inicial:', r.ok ? 'OK (' + (r.upserted || 0) + ' upserted, ' + (r.created || 0) + ' creadas)' : 'ERROR: ' + (r.error || ''));
+  }).catch(e => {
+    console.error('[AutoSync] Error crítico en sincro inicial:', e.message);
   });
 }, 15000);
 

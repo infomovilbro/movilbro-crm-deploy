@@ -10,6 +10,114 @@ var syncProgress = { step: '', total: 0, current: 0, status: 'idle', lastSync: n
 
 function getProgress() { return Object.assign({}, syncProgress); }
 
+// Sync solo facturas (rápido, sin CDRs) - para usar al arrancar
+async function syncInvoicesOnly() {
+  if (syncing) return { ok: false, error: 'Ya hay una sincronización en curso' };
+  syncing = true;
+  syncProgress = { step: 'Iniciando...', total: 0, current: 0, status: 'running', lastSync: null, error: null };
+
+  try {
+    var api = LikesAPI.getApiInstance();
+    console.log('[AutoSync] Sincro rápida (solo facturas)...');
+
+    var customers = await api.getCustomers();
+    var customersArr = Array.isArray(customers) ? customers : [];
+    syncProgress.total = customersArr.length;
+
+    var allProducts = [];
+    try { allProducts = await api.getProducts(); } catch(e) {}
+    var productPriceMap = {};
+    for (var ap of (Array.isArray(allProducts) ? allProducts : [])) {
+      var pid = String(ap.productId || ap.id || '');
+      if (pid) productPriceMap[pid] = parseFloat(ap.price || 0);
+    }
+
+    syncProgress.step = 'Obteniendo suscripciones...';
+    var fiscalIds = customersArr.map(function(c) { return c.fiscalId; }).filter(Boolean);
+    fiscalIds = fiscalIds.filter(function(v, i, a) { return a.indexOf(v) === i; });
+
+    var allSubsData = [];
+    for (var i = 0; i < fiscalIds.length; i += 20) {
+      var batch = fiscalIds.slice(i, i + 20);
+      var results = await Promise.allSettled(batch.map(function(fid) {
+        return api.request('GET', '/subscriptions?fiscalId=' + encodeURIComponent(fid) + '&brand_id=264');
+      }));
+      results.forEach(function(r, idx) {
+        if (r.status === 'fulfilled') {
+          var data = r.value;
+          var items = Array.isArray(data) ? data : (data.data || data.subscriptions || []);
+          allSubsData.push({ fiscalId: batch[idx], subs: items });
+        }
+      });
+    }
+
+    syncProgress.step = 'Actualizando facturas...';
+    var periodo = new Date().toISOString().split('T')[0].substring(0, 7);
+    var fechaEmision = new Date().toISOString().split('T')[0];
+    var upserted = 0, created = 0, errors = 0;
+
+    for (var sd of allSubsData) {
+      try {
+        var fiscalId = sd.fiscalId;
+        var subs = sd.subs;
+        if (!subs || subs.length === 0) continue;
+        var c = customersArr.find(function(x) { return x.fiscalId === fiscalId; });
+        if (!c) continue;
+        var nombre = c.name + ' ' + (c.firstSurname || '');
+        var email = c.email || '';
+
+        var importeBase = 0, productos = [], seenLines = {};
+        for (var s of subs) {
+          var subProducts = extractProducts(s);
+          for (var p of subProducts) {
+            var precio = parseFloat(p.finalPrice || p.price || p.productPrice || p.recurringPrice || 0);
+            if (!precio) precio = productPriceMap[String(p.productId || p.id || '')] || 0;
+            if (precio > 0 && !seenLines[p.fixedNumber || p.productId || s.subscriptionId]) {
+              seenLines[p.fixedNumber || p.productId || s.subscriptionId] = true;
+              importeBase += precio;
+              productos.push({ nombre: p.productName || s.productName || '', precio: precio, linea: p.fixedNumber || '' });
+            }
+          }
+        }
+        if (importeBase === 0) continue;
+        var importeTotal = Math.round(importeBase * 100) / 100;
+        if (importeTotal <= 0) continue;
+
+        var fechaVenc = new Date(); fechaVenc.setDate(fechaVenc.getDate() + 28);
+        var existing = db.prepare('SELECT id FROM isp_facturas WHERE fiscal_id=? AND periodo=?').get(fiscalId, periodo);
+        if (existing) {
+          db.prepare('UPDATE isp_facturas SET cliente_nombre=?, cliente_email=?, importe_base=?, importe_total=?, fecha_emision=?, fecha_vencimiento=? WHERE id=?').run(nombre, email, importeBase, importeTotal, fechaEmision, fechaVenc.toISOString().split('T')[0], existing.id);
+          db.prepare('DELETE FROM isp_facturas_lineas WHERE factura_id=?').run(existing.id);
+          upserted++;
+          for (var prod of productos) {
+            db.prepare('INSERT INTO isp_facturas_lineas (factura_id, concepto, tipo, importe, linea) VALUES (?,?,?,?,?)').run(existing.id, prod.nombre, 'cuota', prod.precio, prod.linea);
+          }
+        } else {
+          var numbering = getNextNumeroFactura('F');
+          db.prepare('INSERT INTO isp_facturas (cliente_nombre, cliente_email, fiscal_id, periodo, fecha_emision, fecha_vencimiento, importe_base, importe_cdrs, importe_total, metodo_pago, serie, numero_factura) VALUES (?,?,?,?,?,?,?,0,?,?,?,?)').run(nombre, email, fiscalId, periodo, fechaEmision, fechaVenc.toISOString().split('T')[0], importeBase, importeTotal, 'stripe', numbering.serie, numbering.numero);
+          var fid = db.prepare('SELECT last_insert_rowid() as id').get().id;
+          created++;
+          for (var prod of productos) {
+            db.prepare('INSERT INTO isp_facturas_lineas (factura_id, concepto, tipo, importe, linea) VALUES (?,?,?,?,?)').run(fid, prod.nombre, 'cuota', prod.precio, prod.linea);
+          }
+        }
+        syncProgress.current = upserted + created;
+      } catch(e) { errors++; }
+    }
+
+    syncProgress.status = 'completed';
+    syncProgress.lastSync = new Date().toISOString();
+    syncProgress.step = 'Completado';
+    syncing = false;
+    return { ok: true, upserted: upserted, created: created, errors: errors };
+
+  } catch(e) {
+    syncProgress.status = 'error'; syncProgress.error = e.message;
+    syncing = false;
+    return { ok: false, error: e.message };
+  }
+}
+
 async function runSync() {
   if (syncing) return { ok: false, error: 'Ya hay una sincronización en curso' };
   syncing = true;
@@ -59,7 +167,7 @@ async function runSync() {
     }
     console.log('[AutoSync] Suscripciones para', allSubsData.length, 'clientes');
 
-    // Step 4: Fetch CDRs from API for all lines
+    // Step 4: Fetch CDRs from API (solo en cron horario, con timeout por línea)
     syncProgress.step = 'Obteniendo CDRs desde API...';
     var cdrsFetched = 0;
     try {
@@ -74,48 +182,45 @@ async function runSync() {
         }
       }
       console.log('[AutoSync] Líneas para CDRs:', allLines.length);
-      var lineBatchSize = 5;
+      var lineBatchSize = 3;
       for (var li = 0; li < allLines.length; li += lineBatchSize) {
         var lineBatch = allLines.slice(li, li + lineBatchSize);
         var lineResults = await Promise.allSettled(lineBatch.map(function(ln) {
           return api.getLineCDRs(ln).then(function(d) { return { line: ln, data: d }; }).catch(function() { return { line: ln, data: null }; });
         }));
         for (var lr of lineResults) {
-          if (lr.status === 'fulfilled' && lr.value && lr.value.data) {
-            var cdrRaw = lr.value.data;
-            var cdrItems = Array.isArray(cdrRaw) ? cdrRaw : (cdrRaw.data || cdrRaw.cdrs || cdrRaw.records || []);
-            if (!Array.isArray(cdrItems)) cdrItems = [];
-            var linea = lr.value.line;
-            // Find fiscalId for this line
-            var lineFiscalId = '';
-            for (var sd2 of allSubsData) {
-              for (var s2 of sd2.subs) {
-                var sps = extractProducts(s2);
-                for (var p2 of sps) {
-                  if (p2.fixedNumber === linea || p2.lineNumber === linea) {
-                    lineFiscalId = sd2.fiscalId;
-                    break;
-                  }
-                }
-                if (lineFiscalId) break;
+          if (lr.status !== 'fulfilled' || !lr.value || !lr.value.data) continue;
+          var cdrRaw = lr.value.data;
+          var cdrItems = Array.isArray(cdrRaw) ? cdrRaw : ((cdrRaw && (cdrRaw.data || cdrRaw.cdrs || cdrRaw.records)) || []);
+          if (!Array.isArray(cdrItems)) cdrItems = [];
+          var linea = lr.value.line;
+          if (!linea) continue;
+          var lineFiscalId = '';
+          for (var sd2 of allSubsData) {
+            for (var s2 of sd2.subs) {
+              var sps = extractProducts(s2);
+              for (var p2 of sps) {
+                if (p2.fixedNumber === linea || p2.lineNumber === linea) { lineFiscalId = sd2.fiscalId; break; }
               }
               if (lineFiscalId) break;
             }
-            for (var ci of cdrItems) {
-              try {
-                var concepto = ci.concept || ci.concepto || ci.description || 'CDR';
-                var tipo = ci.type || ci.tipo || 'exceso';
-                var importe = parseFloat(ci.amount || ci.importe || ci.price || 0);
-                var unidades = parseFloat(ci.units || ci.unidades || ci.quantity || 0);
-                var cdrPeriodo = ci.period || ci.periodo || periodo;
-                // Upsert CDR: avoid duplicates by unique key
-                var existingCdr = db.prepare('SELECT id FROM isp_cdrs WHERE linea=? AND concepto=? AND importe=? AND periodo=?').get(linea, concepto, importe, cdrPeriodo);
-                if (!existingCdr) {
-                  db.prepare('INSERT INTO isp_cdrs (fiscal_id, linea, concepto, tipo, importe, unidades, periodo) VALUES (?,?,?,?,?,?,?)').run(lineFiscalId || '', linea, concepto, tipo, importe, unidades, cdrPeriodo);
-                  cdrsFetched++;
-                }
-              } catch(e2) {}
-            }
+            if (lineFiscalId) break;
+          }
+          for (var ci of cdrItems) {
+            if (!ci) continue;
+            try {
+              var concepto = String(ci.concept || ci.concepto || ci.description || 'CDR').substring(0, 255);
+              var tipo = String(ci.type || ci.tipo || 'exceso').substring(0, 50);
+              var importe = parseFloat(ci.amount || ci.importe || ci.price || 0);
+              var unidades = parseFloat(ci.units || ci.unidades || ci.quantity || 0);
+              var cdrPeriodo = String(ci.period || ci.periodo || periodo).substring(0, 10);
+              if (!linea || !concepto) continue;
+              var existingCdr = db.prepare('SELECT id FROM isp_cdrs WHERE linea=? AND concepto=? AND importe=? AND periodo=?').get(linea, concepto, importe, cdrPeriodo);
+              if (!existingCdr) {
+                db.prepare('INSERT INTO isp_cdrs (fiscal_id, linea, concepto, tipo, importe, unidades, periodo) VALUES (?,?,?,?,?,?,?)').run(lineFiscalId || '', linea, concepto, tipo, importe, unidades, cdrPeriodo);
+                cdrsFetched++;
+              }
+            } catch(e2) { /* ignorar error CDR individual */ }
           }
         }
       }
@@ -260,4 +365,4 @@ function extractProducts(sub) {
   return Array.isArray(prods) ? prods : [];
 }
 
-module.exports = { runSync, getProgress };
+module.exports = { runSync, syncInvoicesOnly, getProgress };
