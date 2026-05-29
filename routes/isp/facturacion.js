@@ -135,9 +135,18 @@ router.post('/generar', async (req, res) => {
         fechaVenc.setDate(fechaVenc.getDate() + 28);
         var fechaVencStr = fechaVenc.toISOString().split('T')[0];
         
-        var numbering = getNextNumeroFactura('F');
-        var inv = db.prepare('INSERT INTO isp_facturas (cliente_nombre, cliente_email, fiscal_id, periodo, fecha_emision, fecha_vencimiento, importe_base, importe_cdrs, importe_total, metodo_pago, serie, numero_factura) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)').run(nombre, email, fiscalId, periodo, fechaEmision, fechaVencStr, importeBase, importeCdrs, importeTotal, metodoPago, numbering.serie, numbering.numero);
-        var facturaId = inv.lastInsertRowid;
+        // UPSERT: check if invoice already exists for this fiscalId+periodo
+        var existingInv = db.prepare('SELECT id FROM isp_facturas WHERE fiscal_id=? AND periodo=?').get(fiscalId, periodo);
+        var facturaId;
+        if (existingInv) {
+          facturaId = existingInv.id;
+          db.prepare('UPDATE isp_facturas SET cliente_nombre=?, cliente_email=?, importe_base=?, importe_cdrs=?, importe_total=?, fecha_emision=?, fecha_vencimiento=?, metodo_pago=? WHERE id=?').run(nombre, email, importeBase, importeCdrs, importeTotal, fechaEmision, fechaVencStr, metodoPago, facturaId);
+          db.prepare('DELETE FROM isp_facturas_lineas WHERE factura_id=?').run(facturaId);
+        } else {
+          var numbering = getNextNumeroFactura('F');
+          var inv = db.prepare('INSERT INTO isp_facturas (cliente_nombre, cliente_email, fiscal_id, periodo, fecha_emision, fecha_vencimiento, importe_base, importe_cdrs, importe_total, metodo_pago, serie, numero_factura) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)').run(nombre, email, fiscalId, periodo, fechaEmision, fechaVencStr, importeBase, importeCdrs, importeTotal, metodoPago, numbering.serie, numbering.numero);
+          facturaId = inv.lastInsertRowid;
+        }
         for (var prod of productos) {
           db.prepare('INSERT INTO isp_facturas_lineas (factura_id, concepto, tipo, importe, linea) VALUES (?,?,?,?,?)').run(facturaId, prod.nombre, 'cuota', prod.precio, prod.linea);
         }
