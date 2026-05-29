@@ -44,6 +44,28 @@
       var inp = document.getElementById('uiBottomNavBgValue');
       if (inp) inp.textContent = 'gradiente';
     }
+    function aplicarGradienteGrupos(val) {
+      var el = document.querySelector('.sidebar-scroll');
+      if (el) el.style.background = 'linear-gradient(' + val + ')';
+      localStorage.setItem('ui_group_bg', 'gradient:' + val);
+      var inp = document.getElementById('uiGroupBgValue');
+      if (inp) inp.textContent = 'gradiente';
+    }
+    function aplicarGradientePagina(val) {
+      var el = document.querySelector('.page-container') || document.body;
+      el.style.background = 'linear-gradient(' + val + ')';
+      localStorage.setItem('ui_page_bg', 'gradient:' + val);
+      var inp = document.getElementById('uiPageBgValue');
+      if (inp) inp.textContent = 'gradiente';
+    }
+    var GRADIENTES = [
+      { val: '135deg,#667eea,#764ba2', label: '💜' },
+      { val: '135deg,#0050A1,#00a8cc', label: '💙' },
+      { val: '135deg,#11998e,#38ef7d', label: '💚' },
+      { val: '135deg,#f093fb,#f5576c', label: '💗' },
+      { val: '135deg,#4facfe,#00f2fe', label: '💠' },
+      { val: '135deg,#fa709a,#fee140', label: '🧡' }
+    ];
   </script>
   <style>
     :root {
@@ -904,10 +926,19 @@
 
       <div class="mb-2">
         <label class="form-label small mb-1">Fondo de grupos</label>
-        <div class="d-flex gap-2 align-items-center">
-          <input id="uiGroupBgColor" type="color" class="form-control form-control-color" style="width:50px;">
+        <div class="d-flex gap-2 align-items-center mb-1">
+          <input id="uiGroupBgColor" type="color" class="form-control form-control-color" style="width:50px;" title="Color inicio">
+          <input id="uiGroupBgColor2" type="color" class="form-control form-control-color" style="width:50px;" title="Color fin (gradiente)">
           <span id="uiGroupBgValue" class="small text-muted">#ffffff</span>
           <button id="uiApplyGroupBg" class="btn btn-outline-dark btn-sm">Aplicar</button>
+        </div>
+        <div class="d-flex gap-1 flex-wrap">
+          <button class="btn btn-sm btn-outline-secondary" style="flex:1;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;" onclick="aplicarGradienteGrupos('135deg,#667eea,#764ba2')">💜</button>
+          <button class="btn btn-sm btn-outline-secondary" style="flex:1;background:linear-gradient(135deg,#0050A1,#00a8cc);color:#fff;border:none;" onclick="aplicarGradienteGrupos('135deg,#0050A1,#00a8cc')">💙</button>
+          <button class="btn btn-sm btn-outline-secondary" style="flex:1;background:linear-gradient(135deg,#11998e,#38ef7d);color:#fff;border:none;" onclick="aplicarGradienteGrupos('135deg,#11998e,#38ef7d')">💚</button>
+          <button class="btn btn-sm btn-outline-secondary" style="flex:1;background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;border:none;" onclick="aplicarGradienteGrupos('135deg,#f093fb,#f5576c')">💗</button>
+          <button class="btn btn-sm btn-outline-secondary" style="flex:1;background:linear-gradient(135deg,#4facfe,#00f2fe);color:#fff;border:none;" onclick="aplicarGradienteGrupos('135deg,#4facfe,#00f2fe')">💠</button>
+          <button class="btn btn-sm btn-outline-secondary" style="flex:1;background:linear-gradient(135deg,#fa709a,#fee140);color:#fff;border:none;" onclick="aplicarGradienteGrupos('135deg,#fa709a,#fee140')">🧡</button>
         </div>
       </div>
 
@@ -937,6 +968,24 @@
       <div class="mb-2">
         <label class="form-label small mb-1">Visibilidad barra inferior</label>
         <div id="uiBottomNavVisibility" class="d-flex flex-wrap gap-2"></div>
+      </div>
+
+      <div class="mb-2">
+        <label class="form-label small mb-1">Fondo de página</label>
+        <div class="d-flex gap-2 align-items-center mb-1">
+          <input id="uiPageBgColor" type="color" class="form-control form-control-color" style="width:50px;" title="Color inicio">
+          <input id="uiPageBgColor2" type="color" class="form-control form-control-color" style="width:50px;" title="Color fin (gradiente)">
+          <span id="uiPageBgValue" class="small text-muted">#f4f5fa</span>
+          <button id="uiApplyPageBg" class="btn btn-outline-dark btn-sm">Aplicar</button>
+        </div>
+        <div class="d-flex gap-1 flex-wrap">
+          <button class="btn btn-sm btn-outline-secondary" style="flex:1;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;" onclick="aplicarGradientePagina('135deg,#667eea,#764ba2')">💜</button>
+          <button class="btn btn-sm btn-outline-secondary" style="flex:1;background:linear-gradient(135deg,#0050A1,#00a8cc);color:#fff;border:none;" onclick="aplicarGradientePagina('135deg,#0050A1,#00a8cc')">💙</button>
+          <button class="btn btn-sm btn-outline-secondary" style="flex:1;background:linear-gradient(135deg,#11998e,#38ef7d);color:#fff;border:none;" onclick="aplicarGradientePagina('135deg,#11998e,#38ef7d')">💚</button>
+          <button class="btn btn-sm btn-outline-secondary" style="flex:1;background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;border:none;" onclick="aplicarGradientePagina('135deg,#f093fb,#f5576c')">💗</button>
+          <button class="btn btn-sm btn-outline-secondary" style="flex:1;background:linear-gradient(135deg,#4facfe,#00f2fe);color:#fff;border:none;" onclick="aplicarGradientePagina('135deg,#4facfe,#00f2fe')">💠</button>
+          <button class="btn btn-sm btn-outline-secondary" style="flex:1;background:linear-gradient(135deg,#fa709a,#fee140);color:#fff;border:none;" onclick="aplicarGradientePagina('135deg,#fa709a,#fee140')">🧡</button>
+        </div>
       </div>
 
       <div class="mb-2">
@@ -1052,8 +1101,29 @@
           if (cfg.color) el.style.color = cfg.color;
         });
         // Apply group background
-        const savedGroupBg = localStorage.getItem('ui_group_bg') || '#ffffff';
-        document.querySelector('.sidebar-scroll')?.style.setProperty('background', savedGroupBg, 'important');
+        try {
+          var savedGroupBg = localStorage.getItem('ui_group_bg') || '#ffffff';
+          var groupEl = document.querySelector('.sidebar-scroll');
+          if (groupEl) {
+            if (savedGroupBg.startsWith('gradient:')) {
+              groupEl.style.background = 'linear-gradient(' + savedGroupBg.replace('gradient:', '') + ')';
+            } else {
+              groupEl.style.background = savedGroupBg;
+            }
+          }
+        } catch(e) {}
+        // Apply page background
+        try {
+          var savedPageBg = localStorage.getItem('ui_page_bg');
+          if (savedPageBg) {
+            var pageEl = document.querySelector('.page-container') || document.body;
+            if (savedPageBg.startsWith('gradient:')) {
+              pageEl.style.background = 'linear-gradient(' + savedPageBg.replace('gradient:', '') + ')';
+            } else {
+              pageEl.style.background = savedPageBg;
+            }
+          }
+        } catch(e) {}
         // Apply group visibility from localStorage (designer panel)
         try {
           const hiddenGroups = JSON.parse(localStorage.getItem('ui_hidden_groups') || '[]');
@@ -1238,24 +1308,72 @@
 
       // Group background color
       const groupBgInput = document.getElementById('uiGroupBgColor');
+      const groupBgInput2 = document.getElementById('uiGroupBgColor2');
       const groupBgValue = document.getElementById('uiGroupBgValue');
       const applyGroupBg = document.getElementById('uiApplyGroupBg');
       if (groupBgInput) {
-        const savedBg = localStorage.getItem('ui_group_bg') || '#ffffff';
-        groupBgInput.value = savedBg;
-        if (groupBgValue) groupBgValue.textContent = savedBg;
+        var savedBg = localStorage.getItem('ui_group_bg') || '#ffffff';
+        if (savedBg.startsWith('gradient:')) {
+          groupBgInput.value = '#ffffff';
+          if (groupBgValue) groupBgValue.textContent = 'gradiente';
+        } else {
+          groupBgInput.value = savedBg;
+          if (groupBgValue) groupBgValue.textContent = savedBg;
+        }
+        if (groupBgInput2) groupBgInput2.value = '#ffffff';
         groupBgInput.addEventListener('input', function() {
           if (groupBgValue) groupBgValue.textContent = this.value;
         });
       }
       if (applyGroupBg) {
         applyGroupBg.addEventListener('click', function() {
-          const color = groupBgInput ? groupBgInput.value : '#ffffff';
-          document.querySelector('.sidebar-scroll')?.style.setProperty('background', color, 'important');
-          localStorage.setItem('ui_group_bg', color);
-          // Also save to server
-          if (!liveLayout.overrides) liveLayout.overrides = {};
-          liveLayout.overrides['_groupBg'] = { bg: color };
+          const c1 = groupBgInput ? groupBgInput.value : '#ffffff';
+          const c2 = groupBgInput2 ? groupBgInput2.value : c1;
+          var el = document.querySelector('.sidebar-scroll');
+          if (c1 !== c2) {
+            var grad = '135deg,' + c1 + ',' + c2;
+            if (el) el.style.background = 'linear-gradient(' + grad + ')';
+            localStorage.setItem('ui_group_bg', 'gradient:' + grad);
+            if (groupBgValue) groupBgValue.textContent = 'gradiente';
+          } else {
+            if (el) el.style.background = c1;
+            localStorage.setItem('ui_group_bg', c1);
+            if (groupBgValue) groupBgValue.textContent = c1;
+          }
+        });
+      }
+
+      // Page background color
+      const pageBgInput = document.getElementById('uiPageBgColor');
+      const pageBgInput2 = document.getElementById('uiPageBgColor2');
+      const pageBgValue = document.getElementById('uiPageBgValue');
+      const applyPageBg = document.getElementById('uiApplyPageBg');
+      if (pageBgInput) {
+        var savedPageBg = localStorage.getItem('ui_page_bg') || '';
+        if (savedPageBg.startsWith('gradient:')) {
+          pageBgInput.value = '#f4f5fa';
+          if (pageBgValue) pageBgValue.textContent = 'gradiente';
+        } else if (savedPageBg) {
+          pageBgInput.value = savedPageBg;
+          if (pageBgValue) pageBgValue.textContent = savedPageBg;
+        }
+        if (pageBgInput2) pageBgInput2.value = '#f4f5fa';
+      }
+      if (applyPageBg) {
+        applyPageBg.addEventListener('click', function() {
+          const c1 = pageBgInput ? pageBgInput.value : '#f4f5fa';
+          const c2 = pageBgInput2 ? pageBgInput2.value : c1;
+          var el = document.querySelector('.page-container') || document.body;
+          if (c1 !== c2) {
+            var grad = '135deg,' + c1 + ',' + c2;
+            el.style.background = 'linear-gradient(' + grad + ')';
+            localStorage.setItem('ui_page_bg', 'gradient:' + grad);
+            if (pageBgValue) pageBgValue.textContent = 'gradiente';
+          } else {
+            el.style.background = c1;
+            localStorage.setItem('ui_page_bg', c1);
+            if (pageBgValue) pageBgValue.textContent = c1;
+          }
         });
       }
 
@@ -1475,8 +1593,11 @@
         restoreBtn.addEventListener('click', function() {
           localStorage.removeItem('ui_hidden_groups');
           localStorage.removeItem('ui_hidden_items');
+          localStorage.removeItem('ui_page_bg');
           document.querySelectorAll('.nav-group').forEach(function(g) { g.style.display = ''; });
           document.querySelectorAll('.nav-submenu li').forEach(function(li) { li.style.display = ''; });
+          document.querySelector('.sidebar-scroll')?.style.removeProperty('background');
+          (document.querySelector('.page-container') || document.body).style.removeProperty('background');
           renderGroupVisibility();
           // Also reset bottom nav
           localStorage.removeItem('ui_hidden_bottomnav');
