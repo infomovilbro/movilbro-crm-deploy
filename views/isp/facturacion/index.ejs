@@ -63,6 +63,10 @@
     </button>
   </div>
 
+  <div class="alert alert-info py-2 mb-3 small" id="factSyncStatus" style="display:none;">
+    <i class="bi bi-arrow-repeat me-1"></i> <span id="factSyncText">Sincronizando...</span>
+  </div>
+
   <div class="card">
     <div class="card-header d-flex justify-content-between">
       <span><i class="bi bi-clock-history"></i> Últimas Facturas</span>
@@ -219,5 +223,26 @@ document.addEventListener('DOMContentLoaded', function() {
         .catch(() => { alert('Error de conexión'); });
     });
   });
+
+  // Sync status check
+  var factSyncStatus = document.getElementById('factSyncStatus');
+  var factSyncText = document.getElementById('factSyncText');
+  if (factSyncStatus) {
+    function checkSync() {
+      fetch('/isp/sync-progress')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.status === 'running') {
+            factSyncStatus.style.display = '';
+            factSyncText.textContent = data.step || 'Sincronizando...';
+          } else {
+            factSyncStatus.style.display = 'none';
+          }
+        })
+        .catch(function() {});
+    }
+    checkSync();
+    setInterval(checkSync, 5000);
+  }
 });
 </script>

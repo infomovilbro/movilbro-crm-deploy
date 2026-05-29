@@ -408,6 +408,21 @@
           </div>
           <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar" onclick="dismissAgendaNotif()"></button>
         </div>
+        <!-- Sync Progress Bar -->
+        <div id="syncProgressBar" class="alert alert-info alert-dismissible fade show mb-2 d-none py-2" role="alert" style="border-left:4px solid #0d6efd;border-radius:8px;">
+          <div class="d-flex align-items-center gap-2">
+            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+            <div class="flex-grow-1">
+              <strong>Sincronizando datos...</strong>
+              <span id="syncProgressText" class="ms-2 small"></span>
+              <div class="progress mt-1" style="height:6px;">
+                <div id="syncProgressFill" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width:0%"></div>
+              </div>
+            </div>
+            <small id="syncLastSync" class="text-muted"></small>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+        </div>
         <div class="d-flex justify-content-end mb-2 gap-2">
           <button class="btn btn-sm btn-outline-secondary" data-toggle-cards title="Mostrar/Ocultar secciones"><i class="bi bi-pencil-square"></i></button>
           <button class="btn btn-sm btn-outline-warning" data-toggle-qa title="Añadir a Accesos Rápidos"><i class="ri-star-line"></i></button>
@@ -1849,6 +1864,45 @@
       dropdown.style.display = 'block';
     }
   });
+})();
+
+// Sync progress monitoring
+(function() {
+  var bar = document.getElementById('syncProgressBar');
+  var text = document.getElementById('syncProgressText');
+  var fill = document.getElementById('syncProgressFill');
+  var lastSync = document.getElementById('syncLastSync');
+
+  function checkSync() {
+    fetch('/isp/sync-progress')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.status === 'running') {
+          bar.classList.remove('d-none');
+          text.textContent = data.step || '';
+          if (data.total > 0) {
+            var pct = Math.min(Math.round((data.current / data.total) * 100), 100);
+            fill.style.width = pct + '%';
+          } else {
+            fill.style.width = '50%';
+          }
+        } else {
+          bar.classList.add('d-none');
+          if (data.lastSync && lastSync) {
+            var d = new Date(data.lastSync);
+            lastSync.textContent = 'Última sincro: ' + d.toLocaleTimeString('es-ES');
+          }
+          if (data.status === 'error' && data.error) {
+            console.warn('Sync error:', data.error);
+          }
+        }
+      })
+      .catch(function() {});
+  }
+
+  // Check every 5 seconds while sync is running
+  checkSync();
+  setInterval(checkSync, 5000);
 })();
 </script>
 </body>

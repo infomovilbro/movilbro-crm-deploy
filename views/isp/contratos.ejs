@@ -66,7 +66,10 @@
                 <td><%= c.tarifa || '-' %></td>
                 <td><%= c.linea || '-' %></td>
                 <td class="small"><%= c.fecha_alta ? new Date(c.fecha_alta).toLocaleDateString('es-ES') : '-' %></td>
-                <td class="text-end"><a href="/isp/contratos/<%= c.id %>" class="btn btn-sm btn-outline-info"><i class="bi bi-eye"></i></a></td>
+                <td class="text-end">
+                  <a href="/isp/contratos/<%= c.id %>" class="btn btn-sm btn-outline-info" title="Ver"><i class="bi bi-eye"></i></a>
+                  <a href="/isp/contratos/<%= c.id %>/pdf" class="btn btn-sm btn-outline-success" title="Descargar PDF original" target="_blank"><i class="bi bi-file-pdf"></i></a>
+                </td>
               </tr>
               <% }) %>
             <% } %>

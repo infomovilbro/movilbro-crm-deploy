@@ -7,6 +7,7 @@
     <div class="d-flex gap-1">
       <button class="btn btn-outline-secondary btn-sm" onclick="descargarAnio('todas')" title="Descargar todos los años"><i class="bi bi-archive"></i> Todo</button>
       <button class="btn btn-outline-primary btn-sm" onclick="generarTodas()" id="btnGenerar"><i class="bi bi-cloud-arrow-up"></i> PDFs</button>
+      <button class="btn btn-outline-success btn-sm" onclick="importarZips()" id="btnImportZips"><i class="bi bi-folder-plus"></i> Importar ZIPs</button>
     </div>
   </div>
 
@@ -62,6 +63,9 @@
                 <% if (f.id) { %>
                 <a href="/isp/nube/ver/<%= f.id %>" target="_blank" class="btn btn-sm btn-outline-info" title="Ver HTML"><i class="bi bi-eye" style="font-size:0.7rem;"></i></a>
                 <a href="/isp/nube/pdf/<%= f.id %>" class="btn btn-sm btn-outline-primary" title="Descargar PDF"><i class="bi bi-download" style="font-size:0.7rem;"></i></a>
+                <% } else if (f.inZip) { %>
+                <a href="/isp/nube/ver-zip?pdf=<%= encodeURIComponent(f.numFactura+'.pdf') %>" target="_blank" class="btn btn-sm btn-outline-info" title="Ver desde ZIP"><i class="bi bi-file-zip" style="font-size:0.7rem;"></i></a>
+                <a href="/isp/nube/ver-zip?pdf=<%= encodeURIComponent(f.numFactura+'.pdf') %>&download=1" class="btn btn-sm btn-outline-primary" title="Descargar PDF"><i class="bi bi-download" style="font-size:0.7rem;"></i></a>
                 <% } else if (f.pdfPath) { %>
                 <a href="/isp/nube/descargar?path=<%= encodeURIComponent(f.pdfPath) %>" target="_blank" class="btn btn-sm btn-outline-info" title="Ver PDF original"><i class="bi bi-file-pdf" style="font-size:0.7rem;"></i></a>
                 <a href="/isp/nube/descargar?path=<%= encodeURIComponent(f.pdfPath) %>" class="btn btn-sm btn-outline-primary" title="Descargar PDF"><i class="bi bi-download" style="font-size:0.7rem;"></i></a>
@@ -128,6 +132,27 @@ function descargarAnio(year) {
 
 function descargarMes(year, month) {
   window.open('/isp/nube/zip/' + year + '/' + month, '_blank');
+}
+
+function importarZips() {
+  if (!confirm('¿Importar facturas desde los ZIPs locales?')) return;
+  var btn = document.getElementById('btnImportZips');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Importando...';
+  fetch('/isp/nube/importar-zips', { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.ok) {
+        alert('ZIPs importados: ' + d.imported.length + ' archivos');
+        location.reload();
+      } else {
+        alert('Error: ' + (d.error || 'desconocido'));
+        btn.disabled = false; btn.innerHTML = '<i class="bi bi-folder-plus"></i> Importar ZIPs';
+      }
+    })
+    .catch(function() {
+      alert('Error de conexión');
+      btn.disabled = false; btn.innerHTML = '<i class="bi bi-folder-plus"></i> Importar ZIPs';
+    });
 }
 </script>
 <style>

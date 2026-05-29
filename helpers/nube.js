@@ -1,9 +1,12 @@
-const fs = require('fs');
+﻿const fs = require('fs');
 const path = require('path');
+const AdmZip = require('adm-zip');
 
 var NUBE_DIR = path.join(__dirname, '..', 'nube');
+var ZIPS_DIR = path.join(NUBE_DIR, '_zips');
 
 var MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+var MESES_MAP = { 'Enero':1,'Febrero':2,'Marzo':3,'Abril':4,'Mayo':5,'Junio':6,'Julio':7,'Agosto':8,'Septiembre':9,'Octubre':10,'Noviembre':11,'Diciembre':12 };
 
 function getYearMonthPaths(periodo) {
   if (!periodo) periodo = new Date().toISOString().substring(0, 7);
@@ -76,4 +79,117 @@ async function procesarFactura(factura, lineas, cdrsDetalle, llamadas, history) 
   return { local, nombreArchivo, pdfBuf };
 }
 
-module.exports = { generarPDF, guardarLocal, listarPDFs, procesarFactura, getYearMonthPaths, NUBE_DIR };
+// ---- ZIP STORAGE ----
+
+function storeZipInNube(zipPath, year, month) {
+  var monthDir = path.join(ZIPS_DIR, year, month);
+  ensureDir(monthDir);
+  var destName = path.basename(zipPath);
+  var destPath = path.join(monthDir, destName);
+  fs.copyFileSync(zipPath, destPath);
+  return destPath;
+}
+
+function listZips() {
+  var result = [];
+  if (!fs.existsSync(ZIPS_DIR)) return result;
+  var years = fs.readdirSync(ZIPS_DIR).filter(function(y) { return /^\d{4}$/.test(y); }).sort().reverse();
+  years.forEach(function(year) {
+    var yearDir = path.join(ZIPS_DIR, year);
+    var months = fs.readdirSync(yearDir).filter(function(m) { return fs.statSync(path.join(yearDir, m)).isDirectory(); });
+    months.forEach(function(month) {
+      var monthDir = path.join(yearDir, month);
+      var files = fs.readdirSync(monthDir).filter(function(f) { return f.endsWith('.zip'); });
+      files.forEach(function(file) {
+        result.push({
+          year, month,
+          fileName: file,
+          fullPath: path.join(monthDir, file),
+          size: fs.statSync(path.join(monthDir, file)).size
+        });
+      });
+    });
+  });
+  return result;
+}
+
+function findPDFInZips(pdfName) {
+  if (!fs.existsSync(ZIPS_DIR)) return null;
+  var years = fs.readdirSync(ZIPS_DIR).filter(function(y) { return /^\d{4}$/.test(y); });
+  for (var year of years) {
+    var yearDir = path.join(ZIPS_DIR, year);
+    var months = fs.readdirSync(yearDir).filter(function(m) { return fs.statSync(path.join(yearDir, m)).isDirectory(); });
+    for (var month of months) {
+      var monthDir = path.join(yearDir, month);
+      var zips = fs.readdirSync(monthDir).filter(function(f) { return f.endsWith('.zip'); });
+      for (var z of zips) {
+        try {
+          var zip = new AdmZip(path.join(monthDir, z));
+          var entry = zip.getEntry(pdfName);
+          if (entry) {
+            return { zipPath: path.join(monthDir, z), entry: entry, data: zip.readFile(entry) };
+          }
+        } catch(e) {}
+      }
+    }
+  }
+  return null;
+}
+
+function getPDFDataFromZip(zipPath, pdfName) {
+  try {
+    var zip = new AdmZip(zipPath);
+    var entry = zip.getEntry(pdfName);
+    if (entry) return zip.readFile(entry);
+  } catch(e) {}
+  return null;
+}
+
+function getAllPDFNamesFromZips() {
+  var names = {};
+  if (!fs.existsSync(ZIPS_DIR)) return names;
+  var years = fs.readdirSync(ZIPS_DIR).filter(function(y) { return /^\d{4}$/.test(y); });
+  for (var year of years) {
+    var yearDir = path.join(ZIPS_DIR, year);
+    var months = fs.readdirSync(yearDir).filter(function(m) { return fs.statSync(path.join(yearDir, m)).isDirectory(); });
+    for (var month of months) {
+      var monthDir = path.join(yearDir, month);
+      var zips = fs.readdirSync(monthDir).filter(function(f) { return f.endsWith('.zip'); });
+      for (var z of zips) {
+        try {
+          var zip = new AdmZip(path.join(monthDir, z));
+          var entries = zip.getEntries();
+          for (var e of entries) {
+            if (e.entryName.endsWith('.pdf')) {
+              names[e.entryName] = { zipFile: z, year: year, month: month, zipPath: path.join(monthDir, z), entryName: e.entryName };
+            }
+          }
+        } catch(e) {}
+      }
+    }
+  }
+  return names;
+}
+
+function importZipsFromDownloads() {
+  var downloadsDir = path.join(process.env.USERPROFILE || 'C:\\Users\\xtptx', 'Downloads', 'facturashastaabril2026');
+  if (!fs.existsSync(downloadsDir)) return { ok: false, error: 'Directorio no encontrado: ' + downloadsDir };
+
+  var files = fs.readdirSync(downloadsDir).filter(function(f) { return f.endsWith('.zip') && f.startsWith('facturas'); });
+  var imported = [];
+
+  files.forEach(function(file) {
+    var match = file.match(/facturas\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s+(\d{4})/i);
+    if (!match) return;
+    var monthName = match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase();
+    var mName = MESES[MESES_MAP[monthName] - 1];
+    if (!mName) return;
+    var year = match[2];
+    var dest = storeZipInNube(path.join(downloadsDir, file), year, mName);
+    imported.push({ file: file, year: year, month: mName, dest: dest });
+  });
+
+  return { ok: true, imported: imported };
+}
+
+module.exports = { generarPDF, guardarLocal, listarPDFs, procesarFactura, getYearMonthPaths, NUBE_DIR, ZIPS_DIR, storeZipInNube, listZips, findPDFInZips, getPDFDataFromZip, getAllPDFNamesFromZips, importZipsFromDownloads };

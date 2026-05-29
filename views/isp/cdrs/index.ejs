@@ -124,6 +124,10 @@
   </div></div>
 </div>
 
+<div class="alert alert-info py-2 mb-3 small" id="cdrSyncStatus" style="display:none;">
+  <i class="bi bi-arrow-repeat me-1"></i> <span id="cdrSyncText">Sincronizando...</span>
+</div>
+
 <script>
 function deleteCDR(id) {
   if (!confirm('¿Eliminar este CDR?')) return;
@@ -131,5 +135,26 @@ function deleteCDR(id) {
   .then(function(r){return r.json();})
   .then(function(d){if(d.ok)location.reload();else alert('Error: '+d.error);})
   .catch(function(){alert('Error de conexión');});
+}
+
+// Sync status check
+var cdrSyncStatus = document.getElementById('cdrSyncStatus');
+var cdrSyncText = document.getElementById('cdrSyncText');
+if (cdrSyncStatus) {
+  function checkSync() {
+    fetch('/isp/sync-progress')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.status === 'running') {
+          cdrSyncStatus.style.display = '';
+          cdrSyncText.textContent = data.step || 'Sincronizando...';
+        } else {
+          cdrSyncStatus.style.display = 'none';
+        }
+      })
+      .catch(function() {});
+  }
+  checkSync();
+  setInterval(checkSync, 5000);
 }
 </script>
