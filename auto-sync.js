@@ -66,6 +66,12 @@ async function syncInvoicesOnly() {
         var nombre = c.name + ' ' + (c.firstSurname || '');
         var email = c.email || '';
 
+        var dirInfo = db.prepare('SELECT direccion, ciudad, provincia, codigo_postal FROM clients WHERE dni_nif=? OR likes_customer_id=?').get(fiscalId, fiscalId);
+        var clienteDireccion = (dirInfo && dirInfo.direccion) || '';
+        var clientePoblacion = (dirInfo && dirInfo.ciudad) || '';
+        var clienteProvincia = (dirInfo && dirInfo.provincia) || '';
+        var codigoPostal = (dirInfo && dirInfo.codigo_postal) || '';
+
         var importeBase = 0, productos = [], seenLines = {};
         for (var s of subs) {
           var subProducts = extractProducts(s);
@@ -86,7 +92,7 @@ async function syncInvoicesOnly() {
         var fechaVenc = new Date(); fechaVenc.setDate(fechaVenc.getDate() + 28);
         var existing = db.prepare('SELECT id FROM isp_facturas WHERE fiscal_id=? AND periodo=?').get(fiscalId, periodo);
         if (existing) {
-          db.prepare('UPDATE isp_facturas SET cliente_nombre=?, cliente_email=?, importe_base=?, importe_total=?, fecha_emision=?, fecha_vencimiento=? WHERE id=?').run(nombre, email, importeBase, importeTotal, fechaEmision, fechaVenc.toISOString().split('T')[0], existing.id);
+          db.prepare('UPDATE isp_facturas SET cliente_nombre=?, cliente_email=?, importe_base=?, importe_total=?, fecha_emision=?, fecha_vencimiento=?, cliente_direccion=?, cliente_poblacion=?, cliente_provincia=?, codigo_postal=? WHERE id=?').run(nombre, email, importeBase, importeTotal, fechaEmision, fechaVenc.toISOString().split('T')[0], clienteDireccion, clientePoblacion, clienteProvincia, codigoPostal, existing.id);
           db.prepare('DELETE FROM isp_facturas_lineas WHERE factura_id=?').run(existing.id);
           upserted++;
           for (var prod of productos) {
@@ -94,7 +100,7 @@ async function syncInvoicesOnly() {
           }
         } else {
           var numbering = getNextNumeroFactura('F');
-          db.prepare('INSERT INTO isp_facturas (cliente_nombre, cliente_email, fiscal_id, periodo, fecha_emision, fecha_vencimiento, importe_base, importe_cdrs, importe_total, metodo_pago, serie, numero_factura) VALUES (?,?,?,?,?,?,?,0,?,?,?,?)').run(nombre, email, fiscalId, periodo, fechaEmision, fechaVenc.toISOString().split('T')[0], importeBase, importeTotal, 'stripe', numbering.serie, numbering.numero);
+          db.prepare('INSERT INTO isp_facturas (cliente_nombre, cliente_email, fiscal_id, periodo, fecha_emision, fecha_vencimiento, importe_base, importe_cdrs, importe_total, metodo_pago, serie, numero_factura, cliente_direccion, cliente_poblacion, cliente_provincia, codigo_postal) VALUES (?,?,?,?,?,?,?,0,?,?,?,?,?,?,?,?)').run(nombre, email, fiscalId, periodo, fechaEmision, fechaVenc.toISOString().split('T')[0], importeBase, importeTotal, 'stripe', numbering.serie, numbering.numero, clienteDireccion, clientePoblacion, clienteProvincia, codigoPostal);
           var fid = db.prepare('SELECT last_insert_rowid() as id').get().id;
           created++;
           for (var prod of productos) {
@@ -256,6 +262,12 @@ async function runSync() {
         var nombre = c.name + ' ' + (c.firstSurname || '');
         var email = c.email || '';
 
+        var dirInfo = db.prepare('SELECT direccion, ciudad, provincia, codigo_postal FROM clients WHERE dni_nif=? OR likes_customer_id=?').get(fiscalId, fiscalId);
+        var clienteDireccion = (dirInfo && dirInfo.direccion) || '';
+        var clientePoblacion = (dirInfo && dirInfo.ciudad) || '';
+        var clienteProvincia = (dirInfo && dirInfo.provincia) || '';
+        var codigoPostal = (dirInfo && dirInfo.codigo_postal) || '';
+
         var importeBase = 0;
         var productos = [];
         var seenLines = {};
@@ -290,7 +302,7 @@ async function runSync() {
         var facturaId;
         if (existing) {
           // UPDATE existing invoice
-          db.prepare('UPDATE isp_facturas SET cliente_nombre=?, cliente_email=?, importe_base=?, importe_total=?, fecha_emision=?, fecha_vencimiento=? WHERE id=?').run(nombre, email, importeBase, importeTotal, fechaEmision, fechaVencStr, existing.id);
+          db.prepare('UPDATE isp_facturas SET cliente_nombre=?, cliente_email=?, importe_base=?, importe_total=?, fecha_emision=?, fecha_vencimiento=?, cliente_direccion=?, cliente_poblacion=?, cliente_provincia=?, codigo_postal=? WHERE id=?').run(nombre, email, importeBase, importeTotal, fechaEmision, fechaVencStr, clienteDireccion, clientePoblacion, clienteProvincia, codigoPostal, existing.id);
           facturaId = existing.id;
           // Delete old line items and re-insert
           db.prepare('DELETE FROM isp_facturas_lineas WHERE factura_id=?').run(facturaId);
@@ -298,7 +310,7 @@ async function runSync() {
         } else {
           // CREATE new invoice
           var numbering = getNextNumeroFactura('F');
-          db.prepare('INSERT INTO isp_facturas (cliente_nombre, cliente_email, fiscal_id, periodo, fecha_emision, fecha_vencimiento, importe_base, importe_cdrs, importe_total, metodo_pago, serie, numero_factura) VALUES (?,?,?,?,?,?,?,0,?,?,?,?)').run(nombre, email, fiscalId, periodo, fechaEmision, fechaVencStr, importeBase, importeTotal, 'stripe', numbering.serie, numbering.numero);
+          db.prepare('INSERT INTO isp_facturas (cliente_nombre, cliente_email, fiscal_id, periodo, fecha_emision, fecha_vencimiento, importe_base, importe_cdrs, importe_total, metodo_pago, serie, numero_factura, cliente_direccion, cliente_poblacion, cliente_provincia, codigo_postal) VALUES (?,?,?,?,?,?,?,0,?,?,?,?,?,?,?,?)').run(nombre, email, fiscalId, periodo, fechaEmision, fechaVencStr, importeBase, importeTotal, 'stripe', numbering.serie, numbering.numero, clienteDireccion, clientePoblacion, clienteProvincia, codigoPostal);
           facturaId = db.prepare('SELECT last_insert_rowid() as id').get().id;
           created++;
         }
@@ -343,7 +355,17 @@ async function runSync() {
           var nombreArchivo = 'Factura-' + numFactura + '.pdf';
           var paths = nube.getYearMonthPaths(f.periodo);
           if (fs.existsSync(path.join(paths.dir, nombreArchivo))) continue; // Skip if PDF exists
-          var lineas = db.prepare('SELECT * FROM isp_facturas_lineas WHERE factura_id=?').all(f.id);
+          var lineasRaw = db.prepare('SELECT * FROM isp_facturas_lineas WHERE factura_id=?').all(f.id);
+          // Group CDR lines by (linea, tipo)
+          var lineas = [], cdrG = {};
+          lineasRaw.forEach(function(l) {
+            if (l.tipo === 'cdr') {
+              var k = (l.linea||'')+'|'+(l.tipo||'exceso');
+              if (!cdrG[k]) cdrG[k] = { linea: l.linea, tipo: 'cdr', total: 0, concepto: l.concepto };
+              cdrG[k].total += parseFloat(l.importe||0);
+            } else { lineas.push(l); }
+          });
+          for (var gk in cdrG) { var g=cdrG[gk]; lineas.push({ concepto: g.concepto, tipo: 'cdr', importe: Math.round(g.total*100)/100, linea: g.linea }); }
           var cdrsDetalle = db.prepare('SELECT * FROM isp_cdrs WHERE factura_id=?').all(f.id);
           var llamadas = db.prepare('SELECT * FROM isp_llamadas WHERE factura_id=? ORDER BY fecha, hora').all(f.id);
           var history = [];

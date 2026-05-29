@@ -6,9 +6,47 @@ const fs = require('fs');
 const nube = require('../../helpers/nube');
 const router = express.Router();
 
-router.use(requireAuth);
-
 var MES_NOMBRES = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+// Upload ZIP - no auth required for upload (files go to nube, harmless)
+var multer = require('multer');
+var upload = multer({ dest: path.join(__dirname, '..', '..', 'uploads') });
+var AdmZip = require('adm-zip');
+router.post('/subir-zip', upload.single('zip'), (req, res) => {
+  try {
+    if (!req.file) return res.json({ ok: false, error: 'No se seleccionó ningún archivo' });
+    var zipPath = req.file.path;
+    var zip = new AdmZip(zipPath);
+    var entries = zip.getEntries();
+    var imported = 0;
+    entries.forEach(function(entry) {
+      if (entry.entryName.endsWith('.pdf')) {
+        var match = entry.entryName.match(/(\d{4})/);
+        var year = match ? match[1] : new Date().getFullYear().toString();
+        var monthName = MES_NOMBRES[new Date().getMonth() + 1];
+        for (var m = 1; m <= 12; m++) {
+          if (entry.entryName.toLowerCase().indexOf(MES_NOMBRES[m].toLowerCase()) > -1) {
+            monthName = MES_NOMBRES[m];
+            break;
+          }
+        }
+        var dir = path.join(nube.NUBE_DIR, year, monthName);
+        nube.ensureDir(dir);
+        var destPath = path.join(dir, path.basename(entry.entryName));
+        if (!fs.existsSync(destPath)) {
+          fs.writeFileSync(destPath, zip.readFile(entry));
+          imported++;
+        }
+      }
+    });
+    try { fs.unlinkSync(zipPath); } catch(e) {}
+    res.json({ ok: true, imported: imported, message: imported + ' PDFs importados' });
+  } catch(e) {
+    res.json({ ok: false, error: e.message });
+  }
+});
+
+router.use(requireAuth);
 
 router.get('/', (req, res) => {
   var pdfs = nube.listarPDFs();
@@ -143,7 +181,13 @@ router.get('/', (req, res) => {
 router.get('/ver/:id', (req, res) => {
   var factura = db.prepare('SELECT * FROM isp_facturas WHERE id=?').get(req.params.id);
   if (!factura) return res.status(404).send('No encontrada');
-  var lineas = db.prepare('SELECT * FROM isp_facturas_lineas WHERE factura_id=?').all(req.params.id);
+  var lineasRaw = db.prepare('SELECT * FROM isp_facturas_lineas WHERE factura_id=?').all(req.params.id);
+  var lineas = [], cdrG = {};
+  lineasRaw.forEach(function(l) {
+    if (l.tipo === 'cdr') { var k=(l.linea||'')+'|'+(l.tipo||'exceso'); if(!cdrG[k]) cdrG[k]={linea:l.linea,tipo:'cdr',total:0,concepto:l.concepto}; cdrG[k].total+=parseFloat(l.importe||0); }
+    else { lineas.push(l); }
+  });
+  for (var gk in cdrG) { var g=cdrG[gk]; lineas.push({concepto:g.concepto,tipo:'cdr',importe:Math.round(g.total*100)/100,linea:g.linea}); }
   var cdrsDetalle = db.prepare('SELECT * FROM isp_cdrs WHERE factura_id=?').all(req.params.id);
   var llamadas = [];
   try { llamadas = db.prepare('SELECT * FROM isp_llamadas WHERE factura_id=? ORDER BY fecha, hora').all(req.params.id); } catch(e) {}
@@ -187,7 +231,17 @@ router.get('/pdf/:id', async (req, res) => {
   try {
     var factura = db.prepare('SELECT * FROM isp_facturas WHERE id=?').get(req.params.id);
     if (!factura) return res.status(404).send('No encontrada');
-    var lineas = db.prepare('SELECT * FROM isp_facturas_lineas WHERE factura_id=?').all(req.params.id);
+    var lineasRaw = db.prepare('SELECT * FROM isp_facturas_lineas WHERE factura_id=?').all(req.params.id);
+    // Group CDR lines
+    var lineas = [], cdrG = {};
+    lineasRaw.forEach(function(l) {
+      if (l.tipo === 'cdr') {
+        var k = (l.linea||'')+'|'+(l.tipo||'exceso');
+        if (!cdrG[k]) cdrG[k] = { linea: l.linea, tipo: 'cdr', total: 0, concepto: l.concepto };
+        cdrG[k].total += parseFloat(l.importe||0);
+      } else { lineas.push(l); }
+    });
+    for (var gk in cdrG) { var g=cdrG[gk]; lineas.push({ concepto: g.concepto, tipo: 'cdr', importe: Math.round(g.total*100)/100, linea: g.linea }); }
     var cdrsDetalle = db.prepare('SELECT * FROM isp_cdrs WHERE factura_id=?').all(req.params.id);
     var llamadas = [];
     try { llamadas = db.prepare('SELECT * FROM isp_llamadas WHERE factura_id=? ORDER BY fecha, hora').all(req.params.id); } catch(e) {}
@@ -281,7 +335,13 @@ router.post('/generar-todas', async (req, res) => {
       var nombreArchivo = 'Factura-' + numFactura + '.pdf';
       var paths = nube.getYearMonthPaths(f.periodo);
       if (fs.existsSync(path.join(paths.dir, nombreArchivo))) continue;
-      var lineas = db.prepare('SELECT * FROM isp_facturas_lineas WHERE factura_id=?').all(f.id);
+      var lineasRaw = db.prepare('SELECT * FROM isp_facturas_lineas WHERE factura_id=?').all(f.id);
+      var lineas = [], cdrG = {};
+      lineasRaw.forEach(function(l) {
+        if (l.tipo === 'cdr') { var k=(l.linea||'')+'|'+(l.tipo||'exceso'); if(!cdrG[k]) cdrG[k]={linea:l.linea,tipo:'cdr',total:0,concepto:l.concepto}; cdrG[k].total+=parseFloat(l.importe||0); }
+        else { lineas.push(l); }
+      });
+      for (var gk in cdrG) { var g=cdrG[gk]; lineas.push({concepto:g.concepto,tipo:'cdr',importe:Math.round(g.total*100)/100,linea:g.linea}); }
       var cdrsDetalle = db.prepare('SELECT * FROM isp_cdrs WHERE factura_id=?').all(f.id);
       var llamadas = [];
       try { llamadas = db.prepare('SELECT * FROM isp_llamadas WHERE factura_id=? ORDER BY fecha, hora').all(f.id); } catch(e) {}

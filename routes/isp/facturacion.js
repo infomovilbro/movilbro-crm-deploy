@@ -87,6 +87,12 @@ router.post('/generar', async (req, res) => {
         var nombre = c.name + ' ' + (c.firstSurname || '');
         var email = c.email || '';
         
+        var dirInfo = db.prepare('SELECT direccion, ciudad, provincia, codigo_postal FROM clients WHERE dni_nif=? OR likes_customer_id=?').get(fiscalId, fiscalId);
+        var clienteDireccion = (dirInfo && dirInfo.direccion) || '';
+        var clientePoblacion = (dirInfo && dirInfo.ciudad) || '';
+        var clienteProvincia = (dirInfo && dirInfo.provincia) || '';
+        var codigoPostal = (dirInfo && dirInfo.codigo_postal) || '';
+        
         var importeBase = 0;
         var productos = [];
         for (var s of subs) {
@@ -140,20 +146,33 @@ router.post('/generar', async (req, res) => {
         var facturaId;
         if (existingInv) {
           facturaId = existingInv.id;
-          db.prepare('UPDATE isp_facturas SET cliente_nombre=?, cliente_email=?, importe_base=?, importe_cdrs=?, importe_total=?, fecha_emision=?, fecha_vencimiento=?, metodo_pago=? WHERE id=?').run(nombre, email, importeBase, importeCdrs, importeTotal, fechaEmision, fechaVencStr, metodoPago, facturaId);
+          db.prepare('UPDATE isp_facturas SET cliente_nombre=?, cliente_email=?, importe_base=?, importe_cdrs=?, importe_total=?, fecha_emision=?, fecha_vencimiento=?, metodo_pago=?, cliente_direccion=?, cliente_poblacion=?, cliente_provincia=?, codigo_postal=? WHERE id=?').run(nombre, email, importeBase, importeCdrs, importeTotal, fechaEmision, fechaVencStr, metodoPago, clienteDireccion, clientePoblacion, clienteProvincia, codigoPostal, facturaId);
           db.prepare('DELETE FROM isp_facturas_lineas WHERE factura_id=?').run(facturaId);
         } else {
           var numbering = getNextNumeroFactura('F');
-          var inv = db.prepare('INSERT INTO isp_facturas (cliente_nombre, cliente_email, fiscal_id, periodo, fecha_emision, fecha_vencimiento, importe_base, importe_cdrs, importe_total, metodo_pago, serie, numero_factura) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)').run(nombre, email, fiscalId, periodo, fechaEmision, fechaVencStr, importeBase, importeCdrs, importeTotal, metodoPago, numbering.serie, numbering.numero);
+          var inv = db.prepare('INSERT INTO isp_facturas (cliente_nombre, cliente_email, fiscal_id, periodo, fecha_emision, fecha_vencimiento, importe_base, importe_cdrs, importe_total, metodo_pago, serie, numero_factura, cliente_direccion, cliente_poblacion, cliente_provincia, codigo_postal) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').run(nombre, email, fiscalId, periodo, fechaEmision, fechaVencStr, importeBase, importeCdrs, importeTotal, metodoPago, numbering.serie, numbering.numero, clienteDireccion, clientePoblacion, clienteProvincia, codigoPostal);
           facturaId = inv.lastInsertRowid;
         }
         for (var prod of productos) {
           db.prepare('INSERT INTO isp_facturas_lineas (factura_id, concepto, tipo, importe, linea) VALUES (?,?,?,?,?)').run(facturaId, prod.nombre, 'cuota', prod.precio, prod.linea);
         }
+        // Link all CDRs to this invoice first
         for (var cdr of cdrsPeriodo) {
-          var cdrDesc = cdr.concepto + (cdr.linea ? ' (' + cdr.linea + ')' : '') + (cdr.unidades ? ' - ' + cdr.unidades + ' ' + (cdr.tipo === 'exceso' ? 'GB' : 'min') : '');
-          db.prepare('INSERT INTO isp_facturas_lineas (factura_id, concepto, tipo, importe, linea) VALUES (?,?,?,?,?)').run(facturaId, cdrDesc, 'cdr', cdr.importe, cdr.linea);
           db.prepare('UPDATE isp_cdrs SET factura_id=? WHERE id=?').run(facturaId, cdr.id);
+        }
+        // Group CDRs by (linea, tipo) and insert ONE summary line per group
+        var grupos = {};
+        for (var cdr of cdrsPeriodo) {
+          var key = (cdr.linea || '') + '|' + (cdr.tipo || 'exceso');
+          if (!grupos[key]) grupos[key] = { linea: cdr.linea || '', tipo: cdr.tipo || 'exceso', total: 0 };
+          grupos[key].total += parseFloat(cdr.importe || 0);
+        }
+        for (var gk in grupos) {
+          var g = grupos[gk];
+          var gConcepto = g.tipo === 'exceso'
+            ? 'LINEA MOVIL EXCEDENTE DE DATOS LINEA (' + g.linea + ')'
+            : 'LINEA MOVIL EXCEDENTE DE LLAMADAS LINEA (' + g.linea + ')';
+          db.prepare('INSERT INTO isp_facturas_lineas (factura_id, concepto, tipo, importe, linea) VALUES (?,?,?,?,?)').run(facturaId, gConcepto, 'cdr', Math.round(g.total * 100) / 100, g.linea);
         }
         cuentasGeneradas++;
         
@@ -197,8 +216,14 @@ router.post('/facturas/manual', (req, res) => {
     var fvStr = fv.toISOString().split('T')[0];
     var per = periodo || fe.substring(0, 7);
 
+    var dirInfo = db.prepare('SELECT direccion, ciudad, provincia, codigo_postal FROM clients WHERE dni_nif=? OR likes_customer_id=?').get(fiscal_id || '', fiscal_id || '');
+    var clienteDireccion = (dirInfo && dirInfo.direccion) || '';
+    var clientePoblacion = (dirInfo && dirInfo.ciudad) || '';
+    var clienteProvincia = (dirInfo && dirInfo.provincia) || '';
+    var codigoPostal = (dirInfo && dirInfo.codigo_postal) || '';
+
     var numbering = getNextNumeroFactura(s);
-    var inv = db.prepare('INSERT INTO isp_facturas (cliente_nombre, cliente_email, fiscal_id, periodo, fecha_emision, fecha_vencimiento, importe_base, importe_cdrs, importe_total, metodo_pago, serie, numero_factura) VALUES (?,?,?,?,?,?,?,0,?,?,?,?)').run(cliente_nombre, cliente_email || '', fiscal_id || '', per, fe, fvStr, parseFloat(importe), parseFloat(importe), 'manual', numbering.serie, numbering.numero);
+    var inv = db.prepare('INSERT INTO isp_facturas (cliente_nombre, cliente_email, fiscal_id, periodo, fecha_emision, fecha_vencimiento, importe_base, importe_cdrs, importe_total, metodo_pago, serie, numero_factura, cliente_direccion, cliente_poblacion, cliente_provincia, codigo_postal) VALUES (?,?,?,?,?,?,?,0,?,?,?,?,?,?,?,?)').run(cliente_nombre, cliente_email || '', fiscal_id || '', per, fe, fvStr, parseFloat(importe), parseFloat(importe), 'manual', numbering.serie, numbering.numero, clienteDireccion, clientePoblacion, clienteProvincia, codigoPostal);
     var fid = inv.lastInsertRowid;
     db.prepare('INSERT INTO isp_facturas_lineas (factura_id, concepto, tipo, importe, linea) VALUES (?,?,?,?,?)').run(fid, concepto || 'Cuota servicio', 'cuota', parseFloat(importe), linea || '');
     res.json({ ok: true, id: fid, numero: numbering.full });
@@ -251,7 +276,25 @@ router.get('/facturas/:id/view', (req, res) => {
   try {
     var factura = db.prepare('SELECT * FROM isp_facturas WHERE id=?').get(req.params.id);
     if (!factura) return res.status(404).send('No encontrada');
-    var lineas = db.prepare('SELECT * FROM isp_facturas_lineas WHERE factura_id=?').all(req.params.id);
+    var lineasRaw = db.prepare('SELECT * FROM isp_facturas_lineas WHERE factura_id=?').all(req.params.id);
+    
+    // Group CDR lines by (linea, tipo) for summary display
+    var lineas = [];
+    var cdrGroups = {};
+    lineasRaw.forEach(function(l) {
+      if (l.tipo === 'cdr') {
+        var key = (l.linea || '') + '|' + (l.tipo || 'exceso');
+        if (!cdrGroups[key]) cdrGroups[key] = { linea: l.linea || '', tipo: 'cdr', total: 0, concepto: '' };
+        cdrGroups[key].total += parseFloat(l.importe || 0);
+        cdrGroups[key].concepto = l.concepto;
+      } else {
+        lineas.push(l);
+      }
+    });
+    for (var gk in cdrGroups) {
+      var g = cdrGroups[gk];
+      lineas.push({ concepto: g.concepto, tipo: 'cdr', importe: Math.round(g.total * 100) / 100, linea: g.linea });
+    }
     
     // Get CDR details for this invoice
     var cdrsDetalle = db.prepare('SELECT * FROM isp_cdrs WHERE factura_id=?').all(req.params.id);
@@ -333,7 +376,17 @@ router.post('/facturas/:id/enviar', async (req, res) => {
     var factura = db.prepare('SELECT * FROM isp_facturas WHERE id=?').get(req.params.id);
     if (!factura) return res.status(404).json({ ok: false, error: 'No encontrada' });
     
-    var lineas = db.prepare('SELECT * FROM isp_facturas_lineas WHERE factura_id=?').all(req.params.id);
+    var lineasRaw = db.prepare('SELECT * FROM isp_facturas_lineas WHERE factura_id=?').all(req.params.id);
+    // Group CDR lines
+    var lineas = [], cdrG = {};
+    lineasRaw.forEach(function(l) {
+      if (l.tipo === 'cdr') {
+        var k = (l.linea||'')+'|'+(l.tipo||'exceso');
+        if (!cdrG[k]) cdrG[k] = { linea: l.linea, tipo: 'cdr', total: 0, concepto: l.concepto };
+        cdrG[k].total += parseFloat(l.importe||0);
+      } else { lineas.push(l); }
+    });
+    for (var gk in cdrG) { var g=cdrG[gk]; lineas.push({ concepto: g.concepto, tipo: 'cdr', importe: Math.round(g.total*100)/100, linea: g.linea }); }
     var cdrsDetalle = db.prepare('SELECT * FROM isp_cdrs WHERE factura_id=?').all(req.params.id);
     
     var numFactura = (factura.serie || 'F') + '-' + String(factura.numero_factura || factura.id).padStart(5, '0');

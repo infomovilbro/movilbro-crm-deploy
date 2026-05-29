@@ -8,6 +8,9 @@
       <button class="btn btn-outline-secondary btn-sm" onclick="descargarAnio('todas')" title="Descargar todos los años"><i class="bi bi-archive"></i> Todo</button>
       <button class="btn btn-outline-primary btn-sm" onclick="generarTodas()" id="btnGenerar"><i class="bi bi-cloud-arrow-up"></i> PDFs</button>
       <button class="btn btn-outline-success btn-sm" onclick="importarZips()" id="btnImportZips"><i class="bi bi-folder-plus"></i> Importar ZIPs</button>
+      <button class="btn btn-outline-warning btn-sm" onclick="document.getElementById('uploadZipInput').click()"><i class="bi bi-upload"></i> Subir ZIP</button>
+      <input type="file" id="uploadZipInput" accept=".zip" style="display:none" onchange="subirZip(this)">
+      <div id="uploadStatus" class="small text-muted mt-1" style="display:none;"></div>
     </div>
   </div>
 
@@ -174,6 +177,30 @@ function importarZips() {
       alert('Error de conexión');
       btn.disabled = false; btn.innerHTML = '<i class="bi bi-folder-plus"></i> Importar ZIPs';
     });
+}
+
+function subirZip(input) {
+  var file = input.files[0];
+  if (!file) return;
+  var status = document.getElementById('uploadStatus');
+  status.style.display = 'block';
+  status.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Subiendo ' + file.name + '...';
+  var formData = new FormData();
+  formData.append('zip', file);
+  fetch('/isp/nube/subir-zip', { method: 'POST', body: formData })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.ok) {
+        status.innerHTML = '<span class="text-success">✅ ' + d.message + '</span>';
+        setTimeout(function() { location.reload(); }, 1500);
+      } else {
+        status.innerHTML = '<span class="text-danger">❌ Error: ' + (d.error || 'desconocido') + '</span>';
+      }
+    })
+    .catch(function() {
+      status.innerHTML = '<span class="text-danger">❌ Error de conexión</span>';
+    });
+  input.value = '';
 }
 </script>
 <style>

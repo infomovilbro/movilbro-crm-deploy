@@ -352,6 +352,10 @@ function initDatabase() {
   `);
 
   try { db.prepare("ALTER TABLE users ADD COLUMN permissions TEXT DEFAULT '{}'").run(); } catch(e) {}
+  try { db.prepare("ALTER TABLE isp_facturas ADD COLUMN cliente_direccion TEXT DEFAULT ''").run(); } catch(e) {}
+  try { db.prepare("ALTER TABLE isp_facturas ADD COLUMN cliente_poblacion TEXT DEFAULT ''").run(); } catch(e) {}
+  try { db.prepare("ALTER TABLE isp_facturas ADD COLUMN cliente_provincia TEXT DEFAULT ''").run(); } catch(e) {}
+  try { db.prepare("ALTER TABLE isp_facturas ADD COLUMN codigo_postal TEXT DEFAULT ''").run(); } catch(e) {}
   try { db.prepare("ALTER TABLE tienda_presupuestos ADD COLUMN mano_obra REAL DEFAULT 0").run(); } catch(e) {}
   try { db.prepare("ALTER TABLE tienda_presupuestos ADD COLUMN pieza_costo REAL DEFAULT 0").run(); } catch(e) {}
   try { db.prepare("ALTER TABLE tienda_presupuestos ADD COLUMN tipo TEXT DEFAULT 'presupuesto'").run(); } catch(e) {}

@@ -10,7 +10,7 @@ isp_*.txt
 
 # Generated files
 test_invoice_output.html
-nube/
+#nube/
 
 # Scripts
 parse_pdf*.js
@@ -36,3 +36,4 @@ ANCHORED_SUMMARY.md
 
 movilbro.db-shm
 movilbro.db-wal
+

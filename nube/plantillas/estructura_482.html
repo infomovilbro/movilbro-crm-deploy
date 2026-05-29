@@ -1,0 +1,478 @@
+<p style="margin-left:80px">&nbsp;</p>
+
+<p style="margin-left:80px">&nbsp;</p>
+
+<p style="margin-left:80px">&nbsp;</p>
+
+<p style="margin-left:80px">&nbsp;</p>
+
+<p style="margin-left:80px"><span style="font-size:12px"><em><u><strong>{empresa_datos.nif_representante}</strong></u></em></span><span style="font-size:14px">&nbsp;</span><span style="font-size:12px"><strong>N&ordm; Contrato: </strong>{contratomadre.id} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; &nbsp; &nbsp;<strong>ID Cliente: </strong>{cliente.codigo}</span></p>
+
+<p>&nbsp;</p>
+
+<p><span style="font-size:12px">En la ciudad de <em><u><strong>{empresa_datos.ciudad}</strong></u></em></span><span style="font-size:12px">, {fecha}.</span></p>
+
+<p>&nbsp;</p>
+
+<p><span style="font-size:12px"><strong>R E U N I D O S</strong></span></p>
+
+<p>&nbsp;</p>
+
+<p style="text-align:justify"><span style="font-size:12px">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; De una parte D/&ordf;&nbsp;{cliente.nombre_representante}<strong>,</strong> (en adelante el CLIENTE), mayor de edad, vecino de {localidad.poblacion}, ({provincia.provincia}) con domicilio en {cliente.tipo_calle}&nbsp;{cliente.domicilio}, {cliente.numero},&nbsp;{cliente.bloque} {cliente.escalera} {cliente.piso} {cliente.puerta} provisto de NIF&nbsp;N&ordm; {cliente.representante_nif}, y de otra </span><span style="font-size:12px"><em><u><strong>{empresa_datos.nombre}</strong></u></em>, con domicilio en </span><span style="font-size:12px"><em><u><strong>{empresa_datos.calle}</strong></u></em>, provisto del CIF <em><u><strong>{empresa_datos.nif}</strong></u></em>.</span></p>
+
+<p>&nbsp;</p>
+
+<p style="text-align:justify"><span style="font-size:12px">Intervienen el primero en su propio nombre o como representante de {cliente.nombrecompleto}&nbsp;y el segundo en nombre y representaci&oacute;n de <em><u><strong>{empresa_datos.nombre}</strong></u></em>. (en adelante <em><u><strong>{empresa_datos.empresa}</strong></u></em>) entidad domiciliada en <em><u><strong>{empresa_datos.ciudad}</strong></u></em>, <em><u><strong>{empresa_datos.domicilio}</strong></u></em> y con CIF N&ordm;&nbsp; <em><u><strong>{empresa_datos.nif}</strong></u></em></span></p>
+
+<p>&nbsp;</p>
+
+<p style="text-align:justify"><span style="font-size:12px">Ambas partes se reconocen mutuamente la capacidad legal necesaria para la celebraci&oacute;n de las presentes&nbsp; <strong>CONDICIONES PARTICULARES al CONTRATO DE PRESTACI&Oacute;N DE SERVICIOS&nbsp; </strong>y &nbsp;</span></p>
+
+<p>&nbsp;</p>
+
+<p style="text-align:center"><span style="font-size:12px"><strong>E X P O N E N </strong></span></p>
+
+<p>&nbsp;</p>
+
+<p style="text-align:justify"><span style="font-size:12px"><strong>1. TITULAR DEL CONTRATO o REPRESENTANTE LEGAL (</strong>En caso de que el contratante sea persona jur&iacute;dica)</span></p>
+
+<p>&nbsp;</p>
+
+<table border="1" cellpadding="0" cellspacing="0" style="width:210mm">
+	<tbody>
+		<tr>
+			<td style="width:70mm"><span style="font-size:14px">Nombre y Apellidos</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{cliente.nombre_representante}</span></td>
+		</tr>
+		<tr>
+			<td style="width:70mm"><span style="font-size:14px">C.I.F/ N.I.F/ NIE</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{cliente.representante_nif}</span></td>
+		</tr>
+		<tr>
+			<td style="width:70mm"><span style="font-size:14px">Domicilio</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{cliente.tipo_calle}&nbsp;{cliente.domicilio}, {cliente.numero} {cliente.bloque} {cliente.escalera} {cliente.piso} {cliente.puerta}</span></td>
+		</tr>
+		<tr>
+			<td style="width:70mm"><span style="font-size:14px">Poblaci&oacute;n</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{cliente.municipio}</span></td>
+		</tr>
+		<tr>
+			<td style="width:70mm"><span style="font-size:14px">C&oacute;digo Postal/Provincia</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{cliente.postal}, {cliente.provincia}</span></td>
+		</tr>
+		<tr>
+			<td style="width:70mm"><span style="font-size:14px">Tel. Fijo</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{cliente.telefono1}</span></td>
+		</tr>
+		<tr>
+			<td style="width:70mm"><span style="font-size:14px">Tel. m&oacute;vil</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{cliente.movil}</span></td>
+		</tr>
+		<tr>
+			<td style="width:70mm"><span style="font-size:14px">Fax:</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{cliente.fax}</span></td>
+		</tr>
+		<tr>
+			<td style="width:70mm"><span style="font-size:14px">E-mail</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{cliente.email}</span></td>
+		</tr>
+	</tbody>
+</table>
+
+<p>&nbsp;</p>
+
+<p><span style="font-size:12px">Cumplimente el siguiente apartado en caso de actuar como representante legal</span></p>
+
+<p>&nbsp;</p>
+
+<table border="1" cellpadding="0" cellspacing="0" style="width:210mm">
+	<tbody>
+		<tr>
+			<td style="width:70mm"><span style="font-size:14px">Cargo</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{cliente.cargo}</span></td>
+		</tr>
+		<tr>
+			<td style="width:70mm"><span style="font-size:14px">Fecha de poder</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{cliente.f_poder}</span></td>
+		</tr>
+		<tr>
+			<td style="width:70mm"><span style="font-size:14px">Notario</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{cliente.notaria}</span></td>
+		</tr>
+		<tr>
+			<td style="width:70mm"><span style="font-size:14px">Protocolo</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{cliente.protocolo}</span></td>
+		</tr>
+	</tbody>
+</table>
+
+<p>&nbsp;</p>
+
+<table border="0" cellpadding="0" cellspacing="0" style="width:210mm">
+	<tbody>
+		<tr>
+			<td style="width:105mm"><span style="font-size:12px">En <em><u><strong>{empresa_datos.ciudad}</strong></u></em> a {fecha}</span></td>
+			<td style="text-align:right; width:105mm"><span style="font-size:12px"><em><u><strong>{empresa_datos.nombre_representante}</strong></u></em></span></td>
+		</tr>
+		<tr>
+			<td style="width:105mm">&nbsp;</td>
+			<td style="text-align:right; width:105mm"><em><u><strong>&lt;INSERTE LA FIRMA DEL REPRESENTANTE LEGAL DE SU EMPRESA&gt;</strong></u></em></td>
+		</tr>
+		<tr>
+			<td style="width:105mm"><span style="font-size:12px">Firma del Titular del Contrato</span></td>
+			<td style="text-align:right; width:105mm"><span style="font-size:12px">Representante Legal con NIF: <em><u><strong>{empresa_datos.nif_representante}</strong></u></em></span></td>
+		</tr>
+	</tbody>
+</table>
+
+<div style="page-break-after: always"><span style="display: none;">&nbsp;</span></div>
+
+<p>&nbsp;</p>
+
+<p>&nbsp;</p>
+
+<p>&nbsp;</p>
+
+<p>&nbsp;</p>
+
+<p><span style="font-size:12px"><strong>2. IDENTIFICACI&Oacute;N PERSONA JUR&Iacute;DICA</strong></span></p>
+
+<table border="1" cellpadding="0" cellspacing="0" style="width:210mm">
+	<tbody>
+		<tr>
+			<td style="width:70mm"><span style="font-size:14px">Razon Social</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{empresa.nombrecompleto}</span></td>
+		</tr>
+		<tr>
+			<td style="width:70mm"><span style="font-size:14px">CIF</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{empresa.cif}</span></td>
+		</tr>
+		<tr>
+			<td style="width:70mm"><span style="font-size:14px">Nombre comercial</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{empresa.nombre_comercial}</span></td>
+		</tr>
+		<tr>
+			<td style="width:70mm"><span style="font-size:14px">Domicilio</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{empresa.tipo_calle}&nbsp;{empresa.domicilio} {empresa.numero}&nbsp;{empresa.bloque} {empresa.escalera} {empresa.piso} {empresa.puerta}</span></td>
+		</tr>
+		<tr>
+			<td style="width:70mm"><span style="font-size:14px">C&oacute;digo Postal/Provincia</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{empresa.postal} {empresa.provincia}</span></td>
+		</tr>
+		<tr>
+			<td style="width:70mm"><span style="font-size:14px">Tel. Fijo</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{empresa.telefono1}</span></td>
+		</tr>
+		<tr>
+			<td style="width:70mm"><span style="font-size:14px">Tel. m&oacute;vil</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{empresa.movil}</span></td>
+		</tr>
+		<tr>
+			<td style="width:70mm"><span style="font-size:14px">Fax</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{empresa.fax}</span></td>
+		</tr>
+		<tr>
+			<td style="width:70mm"><span style="font-size:14px">E-mail</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{empresa.email}</span></td>
+		</tr>
+		<tr>
+			<td style="width:70mm"><span style="font-size:14px">P&aacute;gina Web</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{empresa.web}</span></td>
+		</tr>
+	</tbody>
+</table>
+
+<p><span style="font-size:12px"><strong>3. SERVICIOS A CONTRATAR</strong></span></p>
+
+<table border="1" cellpadding="0" cellspacing="0" style="width:210mm">
+	<tbody>
+		<tr>
+			<td style="width:70mm"><span style="font-size:14px">INTERNET</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{tarifa_internet.nombre}</span></td>
+		</tr>
+		<tr>
+			<td style="width:70mm"><span style="font-size:14px">TELEFONIA FIJA</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{tarifa_fijo.nombre}</span></td>
+		</tr>
+		<tr>
+			<td style="width:70mm"><span style="font-size:14px">TELEFONIA MOVIL</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{tarifa_movil.nombre}</span></td>
+		</tr>
+		<tr>
+			<td style="width:70mm"><span style="font-size:14px">OTROS</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{tarifa_antivirus.tiene_antivirus}</span></td>
+		</tr>
+		<tr>
+			<td style="width:70mm"><span style="font-size:14px">IP FIJA</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{tarifa_ip_fija.tiene_ip_fija}</span></td>
+		</tr>
+		<tr>
+			<td style="width:70mm"><span style="font-size:14px">Deseo recibir promociones</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{cliente.recibepublicidad}</span></td>
+		</tr>
+	</tbody>
+</table>
+
+<p><span style="font-size:12px"><strong>4. DOMICILIO DE INSTALACI&Oacute;N&nbsp;&nbsp; </strong></span></p>
+
+<ul>
+	<li><span style="font-size:12px">DOMICILIO DE INSTALACI&Oacute;N INTERNET</span></li>
+</ul>
+
+<table border="1" cellpadding="0" cellspacing="0" style="margin-left:20mm; width:190mm">
+	<tbody>
+		<tr>
+			<td style="width:50mm"><span style="font-size:14px">Domicilio</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{contrato_internet.domicilio_instala}</span></td>
+		</tr>
+		<tr>
+			<td style="width:50mm"><span style="font-size:14px">Poblaci&oacute;n</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{contrato_internet.poblacion_instalacion}</span></td>
+		</tr>
+		<tr>
+			<td style="width:50mm"><span style="font-size:14px">C&oacute;digo Postal/Provincia</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{contrato_internet.codigo_postal} {contrato_internet.provincia_instalacion}</span></td>
+		</tr>
+	</tbody>
+</table>
+
+<ul>
+	<li><span style="font-size:12px">DOMICILIO DE INSTALACI&Oacute;N TEL&Eacute;FONO FIJO</span></li>
+</ul>
+
+<table border="1" cellpadding="0" cellspacing="0" style="margin-left:20mm; width:190mm">
+	<tbody>
+		<tr>
+			<td style="width:50mm"><span style="font-size:14px">Domicilio</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{contrato_fijo.domicilio_instala}</span></td>
+		</tr>
+		<tr>
+			<td style="width:50mm"><span style="font-size:14px">Poblaci&oacute;n</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{contrato_fijo.poblacion_instalacion}</span></td>
+		</tr>
+		<tr>
+			<td style="width:50mm"><span style="font-size:14px">C&oacute;digo Postal/Provincia</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{contrato_fijo.codigo_postal} {contrato_fijo.provincia_instalacion}</span></td>
+		</tr>
+	</tbody>
+</table>
+
+<p><span style="font-size:12px"><strong>5. DATOS DE FACTURACI&Oacute;N</strong></span></p>
+
+<table border="1" cellpadding="0" cellspacing="0" style="width:210mm">
+	<tbody>
+		<tr>
+			<td style="width:70mm"><span style="font-size:14px">Factura Detallada</span></td>
+			<td style="width:140mm"><span style="font-size:14px">Si</span></td>
+		</tr>
+		<tr>
+			<td style="width:70mm"><span style="font-size:14px">Periodo de Facturaci&oacute;n</span></td>
+			<td style="width:140mm"><span style="font-size:14px">Mes Vencido</span></td>
+		</tr>
+		<tr>
+			<td style="width:70mm"><span style="font-size:14px">Idioma de Factura</span></td>
+			<td style="width:140mm"><span style="font-size:14px">Castellano</span></td>
+		</tr>
+	</tbody>
+</table>
+
+<p><span style="font-size:12px"><strong>6. DATOS DE DOMICILIACI&Oacute;N BANCARIA</strong></span></p>
+
+<table border="1" cellpadding="0" cellspacing="0" style="width:210mm">
+	<tbody>
+		<tr>
+			<td style="width:70mm"><span style="font-size:14px">Titular de la Cuenta</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{cliente.nombrecompleto}</span></td>
+		</tr>
+		<tr>
+			<td style="width:70mm"><span style="font-size:14px">N.I.F/CIF/NIE</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{cliente.nif}{cliente.cif}</span></td>
+		</tr>
+		<tr>
+			<td style="width:70mm"><span style="font-size:14px">Entidad Bancaria</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{contratomadre.entidad}</span></td>
+		</tr>
+		<tr>
+			<td style="width:70mm"><span style="font-size:14px">C&oacute;digo Cuenta Cliente (IBAN)</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{contratomadre.iban}</span></td>
+		</tr>
+	</tbody>
+</table>
+
+<p><span style="font-size:12px">Autorizo a la entidad mencionada a cargar en&nbsp; mi cuenta los recibos presentados al cobro por <em><u><strong>{empresa.nombre_comercial}</strong></u></em>.</span></p>
+
+<table border="0" cellpadding="0" cellspacing="0" style="width:210mm">
+	<tbody>
+		<tr>
+			<td style="width:105mm"><span style="font-size:12px">En <em><u><strong>{empresa_datos.ciudad}</strong></u></em> a {fecha}</span></td>
+			<td style="text-align:right; width:105mm"><span style="font-size:12px"><em><u><strong>{empresa_datos.nombre_representante}</strong></u></em></span></td>
+		</tr>
+		<tr>
+			<td style="width:105mm">&nbsp;</td>
+			<td style="text-align:right; width:105mm"><em><u><strong>&lt;INSERTE LA FIRMA DEL REPRESENTANTE LEGAL DE SU EMPRESA&gt;</strong></u></em></td>
+		</tr>
+		<tr>
+			<td style="width:105mm"><span style="font-size:12px">Firma del Titular de la cuenta</span></td>
+			<td style="text-align:right; width:105mm"><span style="font-size:12px">Representante Legal con NIF: <em><u><strong>{empresa_datos.nif_representante}</strong></u></em></span></td>
+		</tr>
+	</tbody>
+</table>
+
+<div style="page-break-after: always"><span style="display: none;">&nbsp;</span></div>
+
+<p>&nbsp;</p>
+
+<p>&nbsp;</p>
+
+<p>&nbsp;</p>
+
+<p>&nbsp;</p>
+
+<p>&nbsp;</p>
+
+<p><span style="font-size:12px"><strong>7. TELEFON&Iacute;A FIJA</strong></span></p>
+
+<table border="1" cellpadding="0" cellspacing="0" style="width:210mm">
+	<tbody>
+		<tr>
+			<td colspan="2" style="width:583px"><span style="font-size:14px">El lugar de instalaci&oacute;n ser&aacute; el indicado en el apartado cuarto del presente documento. Indicar en caso de ser diferente</span></td>
+		</tr>
+		<tr>
+			<td style="width:356px"><span style="font-size:14px">Domicilio de instalaci&oacute;n</span></td>
+			<td style="width:431px"><span style="font-size:14px">{contrato_fijo.domicilio_instala}</span></td>
+		</tr>
+		<tr>
+			<td style="width:356px"><span style="font-size:14px">Poblaci&oacute;n</span></td>
+			<td style="width:431px"><span style="font-size:14px">{contrato_fijo.poblacion_instalacion}</span></td>
+		</tr>
+		<tr>
+			<td style="width:356px"><span style="font-size:14px">C&oacute;digo Postal/Provincia</span></td>
+			<td style="width:431px"><span style="font-size:14px">{contrato_fijo.codigo_postal} {contrato_fijo.provincia_instalacion}</span></td>
+		</tr>
+		<tr>
+			<td style="width:356px"><span style="font-size:14px">N&ordm; Tel&eacute;fono asignado o a portar</span></td>
+			<td style="width:431px">
+			<p><span style="font-size:14px">{contrato_fijo.telefono_contrato}{contrato_fijo.telefono_contrato_asociado}</span></p>
+
+			<p><span style="font-size:14px">/&nbsp;</span>{tarifa_fijo_asociado.nombre}</p>
+			</td>
+		</tr>
+		<tr>
+			<td style="width:356px"><span style="font-size:14px">Operador Donante (en caso de portabilidad)</span></td>
+			<td style="width:431px"><span style="font-size:14px">{contrato_fijo.operador}</span></td>
+		</tr>
+	</tbody>
+</table>
+
+<p style="text-align:justify"><span style="font-size:12px">Por la presente, como abonado de la/s l&iacute;nea/s telef&oacute;nicas y cuyos datos indico arriba, cedo esta/s l&iacute;nea/s telef&oacute;nica/s al operador <em><u><strong>{empresa_datos.empresa}</strong></u></em> y comunico mi deseo de causar baja y conservar la/s numeraci&oacute;n/es indicada/s en esta solicitud con mi nuevo operador de acceso <em><u><strong>{empresa_datos.empresa}</strong></u></em>. Para ello autorizo a que los datos personales necesarios en esta solicitud puedan ser transferidos a los operadores que intervienen en el proceso de portabilidad, sin perjuicio de lo dispuesto en la normativa reguladora de protecci&oacute;n de datos de car&aacute;cter personal y en las especificaciones t&eacute;cnicas de los procedimientos administrativos para la conservaci&oacute;n de numeraci&oacute;n aprobadas por Resoluci&oacute;n de la Comisi&oacute;n del Mercado de las Telecomunicaciones de 1 de Marzo de 2007. Asimismo autorizo a que la l&iacute;nea telef&oacute;nica portada por a <em><u><strong>{empresa_datos.empresa}</strong></u></em>., figure a nombre de la persona se&ntilde;alada como Titular del Contrato <em><u><strong>{empresa_datos.empresa}</strong></u></em>.</span></p>
+
+<p style="text-align:justify">&nbsp;</p>
+
+<p><span style="font-size:12px"><strong>8. TELEFON&Iacute;A M&Oacute;VIL</strong></span></p>
+
+<p><span style="font-size:12px"><strong>[lista]</strong></span></p>
+
+<table border="1" cellpadding="0" cellspacing="0" style="width:210mm">
+	<tbody>
+		<tr>
+			<td style="width:361px"><span style="font-size:14px">N&ordm; Tel&eacute;fono m&oacute;vil asignado o a portar</span></td>
+			<td style="width:426px">
+			<p>{[contrato_movil.telefono_contrato]} &nbsp;<span style="font-size:14px">&nbsp;</span>{[tarifa_movil_asociado.nombre]}</p>
+			</td>
+		</tr>
+		<tr>
+			<td style="width:361px"><span style="font-size:14px">N&uacute;mero de ICC tarjeta SIM</span></td>
+			<td style="width:426px"><span style="font-size:14px">{[contrato_movil.sim]}</span></td>
+		</tr>
+		<tr>
+			<td style="width:361px"><span style="font-size:14px">Operador donante (en caso de portabilidad)</span></td>
+			<td style="width:426px"><span style="font-size:14px">{[contrato_movil.operador]}</span></td>
+		</tr>
+	</tbody>
+</table>
+
+<p style="text-align:justify">[/lista]</p>
+
+<p style="text-align:justify"><span style="font-size:12px">Cuando la modalidad de prestaci&oacute;n del servicio se realice a trav&eacute;s de la portabilidad de l&iacute;nea, el titular de l&iacute;nea autoriza a <em><u><strong>{empresa_datos.empresa}</strong></u></em> a realizar en su nombre y representaci&oacute;n, cuantas actuaciones sean necesarias para asegurar que sea realizada la portabilidad de su l&iacute;nea, pudiendo firmar, a tal efecto la pertinente Solicitud de Portabilidad. La presente autorizaci&oacute;n incluye las actuaciones necesarias para corregir aquellos datos que sean susceptibles de subsanaci&oacute;n. En caso de que el Cliente quisiese anular la presente portabilidad de la l&iacute;nea m&oacute;vil <em><u><strong>{empresa_datos.empresa}</strong></u></em>, cobrar&aacute; al cliente la cantidad de CIEN EUROS (100&euro;) en concepto de gestiones administrativas por los tramites de portabilidad iniciados. Por medio del presente Contrato, el abajo firmante, cuyos datos se recogen en el apartado &ldquo;Datos del Titular&rdquo;, se abona al/los Servicio/s, arriba indicados prestado/s por <em><u><strong>{empresa_datos.empresa}</strong></u></em>, seg&uacute;n lo dispuesto tanto en el presente Contrato y en las Condiciones Generales que se adjuntan al presente documento como en las Condiciones Espec&iacute;ficas aplicables a cada uno de los Servicios Contratados identificadas con el n&uacute;mero de referencia, las cuales conoce y acepta en su integridad. En caso de que el Cliente fuera una persona jur&iacute;dica, el abajo firmante declara que suscribe el presente documento por cuenta de la persona jur&iacute;dica cuyos datos aparecen en el apartado &ldquo;Datos del Titular&rdquo;, en funci&oacute;n del cargo y poder notarial que presenta. En el supuesto de que no tuviera los poderes para actuar que declara tener, quedar&aacute; obligado personalmente con <em><u><strong>{empresa_datos.empresa}</strong></u></em>, sin perjuicio de cualesquiera obligaciones o acciones que pudieran existir entre el abajo firmante y la persona jur&iacute;dica por cuenta de la cual contrata.</span></p>
+
+<div style="page-break-after: always"><span style="display: none;">&nbsp;</span></div>
+
+<p>&nbsp;</p>
+
+<p>&nbsp;</p>
+
+<p>&nbsp;</p>
+
+<p>&nbsp;</p>
+
+<p>&nbsp;</p>
+
+<p><span style="font-size:12px"><strong>9. TARIFA CONTRATADA (Todos los precios de este apartado se entienden IVA Incluido)</strong></span></p>
+
+<table border="1" cellpadding="0" cellspacing="0" style="width:210mm">
+	<tbody>
+		<tr>
+			<td style="width:70mm"><span style="font-size:14px">Cuota de Alta</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{contratomadre.cuota_alta_txt}&euro;</span></td>
+		</tr>
+		<tr>
+			<td style="width:70mm"><span style="font-size:14px">Tarifa contratada</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{tarifa_contrato.nombre}</span></td>
+		</tr>
+		<tr>
+			<td style="width:70mm"><span style="font-size:14px">P.V.P. Tarifa contratada</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{tarifa_contrato.total_iva_txt}&euro;</span></td>
+		</tr>
+		<tr>
+			<td style="width:70mm"><span style="font-size:14px">Permanencia</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{contratomadre.fidelizacion} meses</span></td>
+		</tr>
+		<tr>
+			<td style="width:70mm"><span style="font-size:14px">Equipos (Antena y ATA) propiedad de</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{contratomadre.propiedad_equipo}</span></td>
+		</tr>
+		<tr>
+			<td style="width:70mm"><span style="font-size:14px">PVP I.P. Fija Contratada (si la hubiere)</span></td>
+			<td style="width:140mm">4,95&euro; + IVA</td>
+		</tr>
+		<tr>
+			<td style="width:70mm"><span style="font-size:14px">Servicios opcionales contratados</span></td>
+			<td style="width:140mm">&nbsp;</td>
+		</tr>
+		<tr>
+			<td style="width:70mm"><span style="font-size:14px">Observaciones</span></td>
+			<td style="width:140mm"><span style="font-size:14px">{contratomadre.observaciones_permanencia}</span></td>
+		</tr>
+	</tbody>
+</table>
+
+<p style="text-align:justify">&nbsp;</p>
+
+<p style="text-align:justify">&nbsp;</p>
+
+<p style="text-align:justify"><span style="font-size:12px"><strong>10. ACEPTACI&Oacute;N Y FIRMA DE LA CONTRATACI&Oacute;N</strong></span></p>
+
+<p style="text-align:justify"><span style="font-size:12px">Por medio del presente Contrato, el abajo firmante, cuyos datos se recogen en el apartado &ldquo;Datos del Titular&rdquo;, se abona al/los Servicio/s, arriba indicados (m&oacute;vil/fijo/Internet) que ser&aacute;n prestado/s por <em><u><strong>{empresa_datos.empresa}</strong></u></em>, seg&uacute;n lo dispuesto tanto en el presente Contrato, en la Condiciones Generales que se adjuntan as&iacute; como en las Condiciones Particulares o Especificas aplicables al Servicio contratado, las cuales conoce y acepta en su integridad. En caso de que el Cliente fuera persona jur&iacute;dica, el abajo firmante declara que suscribe el presente documento por cuenta de la persona jur&iacute;dica cuyos datos aparecen en el apartado &ldquo;Datos del Titular&rdquo;, en funci&oacute;n del cargo y poder notarial que presenta. En el supuesto de que no tuviera los poderes para actuar que declara tener, quedar&aacute; obligado personalmente con <em><u><strong>{empresa_datos.empresa}</strong></u></em>, sin perjuicio de cualesquiera obligaciones o acciones que pudieran existir entre el abajo firmante y la persona jur&iacute;dica por cuenta de la cual contrata.</span></p>
+
+<p style="text-align:justify"><span style="font-size:12px">En el caso que el cliente decidiera rescindir el presente contrato una vez cumplida la fidelizaci&oacute;n del mismo y&nbsp; no habiendo contratado el Cliente la compra de los equipos de tel&eacute;fono fijo y/o Internet (adaptador telef&oacute;nico, router, antena, etc.&hellip;) siendo propiedad de <em><u><strong>{empresa_datos.empresa}</strong></u></em>, el Cliente se obliga y compromete por medio del presente documento&nbsp; a facilitarle a <em><u><strong>{empresa_datos.empresa}</strong></u></em> a trav&eacute;s del personal correspondiente el acceso a su vivienda en el plazo m&aacute;ximo de un MES a partir de la rescisi&oacute;n del contrato para que de forma gratuita se proceda a retirar el equipo correspondiente. Para el caso de que el Cliente no facilite lo expuesto anteriormente se proceder&aacute; a la facturaci&oacute;n por un importe de 150,00&euro;.</span></p>
+
+<p style="text-align:justify"><span style="font-size:12px">En el caso de que el Cliente no cumpliese la fidelizaci&oacute;n de los meses contratados en el presente Contrato, el cliente se obliga al pago de una cuota &uacute;nica cuyo importe ser&aacute; el resultado de multiplicar la cantidad de {contratomadre.penalizacion_mes} Euros m&aacute;s IVA, por el n&uacute;mero de meses que falten hasta cumplir la fidelizaci&oacute;n, haci&eacute;ndose efectiva por medio del n&uacute;mero de cuenta bancaria indicado en el Contrato.</span></p>
+
+<table border="0" cellpadding="0" cellspacing="0" style="width:210mm">
+	<tbody>
+		<tr>
+			<td style="width:105mm"><span style="font-size:12px">En {empresa_datos.municipio} a {fecha}</span></td>
+			<td style="text-align:right; width:105mm"><span style="font-size:12px"><em><u><strong>{empresa_datos.nombre_representante}</strong></u></em></span></td>
+		</tr>
+		<tr>
+			<td style="width:105mm">[firma_cliente]</td>
+			<td style="text-align:right; width:105mm"><em><u><strong>&lt;INSERTE LA FIRMA DEL REPRESENTANTE LEGAL DE SU EMPRESA&gt;</strong></u></em></td>
+		</tr>
+		<tr>
+			<td style="width:105mm"><span style="font-size:12px">Firma del Titular del Servicio</span></td>
+			<td style="text-align:right; width:105mm"><span style="font-size:12px">Representante Legal con NIF: <em><u><strong>{empresa_datos.nif_representante}​​​​​​​</strong></u></em></span></td>
+		</tr>
+	</tbody>
+</table>
+
+<p>&nbsp;</p>
