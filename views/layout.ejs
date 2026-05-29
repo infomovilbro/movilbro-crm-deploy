@@ -494,68 +494,67 @@
       }
     })();
 
-    var sidebar = document.getElementById('sidebar');
-    function getBackdrop() { return document.getElementById('sidebarBackdrop'); }
-    document.getElementById('sidebarToggle')?.addEventListener('click', function() {
-      sidebar.classList.toggle('show');
-      var bd = getBackdrop();
-      if (bd) bd.classList.toggle('show');
-    });
+    // Event delegation for sidebar toggle, backdrop, bottom nav, and AI toggle
     document.addEventListener('click', function(e) {
+      // Sidebar toggle (hamburger button)
+      var toggle = e.target.closest('#sidebarToggle');
+      if (toggle) {
+        var s = document.getElementById('sidebar');
+        if (s) { s.classList.toggle('show'); }
+        var bd = document.getElementById('sidebarBackdrop');
+        if (bd) { bd.classList.toggle('show'); }
+        return;
+      }
+
+      // Backdrop click - close sidebar
       if (e.target && e.target.id === 'sidebarBackdrop') {
-        sidebar.classList.remove('show');
+        var s = document.getElementById('sidebar');
+        if (s) s.classList.remove('show');
         e.target.classList.remove('show');
         document.querySelectorAll('.bottom-nav-item').forEach(function(i) { i.classList.remove('active'); });
+        return;
       }
-    });
 
-    // Sidebar AI toggle
-    document.getElementById('sidebarAiToggle')?.addEventListener('click', function(e) {
-      e.preventDefault();
-      document.getElementById('aiChatToggle')?.click();
-    });
+      // Sidebar AI toggle
+      var aiToggle = e.target.closest('#sidebarAiToggle');
+      if (aiToggle) {
+        e.preventDefault();
+        var chatToggle = document.getElementById('aiChatToggle');
+        if (chatToggle) chatToggle.click();
+        return;
+      }
 
-    // Bottom nav handlers (mobile) - fixed: close others, show correct group
-    document.querySelectorAll('.bottom-nav-item').forEach(function(btn) {
-      btn.addEventListener('click', function(e) {
+      // Bottom nav item - open sidebar with correct group
+      var navItem = e.target.closest('.bottom-nav-item');
+      if (navItem) {
         e.stopPropagation();
-        var targetGroup = this.dataset.navGroup;
-        var sidebar = document.getElementById('sidebar');
-        var backdrop = document.getElementById('sidebarBackdrop');
+        var targetGroup = navItem.dataset.navGroup;
+        var s = document.getElementById('sidebar');
+        var bd = document.getElementById('sidebarBackdrop');
 
-        // If this group is already active and sidebar is showing, close it
-        if (btn.classList.contains('active') && sidebar && sidebar.classList.contains('show')) {
-          sidebar.classList.remove('show');
-          if (backdrop) backdrop.classList.remove('show');
+        if (navItem.classList.contains('active') && s && s.classList.contains('show')) {
+          s.classList.remove('show');
+          if (bd) bd.classList.remove('show');
           document.querySelectorAll('.bottom-nav-item').forEach(function(i) { i.classList.remove('active'); });
           document.querySelectorAll('.nav-group').forEach(function(g) { g.classList.remove('open'); });
           return;
         }
 
-        // Close all groups first
         document.querySelectorAll('.nav-group').forEach(function(g) { g.classList.remove('open'); });
 
-        // Open ONLY the target group, close all others
         var group = document.querySelector('.nav-group[data-group-key="' + targetGroup + '"]');
         if (group) {
           group.classList.add('open');
-          // Scroll to this group in sidebar
-          setTimeout(function() {
-            group.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }, 100);
+          setTimeout(function() { group.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 100);
         }
 
-        // Show sidebar
-        if (sidebar) {
-          sidebar.classList.add('show');
-          sidebar.style.display = 'block';
-        }
-        if (backdrop) backdrop.classList.add('show');
+        if (s) { s.classList.add('show'); s.style.display = 'block'; }
+        if (bd) bd.classList.add('show');
 
-        // Update active state
         document.querySelectorAll('.bottom-nav-item').forEach(function(i) { i.classList.remove('active'); });
-        btn.classList.add('active');
-      });
+        navItem.classList.add('active');
+        return;
+      }
     });
 
     // Close sidebar when clicking outside sidebar-content on mobile
@@ -573,16 +572,6 @@
         document.querySelectorAll('.bottom-nav-item').forEach(function(i) { i.classList.remove('active'); });
       }
     });
-
-    // Close sidebar when clicking backdrop
-    var backdropEl = document.getElementById('sidebarBackdrop');
-    if (backdropEl) {
-      backdropEl.addEventListener('click', function() {
-        document.getElementById('sidebar')?.classList.remove('show');
-        backdropEl.classList.remove('show');
-        document.querySelectorAll('.bottom-nav-item').forEach(function(i) { i.classList.remove('active'); });
-      });
-    }
 
     // Toggle nav groups
     document.querySelectorAll('.nav-group-toggle').forEach(function(toggle) {
