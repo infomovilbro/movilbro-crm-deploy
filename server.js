@@ -253,11 +253,8 @@ app.use('/external-api', externalApiRoutes);
 app.use('/', dashboardRoutes);
 app.use('/auth', authRoutes);
 
-// ---- SYNC PROGRESS (público, sin auth) ----
-app.get('/isp/sync-progress', (req, res) => {
-  res.json(getProgress());
-});
-app.get('/api/sync-progress', (req, res) => {
+// ---- SYNC PROGRESS (público, sin auth, fuera de /isp/*) ----
+app.get('/sync-status', (req, res) => {
   res.json(getProgress());
 });
 

@@ -1874,7 +1874,7 @@
   var lastSync = document.getElementById('syncLastSync');
 
   function checkSync() {
-    fetch('/isp/sync-progress')
+    fetch('/sync-status')
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (data.status === 'running') {
