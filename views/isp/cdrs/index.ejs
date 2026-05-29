@@ -137,20 +137,22 @@ function deleteCDR(id) {
   .catch(function(){alert('Error de conexión');});
 }
 
-// Sync status check
+// Sync status - solo al cargar
 var cdrSyncStatus = document.getElementById('cdrSyncStatus');
 var cdrSyncText = document.getElementById('cdrSyncText');
 if (cdrSyncStatus) {
-  function checkSync() {
-    fetch('/sync-status')
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        if (data.status === 'running') {
-          cdrSyncStatus.style.display = '';
-          cdrSyncText.textContent = data.step || 'Sincronizando...';
-        } else {
-          cdrSyncStatus.style.display = 'none';
-        }
+  fetch('/sync-status')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.status === 'running') {
+        cdrSyncStatus.style.display = '';
+        cdrSyncText.textContent = data.step || 'Sincronizando...';
+      } else {
+        cdrSyncStatus.style.display = 'none';
+      }
+    })
+    .catch(function() {});
+}
       })
       .catch(function() {});
   }

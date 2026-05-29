@@ -1906,7 +1906,7 @@
   });
 })();
 
-// Sync progress monitoring
+// Sync progress - solo comprobar al cargar la página, no cada 5s
 (function() {
   var bar = document.getElementById('syncProgressBar');
   var text = document.getElementById('syncProgressText');
@@ -1926,6 +1926,8 @@
           } else {
             fill.style.width = '50%';
           }
+          // Si está en ejecución, comprobar de nuevo en 10s
+          setTimeout(checkSync, 10000);
         } else {
           bar.classList.add('d-none');
           if (data.lastSync && lastSync) {
@@ -1940,9 +1942,7 @@
       .catch(function() {});
   }
 
-  // Check every 5 seconds while sync is running
   checkSync();
-  setInterval(checkSync, 5000);
 })();
 </script>
 </body>
