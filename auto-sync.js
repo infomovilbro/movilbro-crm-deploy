@@ -198,12 +198,14 @@ async function runSync() {
     // Step 5: Remove orphan invoices (customer no longer has active subs)
     try {
       var allFiscalIds = allSubsData.filter(function(sd) { return sd.subs.length > 0; }).map(function(sd) { return sd.fiscalId; });
-      var invoicesToRemove = db.prepare('SELECT id, fiscal_id FROM isp_facturas WHERE periodo=? AND fiscal_id NOT IN (' + allFiscalIds.map(function() { return '?'; }).join(',') + ')').all.apply(null, allFiscalIds);
-      for (var ir of invoicesToRemove) {
-        db.prepare('DELETE FROM isp_facturas_lineas WHERE factura_id=?').run(ir.id);
-        db.prepare('DELETE FROM isp_facturas WHERE id=?').run(ir.id);
+      if (allFiscalIds.length > 0) {
+        var invoicesToRemove = db.prepare('SELECT id, fiscal_id FROM isp_facturas WHERE periodo=? AND fiscal_id NOT IN (' + allFiscalIds.map(function() { return '?'; }).join(',') + ')').all.apply(null, allFiscalIds);
+        for (var ir of invoicesToRemove) {
+          db.prepare('DELETE FROM isp_facturas_lineas WHERE factura_id=?').run(ir.id);
+          db.prepare('DELETE FROM isp_facturas WHERE id=?').run(ir.id);
+        }
+        if (invoicesToRemove.length > 0) console.log('[AutoSync] Eliminadas', invoicesToRemove.length, 'facturas huérfanas');
       }
-      if (invoicesToRemove.length > 0) console.log('[AutoSync] Eliminadas', invoicesToRemove.length, 'facturas huérfanas');
     } catch(e) { console.error('[AutoSync] Error limpiando huérfanas:', e.message); }
 
     // Step 7: Clean orphan CDRs
