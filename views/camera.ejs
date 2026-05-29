@@ -2,8 +2,8 @@
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h5 class="mb-0"><i class="bi bi-camera-video"></i> Cámara - iCam365</h5>
     <div>
-      <span class="badge bg-success me-1">UID: 633H78YXCP5G</span>
-      <span class="badge bg-info">IP: 192.168.1.130</span>
+      <span class="badge bg-success me-1">UID: <%= camUid %></span>
+      <span class="badge bg-info">IP: <%= camIp %></span>
     </div>
   </div>
 
@@ -14,13 +14,13 @@
           <div id="cameraPlaceholder">
             <i class="bi bi-camera-video-off" style="font-size:4rem;color:#555;"></i>
             <p class="text-muted mt-2">Stream no disponible en la nube</p>
-            <p class="small text-muted">La cámara iCam365 usa conexión P2P local</p>
+            <p class="small text-muted">Configura la URL del stream en los ajustes</p>
           </div>
-          <img id="camImage" style="display:none;max-width:100%;max-height:500px;" />
-          <video id="camVideo" style="display:none;max-width:100%;max-height:500px;" autoplay muted playsinline></video>
+          <img id="camImage" style="display:none;max-width:100%;max-height:500px;" crossorigin="anonymous" />
         </div>
-        <div class="card-footer text-center small text-muted py-1">
+        <div class="card-footer text-center py-1 d-flex justify-content-between align-items-center">
           <span class="badge bg-secondary" id="camStatus">No conectado</span>
+          <small class="text-muted" id="camFps"></small>
         </div>
       </div>
     </div>
@@ -28,19 +28,39 @@
       <div class="card mb-2">
         <div class="card-header py-1"><small class="fw-semibold"><i class="bi bi-link"></i> Acceso directo</small></div>
         <div class="card-body py-2">
-          <a href="https://www.icam365.com/" target="_blank" class="btn btn-outline-primary btn-sm w-100 mb-1"><i class="bi bi-globe"></i> iCam365 Cloud</a>
-          <button class="btn btn-outline-success btn-sm w-100 mb-1" onclick="abrirLocal()"><i class="bi bi-house-door"></i> Abrir iCam365 Player</button>
-          <button class="btn btn-outline-warning btn-sm w-100" onclick="probarRTSP()"><i class="bi bi-play-btn"></i> Probar RTSP</button>
+          <button class="btn btn-outline-success btn-sm w-100 mb-1" onclick="conectarCamara()"><i class="bi bi-play-btn"></i> Conectar cámara</button>
+          <button class="btn btn-outline-primary btn-sm w-100 mb-1" onclick="abrirLocal()"><i class="bi bi-house-door"></i> Abrir iCam365 Player</button>
+        </div>
+      </div>
+      <div class="card mb-2">
+        <div class="card-header py-1"><small class="fw-semibold"><i class="bi bi-gear"></i> Configuración stream</small></div>
+        <div class="card-body py-2">
+          <div class="mb-1">
+            <label class="small text-muted">URL del snapshot (HTTP/MJPEG)</label>
+            <input type="text" id="inputStreamUrl" class="form-control form-control-sm" value="<%= streamUrl %>" placeholder="http://ip:puerto/snapshot.jpg">
+          </div>
+          <div class="mb-1">
+            <label class="small text-muted">IP local</label>
+            <input type="text" id="inputCamIp" class="form-control form-control-sm" value="<%= camIp %>">
+          </div>
+          <div class="mb-1">
+            <label class="small text-muted">UID</label>
+            <input type="text" id="inputCamUid" class="form-control form-control-sm" value="<%= camUid %>">
+          </div>
+          <button class="btn btn-sm btn-primary w-100" onclick="guardarConfig()"><i class="bi bi-save"></i> Guardar configuración</button>
         </div>
       </div>
       <div class="card">
         <div class="card-header py-1"><small class="fw-semibold"><i class="bi bi-info-circle"></i> Información</small></div>
         <div class="card-body py-2 small">
-          <div class="mb-1"><strong>UID:</strong> 633H78YXCP5G</div>
-          <div class="mb-1"><strong>IP Local:</strong> 192.168.1.130</div>
-          <div class="mb-1"><strong>Puerto P2P:</strong> 19325</div>
-          <div class="mb-1"><strong>Software:</strong> iCam365 Player v5.0.9.0</div>
+          <div class="mb-1"><strong>UID:</strong> <%= camUid %></div>
+          <div class="mb-1"><strong>IP Local:</strong> <%= camIp %></div>
           <div class="mb-1"><strong>Estado:</strong> <span class="badge bg-success">Online</span></div>
+          <hr class="my-1">
+          <p class="text-muted mb-0" style="font-size:11px;">
+            Para ver la cámara desde fuera de la red local, necesitas una URL pública de snapshot o MJPEG.<br>
+            <strong>iCam365 Player</strong> usa conexión P2P y solo funciona en local.
+          </p>
         </div>
       </div>
     </div>
@@ -49,45 +69,73 @@
 
 <script>
 function abrirLocal() {
-  // Intenta abrir iCam365 Player vía protocolo o ruta local
-  try {
-    window.location.href = 'icam365://';
-  } catch(e) {}
-  // Si no funciona, muestra instrucciones
+  try { window.location.href = 'icam365://'; } catch(e) {}
   alert('Abre iCam365 Player desde el escritorio o Inicio');
 }
 
-function probarRTSP() {
+function conectarCamara() {
   var status = document.getElementById('camStatus');
-  status.textContent = 'Probando RTSP...';
-  status.className = 'badge bg-warning';
-  
-  // Intentar conectar via RTSP (solo funciona en local)
-  var video = document.getElementById('camVideo');
   var placeholder = document.getElementById('cameraPlaceholder');
-  
-  // Intentar varias URLs comunes para cámaras iCam365
-  var urls = [
-    'rtsp://192.168.1.130:554/live/ch00_0',
-    'rtsp://192.168.1.130:554/onvif1',
-    'http://192.168.1.130/cgi-bin/snapshot.cgi'
-  ];
-  
-  // Probar snapshot primero (más compatible)
   var img = document.getElementById('camImage');
+  var url = document.getElementById('inputStreamUrl').value.trim();
+
+  if (!url) {
+    status.textContent = 'No hay URL configurada';
+    status.className = 'badge bg-warning';
+    return;
+  }
+
+  status.textContent = 'Conectando...';
+  status.className = 'badge bg-warning';
+
+  var tryUrl = url + (url.indexOf('?') === -1 ? '?' : '&') + '_t=' + Date.now();
+
   img.onload = function() {
     placeholder.style.display = 'none';
     img.style.display = 'block';
-    status.textContent = 'Conectado (snapshot)';
+    status.textContent = 'Conectado';
     status.className = 'badge bg-success';
+    iniciarAutoRefresh(url);
   };
+
   img.onerror = function() {
-    status.textContent = 'No disponible en la nube';
-    status.className = 'badge bg-secondary';
+    status.textContent = 'Error de conexión';
+    status.className = 'badge bg-danger';
   };
-  img.src = urls[2] + '?_t=' + Date.now();
+
+  img.src = tryUrl;
+}
+
+var refreshTimer = null;
+function iniciarAutoRefresh(baseUrl) {
+  if (refreshTimer) clearInterval(refreshTimer);
+  refreshTimer = setInterval(function() {
+    var img = document.getElementById('camImage');
+    img.src = baseUrl + (baseUrl.indexOf('?') === -1 ? '?' : '&') + '_t=' + Date.now();
+  }, 2000);
+}
+
+function guardarConfig() {
+  var streamUrl = document.getElementById('inputStreamUrl').value.trim();
+  var camIp = document.getElementById('inputCamIp').value.trim();
+  var camUid = document.getElementById('inputCamUid').value.trim();
+
+  fetch('/camera/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ stream_url: streamUrl, cam_ip: camIp, cam_uid: camUid })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d.ok) alert('Configuración guardada');
+  })
+  .catch(function() { alert('Error al guardar'); });
+}
+
+if ('<%= streamUrl %>') {
+  conectarCamara();
 }
 </script>
 <style>
-.card-body video, .card-body img { object-fit: contain; }
+.card-body img { object-fit: contain; }
 </style>
