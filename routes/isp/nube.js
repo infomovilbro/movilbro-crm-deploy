@@ -115,6 +115,19 @@ router.get('/', (req, res) => {
   // Also list ZIPS for display
   var zipFiles = nube.listZips();
 
+  // List special folders (facturas_manuales, facturasgestoria2026, etc)
+  var specialFolders = [];
+  var nubeRoot = nube.NUBE_DIR;
+  if (fs.existsSync(nubeRoot)) {
+    fs.readdirSync(nubeRoot).forEach(function(e) {
+      var fp = path.join(nubeRoot, e);
+      if (fs.statSync(fp).isDirectory() && !e.startsWith('_') && !/^\d{4}$/.test(e) && e !== 'plantillas') {
+        var files = fs.readdirSync(fp).filter(function(f) { return f.endsWith('.zip') || f.endsWith('.pdf'); });
+        specialFolders.push({ name: e, path: fp, files: files });
+      }
+    });
+  }
+
   res.render('isp/nube', {
     title: 'Nube - Facturas',
     years: years,
@@ -122,7 +135,8 @@ router.get('/', (req, res) => {
     totalImporte: facturas.reduce(function(s, f) { return s + parseFloat(f.importe_total || 0); }, 0),
     totalPDFs: pdfs.length + Object.keys(zipPdfs).length,
     mesNombres: MES_NOMBRES,
-    zipFiles: zipFiles
+    zipFiles: zipFiles,
+    specialFolders: specialFolders
   });
 });
 
