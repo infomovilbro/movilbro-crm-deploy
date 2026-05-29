@@ -366,19 +366,19 @@
 
   <!-- Bottom nav bar for mobile -->
   <div class="bottom-nav" id="bottomNav">
-    <button class="bottom-nav-item" data-nav-group="tienda" onclick="openNavGroup('tienda')">
+    <button class="bottom-nav-item" data-nav-group="tienda" onclick="var s=document.getElementById('sidebar');var b=document.getElementById('sidebarBackdrop');document.querySelectorAll('.nav-group').forEach(function(g){g.classList.remove('open')});var g=document.querySelector('.nav-group[data-group-key=&quot;tienda&quot;]');if(g){g.classList.add('open');setTimeout(function(){g.scrollIntoView({behavior:'smooth',block:'center'})},100)}if(s){s.classList.add('show');s.style.display='block'}if(b)b.classList.add('show');document.querySelectorAll('.bottom-nav-item').forEach(function(i){i.classList.remove('active')});this.classList.add('active')">
       <span class="bottom-nav-icon">🏪</span>
       <span class="bottom-nav-label">Tienda</span>
     </button>
-    <button class="bottom-nav-item" data-nav-group="clientes" onclick="openNavGroup('clientes')">
+    <button class="bottom-nav-item" data-nav-group="clientes" onclick="var s=document.getElementById('sidebar');var b=document.getElementById('sidebarBackdrop');document.querySelectorAll('.nav-group').forEach(function(g){g.classList.remove('open')});var g=document.querySelector('.nav-group[data-group-key=&quot;clientes&quot;]');if(g){g.classList.add('open');setTimeout(function(){g.scrollIntoView({behavior:'smooth',block:'center'})},100)}if(s){s.classList.add('show');s.style.display='block'}if(b)b.classList.add('show');document.querySelectorAll('.bottom-nav-item').forEach(function(i){i.classList.remove('active')});this.classList.add('active')">
       <span class="bottom-nav-icon">🖥️</span>
       <span class="bottom-nav-label">Clientes</span>
     </button>
-    <button class="bottom-nav-item" data-nav-group="isp" onclick="openNavGroup('isp')">
+    <button class="bottom-nav-item" data-nav-group="isp" onclick="var s=document.getElementById('sidebar');var b=document.getElementById('sidebarBackdrop');document.querySelectorAll('.nav-group').forEach(function(g){g.classList.remove('open')});var g=document.querySelector('.nav-group[data-group-key=&quot;isp&quot;]');if(g){g.classList.add('open');setTimeout(function(){g.scrollIntoView({behavior:'smooth',block:'center'})},100)}if(s){s.classList.add('show');s.style.display='block'}if(b)b.classList.add('show');document.querySelectorAll('.bottom-nav-item').forEach(function(i){i.classList.remove('active')});this.classList.add('active')">
       <span class="bottom-nav-icon">🌐</span>
       <span class="bottom-nav-label">ISP</span>
     </button>
-    <button class="bottom-nav-item" data-nav-group="redes" onclick="openNavGroup('redes')">
+    <button class="bottom-nav-item" data-nav-group="redes" onclick="var s=document.getElementById('sidebar');var b=document.getElementById('sidebarBackdrop');document.querySelectorAll('.nav-group').forEach(function(g){g.classList.remove('open')});var g=document.querySelector('.nav-group[data-group-key=&quot;redes&quot;]');if(g){g.classList.add('open');setTimeout(function(){g.scrollIntoView({behavior:'smooth',block:'center'})},100)}if(s){s.classList.add('show');s.style.display='block'}if(b)b.classList.add('show');document.querySelectorAll('.bottom-nav-item').forEach(function(i){i.classList.remove('active')});this.classList.add('active')">
       <span class="bottom-nav-icon">🔗</span>
       <span class="bottom-nav-label">Herramientas</span>
     </button>
@@ -391,19 +391,6 @@
     window.__UI_NAV_CONFIG = <%- JSON.stringify(ui.navConfig || null) %>;
     window.__UI_CUSTOM_BUTTONS = <%- JSON.stringify(ui.customButtons || []) %>;
     window.__UI_LIVE_THEME = <%- JSON.stringify(ui.liveTheme || {}) %>;
-
-    function openNavGroup(key) {
-      var s = document.getElementById('sidebar');
-      var b = document.getElementById('sidebarBackdrop');
-      document.querySelectorAll('.nav-group').forEach(function(g) { g.classList.remove('open'); });
-      var g = document.querySelector('.nav-group[data-group-key="' + key + '"]');
-      if (g) { g.classList.add('open'); setTimeout(function() { g.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 100); }
-      if (s) { s.classList.add('show'); s.style.display = 'block'; }
-      if (b) b.classList.add('show');
-      document.querySelectorAll('.bottom-nav-item').forEach(function(i) { i.classList.remove('active'); });
-      var btn = document.querySelector('.bottom-nav-item[data-nav-group="' + key + '"]');
-      if (btn) btn.classList.add('active');
-    }
 
     (function applyUiEditorConfig() {
       // Apply saved theme on page load
@@ -535,6 +522,9 @@
       if (!sidebar || !sidebar.classList.contains('show')) return;
       // Only on mobile
       if (window.innerWidth > 767.98) return;
+      // Don't close if clicking sidebar toggle or its children
+      if (e.target.closest && e.target.closest('#sidebarToggle')) return;
+      if (e.target.id === 'sidebarToggle' || (e.target.parentElement && e.target.parentElement.id === 'sidebarToggle')) return;
       // Check if click is outside sidebar and not on bottom-nav
       if (!sidebar.contains(e.target) && bottomNav && !bottomNav.contains(e.target)) {
         sidebar.classList.remove('show');
