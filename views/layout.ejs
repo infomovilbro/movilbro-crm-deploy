@@ -1264,6 +1264,7 @@
         if (!container) return;
         const hidden = (function() { try { return JSON.parse(localStorage.getItem('ui_hidden_bottomnav') || '[]'); } catch(e) { return []; } })();
         container.innerHTML = '';
+        // Grupos actuales por defecto en la barra inferior
         var items = [
           { key: 'tienda', label: 'Tienda', icon: '🏪' },
           { key: 'clientes', label: 'Clientes', icon: '🖥️' },
@@ -1272,6 +1273,8 @@
         ];
         items.forEach(function(item) {
           const isHidden = hidden.indexOf(item.key) !== -1;
+          var existingBtn = document.querySelector('.bottom-nav-item[data-nav-group="' + item.key + '"]');
+          
           const btn = document.createElement('button');
           btn.type = 'button';
           btn.className = 'btn btn-sm w-100 text-start ' + (isHidden ? 'btn-outline-danger' : 'btn-outline-success');
@@ -1287,6 +1290,46 @@
           });
           container.appendChild(btn);
         });
+        // Botón para añadir grupos adicionales manualmente
+        var addRow = document.createElement('div');
+        addRow.className = 'd-flex gap-1 mt-1';
+        var select = document.createElement('select');
+        select.className = 'form-select form-select-sm flex-fill';
+        select.innerHTML = '<option value="">+ Añadir grupo...</option>';
+        document.querySelectorAll('.nav-group[data-group-key]').forEach(function(g) {
+          var k = g.getAttribute('data-group-key');
+          var l = (g.querySelector('[data-group-label]') || {}).textContent || k;
+          // Solo mostrar grupos que NO están ya en la barra
+          var already = document.querySelector('.bottom-nav-item[data-nav-group="' + k + '"]');
+          if (!already) {
+            var opt = document.createElement('option');
+            opt.value = k;
+            opt.textContent = l;
+            select.appendChild(opt);
+          }
+        });
+        select.addEventListener('change', function() {
+          if (!this.value) return;
+          var key = this.value;
+          var group = document.querySelector('.nav-group[data-group-key="' + key + '"]');
+          var label = (group ? (group.querySelector('[data-group-label]') || {}).textContent : null) || key;
+          var iconEl = group ? group.querySelector('[data-group-icon]') : null;
+          var icon = iconEl ? iconEl.textContent : '📌';
+          var nav = document.getElementById('bottomNav');
+          if (nav) {
+            var newBtn = document.createElement('button');
+            newBtn.className = 'bottom-nav-item';
+            newBtn.setAttribute('data-nav-group', key);
+            newBtn.setAttribute('onclick', "openNavGroup('" + key + "')");
+            newBtn.innerHTML = '<span class="bottom-nav-icon">' + icon + '</span><span class="bottom-nav-label">' + label + '</span>';
+            nav.appendChild(newBtn);
+            renderBottomNavVisibility();
+          }
+          this.value = '';
+        });
+        addRow.appendChild(select);
+        container.appendChild(addRow);
+        
         const restoreBtn = document.createElement('button');
         restoreBtn.type = 'button';
         restoreBtn.className = 'btn btn-sm btn-outline-warning mt-1 w-100';
@@ -1295,6 +1338,15 @@
           localStorage.removeItem('ui_hidden_bottomnav');
           localStorage.removeItem('ui_bottomnav_bg');
           document.querySelectorAll('.bottom-nav-item').forEach(function(b) { b.style.display = ''; });
+          // Eliminar botones añadidos dinámicamente
+          var nav = document.getElementById('bottomNav');
+          if (nav) {
+            var originalKeys = ['tienda','clientes','isp','redes'];
+            Array.from(nav.children).forEach(function(b) {
+              var k = b.getAttribute('data-nav-group');
+              if (k && originalKeys.indexOf(k) === -1) b.remove();
+            });
+          }
           document.getElementById('bottomNav')?.style.removeProperty('background');
           renderBottomNavVisibility();
           if (bottomNavBgInput) { bottomNavBgInput.value = '#ffffff'; if (bottomNavBgValue) bottomNavBgValue.textContent = '#ffffff'; }
