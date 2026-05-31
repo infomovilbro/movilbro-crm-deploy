@@ -23,16 +23,34 @@ function ensureDir(dir) {
 }
 
 async function generarPDF(htmlContent, filename) {
-  var { chromium } = require('playwright');
-  var browser = null;
+  if (!process.env.PLAYWRIGHT_BROWSERS_PATH && process.env.RENDER) {
+    process.env.PLAYWRIGHT_BROWSERS_PATH = '/opt/render/.cache/ms-playwright';
+  }
   try {
-    browser = await chromium.launch({ headless: true });
-    var page = await browser.newPage();
-    await page.setContent(htmlContent, { waitUntil: 'networkidle' });
-    var pdfBuf = await page.pdf({ format: 'A4', margin: { top: '0mm', bottom: '0mm', left: '0mm', right: '0mm' }, printBackground: true });
-    return pdfBuf;
-  } finally {
-    if (browser) await browser.close();
+    var { chromium } = require('playwright');
+    try {
+      var execPath = chromium.executablePath();
+      if (!fs.existsSync(execPath)) {
+        console.error('Playwright executable NOT found at:', execPath);
+        console.log('Attempting to install Playwright browser runtime...');
+        var { execSync } = require('child_process');
+        execSync('npx playwright install --with-deps chromium', { stdio: 'inherit', timeout: 120000 });
+      }
+    } catch(e) {
+      console.error('Playwright browser check/install failed:', e.message);
+    }
+    var browser = await chromium.launch({ headless: true });
+    try {
+      var page = await browser.newPage();
+      await page.setContent(htmlContent, { waitUntil: 'networkidle' });
+      var pdfBuf = await page.pdf({ format: 'A4', margin: { top: '0mm', bottom: '0mm', left: '0mm', right: '0mm' }, printBackground: true });
+      return pdfBuf;
+    } finally {
+      await browser.close();
+    }
+  } catch(e) {
+    console.error('Error generando PDF con Playwright:', e.message);
+    throw new Error('No se pudo generar el PDF (Playwright). Error: ' + e.message);
   }
 }
 
