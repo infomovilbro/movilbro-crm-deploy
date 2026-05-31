@@ -1,0 +1,68 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0"><i class="bi bi-arrow-left-right"></i> Portabilidad #<%= p.id %></h5>
+    <div>
+      <a href="/isp/portabilidades" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Volver</a>
+      <% if (p.estado === 'rechazada' || p.estado === 'cancelada') { %>
+      <button class="btn btn-warning btn-sm" id="btnReintentar"><i class="bi bi-arrow-repeat"></i> Reintentar</button>
+      <% } %>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-6">
+          <table class="table table-sm table-borderless">
+            <tr><th class="text-muted">ID</th><td>#<%= p.id %></td></tr>
+            <tr><th class="text-muted">Cliente</th><td><%= p.cliente_nombre || '-' %></td></tr>
+            <tr><th class="text-muted">L&iacute;nea</th><td><%= p.linea || '-' %></td></tr>
+            <tr><th class="text-muted">Operador Origen</th><td><%= p.operador_origen || '-' %></td></tr>
+            <tr><th class="text-muted">Operador Destino</th><td><%= p.operador_destino || '-' %></td></tr>
+          </table>
+        </div>
+        <div class="col-md-6">
+          <table class="table table-sm table-borderless">
+            <tr><th class="text-muted">Estado</th><td><span class="badge fs-6 bg-<%= (p.estado === 'completada' || p.estado === 'iniciada') ? 'success' : (p.estado === 'cancelada' || p.estado === 'rechazada') ? 'danger' : 'warning' %>"><%= p.estado %></span></td></tr>
+            <tr><th class="text-muted">Referencia</th><td><%= p.referencia || '-' %></td></tr>
+            <tr><th class="text-muted">Fecha Solicitud</th><td><%= p.fecha_solicitud ? new Date(p.fecha_solicitud).toLocaleDateString('es-ES') : '-' %></td></tr>
+            <tr><th class="text-muted">Fecha Portabilidad</th><td><%= p.fecha_portabilidad ? new Date(p.fecha_portabilidad).toLocaleDateString('es-ES') : '-' %></td></tr>
+            <% if (p.motivo_rechazo) { %>
+            <tr><th class="text-muted">Motivo Rechazo</th><td class="text-danger"><%= p.motivo_rechazo %></td></tr>
+            <% } %>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var btn = document.getElementById('btnReintentar');
+  if (btn) {
+    btn.addEventListener('click', function() {
+      if (!confirm('¿Reintentar esta portabilidad?')) return;
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Reintentando...';
+      fetch('/isp/portabilidades/<%= p.id %>/reintentar', { method: 'POST' })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.ok) {
+            alert('Portabilidad reenviada correctamente');
+            location.reload();
+          } else {
+            alert('Error: ' + (data.error || 'Error al reintentar'));
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Reintentar';
+          }
+        })
+        .catch(function(err) {
+          alert('Error de red: ' + err.message);
+          btn.disabled = false;
+          btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Reintentar';
+        });
+    });
+  }
+});
+</script>

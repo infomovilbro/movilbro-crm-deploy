@@ -1,6 +1,9 @@
 <section>
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h5 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Incidencias <span class="badge bg-secondary fs-6"><%= incidencias.length %></span></h5>
+    <div>
+      <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#nuevoTicketModal"><i class="bi bi-plus-lg"></i> Nuevo Ticket</button>
+    </div>
   </div>
   <div class="card mb-3">
     <div class="card-body py-2">
@@ -11,8 +14,8 @@
         <div class="col-md-2">
           <select class="form-select form-select-sm" id="filterCategoria">
             <option value="">Todas las categor&iacute;as</option>
-            <% if (typeof categorias !== 'undefined') { categorias.forEach(c => { %>
-            <option value="<%= c %>"><%= c %></option>
+            <% if (typeof typologies !== 'undefined' && typologies.length) { typologies.forEach(function(c) { var name = typeof c === 'object' ? (c.name || c.typology || '') : c; %>
+            <option value="<%= name %>"><%= name %></option>
             <% }) } %>
           </select>
         </div>
@@ -58,7 +61,7 @@
             <% if (incidencias.length === 0) { %>
             <tr><td colspan="8" class="text-center text-muted py-4"><i class="bi bi-exclamation-triangle"></i> No hay incidencias registradas</td></tr>
             <% } else { %>
-              <% incidencias.forEach(i => { %>
+              <% incidencias.forEach(function(i) { %>
               <tr class="incidencia-row">
                 <td><%= i.id %></td>
                 <td><%= i.categoria || '-' %></td>
@@ -81,6 +84,60 @@
     </div>
   </div>
 </section>
+
+<div class="modal fade" id="nuevoTicketModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-ticket"></i> Nuevo Ticket</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="formNuevoTicket">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Cliente <span class="text-danger">*</span></label>
+            <select class="form-select" name="fiscal_id" required>
+              <option value="">Seleccionar cliente...</option>
+              <% if (typeof clientes !== 'undefined') { clientes.forEach(function(c) { var name = typeof c === 'object' ? (c.name + ' ' + (c.firstSurname || '')) : c; var fid = typeof c === 'object' ? (c.fiscalId || c.fiscal_id || '') : ''; %>
+              <option value="<%= fid %>"><%= name.trim() %> (<%= fid %>)</option>
+              <% }) } %>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Tipo de Servicio <span class="text-danger">*</span></label>
+            <select class="form-select" name="tipologia" required>
+              <option value="">Seleccionar tipo...</option>
+              <% if (typeof typologies !== 'undefined' && typologies.length) { typologies.forEach(function(t) { var name = typeof t === 'object' ? (t.name || t.typology || '') : t; %>
+              <option value="<%= name %>"><%= name %></option>
+              <% }) } %>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Prioridad</label>
+            <select class="form-select" name="prioridad">
+              <option value="baja">Baja</option>
+              <option value="media" selected>Media</option>
+              <option value="alta">Alta</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Descripci&oacute;n <span class="text-danger">*</span></label>
+            <textarea class="form-control" name="descripcion" rows="4" required></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Archivo adjunto</label>
+            <input type="file" class="form-control" name="adjunto">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="btnSubmitTicket"><i class="bi bi-send"></i> Crear Ticket</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   const searchInput = document.getElementById('searchIncidencia');
@@ -117,5 +174,34 @@ document.addEventListener('DOMContentLoaded', function() {
     if (filterPrioridad) filterPrioridad.value = '';
     filtrar();
   });
+
+  const formTicket = document.getElementById('formNuevoTicket');
+  if (formTicket) {
+    formTicket.addEventListener('submit', function(e) {
+      e.preventDefault();
+      var btn = document.getElementById('btnSubmitTicket');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Enviando...';
+      var formData = new FormData(this);
+      fetch('/isp/incidencias/create-ticket', { method: 'POST', body: formData })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.ok) {
+            var modal = bootstrap.Modal.getInstance(document.getElementById('nuevoTicketModal'));
+            if (modal) modal.hide();
+            location.reload();
+          } else {
+            alert('Error: ' + (data.error || 'Error al crear ticket'));
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-send"></i> Crear Ticket';
+          }
+        })
+        .catch(function(err) {
+          alert('Error de red: ' + err.message);
+          btn.disabled = false;
+          btn.innerHTML = '<i class="bi bi-send"></i> Crear Ticket';
+        });
+    });
+  }
 });
 </script>

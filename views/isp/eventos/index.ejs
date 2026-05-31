@@ -77,6 +77,29 @@ document.addEventListener('DOMContentLoaded', function() {
   var calendarEl = document.getElementById('calendar');
   if (!calendarEl) return;
   var eventos = <%- JSON.stringify(eventos || []) %>;
+  var apiEvents = <%- typeof apiEvents !== 'undefined' ? apiEvents : '{}' %>;
+
+  // Build legend
+  var legendHtml = '';
+  if (apiEvents && (apiEvents.portas || apiEvents.altas || apiEvents.bajas)) {
+    var counts = {
+      portas: apiEvents.portas ? apiEvents.portas.length : 0,
+      altas: apiEvents.altas ? apiEvents.altas.length : 0,
+      bajas: apiEvents.bajas ? apiEvents.bajas.length : 0
+    };
+    if (counts.portas > 0 || counts.altas > 0 || counts.bajas > 0) {
+      legendHtml = '<div class="d-flex gap-3 mb-2 small justify-content-center">';
+      if (counts.portas > 0) legendHtml += '<span><span style="display:inline-block;width:12px;height:12px;background:#ffc107;border-radius:2px;"></span> ' + counts.portas + ' días con portabilidades</span>';
+      if (counts.altas > 0) legendHtml += '<span><span style="display:inline-block;width:12px;height:12px;background:#28a745;border-radius:2px;"></span> ' + counts.altas + ' días con altas</span>';
+      if (counts.bajas > 0) legendHtml += '<span><span style="display:inline-block;width:12px;height:12px;background:#dc3545;border-radius:2px;"></span> ' + counts.bajas + ' días con bajas</span>';
+      legendHtml += '</div>';
+    }
+  }
+  var calendarTitleEl = document.querySelector('.fc-header-toolbar');
+  if (legendHtml && calendarTitleEl) {
+    calendarTitleEl.insertAdjacentHTML('afterend', legendHtml);
+  }
+
   var calendar = new FullCalendar.Calendar(calendarEl, {
     locale: 'es',
     initialView: 'dayGridMonth',
@@ -85,16 +108,33 @@ document.addEventListener('DOMContentLoaded', function() {
       center: 'title',
       right: 'dayGridMonth,timeGridWeek,timeGridDay'
     },
-    events: eventos.map(function(e) {
-      return {
-        id: e.id,
-        title: e.titulo,
-        start: e.fecha_inicio,
-        end: e.fecha_fin || null,
-        color: e.color || '#0d6efd',
-        extendedProps: { tipo: e.tipo, cliente: e.cliente_nombre, descripcion: e.descripcion }
-      };
-    }),
+    eventSources: [
+      {
+        events: eventos.map(function(e) {
+          return {
+            id: e.id,
+            title: e.titulo,
+            start: e.fecha_inicio,
+            end: e.fecha_fin || null,
+            color: e.color || '#0d6efd',
+            extendedProps: { tipo: e.tipo, cliente: e.cliente_nombre, descripcion: e.descripcion }
+          };
+        })
+      },
+      {
+        events: apiEvents.portas || [],
+        color: '#ffc107',
+        textColor: '#000'
+      },
+      {
+        events: apiEvents.altas || [],
+        color: '#28a745'
+      },
+      {
+        events: apiEvents.bajas || [],
+        color: '#dc3545'
+      }
+    ],
     eventClick: function(info) {
       var e = info.event;
       var html = '<strong>' + e.title + '</strong>';

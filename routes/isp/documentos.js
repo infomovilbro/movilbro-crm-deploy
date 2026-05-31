@@ -4,16 +4,16 @@ const { db } = require('../../database');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const nubeHelper = require('../../helpers/nube');
 const router = express.Router();
 
 router.use(requireAuth);
 
 var NUBE_DIR = path.join(__dirname, '..', '..', 'nube');
 
-// Ensure upload directories exist
+// Ensure temp upload directory exists
 var uploadsDir = path.join(__dirname, '..', '..', 'public', 'uploads', 'documentos');
-if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
-if (!fs.existsSync(path.join(NUBE_DIR, 'facturasgestoria2026'))) fs.mkdirSync(path.join(NUBE_DIR, 'facturasgestoria2026'), { recursive: true });
+try { if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true }); } catch(e) {}
 
 var MESES_NOMBRE = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
@@ -27,7 +27,6 @@ function listNubeFolders() {
       folders.push({ name: e, path: fullPath });
     }
   });
-  // Add subfolders (year/month)
   var yearFolders = entries.filter(function(e) { return /^\d{4}$/.test(e); });
   yearFolders.forEach(function(year) {
     var yearDir = path.join(NUBE_DIR, year);
@@ -60,19 +59,16 @@ router.post('/upload', upload.single('archivo'), (req, res) => {
     var categoria = req.body.categoria || 'otro';
     var clientId = req.body.client_id || null;
 
-    var destPath = '';
-    if (destino) {
-      var destDir = path.join(NUBE_DIR, destino);
-      if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
-      destPath = path.join(destDir, req.file.originalname);
-      fs.copyFileSync(req.file.path, destPath);
-    } else {
-      destPath = path.join(uploadsDir, req.file.filename + '_' + req.file.originalname);
-      fs.copyFileSync(req.file.path, destPath);
+    // Always save to nube/cloud
+    if (!destino) {
+      var now = new Date();
+      var year = now.getFullYear().toString();
+      var monthName = MESES_NOMBRE[now.getMonth()];
+      destino = path.join(year, monthName);
     }
+    var result = nubeHelper.guardarArchivo(req.file.path, req.file.originalname, destino);
 
-    db.prepare('INSERT INTO isp_documentos (nombre, tipo, categoria, archivo, ruta, tamanio, client_id) VALUES (?,?,?,?,?,?,?)').run(nombre, tipo, categoria, req.file.originalname, destPath, req.file.size, clientId);
-    try { fs.unlinkSync(req.file.path); } catch(e) {}
+    db.prepare('INSERT INTO isp_documentos (nombre, tipo, categoria, archivo, ruta, tamanio, client_id) VALUES (?,?,?,?,?,?,?)').run(nombre, tipo, categoria, req.file.originalname, result.destPath, req.file.size, clientId);
     res.redirect('/isp/documentos');
   } catch (e) { res.status(500).send('Error: ' + e.message); }
 });
@@ -84,6 +80,37 @@ router.get('/:id/download', (req, res) => {
     if (!fs.existsSync(doc.ruta)) return res.status(404).send('Archivo no encontrado en disco');
     res.download(doc.ruta, doc.archivo || doc.nombre);
   } catch (e) { res.status(500).send('Error: ' + e.message); }
+});
+
+// Subir documento existente a la nube
+router.post('/:id/subir-nube', (req, res) => {
+  try {
+    var doc = db.prepare('SELECT * FROM isp_documentos WHERE id=?').get(req.params.id);
+    if (!doc) return res.json({ success: false, error: 'No encontrado' });
+    if (!fs.existsSync(doc.ruta)) return res.json({ success: false, error: 'Archivo no encontrado en disco' });
+    var destino = req.body.destino || '';
+    if (!destino) {
+      var now = new Date();
+      var year = now.getFullYear().toString();
+      var monthName = MESES_NOMBRE[now.getMonth()];
+      destino = path.join(year, monthName);
+    }
+    var buf = fs.readFileSync(doc.ruta);
+    var ext = path.extname(doc.archivo || doc.nombre);
+    var baseName = path.basename(doc.archivo || doc.nombre, ext);
+    var fileName = baseName + ext;
+    var destDir = path.join(NUBE_DIR, destino);
+    nubeHelper.ensureDir(destDir);
+    var destPath = path.join(destDir, fileName);
+    var counter = 1;
+    while (fs.existsSync(destPath)) {
+      destPath = path.join(destDir, baseName + '_' + counter + ext);
+      counter++;
+    }
+    fs.writeFileSync(destPath, buf);
+    db.prepare('UPDATE isp_documentos SET ruta=?, destino_nube=? WHERE id=?').run(destPath, destino, doc.id);
+    res.json({ success: true, path: destPath });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
 router.post('/:id/delete', (req, res) => {

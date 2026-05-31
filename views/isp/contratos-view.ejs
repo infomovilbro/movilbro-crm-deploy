@@ -20,7 +20,7 @@
             <tr><th>Tipo</th><td><span class="badge bg-secondary"><%= contrato.tipo %></span></td></tr>
             <tr><th>Estado</th>
               <td>
-                <span class="badge bg-<%= contrato.estado === 'activo' ? 'success' : contrato.estado === 'pendiente' ? 'warning' : 'danger' %> fs-6"><%= contrato.estado %></span>
+                <span class="badge bg-<%= contrato.estado === 'activo' ? 'success' : contrato.estado === 'pendiente' ? 'warning' : contrato.estado === 'baja' ? 'secondary' : 'danger' %> fs-6"><%= contrato.estado %></span>
               </td>
             </tr>
             <tr><th>Tarifa</th><td><%= contrato.tarifa || '-' %></td></tr>

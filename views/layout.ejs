@@ -271,8 +271,8 @@
             </ul>
           </li>
           <!-- PANEL ISP (grupo) -->
-          <li class="nav-item nav-group <%= ['Panel ISP','Panel de Mando ISP','Contratos','Portabilidades','Tarifas','Incidencias','Tareas','Tickets ISP','Workflows','Documentos','Noticias','Calendario','Caja','Nodos','Equipos','Artículos','Listados','Clientes ISP','Facturación','CDRs y Excedentes','Nube'].some(t => title === t || title.includes(t)) ? 'open' : '' %>" data-group="isp" data-group-key="isp" data-ui-draggable="group">
-            <a class="nav-group-toggle <%= ['Panel ISP','Panel de Mando ISP','Contratos','Portabilidades','Tarifas','Incidencias','Tareas','Tickets ISP','Workflows','Documentos','Noticias','Calendario','Caja','Nodos','Equipos','Artículos','Listados','Clientes ISP','Nube'].some(t => title === t || title.includes(t)) ? 'active' : '' %>" data-toggle="nav-group" href="#"><span class="emoji-icon" data-group-icon>🌐</span><span class="nav-text" data-group-label>Panel ISP</span><i class="ri-arrow-down-s-line nav-arrow"></i></a>
+          <li class="nav-item nav-group <%= ['Panel ISP','Panel de Mando ISP','Contratos','Portabilidades','Incidencias','Tareas','Tickets ISP','Documentos','Calendario','Equipos','Artículos','Listados','Clientes ISP','Facturación','CDRs y Excedentes','Nube'].some(t => title === t || title.includes(t)) ? 'open' : '' %>" data-group="isp" data-group-key="isp" data-ui-draggable="group">
+            <a class="nav-group-toggle <%= ['Panel ISP','Panel de Mando ISP','Contratos','Portabilidades','Incidencias','Tareas','Tickets ISP','Documentos','Calendario','Equipos','Artículos','Listados','Clientes ISP','Nube'].some(t => title === t || title.includes(t)) ? 'active' : '' %>" data-toggle="nav-group" href="#"><span class="emoji-icon" data-group-icon>🌐</span><span class="nav-text" data-group-label>Panel ISP</span><i class="ri-arrow-down-s-line nav-arrow"></i></a>
             <ul class="nav-submenu">
               <li data-item-key="isp_dashboard"><a class="<%= title === 'Panel ISP' ? 'active' : '' %>" href="/isp/dashboard"><span class="emoji-icon">📊</span>Dashboard</a></li>
               <li data-item-key="isp_facturacion"><a class="<%= title === 'Facturación' ? 'active' : '' %>" href="/isp/facturacion"><span class="emoji-icon">🧾</span>Facturación</a></li>
@@ -280,16 +280,10 @@
               <li data-item-key="isp_panel_mando"><a class="<%= title === 'Panel de Mando ISP' ? 'active' : '' %>" href="/isp/panel-mando"><span class="emoji-icon">📈</span>Panel Mando</a></li>
               <li data-item-key="isp_contratos"><a class="<%= title === 'Contratos' ? 'active' : '' %>" href="/isp/contratos"><span class="emoji-icon">📄</span>Contratos</a></li>
               <li data-item-key="isp_portabilidades"><a class="<%= title === 'Portabilidades' ? 'active' : '' %>" href="/isp/portabilidades"><span class="emoji-icon">🔄</span>Portabilidades</a></li>
-              <li data-item-key="isp_tarifas"><a class="<%= title === 'Tarifas' ? 'active' : '' %>" href="/isp/tarifas"><span class="emoji-icon">🏷️</span>Tarifas</a></li>
-              <li data-item-key="isp_incidencias"><a class="<%= title === 'Incidencias' ? 'active' : '' %>" href="/isp/incidencias"><span class="emoji-icon">⚠️</span>Incidencias</a></li>
+              <li data-item-key="isp_incidencias"><a class="<%= title === 'Incidencias' ? 'active' : '' %>" href="/isp/incidencias"><span class="emoji-icon">⚠️</span>Incidencias / Tickets</a></li>
               <li data-item-key="isp_tareas"><a class="<%= title === 'Tareas' ? 'active' : '' %>" href="/isp/tareas"><span class="emoji-icon">✅</span>Tareas</a></li>
-              <li data-item-key="isp_tickets"><a class="<%= title === 'Tickets ISP' ? 'active' : '' %>" href="/isp/tickets"><span class="emoji-icon">🎫</span>Tickets</a></li>
-              <li data-item-key="isp_workflows"><a class="<%= title === 'Workflows' ? 'active' : '' %>" href="/isp/workflows"><span class="emoji-icon">🔄</span>Flujos</a></li>
               <li data-item-key="isp_documentos"><a class="<%= title === 'Documentos' ? 'active' : '' %>" href="/isp/documentos"><span class="emoji-icon">📁</span>Documentos</a></li>
-              <li data-item-key="isp_noticias"><a class="<%= title === 'Noticias' ? 'active' : '' %>" href="/isp/noticias"><span class="emoji-icon">📰</span>Noticias</a></li>
               <li data-item-key="isp_eventos"><a class="<%= title === 'Calendario' ? 'active' : '' %>" href="/isp/eventos"><span class="emoji-icon">📅</span>Calendario</a></li>
-              <li data-item-key="isp_caja"><a class="<%= title === 'Caja' ? 'active' : '' %>" href="/isp/caja"><span class="emoji-icon">💰</span>Caja</a></li>
-              <li data-item-key="isp_nodos"><a class="<%= title === 'Nodos' ? 'active' : '' %>" href="/isp/nodos"><span class="emoji-icon">🏗️</span>Nodos</a></li>
               <li data-item-key="isp_equipos"><a class="<%= title === 'Equipos' ? 'active' : '' %>" href="/isp/equipos"><span class="emoji-icon">🔧</span>Equipos</a></li>
               <li data-item-key="isp_articulos"><a class="<%= title === 'Artículos' ? 'active' : '' %>" href="/isp/articulos"><span class="emoji-icon">📦</span>Artículos</a></li>
               <li data-item-key="isp_listados"><a class="<%= title === 'Listados' ? 'active' : '' %>" href="/isp/listados"><span class="emoji-icon">📋</span>Listados</a></li>

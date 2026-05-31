@@ -59,6 +59,12 @@
           <a href="/isp/nube/pdf/<%= factura.id %>" class="btn btn-info" target="_blank">
             <i class="bi bi-file-pdf"></i> Descargar PDF
           </a>
+          <a href="/isp/contratos?fiscal_id=<%= factura.fiscal_id %>" class="btn btn-outline-dark">
+            <i class="bi bi-file-text"></i> Ver Contrato
+          </a>
+          <a href="/isp/facturacion/facturas/<%= factura.id %>/view" class="btn btn-outline-info" target="_blank">
+            <i class="bi bi-eye"></i> Ver HTML Factura
+          </a>
           <button class="btn btn-primary btn-enviar-email" data-id="<%= factura.id %>">
             <i class="bi bi-envelope"></i> Enviar Email
           </button>
@@ -147,6 +153,12 @@
       </div>
     </div>
   </div>
+  <div class="card mt-2">
+    <div class="card-header"><i class="bi bi-bar-chart"></i> CDRs - Uso diario</div>
+    <div class="card-body">
+      <canvas id="cdrChart" style="height:200px;width:100%;"></canvas>
+    </div>
+  </div>
   <% } %>
 
   <% if (llamadas && llamadas.length > 0) { %>
@@ -185,6 +197,40 @@
 </section>
 
 <script>
+<% if (cdrsDetalle && cdrsDetalle.length > 0) { %>
+var cdrs = <%- JSON.stringify(cdrsDetalle) %>;
+var dailyData = {};
+cdrs.forEach(function(c) {
+  var d = c.fecha || c.fecha_cdr || c.created_at || '';
+  if (!d) return;
+  var day = new Date(d).toLocaleDateString('es-ES');
+  if (!dailyData[day]) dailyData[day] = { minutos: 0, datos: 0, sms: 0 };
+  var t = (c.tipo || '').toLowerCase();
+  var u = parseFloat(c.unidades) || 0;
+  if (t.indexOf('minuto') !== -1 || t.indexOf('llamada') !== -1 || t.indexOf('voz') !== -1) dailyData[day].minutos += u;
+  else if (t.indexOf('dato') !== -1 || t.indexOf('mb') !== -1 || t.indexOf('gb') !== -1 || t.indexOf('internet') !== -1) dailyData[day].datos += u;
+  else if (t.indexOf('sms') !== -1 || t.indexOf('mensaje') !== -1) dailyData[day].sms += u;
+  else dailyData[day].datos += u;
+});
+var days = Object.keys(dailyData).sort();
+if (days.length > 1 && typeof Chart !== 'undefined') {
+  var ctx = document.getElementById('cdrChart');
+  if (ctx) {
+    new Chart(ctx.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: days,
+        datasets: [
+          { label: 'Minutos', data: days.map(function(d){return dailyData[d].minutos;}), borderColor: '#0d6efd', backgroundColor: 'rgba(13,110,253,0.1)', fill: true, tension: 0.3 },
+          { label: 'Datos', data: days.map(function(d){return dailyData[d].datos;}), borderColor: '#198754', backgroundColor: 'rgba(25,135,84,0.1)', fill: true, tension: 0.3 },
+          { label: 'SMS', data: days.map(function(d){return dailyData[d].sms;}), borderColor: '#ffc107', backgroundColor: 'rgba(255,193,7,0.1)', fill: true, tension: 0.3 }
+        ]
+      },
+      options: { responsive: true, maintainAspectRatio: false, animation: false, resizeDelay: 0, plugins: { legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false }, ticks: { font: { size: 9 } } } } }
+    });
+  }
+}
+<% } %>
 document.addEventListener('DOMContentLoaded', function() {
   document.querySelector('.btn-enviar-email')?.addEventListener('click', function() {
     const id = this.dataset.id;

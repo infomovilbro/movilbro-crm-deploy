@@ -15,47 +15,80 @@
 
   <div class="card">
     <div class="card-body p-0">
-      <div class="table-responsive">
-        <table class="table table-hover mb-0">
-          <thead class="table-dark">
-            <tr>
-              <th>#</th>
-              <th>Cliente</th>
-              <th>Línea</th>
-              <th>Concepto</th>
-              <th>Tipo</th>
-              <th>Unidades</th>
-              <th>Importe</th>
-              <th>Periodo</th>
-              <th>Factura</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            <% if (cdrs.length === 0) { %>
-            <tr><td colspan="10" class="text-center text-muted py-4"><i class="bi bi-inbox"></i> No hay CDRs registrados.<br>Sube un CSV con los consumos de los operadores o añádelos manualmente.</td></tr>
-            <% } else { cdrs.forEach(function(c) { %>
-            <tr>
-              <td><%= c.id %></td>
-              <td><%= c.cliente || c.fiscal_id || '-' %></td>
-              <td><code><%= c.linea || '-' %></code></td>
-              <td><%= c.concepto %></td>
-              <td><span class="badge bg-info"><%= c.tipo %></span></td>
-              <td><%= c.unidades ? c.unidades + ' ' + (c.tipo === 'exceso' ? 'GB' : 'min') : '-' %></td>
-              <td class="fw-bold"><%= parseFloat(c.importe).toFixed(2) %>€</td>
-              <td><%= c.periodo || '-' %></td>
-              <td><%= c.factura_id ? '#'+c.factura_id : '<span class="text-warning">Pendiente</span>' %></td>
-              <td class="text-end">
-                <button class="btn btn-sm btn-outline-danger" onclick="deleteCDR(<%= c.id %>)"><i class="bi bi-trash"></i></button>
-              </td>
-            </tr>
-            <% }); } %>
-          </tbody>
-        </table>
+      <div class="accordion" id="cdrAccordion">
+        <% if (!groups || groups.length === 0) { %>
+        <div class="text-center text-muted py-4"><i class="bi bi-inbox" style="font-size:2rem;"></i><br>No hay CDRs registrados.<br>Sube un CSV con los consumos de los operadores o añádelos manualmente.</div>
+        <% } else { groups.forEach(function(g, gi) { %>
+        <div class="accordion-item">
+          <h2 class="accordion-header">
+            <button class="accordion-button collapsed py-2" type="button" data-bs-toggle="collapse" data-bs-target="#collapse<%= gi %>">
+              <span class="fw-semibold"><%= g.cliente %></span>
+              <span class="badge bg-secondary ms-2"><%= g.cdrs.length %></span>
+              <span class="ms-2 small text-muted"><%= g.total.toFixed(2) %>€</span>
+            </button>
+          </h2>
+          <div id="collapse<%= gi %>" class="accordion-collapse collapse" data-bs-parent="#cdrAccordion">
+            <div class="accordion-body p-0">
+              <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th>#</th>
+                      <th>Línea</th>
+                      <th>Concepto</th>
+                      <th>Tipo</th>
+                      <th>Unidades</th>
+                      <th>Importe</th>
+                      <th>Periodo</th>
+                      <th>Factura</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <% g.cdrs.forEach(function(c) { %>
+                    <tr style="cursor:pointer;" onclick="showCDRChart('<%= c.linea %>', '<%= c.concepto.replace(/'/g, "\\'") %>')">
+                      <td><%= c.id %></td>
+                      <td><code><%= c.linea || '-' %></code></td>
+                      <td><%= c.concepto %></td>
+                      <td><span class="badge bg-info"><%= c.tipo %></span></td>
+                      <td><%= c.unidades ? c.unidades + ' ' + (c.tipo === 'exceso' ? 'GB' : c.tipo === 'sms' ? 'SMS' : 'min') : '-' %></td>
+                      <td class="fw-bold"><%= parseFloat(c.importe).toFixed(2) %>€</td>
+                      <td><%= c.periodo || '-' %></td>
+                      <td><%= c.factura_id ? '#'+c.factura_id : '<span class="text-warning">Pendiente</span>' %></td>
+                      <td class="text-end">
+                        <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation();deleteCDR(<%= c.id %>)"><i class="bi bi-trash"></i></button>
+                      </td>
+                    </tr>
+                    <% }); %>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+        <% }); } %>
       </div>
     </div>
   </div>
 </section>
+
+<!-- Chart Modal -->
+<div class="modal fade" id="cdrChartModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-bar-chart-line"></i> Uso diario - <span id="cdrChartLinea" class="text-primary"></span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <canvas id="cdrChartCanvas" height="220"></canvas>
+        <div id="cdrChartEmpty" class="text-center text-muted py-4" style="display:none;">
+          <i class="bi bi-inbox" style="font-size:2rem;"></i><br>No hay datos de uso diario para esta línea.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- Modal Subir CSV -->
 <div class="modal" id="modalSubirCSV">
@@ -129,6 +162,67 @@
 </div>
 
 <script>
+var cdrChartInstance = null;
+
+function showCDRChart(linea, concepto) {
+  document.getElementById('cdrChartLinea').textContent = linea + (concepto ? ' - ' + concepto : '');
+  document.getElementById('cdrChartEmpty').style.display = 'none';
+  document.getElementById('cdrChartCanvas').style.display = '';
+  var modal = new bootstrap.Modal(document.getElementById('cdrChartModal'));
+  modal.show();
+
+  fetch('/isp/cdrs/daily/' + encodeURIComponent(linea))
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (!d.ok || !d.data || d.data.length === 0) {
+        document.getElementById('cdrChartCanvas').style.display = 'none';
+        document.getElementById('cdrChartEmpty').style.display = '';
+        return;
+      }
+      var data = d.data;
+      var labels, minutos, datos, sms;
+      if (d.source === 'db') {
+        labels = data.map(function(i) { return i.periodo; });
+        var excesos = data.filter(function(i) { return i.tipo === 'exceso'; }).map(function(i) { return i.unidades || 0; });
+        var llamadas = data.filter(function(i) { return i.tipo === 'llamadas'; }).map(function(i) { return i.unidades || 0; });
+        var smsArr = data.filter(function(i) { return i.tipo === 'sms'; }).map(function(i) { return i.unidades || 0; });
+        renderChart(labels, excesos, llamadas, smsArr);
+      } else {
+        labels = data.map(function(i) { return i.date || i.fecha || i.periodo || ''; });
+        minutos = data.map(function(i) { return parseFloat(i.minutes || i.minutos || i.voiceDuration || 0); });
+        datos = data.map(function(i) { return parseFloat(i.data || i.gb || i.dataUsage || 0); });
+        sms = data.map(function(i) { return parseFloat(i.sms || i.smsCount || 0); });
+        renderChart(labels, datos, minutos, sms);
+      }
+    })
+    .catch(function() {
+      document.getElementById('cdrChartCanvas').style.display = 'none';
+      document.getElementById('cdrChartEmpty').style.display = '';
+    });
+}
+
+function renderChart(labels, data1, data2, data3) {
+  var ctx = document.getElementById('cdrChartCanvas').getContext('2d');
+  if (cdrChartInstance) cdrChartInstance.destroy();
+  cdrChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [
+        { label: 'Datos (GB)', data: data1, backgroundColor: 'rgba(13, 110, 253, 0.6)', borderRadius: 4 },
+        { label: 'Minutos', data: data2, backgroundColor: 'rgba(40, 167, 69, 0.6)', borderRadius: 4 },
+        { label: 'SMS', data: data3, backgroundColor: 'rgba(255, 193, 7, 0.6)', borderRadius: 4 }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: 'top', labels: { boxWidth: 12, padding: 8 } } },
+      scales: { y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } }, x: { grid: { display: false } } }
+    }
+  });
+}
+
 function deleteCDR(id) {
   if (!confirm('¿Eliminar este CDR?')) return;
   fetch('/isp/cdrs/delete', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:id}) })
@@ -137,7 +231,6 @@ function deleteCDR(id) {
   .catch(function(){alert('Error de conexión');});
 }
 
-// Sync status - solo al cargar
 var cdrSyncStatus = document.getElementById('cdrSyncStatus');
 var cdrSyncText = document.getElementById('cdrSyncText');
 if (cdrSyncStatus) {
@@ -152,11 +245,5 @@ if (cdrSyncStatus) {
       }
     })
     .catch(function() {});
-}
-      })
-      .catch(function() {});
-  }
-  checkSync();
-  setInterval(checkSync, 5000);
 }
 </script>
