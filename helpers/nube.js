@@ -28,18 +28,32 @@ async function generarPDF(htmlContent, filename) {
   }
   try {
     var { chromium } = require('playwright');
-    try {
-      var execPath = chromium.executablePath();
-      if (!fs.existsSync(execPath)) {
-        console.error('Playwright executable NOT found at:', execPath);
+    // Try to find the executable
+    var execPath;
+    try { execPath = chromium.executablePath(); } catch(e) {}
+    if (!execPath || !fs.existsSync(execPath)) {
+      console.error('Playwright not found at default path' + (execPath ? ': ' + execPath : ''));
+      // Try common fallback paths
+      var fallbacks = [];
+      if (process.env.RENDER) {
+        fallbacks = [
+          '/opt/render/.cache/ms-playwright/chromium-1223/chrome-linux/chrome',
+          '/opt/render/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell'
+        ];
+      }
+      var found = false;
+      for (var f of fallbacks) {
+        if (fs.existsSync(f)) { execPath = f; found = true; break; }
+      }
+      if (!found) {
         console.log('Attempting to install Playwright browser runtime...');
         var { execSync } = require('child_process');
-        execSync('npx playwright install --with-deps chromium', { stdio: 'inherit', timeout: 120000 });
+        execSync('npx playwright install chromium 2>&1; npx playwright install --with-deps 2>&1', { stdio: 'inherit', timeout: 120000 });
       }
-    } catch(e) {
-      console.error('Playwright browser check/install failed:', e.message);
     }
-    var browser = await chromium.launch({ headless: true });
+    var launchOpts = { headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] };
+    if (execPath && fs.existsSync(execPath)) { launchOpts.executablePath = execPath; }
+    var browser = await chromium.launch(launchOpts);
     try {
       var page = await browser.newPage();
       await page.setContent(htmlContent, { waitUntil: 'networkidle' });

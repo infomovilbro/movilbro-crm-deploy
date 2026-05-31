@@ -6,8 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "postinstall": "npx playwright install --with-deps chromium 2>&1 || echo 'Playwright browser install skipped (no fatal)'",
-    "render-postinstall": "PLAYWRIGHT_BROWSERS_PATH=/opt/render/.cache/ms-playwright npx playwright install --with-deps chromium 2>&1 || true"
+    "postinstall": "npx playwright install 2>&1; npx playwright install --with-deps 2>&1 || echo 'Playwright done (non-fatal)'"
   },
   "dependencies": {
     "@aws-sdk/client-cognito-identity": "^3.1054.0",
