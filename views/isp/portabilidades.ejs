@@ -1,8 +1,51 @@
+<%
+  var statsIniciadas = 0, statsPendientes = 0, statsCanceladas = 0;
+  portabilidades.forEach(function(p) {
+    if (p.estado === 'completada' || p.estado === 'iniciada') statsIniciadas++;
+    else if (p.estado === 'cancelada' || p.estado === 'rechazada') statsCanceladas++;
+    else statsPendientes++;
+  });
+%>
 <section>
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h5 class="mb-0"><i class="bi bi-arrow-left-right"></i> Portabilidades <span class="badge bg-secondary fs-6"><%= portabilidades.length %></span></h5>
     <div>
-      <a href="/isp/portabilidades/nueva" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg"></i> Nueva</a>
+      <a href="/isp/portabilidades/create" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg"></i> Nueva</a>
+    </div>
+  </div>
+
+  <div class="row g-2 mb-3">
+    <div class="col-md-3">
+      <div class="card border-success">
+        <div class="card-body py-2 px-3 d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-check-circle-fill text-success"></i> Iniciadas</span>
+          <span class="badge bg-success fs-6"><%= statsIniciadas %></span>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-warning">
+        <div class="card-body py-2 px-3 d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-hourglass-split text-warning"></i> Pendientes</span>
+          <span class="badge bg-warning text-dark fs-6"><%= statsPendientes %></span>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-danger">
+        <div class="card-body py-2 px-3 d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-x-circle-fill text-danger"></i> Canceladas</span>
+          <span class="badge bg-danger fs-6"><%= statsCanceladas %></span>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-secondary">
+        <div class="card-body py-2 px-3 d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-bar-chart-fill text-secondary"></i> Total</span>
+          <span class="badge bg-secondary fs-6"><%= portabilidades.length %></span>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -42,12 +85,13 @@
               <th>Estado</th>
               <th>Referencia</th>
               <th>Fecha Solicitud</th>
+              <th>Fecha Portabilidad</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
             <% if (portabilidades.length === 0) { %>
-            <tr><td colspan="9" class="text-center text-muted py-4"><i class="bi bi-inbox"></i> No hay portabilidades registradas</td></tr>
+            <tr><td colspan="10" class="text-center text-muted py-4"><i class="bi bi-inbox"></i> No hay portabilidades registradas</td></tr>
             <% } else { %>
               <% portabilidades.forEach(function(p) { %>
               <tr class="port-row">
@@ -56,9 +100,10 @@
                 <td><%= p.linea || '-' %></td>
                 <td><%= p.operador_origen || '-' %></td>
                 <td><%= p.operador_destino || '-' %></td>
-                <td><span class="badge bg-<%= p.estado === 'completada' ? 'success' : p.estado === 'en_curso' ? 'info' : p.estado === 'rechazada' ? 'danger' : 'warning' %>"><%= p.estado %></span></td>
+                <td><span class="badge fs-6 bg-<%= (p.estado === 'completada' || p.estado === 'iniciada') ? 'success' : (p.estado === 'cancelada' || p.estado === 'rechazada') ? 'danger' : 'warning' %>"><%= p.estado %></span></td>
                 <td class="small"><%= p.referencia || '-' %></td>
                 <td class="small"><%= p.fecha_solicitud ? new Date(p.fecha_solicitud).toLocaleDateString('es-ES') : '-' %></td>
+                <td class="small"><%= p.fecha_portabilidad ? new Date(p.fecha_portabilidad).toLocaleDateString('es-ES') : '-' %></td>
                 <td class="text-end">
                   <a href="/isp/portabilidades/<%= p.id %>" class="btn btn-sm btn-outline-info"><i class="bi bi-eye"></i></a>
                 </td>

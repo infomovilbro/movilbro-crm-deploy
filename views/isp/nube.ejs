@@ -9,6 +9,7 @@
       <button class="btn btn-outline-primary btn-sm" onclick="generarTodas()" id="btnGenerar"><i class="bi bi-cloud-arrow-up"></i> PDFs</button>
       <button class="btn btn-outline-success btn-sm" onclick="importarZips()" id="btnImportZips"><i class="bi bi-folder-plus"></i> Importar ZIPs</button>
       <button class="btn btn-outline-warning btn-sm" onclick="document.getElementById('uploadZipInput').click()"><i class="bi bi-upload"></i> Subir ZIP</button>
+      <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalSubirArchivo"><i class="bi bi-cloud-upload"></i> Subir archivo</button>
       <button class="btn btn-outline-info btn-sm" onclick="nuevaCarpeta()"><i class="bi bi-folder-plus"></i> Crear carpeta</button>
       <input type="file" id="uploadZipInput" accept=".zip" style="display:none" onchange="subirZip(this)">
       <div id="uploadStatus" class="small text-muted mt-1" style="display:none;"></div>
@@ -110,6 +111,51 @@
   <% } %>
 </section>
 
+<!-- Modal Subir Archivo -->
+<div class="modal fade" id="modalSubirArchivo" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-cloud-upload"></i> Subir archivo a la nube</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="formSubirArchivo" enctype="multipart/form-data">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Archivo (cualquier tipo)</label>
+            <input type="file" name="archivo" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Carpeta de destino</label>
+            <div class="input-group">
+              <select name="destino" class="form-select" id="destinoArchivoSelect">
+                <option value="">Automático (año/mes actual)</option>
+                <optgroup label="Años/Meses">
+                  <% years.forEach(function(yr) { %>
+                    <% yr.meses.forEach(function(m) { %>
+                      <option value="<%= yr.year %>/<%= m.nombre %>"><%= yr.year %>/<%= m.nombre %></option>
+                    <% }); %>
+                  <% }); %>
+                </optgroup>
+                <optgroup label="Carpetas especiales">
+                  <% if (typeof specialFolders !== 'undefined') { specialFolders.forEach(function(f) { %>
+                  <option value="<%= f.name %>"><%= f.name.replace(/_/g, ' ') %></option>
+                  <% }); } %>
+                </optgroup>
+              </select>
+            </div>
+            <small class="text-muted">O escribe una ruta personalizada: año/mes o nombre de carpeta</small>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="btnSubirArchivo"><i class="bi bi-cloud-upload"></i> Subir</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <script>
 // Toggle year accordion
 function toggleYear(id) {
@@ -203,6 +249,29 @@ function subirZip(input) {
     });
   input.value = '';
 }
+
+// Upload any file
+document.getElementById('formSubirArchivo')?.addEventListener('submit', function(e) {
+  e.preventDefault();
+  var btn = document.getElementById('btnSubirArchivo');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Subiendo...';
+  var formData = new FormData(this);
+  fetch('/isp/nube/subir-archivo', { method: 'POST', body: formData })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.ok) {
+        alert('Archivo subido correctamente: ' + d.fileName);
+        location.reload();
+      } else {
+        alert('Error: ' + (d.error || 'desconocido'));
+        btn.disabled = false; btn.innerHTML = '<i class="bi bi-cloud-upload"></i> Subir';
+      }
+    })
+    .catch(function() {
+      alert('Error de conexión');
+      btn.disabled = false; btn.innerHTML = '<i class="bi bi-cloud-upload"></i> Subir';
+    });
+});
 
 function nuevaCarpeta() {
   var nombre = prompt('Nombre de la nueva carpeta:');

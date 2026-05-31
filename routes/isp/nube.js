@@ -45,6 +45,27 @@ router.post('/subir-zip', (req, res) => {
   } catch(e) { res.json({ ok: false, error: e.message }); }
 });
 
+// Upload any file to nube (not just ZIPs)
+router.post('/subir-archivo', (req, res) => {
+  try {
+    var multer = require('multer');
+    var up = multer({ dest: uploadsDir }).single('archivo');
+    up(req, res, function(err) {
+      if (err) return res.json({ ok: false, error: err.message });
+      if (!req.file) return res.json({ ok: false, error: 'No se seleccionó ningún archivo' });
+      var destFolder = req.body.destino || '';
+      if (!destFolder) {
+        var now = new Date();
+        var year = now.getFullYear().toString();
+        var monthName = MES_NOMBRES[now.getMonth() + 1];
+        destFolder = path.join(year, monthName);
+      }
+      var result = nube.guardarArchivo(req.file.path, req.file.originalname, destFolder);
+      res.json({ ok: true, path: result.destPath, fileName: result.fileName });
+    });
+  } catch(e) { res.json({ ok: false, error: e.message }); }
+});
+
 // Create a new folder in nube
 router.post('/crear-carpeta', (req, res) => {
   try {

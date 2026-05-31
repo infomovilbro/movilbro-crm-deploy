@@ -57,13 +57,13 @@ router.get('/', async (req, res) => {
               id: s.subscriptionId || s.id || subFiscalId,
               cliente_nombre: cliente ? (cliente.name + ' ' + (cliente.firstSurname || '')) : (subFiscalId || ''),
               tipo: s.productName || (s.products && s.products[0] ? s.products[0].productName : '') || '',
-              estado: s.status || 'active',
+              estado: s.status || 'activo',
               fecha_alta: (s.created || s.createdAt || '').split('T')[0]
             });
           }
         });
         totalContratosApi = allSubs.length;
-        contratosActivosApi = allSubs.filter(function(s) { return s.status === 'active' || s.status === 'activa'; }).length;
+        contratosActivosApi = allSubs.filter(function(s) { return s.status === 'activo' || s.status === 'activa'; }).length;
       }
 
       try {

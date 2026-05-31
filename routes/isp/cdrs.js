@@ -1,6 +1,7 @@
 const express = require('express');
 const { requireAuth } = require('../../middleware/auth');
 const { db } = require('../../database');
+const { getApiInstance } = require('../../likes-api');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -12,14 +13,44 @@ var uploadDir = path.join(__dirname, '..', '..', 'public', 'uploads', 'cdrs');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 var upload = multer({ dest: uploadDir });
 
-// CDR dashboard
+// CDR dashboard - grouped by client
 router.get('/', (req, res) => {
   try {
-    var cdrs = db.prepare('SELECT c.*, f.cliente_nombre as cliente FROM isp_cdrs c LEFT JOIN isp_facturas f ON c.factura_id=f.id ORDER BY c.created_at DESC LIMIT 100').all();
+    var cdrs = db.prepare(`
+      SELECT c.*, COALESCE(f.cliente_nombre, cl.nombre, c.fiscal_id, 'Sin cliente') as cliente 
+      FROM isp_cdrs c 
+      LEFT JOIN isp_facturas f ON c.factura_id=f.id 
+      LEFT JOIN clients cl ON cl.likes_customer_id = c.fiscal_id 
+      ORDER BY c.created_at DESC LIMIT 500
+    `).all();
+    var grouped = {};
+    cdrs.forEach(function(c) {
+      var key = c.cliente || c.fiscal_id || 'Sin cliente';
+      if (!grouped[key]) grouped[key] = { cliente: key, fiscal_id: c.fiscal_id, cdrs: [], total: 0 };
+      grouped[key].cdrs.push(c);
+      grouped[key].total += parseFloat(c.importe || 0);
+    });
+    var groups = Object.keys(grouped).sort().map(function(k) { return grouped[k]; });
     var total = db.prepare('SELECT COUNT(*) as c, COALESCE(SUM(importe),0) as t FROM isp_cdrs WHERE factura_id IS NULL').get();
     var clientes = db.prepare('SELECT id, nombre, likes_customer_id FROM clients WHERE likes_customer_id IS NOT NULL').all();
-    res.render('isp/cdrs/index', { title: 'CDRs y Excedentes', cdrs, total, clientes });
+    res.render('isp/cdrs/index', { title: 'CDRs y Excedentes', groups, total, clientes });
   } catch(e) { console.error(e); res.status(500).send('Error: ' + e.message); }
+});
+
+// Get daily CDR data for a specific line (from Likes API or DB)
+router.get('/daily/:linea', async (req, res) => {
+  try {
+    var api = getApiInstance();
+    var data = await api.getLineCDRs(req.params.linea);
+    res.json({ ok: true, data: data || [] });
+  } catch(e) {
+    try {
+      var cdrs = db.prepare("SELECT periodo, SUM(importe) as importe, SUM(unidades) as unidades, tipo FROM isp_cdrs WHERE linea=? GROUP BY periodo, tipo ORDER BY periodo").all(req.params.linea);
+      res.json({ ok: true, data: cdrs, source: 'db' });
+    } catch(e2) {
+      res.json({ ok: false, error: e.message });
+    }
+  }
 });
 
 // Import CSV

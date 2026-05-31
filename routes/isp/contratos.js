@@ -45,7 +45,7 @@ router.get('/', async (req, res) => {
         tipo: s.productName || (s.products && s.products[0] ? s.products[0].productName : '') || '',
         tarifa: s.productName || (s.products && s.products[0] ? s.products[0].productName : '') || '',
         precio: s.price || (s.products && s.products[0] ? s.products[0].price : 0) || 0,
-        estado: s.status || 'active',
+        estado: s.status || 'activo',
         linea: s.fixedNumber || (s.products && s.products[0] ? s.products[0].fixedNumber : '') || '',
         fecha_alta: (s.created || s.createdAt || s.startDate || '').split('T')[0]
       };
@@ -93,7 +93,7 @@ router.get('/:id', async (req, res) => {
               tipo: found.productName || '',
               tarifa: found.productName || '',
               precio: found.price || 0,
-              estado: found.status || 'active',
+              estado: found.status || 'activo',
               linea: found.fixedNumber || '',
               fecha_alta: (found.created || '').split('T')[0],
               dni_nif: cliente ? cliente.fiscalId : '',
@@ -108,15 +108,31 @@ router.get('/:id', async (req, res) => {
     }
 
     if (!contrato) return res.status(404).send('No encontrado');
+
+    // Fetch line info from API to enrich with ICCID, PIN, PUK
+    if (contrato.linea) {
+      try {
+        var api = LikesAPI.getApiInstance();
+        var lineData = await api.getLineInfo(contrato.linea);
+        if (lineData) {
+          var line = Array.isArray(lineData) ? lineData[0] : lineData.data ? (Array.isArray(lineData.data) ? lineData.data[0] : lineData.data) : lineData;
+          if (!contrato.iccid && line.iccid) contrato.iccid = line.iccid;
+          if (!contrato.pin && line.pin) contrato.pin = line.pin;
+          if (!contrato.puk && line.puk) contrato.puk = line.puk;
+          if (line.status) contrato.estadoApi = line.status;
+        }
+      } catch(e) {}
+    }
+
     res.render('isp/contratos-view', { title: 'Contrato #' + contrato.id, contrato });
   } catch (e) { res.status(500).send('Error: ' + e.message); }
 });
 
-// Download original contract PDF from API
+// Generate contract PDF locally using Playwright
 router.get('/:id/pdf', async (req, res) => {
   try {
     var contrato = null;
-    try { contrato = db.prepare('SELECT * FROM isp_contratos WHERE id=?').get(req.params.id); } catch(e) {}
+    try { contrato = db.prepare('SELECT c.*, cl.nombre as cliente_nombre, cl.dni_nif, cl.telefono, cl.email FROM isp_contratos c LEFT JOIN clients cl ON c.client_id=cl.id WHERE c.id=?').get(req.params.id); } catch(e) {}
 
     if (!contrato) {
       var api = LikesAPI.getApiInstance();
@@ -129,42 +145,50 @@ router.get('/:id/pdf', async (req, res) => {
           var items = Array.isArray(data) ? data : [];
           var found = items.find(function(s) { return String(s.subscriptionId || s.id) === req.params.id; });
           if (found) {
-            contrato = { orderId: found.orderId || found.draftOrderId || '', fiscalId: found.fiscalId || fid };
+            var cliente = customers.find(function(c) { return c.fiscalId === (found.fiscalId || fid); });
+            contrato = {
+              id: found.subscriptionId || found.id,
+              cliente_nombre: cliente ? (cliente.name + ' ' + (cliente.firstSurname || '')) : fid,
+              dni_nif: cliente ? cliente.fiscalId : '',
+              telefono: cliente ? cliente.contactPhone : '',
+              email: cliente ? cliente.email : '',
+              tipo: found.productName || '',
+              tarifa: found.productName || '',
+              precio: found.price || 0,
+              estado: found.status || 'activo',
+              linea: found.fixedNumber || '',
+              fecha_alta: (found.created || '').split('T')[0]
+            };
             break;
           }
         } catch(e) {}
       }
     }
 
-    var orderId = contrato?.orderId;
-    // Try to download the contract PDF from the API
-    // The API may have an endpoint to get draft order documents
-    if (orderId) {
-      try {
-        var api = LikesAPI.getApiInstance();
-        var pdfData = await api.request('GET', '/draft-order-v2/' + orderId + '/contract');
-        if (pdfData && pdfData.length > 100) {
-          res.setHeader('Content-Type', 'application/pdf');
-          res.setHeader('Content-Disposition', 'attachment; filename="contrato-' + req.params.id + '.pdf"');
-          return res.send(Buffer.isBuffer(pdfData) ? pdfData : Buffer.from(pdfData));
-        }
-      } catch(e) {}
-      // Try alternative endpoint
-      try {
-        var api = LikesAPI.getApiInstance();
-        var pdfData = await api.request('GET', '/contract/' + orderId + '/pdf');
-        if (pdfData && pdfData.length > 100) {
-          res.setHeader('Content-Type', 'application/pdf');
-          res.setHeader('Content-Disposition', 'attachment; filename="contrato-' + req.params.id + '.pdf"');
-          return res.send(Buffer.isBuffer(pdfData) ? pdfData : Buffer.from(pdfData));
-        }
-      } catch(e) {}
-    }
+    if (!contrato) return res.status(404).send('Contrato no encontrado');
 
-    res.status(404).send('PDF original no disponible. Descárgalo desde el panel de ISP Gestión: https://movilbro.ispgestion.com/contratosmadre');
+    var fs = require('fs');
+    var path = require('path');
+    var ejs = require('ejs');
+    var tplPath = path.join(__dirname, '..', '..', 'views', 'isp', 'contratos', 'contrato-pdf.ejs');
+    var tpl = fs.readFileSync(tplPath, 'utf8');
+    var html = ejs.render(tpl, { contrato, layout: false });
+
+    var { chromium } = require('playwright');
+    var browser = await chromium.launch({ headless: true });
+    try {
+      var page = await browser.newPage();
+      await page.setContent(html, { waitUntil: 'networkidle' });
+      var pdfBuf = await page.pdf({ format: 'A4', margin: { top: '0mm', bottom: '0mm', left: '0mm', right: '0mm' }, printBackground: true });
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'attachment; filename="contrato-' + req.params.id + '.pdf"');
+      res.send(pdfBuf);
+    } finally {
+      if (browser) await browser.close();
+    }
   } catch(e) {
     console.error(e);
-    res.status(500).send('Error al obtener el PDF original: ' + e.message + '. Descárgalo desde https://movilbro.ispgestion.com/contratosmadre');
+    res.status(500).send('Error al generar PDF: ' + e.message);
   }
 });
 

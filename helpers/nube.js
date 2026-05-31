@@ -192,4 +192,20 @@ function importZipsFromDownloads() {
   return { ok: true, imported: imported };
 }
 
-module.exports = { generarPDF, guardarLocal, listarPDFs, procesarFactura, getYearMonthPaths, NUBE_DIR, ZIPS_DIR, storeZipInNube, listZips, findPDFInZips, getPDFDataFromZip, getAllPDFNamesFromZips, importZipsFromDownloads, ensureDir };
+function guardarArchivo(tempPath, originalName, destFolder) {
+  var destDir = path.join(NUBE_DIR, destFolder || 'general');
+  ensureDir(destDir);
+  var destPath = path.join(destDir, originalName);
+  var counter = 1;
+  var nameWithoutExt = path.parse(originalName).name;
+  var ext = path.parse(originalName).ext;
+  while (fs.existsSync(destPath)) {
+    destPath = path.join(destDir, nameWithoutExt + '_' + counter + ext);
+    counter++;
+  }
+  fs.copyFileSync(tempPath, destPath);
+  try { fs.unlinkSync(tempPath); } catch(e) {}
+  return { destPath, destDir, fileName: path.basename(destPath) };
+}
+
+module.exports = { generarPDF, guardarLocal, listarPDFs, procesarFactura, getYearMonthPaths, NUBE_DIR, ZIPS_DIR, storeZipInNube, listZips, findPDFInZips, getPDFDataFromZip, getAllPDFNamesFromZips, importZipsFromDownloads, ensureDir, guardarArchivo };

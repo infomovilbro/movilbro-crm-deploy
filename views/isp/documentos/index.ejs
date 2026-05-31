@@ -46,9 +46,9 @@
             </select>
           </div>
           <div class="col-md-2">
-            <label class="form-label">Guardar en Nube</label>
+            <label class="form-label">Guardar en Nube *</label>
             <select name="destino_nube" class="form-select form-select-sm">
-              <option value="">Solo DB (local)</option>
+              <option value="">Automático (año/mes actual)</option>
               <option value="facturasgestoria2026">📁 facturasgestoria2026</option>
               <% (nubeFolders || []).forEach(function(f) { %>
               <option value="<%= f.name %>">📂 <%= f.name %></option>
@@ -72,13 +72,14 @@
               <th>Tipo</th>
               <th>Categor&iacute;a</th>
               <th>Cliente</th>
+              <th>Ruta en servidor</th>
               <th>Creaci&oacute;n</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
             <% if (documentos.length === 0) { %>
-            <tr><td colspan="6" class="text-center text-muted py-4"><i class="bi bi-files"></i> No hay documentos subidos</td></tr>
+            <tr><td colspan="7" class="text-center text-muted py-4"><i class="bi bi-files"></i> No hay documentos subidos</td></tr>
             <% } else { %>
               <% documentos.forEach(d => { %>
               <tr>
@@ -86,9 +87,11 @@
                 <td><span class="badge bg-secondary"><%= d.tipo %></span></td>
                 <td><%= d.categoria || '-' %></td>
                 <td><%= d.cliente_nombre || '-' %></td>
+                <td class="small text-muted" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="<%= d.ruta %>"><%= d.ruta ? d.ruta.replace(/.*nube[/\\]/, 'nube/') : '-' %></td>
                 <td class="small"><%= d.created_at ? new Date(d.created_at).toLocaleDateString('es-ES') : '-' %></td>
-                <td class="text-end">
-                  <a href="/isp/documentos/<%= d.id %>/download" class="btn btn-sm btn-outline-primary"><i class="bi bi-download"></i></a>
+                <td class="text-end text-nowrap">
+                  <a href="/isp/documentos/<%= d.id %>/download" class="btn btn-sm btn-outline-primary" title="Descargar"><i class="bi bi-download"></i></a>
+                  <button class="btn btn-sm btn-outline-success" onclick="subirANube(<%= d.id %>)" title="Subir a nube"><i class="bi bi-cloud-upload"></i></button>
                   <button class="btn btn-sm btn-outline-danger" onclick="eliminarDocumento(<%= d.id %>)"><i class="bi bi-trash"></i></button>
                 </td>
               </tr>
@@ -100,7 +103,58 @@
     </div>
   </div>
 </section>
+<!-- Modal Subir a Nube -->
+<div class="modal fade" id="modalSubirNube" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-cloud-upload"></i> Subir documento a nube</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small">Selecciona la carpeta de destino en la nube</p>
+        <select id="nubeDestinoSelect" class="form-select">
+          <option value="">Automático (año/mes actual)</option>
+          <option value="facturasgestoria2026">📁 facturasgestoria2026</option>
+          <% (nubeFolders || []).forEach(function(f) { %>
+          <option value="<%= f.name %>">📂 <%= f.name %></option>
+          <% }) %>
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-success" id="btnConfirmSubirNube"><i class="bi bi-cloud-upload"></i> Subir</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
+var documentoSubirNubeId = null;
+
+function subirANube(id) {
+  documentoSubirNubeId = id;
+  new bootstrap.Modal(document.getElementById('modalSubirNube')).show();
+}
+
+document.getElementById('btnConfirmSubirNube')?.addEventListener('click', function() {
+  if (!documentoSubirNubeId) return;
+  var destino = document.getElementById('nubeDestinoSelect').value;
+  var btn = this;
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Subiendo...';
+  fetch('/isp/documentos/' + documentoSubirNubeId + '/subir-nube', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ destino: destino })
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.success) { location.reload(); }
+      else { alert('Error: ' + (d.error || 'desconocido')); btn.disabled = false; btn.innerHTML = '<i class="bi bi-cloud-upload"></i> Subir'; }
+    })
+    .catch(function() { alert('Error de conexión'); btn.disabled = false; btn.innerHTML = '<i class="bi bi-cloud-upload"></i> Subir'; });
+});
+
 function eliminarDocumento(id) {
   if (!confirm('¿Eliminar este documento?')) return;
   fetch('/isp/documentos/' + id + '/delete', { method: 'POST' })
