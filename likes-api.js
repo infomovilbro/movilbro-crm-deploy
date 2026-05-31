@@ -244,6 +244,13 @@ class LikesAPI {
     return this.request('GET', '/ticket/typologys');
   }
 
+  async getDonorOperators() {
+    try {
+      const data = await this.request('GET', '/admin2/donor-operators');
+      return this.extractData(data);
+    } catch { return []; }
+  }
+
   async checkCoverage(address) {
     return this.request('GET', `/coverage/address?q=${encodeURIComponent(address)}`);
   }

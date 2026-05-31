@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contrato de Servicios</title>
+<style>
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 13px; color: #333; padding: 20px; line-height: 1.6; }
+h1 { color: #0050A1; font-size: 20px; text-align: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #0050A1; }
+h2 { font-size: 15px; color: #0050A1; margin-top: 20px; }
+table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+th, td { padding: 6px 10px; border: 1px solid #dee2e6; text-align: left; font-size: 12px; }
+th { background: #f8f9fa; font-weight: 600; width: 30%; }
+.clause { margin: 8px 0; padding: 8px 12px; background: #f8f9fa; border-left: 3px solid #0050A1; font-size: 12px; }
+.footer { margin-top: 30px; padding-top: 15px; border-top: 1px solid #dee2e6; font-size: 11px; color: #999; text-align: center; }
+.important { background: #fff3cd; border-left: 3px solid #ffc107; padding: 8px 12px; margin: 8px 0; font-size: 12px; }
+</style>
+</head>
+<body>
+<h1>Contrato de Prestación de Servicios de Telecomunicaciones</h1>
+
+<p style="text-align:center;color:#666;font-size:12px;"><%= empresaNombre %> - <%= empresaCif %> - <%= empresaDireccion %></p>
+<p style="text-align:center;font-size:12px;"><strong>Fecha:</strong> <%= hoy %></p>
+
+<h2>Datos del Contrato</h2>
+<table>
+<tr><th>Cliente</th><td><%= datos.nombre || '' %> <%= datos.apellidos || '' %></td></tr>
+<tr><th>NIF / DNI</th><td><%= datos.dni || '' %></td></tr>
+<tr><th>Teléfono</th><td><%= datos.telefono || '' %></td></tr>
+<tr><th>Email</th><td><%= datos.email || '' %></td></tr>
+<tr><th>Dirección</th><td><%= datos.direccion || '' %>, <%= datos.ciudad || '' %> <%= datos.codigo_postal || '' %></td></tr>
+<tr><th>Producto / Servicio</th><td><%= productName || producto.producto_id || '' %></td></tr>
+<tr><th>Modalidad</th><td><%= producto.tipo_contratacion === 'PORTABILIDAD' ? 'Portabilidad' : 'Nueva Alta' %></td></tr>
+<tr><th>Línea</th><td><%= producto.linea_portabilidad || 'Por asignar' %></td></tr>
+</table>
+
+<h2>Condiciones del Servicio</h2>
+
+<div class="clause">
+<strong>PRIMERA.- Objeto del contrato.</strong> El presente contrato tiene por objeto la prestación del servicio de telecomunicaciones contratado por el cliente con <%= empresaNombre %>, en las condiciones recogidas en el presente documento y en la documentación anexa.
+</div>
+
+<div class="clause">
+<strong>SEGUNDA.- Duración.</strong> El contrato tendrá una duración inicial de 12 meses, prorrogable tácitamente por períodos mensuales salvo denuncia expresa de cualquiera de las partes con al menos 30 días de antelación a la fecha de finalización del período inicial o de cualquiera de sus prórrogas.
+</div>
+
+<div class="clause">
+<strong>TERCERA.- Precio y facturación.</strong> El cliente se obliga al pago de la cuota mensual correspondiente al servicio contratado. La facturación se realizará de forma mensual y el importe se cargará según el método de pago seleccionado.
+</div>
+
+<% if (pago.metodo === 'IBAN' && pago.iban) { %>
+<div class="important">
+<strong>ⓘ Verificación de IBAN:</strong> La verificación de la cuenta IBAN tiene un coste de <strong>0,50€</strong> que se aplicará en la primera factura. Dicho importe será <strong>devuelto en la siguiente facturación</strong>. La aceptación de esta cláusula autoriza a <%= empresaNombre %> a realizar la verificación de la titularidad de la cuenta bancaria proporcionada.
+</div>
+<% } %>
+
+<div class="clause">
+<strong>CUARTA.- Portabilidad.</strong> En caso de portabilidad, el cliente autoriza la portabilidad del número telefónico desde el operador actual. El cliente declara ser titular del número objeto de portabilidad y acepta las condiciones del operador donante hasta la fecha efectiva de la portabilidad.
+</div>
+
+<div class="clause">
+<strong>QUINTA.- Protección de datos.</strong> Los datos personales recogidos serán tratados por <%= empresaNombre %> con la finalidad de gestionar la relación contractual, la facturación y el envío de comunicaciones comerciales. El cliente puede ejercer sus derechos de acceso, rectificación, supresión, limitación, portabilidad y oposición dirigiendo comunicación a <%= empresaDireccion %> o al correo electrónico <%= empresaTelefono ? empresaTelefono : 'info@movilbro.com' %>.
+</div>
+
+<div class="clause">
+<strong>SEXTA.- Verificación de identidad (KYC).</strong> De conformidad con la normativa vigente en materia de prevención del blanqueo de capitales y financiación del terrorismo, el cliente se obliga a facilitar la documentación necesaria para su identificación. <%= empresaNombre %> se reserva el derecho de no formalizar el contrato en caso de no poder verificar adecuadamente la identidad del cliente.
+</div>
+
+<div class="clause">
+<strong>SÉPTIMA.- Resolución.</strong> <%= empresaNombre %> podrá resolver el contrato en caso de impago de dos o más mensualidades consecutivas, falseamiento de datos, o incumplimiento grave de las obligaciones del cliente. El cliente podrá resolver el contrato en cualquier momento con un preaviso de 30 días.
+</div>
+
+<div class="footer">
+<p><strong><%= empresaNombre %></strong> - <%= empresaDireccion %> - Tel: <%= empresaTelefono %></p>
+<p><%= empresaCif %> - Documento generado electrónicamente</p>
+</div>
+</body>
+</html>

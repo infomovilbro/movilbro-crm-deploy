@@ -276,6 +276,7 @@ app.use('/orders', orderRoutes);
 app.use('/ordenes', orderRoutes);
 app.use('/coverage', coverageRoutes);
 app.use('/cobertura', coverageRoutes);
+app.use('/kyc', require('./routes/kyc'));
 app.use('/settings', settingsRoutes);
 app.use('/configuracion', settingsRoutes);
 app.use('/whatsapp', whatsappRoutes);
