@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title><%= title %></title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<style>
+body { background: #f5f7fa; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; min-height: 100vh; }
+.kyc-card { max-width: 640px; margin: 40px auto; background: #fff; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); overflow: hidden; }
+.kyc-header { background: linear-gradient(135deg, #0050A1, #003d7a); color: #fff; padding: 32px; text-align: center; }
+.kyc-header h1 { font-size: 22px; margin: 0; font-weight: 600; }
+.kyc-header p { opacity: 0.85; margin: 8px 0 0; font-size: 14px; }
+.kyc-body { padding: 32px; }
+.kyc-step { display: none; }
+.kyc-step.active { display: block; }
+.step-indicator { display: flex; justify-content: center; gap: 12px; margin-bottom: 24px; }
+.step-dot { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; background: #e9ecef; color: #6c757d; }
+.step-dot.active { background: #0050A1; color: #fff; }
+.step-dot.done { background: #28a745; color: #fff; }
+.camera-box { width: 100%; max-width: 480px; margin: 0 auto; border: 2px dashed #dee2e6; border-radius: 12px; overflow: hidden; position: relative; background: #000; aspect-ratio: 4/3; display: flex; align-items: center; justify-content: center; }
+.camera-box video { width: 100%; height: 100%; object-fit: cover; }
+.camera-box .placeholder { color: #fff; text-align: center; }
+.camera-box .placeholder i { font-size: 48px; opacity: 0.5; }
+.camera-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; }
+.camera-overlay .face-guide { position: absolute; top: 10%; left: 10%; right: 10%; bottom: 10%; border: 2px solid rgba(0, 200, 80, 0.5); border-radius: 12px; }
+.camera-overlay .face-guide-label { position: absolute; bottom: -24px; left: 50%; transform: translateX(-50%); color: rgba(255,255,255,0.7); font-size: 12px; white-space: nowrap; }
+.capture-actions { display: flex; gap: 8px; justify-content: center; margin-top: 12px; flex-wrap: wrap; }
+.preview-img { max-width: 100%; border-radius: 8px; border: 2px solid #dee2e6; }
+canvas.signature-pad { width: 100%; height: 180px; border: 2px solid #dee2e6; border-radius: 8px; cursor: crosshair; touch-action: none; }
+.quality-badge { position: absolute; top: 8px; right: 8px; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; z-index: 10; }
+.quality-badge.good { background: rgba(40,167,69,0.9); color: #fff; }
+.quality-badge.bad { background: rgba(220,53,69,0.9); color: #fff; }
+.status-icon { font-size: 64px; display: block; margin-bottom: 16px; }
+.tracking-pixel { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.upload-manual-area { border: 2px dashed #dee2e6; border-radius: 12px; padding: 24px; text-align: center; cursor: pointer; transition: all 0.2s; }
+.upload-manual-area:hover { border-color: #0050A1; background: #f0f4ff; }
+.upload-manual-area input[type="file"] { display: none; }
+</style>
+</head>
+<body>
+<img src="/kyc/tracking/<%= token %>.gif" class="tracking-pixel" alt="">
+
+<div class="kyc-card">
+  <div class="kyc-header">
+    <h1><i class="bi bi-shield-check"></i> Verificación de identidad</h1>
+    <p><%= empresaNombre %> necesita verificar tus datos para completar el alta</p>
+  </div>
+  <div class="kyc-body">
+    <div class="step-indicator">
+      <div class="step-dot <%= paso === 1 ? 'active' : (kycCompletado ? 'done' : '') %>" id="step1Dot">1</div>
+      <div class="step-dot <%= paso === 2 ? 'active' : (kycCompletado ? 'done' : '') %>" id="step2Dot">2</div>
+    </div>
+
+    <% if (kycCompletado) { %>
+    <div class="text-center py-5">
+      <div class="status-icon" style="color:#28a745;"><i class="bi bi-check-circle-fill"></i></div>
+      <h4 class="mb-2">¡Verificación completada!</h4>
+      <p class="text-muted">Gracias por verificar tu identidad. Nos pondremos en contacto contigo para confirmar el alta.</p>
+    </div>
+    <% } else { %>
+
+    <!-- STEP 1: DOCUMENTOS -->
+    <div class="kyc-step <%= paso === 1 ? 'active' : '' %>" id="step1">
+      <h5 class="mb-3"><i class="bi bi-camera"></i> Paso 1: Verifica tu identidad</h5>
+      <p class="text-muted small mb-3">Necesitamos tu DNI/NIE para cumplir con la normativa de verificación de identidad (KYC). Tus datos están seguros.</p>
+
+      <!-- DNI FRONT -->
+      <div class="mb-4" id="docFrontSection">
+        <label class="form-label fw-semibold">1. Foto con tu DNI (anverso) junto a tu rostro</label>
+        <div id="docFrontCamera" class="camera-box mb-2">
+          <video id="frontVideo" autoplay playsinline muted style="display:none;width:100%;height:100%;object-fit:cover;"></video>
+          <div class="placeholder" id="frontPlaceholder">
+            <i class="bi bi-camera"></i>
+            <p class="mt-1">Activa la cámara</p>
+          </div>
+          <div class="camera-overlay">
+            <div class="face-guide"><div class="face-guide-label">Coloca tu rostro junto al DNI</div></div>
+          </div>
+        </div>
+        <div id="frontPreview" style="display:none;text-align:center;margin-bottom:8px;">
+          <img id="frontPreviewImg" class="preview-img" style="max-height:300px;">
+          <div id="frontQuality" class="quality-badge" style="display:none;"></div>
+        </div>
+        <div class="capture-actions">
+          <button class="btn btn-outline-primary btn-sm" onclick="startFrontCamera()" id="frontStartBtn"><i class="bi bi-camera"></i> Activar cámara</button>
+          <button class="btn btn-primary btn-sm" onclick="captureFront()" id="frontCaptureBtn" style="display:none;"><i class="bi bi-camera-fill"></i> Hacer foto</button>
+          <button class="btn btn-success btn-sm" onclick="uploadDoc('obverseDocument')" id="frontUploadBtn" style="display:none;"><i class="bi bi-check-lg"></i> Usar esta foto</button>
+          <button class="btn btn-outline-secondary btn-sm" onclick="retryFront()" id="frontRetryBtn" style="display:none;"><i class="bi bi-arrow-counterclockwise"></i> Repetir</button>
+          <button class="btn btn-link btn-sm text-muted" onclick="showManualUpload('front')" id="frontManualBtn"><i class="bi bi-upload"></i> Subir manualmente</button>
+        </div>
+        <div id="frontManualArea" class="upload-manual-area mt-2" style="display:none;" onclick="document.getElementById('frontFileInput').click()">
+          <i class="bi bi-cloud-upload" style="font-size:24px;display:block;color:#0050A1;"></i>
+          <small class="text-muted">Haz clic para seleccionar una foto del DNI anverso con tu rostro</small>
+          <input type="file" id="frontFileInput" accept="image/*" onchange="manualFileSelected('front', this)">
+        </div>
+        <div id="frontStatus" class="mt-1"></div>
+      </div>
+
+      <!-- DNI BACK -->
+      <div class="mb-4" id="docBackSection">
+        <label class="form-label fw-semibold">2. Parte trasera del DNI</label>
+        <div id="docBackCamera" class="camera-box mb-2">
+          <video id="backVideo" autoplay playsinline muted style="display:none;width:100%;height:100%;object-fit:cover;"></video>
+          <div class="placeholder" id="backPlaceholder">
+            <i class="bi bi-camera"></i>
+            <p class="mt-1">Activa la cámara</p>
+          </div>
+        </div>
+        <div id="backPreview" style="display:none;text-align:center;margin-bottom:8px;">
+          <img id="backPreviewImg" class="preview-img" style="max-height:300px;">
+        </div>
+        <div class="capture-actions">
+          <button class="btn btn-outline-primary btn-sm" onclick="startBackCamera()" id="backStartBtn"><i class="bi bi-camera"></i> Activar cámara</button>
+          <button class="btn btn-primary btn-sm" onclick="captureBack()" id="backCaptureBtn" style="display:none;"><i class="bi bi-camera-fill"></i> Hacer foto</button>
+          <button class="btn btn-success btn-sm" onclick="uploadDoc('reverseDocument')" id="backUploadBtn" style="display:none;"><i class="bi bi-check-lg"></i> Usar esta foto</button>
+          <button class="btn btn-outline-secondary btn-sm" onclick="retryBack()" id="backRetryBtn" style="display:none;"><i class="bi bi-arrow-counterclockwise"></i> Repetir</button>
+          <button class="btn btn-link btn-sm text-muted" onclick="showManualUpload('back')" id="backManualBtn"><i class="bi bi-upload"></i> Subir manualmente</button>
+        </div>
+        <div id="backManualArea" class="upload-manual-area mt-2" style="display:none;" onclick="document.getElementById('backFileInput').click()">
+          <i class="bi bi-cloud-upload" style="font-size:24px;display:block;color:#0050A1;"></i>
+          <small class="text-muted">Haz clic para seleccionar la foto del reverso del DNI</small>
+          <input type="file" id="backFileInput" accept="image/*" onchange="manualFileSelected('back', this)">
+        </div>
+        <div id="backStatus" class="mt-1"></div>
+      </div>
+    </div>
+
+    <!-- STEP 2: FIRMA -->
+    <div class="kyc-step <%= paso === 2 ? 'active' : '' %>" id="step2">
+      <h5 class="mb-3"><i class="bi bi-pen"></i> Paso 2: Revisa y firma el contrato</h5>
+
+      <div class="mb-3">
+        <iframe src="/kyc/contrato/<%= token %>" style="width:100%;height:400px;border:1px solid #dee2e6;border-radius:8px;background:#fff;"></iframe>
+        <div class="mt-2 text-end">
+          <a href="/kyc/contrato/<%= token %>" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-box-arrow-up-right"></i> Ver en ventana completa</a>
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Firma aquí</label>
+        <p class="text-muted small">Firma con el dedo o el ratón dentro del recuadro</p>
+        <canvas id="signaturePad" class="signature-pad" width="576" height="180"></canvas>
+        <div class="mt-1 d-flex gap-2">
+          <button class="btn btn-outline-secondary btn-sm" onclick="clearSignature()"><i class="bi bi-eraser"></i> Limpiar</button>
+        </div>
+      </div>
+
+      <div class="form-check mb-3">
+        <input type="checkbox" class="form-check-input" id="acceptTerms">
+        <label class="form-check-label small" for="acceptTerms">He leído y acepto el contrato de servicios de <strong><%= empresaNombre %></strong></label>
+      </div>
+
+      <button class="btn btn-success w-100 btn-lg" onclick="submitSignature()" id="signBtn" disabled>
+        <i class="bi bi-check-lg"></i> Firmar y finalizar
+      </button>
+      <div id="signStatus" class="mt-2"></div>
+    </div>
+
+    <% } %>
+  </div>
+  <div class="kyc-footer text-center p-3 border-top bg-light">
+    <small class="text-muted"><%= empresaNombre %> - Protegemos tu privacidad</small>
+  </div>
+</div>
+
+<script>
+const TOKEN = '<%= token %>';
+let frontStream = null, backStream = null;
+let frontCaptured = null, backCaptured = null;
+let frontUploaded = false, backUploaded = false;
+let signatureData = null;
+
+// Camera functions
+async function startFrontCamera() {
+  try {
+    frontStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+    const video = document.getElementById('frontVideo');
+    video.srcObject = frontStream;
+    video.style.display = 'block';
+    document.getElementById('frontPlaceholder').style.display = 'none';
+    document.getElementById('frontStartBtn').style.display = 'none';
+    document.getElementById('frontCaptureBtn').style.display = '';
+    document.getElementById('frontManualBtn').style.display = 'none';
+  } catch(e) {
+    alert('No se pudo acceder a la cámara. Puedes subir la foto manualmente.');
+    showManualUpload('front');
+  }
+}
+
+async function startBackCamera() {
+  try {
+    backStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+    const video = document.getElementById('backVideo');
+    video.srcObject = backStream;
+    video.style.display = 'block';
+    document.getElementById('backPlaceholder').style.display = 'none';
+    document.getElementById('backStartBtn').style.display = 'none';
+    document.getElementById('backCaptureBtn').style.display = '';
+    document.getElementById('backManualBtn').style.display = 'none';
+  } catch(e) {
+    alert('No se pudo acceder a la cámara. Puedes subir la foto manualmente.');
+    showManualUpload('back');
+  }
+}
+
+function stopStream(stream) {
+  if (stream) stream.getTracks().forEach(t => t.stop());
+}
+
+function captureFromVideo(videoId, previewId, callback) {
+  const video = document.getElementById(videoId);
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth || 1280;
+  canvas.height = video.videoHeight || 720;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  callback(canvas.toDataURL('image/jpeg', 0.92));
+}
+
+function captureFront() {
+  captureFromVideo('frontVideo', 'frontPreview', function(dataUrl) {
+    frontCaptured = dataUrl;
+    document.getElementById('frontPreviewImg').src = dataUrl;
+    document.getElementById('frontPreview').style.display = '';
+    document.getElementById('frontCaptureBtn').style.display = 'none';
+    document.getElementById('frontUploadBtn').style.display = '';
+    document.getElementById('frontRetryBtn').style.display = '';
+    stopStream(frontStream);
+    frontStream = null;
+    checkImageQuality('front');
+  });
+}
+
+function captureBack() {
+  captureFromVideo('backVideo', 'backPreview', function(dataUrl) {
+    backCaptured = dataUrl;
+    document.getElementById('backPreviewImg').src = dataUrl;
+    document.getElementById('backPreview').style.display = '';
+    document.getElementById('backCaptureBtn').style.display = 'none';
+    document.getElementById('backUploadBtn').style.display = '';
+    document.getElementById('backRetryBtn').style.display = '';
+    stopStream(backStream);
+    backStream = null;
+  });
+}
+
+function retryFront() {
+  frontCaptured = null;
+  document.getElementById('frontPreview').style.display = 'none';
+  document.getElementById('frontUploadBtn').style.display = 'none';
+  document.getElementById('frontRetryBtn').style.display = 'none';
+  startFrontCamera();
+}
+
+function retryBack() {
+  backCaptured = null;
+  document.getElementById('backPreview').style.display = 'none';
+  document.getElementById('backUploadBtn').style.display = 'none';
+  document.getElementById('backRetryBtn').style.display = 'none';
+  startBackCamera();
+}
+
+function showManualUpload(side) {
+  document.getElementById(side + 'ManualArea').style.display = 'block';
+  if (side === 'front') {
+    stopStream(frontStream);
+    document.getElementById('frontCaptureBtn').style.display = 'none';
+    document.getElementById('frontStartBtn').style.display = 'none';
+  } else {
+    stopStream(backStream);
+    document.getElementById('backCaptureBtn').style.display = 'none';
+    document.getElementById('backStartBtn').style.display = 'none';
+  }
+}
+
+function manualFileSelected(side, input) {
+  if (!input.files || !input.files[0]) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    if (side === 'front') {
+      frontCaptured = e.target.result;
+      document.getElementById('frontPreviewImg').src = e.target.result;
+      document.getElementById('frontPreview').style.display = '';
+      document.getElementById('frontUploadBtn').style.display = '';
+    } else {
+      backCaptured = e.target.result;
+      document.getElementById('backPreviewImg').src = e.target.result;
+      document.getElementById('backPreview').style.display = '';
+      document.getElementById('backUploadBtn').style.display = '';
+    }
+    checkImageQuality(side);
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+
+function checkImageQuality(side) {
+  // Basic quality check - check brightness and contrast via canvas
+  const img = new Image();
+  img.onload = function() {
+    const canvas = document.createElement('canvas');
+    canvas.width = img.width;
+    canvas.height = img.height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+    let sum = 0, contrast = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      const brightness = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+      sum += brightness;
+    }
+    const avg = sum / (data.length / 4);
+    for (let i = 0; i < data.length; i += 4) {
+      const brightness = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+      contrast += Math.pow(brightness - avg, 2);
+    }
+    contrast = Math.sqrt(contrast / (data.length / 4));
+    // Good if contrast > 40 and avg between 30 and 225
+    const isGood = contrast > 40 && avg > 30 && avg < 225;
+    const badge = document.getElementById(side + 'Quality');
+    if (badge) {
+      badge.style.display = 'block';
+      if (isGood) {
+        badge.className = 'quality-badge good';
+        badge.textContent = 'Buena calidad';
+      } else {
+        badge.className = 'quality-badge bad';
+        badge.textContent = 'Baja calidad - Intenta de nuevo';
+      }
+    }
+  };
+  if (side === 'front' && frontCaptured) img.src = frontCaptured;
+  else if (side === 'back' && backCaptured) img.src = backCaptured;
+}
+
+function dataURLtoBlob(dataUrl) {
+  const parts = dataUrl.split(',');
+  const mime = parts[0].match(/:(.*?);/)[1];
+  const bytes = atob(parts[1]);
+  const ab = new ArrayBuffer(bytes.length);
+  const ia = new Uint8Array(ab);
+  for (let i = 0; i < bytes.length; i++) ia[i] = bytes.charCodeAt(i);
+  return new Blob([ab], { type: mime });
+}
+
+async function uploadDoc(tipo) {
+  const side = tipo === 'obverseDocument' ? 'front' : 'back';
+  const dataUrl = side === 'front' ? frontCaptured : backCaptured;
+  if (!dataUrl) return;
+
+  const statusEl = document.getElementById(side + 'Status');
+  statusEl.innerHTML = '<span class="text-primary"><i class="bi bi-hourglass-split"></i> Subiendo...</span>';
+
+  try {
+    const blob = dataURLtoBlob(dataUrl);
+    const formData = new FormData();
+    formData.append('file', blob, tipo + '.jpg');
+    formData.append('tipo', tipo);
+
+    // First save to local, then upload to API via CRM
+    // Use public endpoint to upload through server proxy
+    const response = await fetch('/kyc/' + TOKEN + '/subir-doc', {
+      method: 'POST',
+      body: formData
+    });
+    const result = await response.json();
+
+    if (result.ok) {
+      statusEl.innerHTML = '<span class="text-success"><i class="bi bi-check-circle"></i> Documento subido correctamente</span>';
+      if (side === 'front') {
+        frontUploaded = true;
+        document.getElementById('frontUploadBtn').style.display = 'none';
+        document.getElementById('frontRetryBtn').style.display = 'none';
+        document.getElementById('frontManualBtn').style.display = 'none';
+      } else {
+        backUploaded = true;
+        document.getElementById('backUploadBtn').style.display = 'none';
+        document.getElementById('backRetryBtn').style.display = 'none';
+        document.getElementById('backManualBtn').style.display = 'none';
+      }
+
+      // Check if both documents uploaded -> show step 2
+      if (frontUploaded && backUploaded) {
+        setTimeout(function() {
+          goToStep2();
+        }, 800);
+      }
+    } else {
+      statusEl.innerHTML = '<span class="text-danger"><i class="bi bi-exclamation-circle"></i> Error: ' + (result.error || 'desconocido') + '</span>';
+    }
+  } catch(e) {
+    statusEl.innerHTML = '<span class="text-danger"><i class="bi bi-exclamation-circle"></i> Error de conexión</span>';
+  }
+}
+
+function goToStep2() {
+  document.getElementById('step1').classList.remove('active');
+  document.getElementById('step2').classList.add('active');
+  document.getElementById('step1Dot').classList.remove('active');
+  document.getElementById('step1Dot').classList.add('done');
+  document.getElementById('step2Dot').classList.add('active');
+  initSignaturePad();
+}
+
+// Signature pad
+let sigCanvas, sigCtx, isDrawing = false;
+
+function initSignaturePad() {
+  sigCanvas = document.getElementById('signaturePad');
+  if (!sigCanvas) return;
+  sigCtx = sigCanvas.getContext('2d');
+  sigCanvas.addEventListener('mousedown', startDraw);
+  sigCanvas.addEventListener('mousemove', draw);
+  sigCanvas.addEventListener('mouseup', stopDraw);
+  sigCanvas.addEventListener('touchstart', startDrawTouch);
+  sigCanvas.addEventListener('touchmove', drawTouch);
+  sigCanvas.addEventListener('touchend', stopDraw);
+  sigCtx.strokeStyle = '#0050A1';
+  sigCtx.lineWidth = 2;
+  sigCtx.lineCap = 'round';
+}
+
+function startDraw(e) { isDrawing = true; sigCtx.beginPath(); sigCtx.moveTo(e.offsetX, e.offsetY); }
+function draw(e) { if (!isDrawing) return; sigCtx.lineTo(e.offsetX, e.offsetY); sigCtx.stroke(); }
+function stopDraw() { isDrawing = false; }
+function startDrawTouch(e) { e.preventDefault(); const rect = sigCanvas.getBoundingClientRect(); const touch = e.touches[0]; isDrawing = true; sigCtx.beginPath(); sigCtx.moveTo(touch.clientX - rect.left, touch.clientY - rect.top); }
+function drawTouch(e) { e.preventDefault(); if (!isDrawing) return; const rect = sigCanvas.getBoundingClientRect(); const touch = e.touches[0]; sigCtx.lineTo(touch.clientX - rect.left, touch.clientY - rect.top); sigCtx.stroke(); }
+
+function clearSignature() {
+  sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+  signatureData = null;
+}
+
+document.getElementById('acceptTerms')?.addEventListener('change', function() {
+  document.getElementById('signBtn').disabled = !this.checked;
+});
+
+async function submitSignature() {
+  if (!sigCanvas) return;
+  signatureData = sigCanvas.toDataURL('image/png');
+  if (!signatureData || signatureData.length < 100) {
+    document.getElementById('signStatus').innerHTML = '<span class="text-danger">Por favor, dibuja tu firma</span>';
+    return;
+  }
+
+  document.getElementById('signBtn').disabled = true;
+  document.getElementById('signBtn').innerHTML = '<span class="spinner-border spinner-border-sm"></span> Enviando...';
+  document.getElementById('signStatus').innerHTML = '';
+
+  try {
+    const response = await fetch('/kyc/' + TOKEN + '/firmar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ firma: signatureData })
+    });
+    const result = await response.json();
+    if (result.ok) {
+      document.getElementById('signStatus').innerHTML = '<div class="text-center py-4"><div style="font-size:64px;color:#28a745;"><i class="bi bi-check-circle-fill"></i></div><h5>¡Todo completado!</h5><p class="text-muted">Gracias. Recibirás la confirmación del alta pronto.</p></div>';
+      document.getElementById('signBtn').style.display = 'none';
+    } else {
+      document.getElementById('signStatus').innerHTML = '<span class="text-danger">Error: ' + (result.error || 'desconocido') + '</span>';
+      document.getElementById('signBtn').disabled = false;
+      document.getElementById('signBtn').innerHTML = '<i class="bi bi-check-lg"></i> Firmar y finalizar';
+    }
+  } catch(e) {
+    document.getElementById('signStatus').innerHTML = '<span class="text-danger">Error de conexión. Intenta de nuevo.</span>';
+    document.getElementById('signBtn').disabled = false;
+    document.getElementById('signBtn').innerHTML = '<i class="bi bi-check-lg"></i> Firmar y finalizar';
+  }
+}
+
+// Auto-start front camera on load
+setTimeout(startFrontCamera, 500);
+</script>
+</body>
+</html>

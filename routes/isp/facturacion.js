@@ -180,18 +180,18 @@ router.post('/generar', async (req, res) => {
       } catch(e) { errores++; }
     }
     
-    try {
-      var facturasNuevas = db.prepare('SELECT * FROM isp_facturas WHERE periodo=? ORDER BY id DESC').all(periodo);
-      for (var fn of facturasNuevas) {
-        try {
-          var lineas = db.prepare('SELECT * FROM isp_facturas_lineas WHERE factura_id=?').all(fn.id);
-          var cdrsDetalle = db.prepare('SELECT * FROM isp_cdrs WHERE factura_id=?').all(fn.id);
-          var llamadas = db.prepare('SELECT * FROM isp_llamadas WHERE factura_id=? ORDER BY fecha, hora').all(fn.id);
-          var historia = db.prepare("SELECT periodo, SUM(importe_total) as total FROM isp_facturas WHERE fiscal_id=? AND id<=? GROUP BY periodo ORDER BY periodo DESC LIMIT 6").all(fn.fiscal_id, fn.id);
-          var result = await nube.procesarFactura(fn, lineas, cdrsDetalle, llamadas, historia.reverse());
-          console.log('PDFs generados en nube para', periodo, ':', cuentasGeneradas, 'facturas');
-    } catch(e2) {
-      console.error('Error en proceso nube:', e2.message);
+    var facturasNuevas = db.prepare('SELECT * FROM isp_facturas WHERE periodo=? ORDER BY id DESC').all(periodo);
+    for (var fn of facturasNuevas) {
+      try {
+        var lineas = db.prepare('SELECT * FROM isp_facturas_lineas WHERE factura_id=?').all(fn.id);
+        var cdrsDetalle = db.prepare('SELECT * FROM isp_cdrs WHERE factura_id=?').all(fn.id);
+        var llamadas = db.prepare('SELECT * FROM isp_llamadas WHERE factura_id=? ORDER BY fecha, hora').all(fn.id);
+        var historia = db.prepare("SELECT periodo, SUM(importe_total) as total FROM isp_facturas WHERE fiscal_id=? AND id<=? GROUP BY periodo ORDER BY periodo DESC LIMIT 6").all(fn.fiscal_id, fn.id);
+        var result = await nube.procesarFactura(fn, lineas, cdrsDetalle, llamadas, historia.reverse());
+        console.log('PDFs generados en nube para', periodo, ':', cuentasGeneradas, 'facturas');
+      } catch(e2) {
+        console.error('Error en proceso nube:', e2.message);
+      }
     }
     
     console.log('Generación completada:', { generadas: cuentasGeneradas, errores: errores });

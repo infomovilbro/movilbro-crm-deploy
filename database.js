@@ -364,7 +364,48 @@ function initDatabase() {
   try { db.prepare("ALTER TABLE tickets ADD COLUMN departamento TEXT DEFAULT 'General'").run(); } catch(e) {}
   try { db.prepare("ALTER TABLE tickets ADD COLUMN user_id INTEGER").run(); } catch(e) {}
 
-  // Migrate: ensure all users have an email (copy from username if empty)
+  // Altas ordenes tables for multi-step order flow
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS altas_ordenes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        token TEXT UNIQUE NOT NULL,
+        client_id INTEGER,
+        likes_customer_id TEXT,
+        estado TEXT DEFAULT 'borrador',
+        paso INTEGER DEFAULT 1,
+        datos_cliente TEXT,
+        datos_pago TEXT,
+        datos_producto TEXT,
+        datos_cobertura TEXT,
+        datos_donante TEXT,
+        orden_data TEXT,
+        likes_order_id TEXT,
+        email_enviado INTEGER DEFAULT 0,
+        email_leido INTEGER DEFAULT 0,
+        email_veces_leido INTEGER DEFAULT 0,
+        kyc_completado INTEGER DEFAULT 0,
+        kyc_docs_subidos INTEGER DEFAULT 0,
+        kyc_contrato_firmado INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS altas_kyc_docs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        orden_id INTEGER NOT NULL,
+        tipo TEXT NOT NULL,
+        archivo TEXT,
+        upload_url TEXT,
+        download_url TEXT,
+        estado TEXT DEFAULT 'pendiente',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+  } catch(e) { console.error('Error creating altas tables:', e.message); }
+
+  try { db.prepare("ALTER TABLE clients ADD COLUMN metodo_pago TEXT DEFAULT ''").run(); } catch(e) {}
+  try { db.prepare("ALTER TABLE clients ADD COLUMN iban TEXT DEFAULT ''").run(); } catch(e) {}
+  try { db.prepare("ALTER TABLE clients ADD COLUMN stripe_payment_method TEXT DEFAULT ''").run(); } catch(e) {}
   const usersSinEmail = db.prepare('SELECT id, username FROM users WHERE email IS NULL OR email = ?').all('');
   usersSinEmail.forEach(u => {
     db.prepare('UPDATE users SET email = ? WHERE id = ?').run(u.username + '@movilbro.com', u.id);
