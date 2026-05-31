@@ -23,11 +23,23 @@
       <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
           <span><i class="bi bi-person-plus"></i> Asistente de alta</span>
-          <div class="step-indicator" id="wizardSteps">
-            <span class="badge bg-primary me-1" id="wStep1">1. Datos</span>
-            <span class="badge bg-secondary me-1" id="wStep2">2. Producto</span>
-            <span class="badge bg-secondary me-1" id="wStep3">3. Portabilidad</span>
-            <span class="badge bg-secondary" id="wStep4">4. Resumen</span>
+          <div class="wizard-progress" id="wizardSteps">
+            <div class="wiz-step completed" id="ws1">
+              <div class="wiz-circle">1</div>
+              <div class="wiz-label">Datos del cliente</div>
+            </div>
+            <div class="wiz-step pending" id="ws2">
+              <div class="wiz-circle">2</div>
+              <div class="wiz-label">Producto / Cobertura</div>
+            </div>
+            <div class="wiz-step pending" id="ws3">
+              <div class="wiz-circle">3</div>
+              <div class="wiz-label">Portabilidad / Config</div>
+            </div>
+            <div class="wiz-step pending" id="ws4">
+              <div class="wiz-circle">4</div>
+              <div class="wiz-label">Resumen / Confirmación</div>
+            </div>
           </div>
         </div>
         <div class="card-body">
@@ -39,7 +51,7 @@
               <div class="row g-3">
                 <div class="col-md-6">
                   <label class="form-label">Nombre *</label>
-                  <input type="text" id="wNombre" class="form-control" required placeholder="Nombre">
+                  <input type="text" id="wNombre" class="form-control" required placeholder="Nombre" oninput="validarPaso1()">
                 </div>
                 <div class="col-md-6">
                   <label class="form-label">Apellidos</label>
@@ -47,16 +59,16 @@
                 </div>
                 <div class="col-md-4">
                   <label class="form-label">DNI / NIF *</label>
-                  <input type="text" id="wDni" class="form-control" required placeholder="12345678Z" onblur="validarDNI(this)">
+                  <input type="text" id="wDni" class="form-control" required placeholder="12345678Z" onblur="validarDNI(this)" oninput="validarPaso1()">
                   <small class="text-muted" id="wDniVal"></small>
                 </div>
                 <div class="col-md-4">
                   <label class="form-label">Teléfono *</label>
-                  <input type="text" id="wTelefono" class="form-control" required placeholder="612345678">
+                  <input type="text" id="wTelefono" class="form-control" required placeholder="612345678" oninput="validarPaso1()">
                 </div>
                 <div class="col-md-4">
                   <label class="form-label">Email *</label>
-                  <input type="email" id="wEmail" class="form-control" placeholder="cliente@email.com">
+                  <input type="email" id="wEmail" class="form-control" placeholder="cliente@email.com" oninput="validarPaso1()">
                 </div>
                 <div class="col-md-6">
                   <label class="form-label">Dirección</label>
@@ -78,24 +90,52 @@
                     <option value="Society">Empresa (Society)</option>
                   </select>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-8">
                   <label class="form-label">Método de pago</label>
-                  <select id="wMetodoPago" class="form-select" onchange="togglePago()">
-                    <option value="">Seleccionar...</option>
-                    <option value="IBAN">IBAN / Domiciliación bancaria</option>
-                    <option value="TARJETA">Tarjeta de crédito/débito</option>
-                    <option value="NINGUNO">Ninguno (pagaré más adelante)</option>
-                  </select>
-                </div>
-                <div class="col-md-4" id="wIbanGroup" style="display:none;">
-                  <label class="form-label">IBAN</label>
-                  <input type="text" id="wIban" class="form-control" placeholder="ES00 0000 0000 0000 0000 0000" oninput="formatearIBAN(this)">
-                  <small class="text-muted">Verificación IBAN: 0,50€ (se devuelve en 1ª factura)</small>
+                  <div class="pago-cards">
+                    <div class="pago-card">
+                      <input type="radio" name="wMetodoPago" value="IBAN" id="pagoIBAN" onchange="togglePago()">
+                      <label for="pagoIBAN">
+                        <i class="bi bi-bank"></i>
+                        <span>IBAN (Domiciliación)</span>
+                      </label>
+                    </div>
+                    <div class="pago-card">
+                      <input type="radio" name="wMetodoPago" value="TARJETA" id="pagoTarjeta" onchange="togglePago()">
+                      <label for="pagoTarjeta">
+                        <i class="bi bi-credit-card"></i>
+                        <span>Tarjeta</span>
+                      </label>
+                    </div>
+                    <div class="pago-card">
+                      <input type="radio" name="wMetodoPago" value="NINGUNO" id="pagoNinguno" onchange="togglePago()">
+                      <label for="pagoNinguno">
+                        <i class="bi bi-x-circle"></i>
+                        <span>Ninguno (Pagaré después)</span>
+                      </label>
+                    </div>
+                  </div>
+                  <div class="pago-content-area mt-2">
+                    <div id="pagoIBANContent" class="pago-detail" style="display:none;">
+                      <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-bank"></i></span>
+                        <input type="text" id="wIban" class="form-control" placeholder="ES00 0000 0000 0000 0000 0000" oninput="formatearIBAN(this)">
+                      </div>
+                      <small class="text-muted"><i class="bi bi-info-circle"></i> Se realizará un cargo de 0,50€ para verificar tu IBAN, reembolsado en la primera factura.</small>
+                    </div>
+                    <div id="pagoTarjetaContent" class="pago-detail" style="display:none;">
+                      <p class="mb-2"><i class="bi bi-shield-check text-primary"></i> Serás redirigido a Stripe para configurar el pago con tarjeta</p>
+                      <a href="https://paymentlinks.movilbro.com/b/00g7su6jafByayIfZ1" target="_blank" class="btn btn-primary btn-sm"><i class="bi bi-box-arrow-up-right"></i> Ir a Stripe</a>
+                    </div>
+                    <div id="pagoNingunoContent" class="pago-detail" style="display:none;">
+                      <p class="text-muted mb-0"><i class="bi bi-info-circle"></i> Podrás configurar el método de pago más tarde desde tu área de cliente</p>
+                    </div>
+                  </div>
                 </div>
               </div>
               <div class="mt-4 d-flex justify-content-between">
                 <div></div>
-                <button type="button" class="btn btn-primary btn-lg" onclick="goWizardStep2()"><i class="bi bi-arrow-right"></i> Siguiente: Producto</button>
+                <button type="button" class="btn btn-primary btn-lg btn-wizard-next" id="btnStep1Next" onclick="goWizardStep2()"><i class="bi bi-arrow-right"></i> Siguiente: Producto</button>
               </div>
             </form>
           </div>
@@ -125,12 +165,13 @@
                 </div>
                 <div class="col-12">
                   <label class="form-label">Producto / Tarifa *</label>
-                  <select id="wProducto" class="form-select" required size="5" style="height:auto;min-height:140px;">
+                  <select id="wProducto" class="form-select" required size="5" style="height:auto;min-height:140px;" onchange="onProductoChange()">
                     <% if (products && products.length > 0) { %>
                       <% (familias || []).forEach(function(fam) { %>
-                        <optgroup label="<%= fam.name %>" class="prod-group" data-family="<%= fam.name %>">
+                        <% var isFiber = fam.name.toUpperCase().includes('FIBRA'); %>
+                        <optgroup label="<%= fam.name %>" class="prod-group" data-family="<%= fam.name %>" data-fiber="<%= isFiber %>">
                           <% (fam.items || []).forEach(function(p) { %>
-                            <option value="<%= p.id || p.productId %>" data-family="<%= fam.name %>" data-precio="<%= p.price || 0 %>"><%= p.productName || p.name %><%= p.price ? ' - ' + p.price + '€' : '' %></option>
+                            <option value="<%= p.id || p.productId %>" data-family="<%= fam.name %>" data-fiber="<%= isFiber %>" data-precio="<%= p.price || 0 %>"><%= p.productName || p.name %><%= p.price ? ' - ' + p.price + '€' : '' %></option>
                           <% }); %>
                         </optgroup>
                       <% }); %>
@@ -143,21 +184,25 @@
 
               <!-- Coverage check section (for fiber) -->
               <div id="coverageSection" class="mt-3 p-3 border rounded bg-light" style="display:none;">
-                <h6><i class="bi bi-geo-alt"></i> Verificar cobertura de fibra</h6>
+                <h6 class="mb-2"><i class="bi bi-geo-alt-fill text-primary"></i> Verificar cobertura de fibra</h6>
                 <div class="row g-2">
                   <div class="col-md-8">
                     <input type="text" id="wCoverageDir" class="form-control" placeholder="Dirección de instalación (calle y número)">
                   </div>
                   <div class="col-md-4">
-                    <button type="button" class="btn btn-outline-primary w-100" onclick="checkCoverage()"><i class="bi bi-search"></i> Verificar</button>
+                    <button type="button" class="btn btn-primary w-100 fw-semibold" id="btnCheckCoverage" onclick="checkCoverage()">
+                      <i class="bi bi-search"></i> Verificar cobertura
+                    </button>
                   </div>
                 </div>
-                <div id="coverageResult" class="mt-2"></div>
+                <div id="coverageResult" class="mt-2">
+                  <div class="text-muted small"><i class="bi bi-info-circle"></i> Introduce la dirección completa para verificar la disponibilidad de fibra.</div>
+                </div>
               </div>
 
               <div class="mt-4 d-flex justify-content-between">
-                <button type="button" class="btn btn-outline-secondary" onclick="goWizardStep1()"><i class="bi bi-arrow-left"></i> Volver</button>
-                <button type="button" class="btn btn-primary btn-lg" onclick="goWizardStep3()"><i class="bi bi-arrow-right"></i> Siguiente</button>
+                <button type="button" class="btn btn-outline-secondary btn-lg btn-wizard-prev" onclick="goWizardStep1()"><i class="bi bi-arrow-left"></i> Volver</button>
+                <button type="button" class="btn btn-primary btn-lg btn-wizard-next" id="btnStep2Next" onclick="goWizardStep3()"><i class="bi bi-arrow-right"></i> Siguiente</button>
               </div>
             </form>
           </div>
@@ -170,11 +215,11 @@
                 <div class="row g-3">
                   <div class="col-md-6">
                     <label class="form-label">Número a portar *</label>
-                    <input type="text" id="wLineaPortar" class="form-control" placeholder="612345678">
+                    <input type="text" id="wLineaPortar" class="form-control" placeholder="612345678" oninput="validarPaso3()">
                   </div>
                   <div class="col-md-6">
                     <label class="form-label">Operador actual (donante) *</label>
-                    <select id="wDonante" class="form-select">
+                    <select id="wDonante" class="form-select" onchange="validarPaso3()">
                       <option value="">Seleccionar operador...</option>
                       <% if (donantes && donantes.length > 0) { %>
                         <% donantes.forEach(function(d) { %>
@@ -211,8 +256,8 @@
                 </div>
               </div>
               <div class="mt-4 d-flex justify-content-between">
-                <button type="button" class="btn btn-outline-secondary" onclick="goWizardStep2()"><i class="bi bi-arrow-left"></i> Volver</button>
-                <button type="button" class="btn btn-primary btn-lg" onclick="goWizardStep4()"><i class="bi bi-arrow-right"></i> Siguiente: Resumen</button>
+                <button type="button" class="btn btn-outline-secondary btn-lg btn-wizard-prev" onclick="goWizardStep2()"><i class="bi bi-arrow-left"></i> Volver</button>
+                <button type="button" class="btn btn-primary btn-lg btn-wizard-next" id="btnStep3Next" onclick="goWizardStep4()"><i class="bi bi-arrow-right"></i> Siguiente: Resumen</button>
               </div>
             </form>
           </div>
@@ -223,16 +268,28 @@
             <div class="row">
               <div class="col-md-6">
                 <div class="card mb-3">
-                  <div class="card-header">Datos del cliente</div>
+                  <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>Datos del cliente</span>
+                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="goWizardStep1()"><i class="bi bi-pencil"></i></button>
+                  </div>
                   <div class="card-body" id="resumenCliente"></div>
                 </div>
               </div>
               <div class="col-md-6">
                 <div class="card mb-3">
-                  <div class="card-header">Producto y pago</div>
+                  <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>Producto y pago</span>
+                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="goWizardStep2()"><i class="bi bi-pencil"></i></button>
+                  </div>
                   <div class="card-body" id="resumenProducto"></div>
                 </div>
               </div>
+            </div>
+
+            <div class="d-flex gap-2 mb-3">
+              <button type="button" class="btn btn-outline-primary" onclick="verContrato()" id="btnVerContrato">
+                <i class="bi bi-file-text"></i> Ver contrato
+              </button>
             </div>
 
             <div class="alert alert-info">
@@ -259,7 +316,7 @@
             </div>
 
             <div class="d-flex justify-content-between">
-              <button type="button" class="btn btn-outline-secondary" onclick="goWizardStep3()"><i class="bi bi-arrow-left"></i> Volver</button>
+              <button type="button" class="btn btn-outline-secondary btn-lg btn-wizard-prev" onclick="goWizardStep3()"><i class="bi bi-arrow-left"></i> Volver</button>
               <button type="button" class="btn btn-success btn-lg" id="btnCrearCliente" onclick="crearClienteAvanzado()" disabled>
                 <i class="bi bi-check-lg"></i> Crear cliente y enviar KYC
               </button>
@@ -325,11 +382,23 @@
       <div class="card">
         <div class="card-header"><i class="bi bi-clock-history"></i> Órdenes pendientes de KYC / aprobación</div>
         <div class="card-body p-0">
-          <table class="table table-hover mb-0">
-            <thead><tr><th>#</th><th>Cliente</th><th>Producto</th><th>Estado</th><th>KYC</th><th>Email</th><th>Fecha</th><th></th></tr></thead>
+          <table class="table table-hover mb-0" id="pendientesTable">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Cliente</th>
+                <th>Producto</th>
+                <th>Estado</th>
+                <th>Email enviado</th>
+                <th>Documentos</th>
+                <th>Contrato firmado</th>
+                <th>Fecha</th>
+                <th></th>
+              </tr>
+            </thead>
             <tbody>
               <% if (!ordenesPendientes || ordenesPendientes.length === 0) { %>
-              <tr><td colspan="8" class="text-center text-muted py-4"><i class="bi bi-inbox"></i> No hay órdenes pendientes</td></tr>
+              <tr><td colspan="9" class="text-center text-muted py-4"><i class="bi bi-inbox"></i> No hay órdenes pendientes</td></tr>
               <% } else { ordenesPendientes.forEach(function(o) { 
                 var dc = JSON.parse(o.datos_cliente || '{}');
                 var dp = JSON.parse(o.datos_producto || '{}');
@@ -344,20 +413,33 @@
                     <%= est === 'pendiente_kyc' ? 'Pendiente KYC' : est === 'pendiente_aprobacion' ? 'Pendiente aprobación' : est === 'completada' ? 'Completada' : est === 'cancelada' ? 'Cancelada' : est %>
                   </span>
                 </td>
-                <td>
-                  <% if (o.kyc_completado) { %><i class="bi bi-check-circle text-success" title="KYC completado"></i><% } else { %>
-                    <small>
-                      Docs: <%= o.kyc_docs_subidos || 0 %>/2
-                      <% if (o.kyc_contrato_firmado) { %><br>Firmado: <i class="bi bi-check-circle text-success"></i><% } %>
-                    </small>
+                <td class="text-center">
+                  <% if (o.email_enviado) { %>
+                    <span class="badge bg-success"><i class="bi bi-check-lg"></i> Enviado</span>
+                    <% if (o.email_leido) { %>
+                      <br><small class="text-info">Leído: Sí (<%= o.email_veces_leido || 1 %> veces)</small>
+                    <% } else { %>
+                      <br><small class="text-muted">No leído</small>
+                    <% } %>
+                  <% } else { %>
+                    <span class="badge bg-secondary"><i class="bi bi-x-lg"></i> Pendiente</span>
                   <% } %>
                 </td>
-                <td>
-                  <% if (o.email_enviado) { %>
-                    <i class="bi bi-envelope-check text-success" title="Enviado"></i>
-                    <% if (o.email_leido) { %><i class="bi bi-eye text-info" title="Leído (<%= o.email_veces_leido %> veces)"></i><% } %>
+                <td class="text-center">
+                  <% if (o.kyc_completado) { %>
+                    <span class="badge bg-success"><i class="bi bi-check-lg"></i> Completo</span>
                   <% } else { %>
-                    <i class="bi bi-envelope text-muted"></i>
+                    <% var docsSubidos = o.kyc_docs_subidos || 0; %>
+                    <span class="badge bg-<%= docsSubidos > 0 ? 'primary' : 'secondary' %>">
+                      <%= docsSubidos %>/2
+                    </span>
+                  <% } %>
+                </td>
+                <td class="text-center">
+                  <% if (o.kyc_contrato_firmado) { %>
+                    <span class="badge bg-success"><i class="bi bi-check-lg"></i> Firmado</span>
+                  <% } else { %>
+                    <span class="badge bg-secondary"><i class="bi bi-x-lg"></i> Pendiente</span>
                   <% } %>
                 </td>
                 <td class="small"><%= new Date(o.created_at).toLocaleDateString('es-ES') %></td>
@@ -450,23 +532,78 @@
   </div>
 </section>
 
+<!-- Contract Preview Modal -->
+<div class="modal fade" id="contratoModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-file-text"></i> Vista previa del contrato</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body p-0">
+        <iframe id="contratoIframe" style="width:100%;height:600px;border:none;" srcdoc="<p style='text-align:center;padding:60px 20px;color:#6c757d;'><i class='bi bi-file-text' style='font-size:2rem;display:block;margin-bottom:12px;'></i>Complete la creación del cliente para visualizar el contrato.<br><small>El contrato se generará automáticamente tras el registro.</small></p>"></iframe>
+      </div>
+      <div class="modal-footer">
+        <a id="contratoAbrirExterno" href="#" target="_blank" class="btn btn-outline-primary"><i class="bi bi-box-arrow-up-right"></i> Abrir en ventana completa</a>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Hidden field to store order token -->
+<input type="hidden" id="orderTokenHolder" value="">
+
 <script>
 // Wizard state
 var WIZARD = { step: 1 };
+
+function actualizarProgressBar(step) {
+  for (var i = 1; i <= 4; i++) {
+    var el = document.getElementById('ws' + i);
+    el.classList.remove('completed', 'active', 'pending');
+    if (i < step) el.classList.add('completed');
+    else if (i === step) el.classList.add('active');
+    else el.classList.add('pending');
+  }
+}
+
+function validarPaso1() {
+  var nombre = document.getElementById('wNombre').value.trim();
+  var telefono = document.getElementById('wTelefono').value.trim();
+  var dni = document.getElementById('wDni').value.trim();
+  var btn = document.getElementById('btnStep1Next');
+  btn.disabled = !(nombre && telefono && dni);
+}
+
+function validarPaso2() {
+  var producto = document.getElementById('wProducto').value;
+  document.getElementById('btnStep2Next').disabled = !producto;
+}
+
+function validarPaso3() {
+  var tipo = document.getElementById('wTipoContratacion').value;
+  var btn = document.getElementById('btnStep3Next');
+  if (tipo === 'PORTABILIDAD') {
+    var linea = document.getElementById('wLineaPortar').value.trim();
+    var donante = document.getElementById('wDonante').value;
+    btn.disabled = !(linea && donante);
+  } else {
+    btn.disabled = false;
+  }
+}
 
 function goWizardStep1() {
   document.getElementById('wizardStep1').style.display = 'block';
   document.getElementById('wizardStep2').style.display = 'none';
   document.getElementById('wizardStep3').style.display = 'none';
   document.getElementById('wizardStep4').style.display = 'none';
-  document.querySelectorAll('#wizardSteps .badge').forEach(function(b, i) {
-    b.className = 'badge ' + (i === 0 ? 'bg-primary' : 'bg-secondary') + ' me-1';
-  });
+  actualizarProgressBar(1);
   WIZARD.step = 1;
+  validarPaso1();
 }
 
 function goWizardStep2() {
-  // Validate step 1
   var nombre = document.getElementById('wNombre').value.trim();
   var telefono = document.getElementById('wTelefono').value.trim();
   var dni = document.getElementById('wDni').value.trim();
@@ -478,10 +615,9 @@ function goWizardStep2() {
   document.getElementById('wizardStep2').style.display = 'block';
   document.getElementById('wizardStep3').style.display = 'none';
   document.getElementById('wizardStep4').style.display = 'none';
-  document.querySelectorAll('#wizardSteps .badge').forEach(function(b, i) {
-    b.className = 'badge ' + (i <= 1 ? 'bg-primary' : 'bg-secondary') + ' me-1';
-  });
+  actualizarProgressBar(2);
   WIZARD.step = 2;
+  validarPaso2();
 }
 
 function goWizardStep3() {
@@ -492,14 +628,12 @@ function goWizardStep3() {
   document.getElementById('wizardStep2').style.display = 'none';
   document.getElementById('wizardStep3').style.display = 'block';
   document.getElementById('wizardStep4').style.display = 'none';
-  document.querySelectorAll('#wizardSteps .badge').forEach(function(b, i) {
-    b.className = 'badge ' + (i <= 2 ? 'bg-primary' : 'bg-secondary') + ' me-1';
-  });
+  actualizarProgressBar(3);
   WIZARD.step = 3;
+  validarPaso3();
 }
 
 function goWizardStep4() {
-  // Build summary
   var nombre = document.getElementById('wNombre').value.trim();
   var apellidos = document.getElementById('wApellidos').value.trim();
   var dni = document.getElementById('wDni').value.trim();
@@ -509,7 +643,8 @@ function goWizardStep4() {
   var ciudad = document.getElementById('wCiudad').value.trim();
   var cp = document.getElementById('wCp').value.trim();
   var customerType = document.getElementById('wCustomerType').value;
-  var metodoPago = document.getElementById('wMetodoPago').value;
+  var metodoPagoEl = document.querySelector('input[name="wMetodoPago"]:checked');
+  var metodoPago = metodoPagoEl ? metodoPagoEl.value : '';
   var iban = document.getElementById('wIban').value.trim();
   var producto = document.getElementById('wProducto');
   var prodText = producto.options[producto.selectedIndex] ? producto.options[producto.selectedIndex].text : '';
@@ -525,7 +660,11 @@ function goWizardStep4() {
     (email ? 'Email: ' + email + '<br>' : '') +
     (direccion ? direccion + ', ' + ciudad + ' ' + cp + '<br>' : '') +
     'Tipo: ' + customerType + '</p>' +
-    '<p><strong>Método de pago:</strong> ' + (metodoPago || 'No seleccionado') + (iban ? '<br>IBAN: ' + iban : '') + '</p>';
+    '<p><strong>Método de pago:</strong> ' + (metodoPago ? ({
+      'IBAN': 'IBAN (Domiciliación)',
+      'TARJETA': 'Tarjeta',
+      'NINGUNO': 'Ninguno (Pagaré después)'
+    })[metodoPago] || metodoPago : 'No seleccionado') + (metodoPago === 'IBAN' && iban ? '<br>IBAN: ' + iban : '') + '</p>';
 
   document.getElementById('resumenProducto').innerHTML =
     '<p><strong>Producto:</strong> ' + prodText + '<br>' +
@@ -534,7 +673,6 @@ function goWizardStep4() {
     (tipoCont === 'PORTABILIDAD' && donanteText ? '<br><strong>Operador donante:</strong> ' + donanteText : '') +
     '</p>';
 
-  // Show portability check row if needed
   var portaRow = document.getElementById('checkPortaRow');
   if (tipoCont === 'PORTABILIDAD') {
     portaRow.style.display = '';
@@ -546,9 +684,7 @@ function goWizardStep4() {
   document.getElementById('wizardStep2').style.display = 'none';
   document.getElementById('wizardStep3').style.display = 'none';
   document.getElementById('wizardStep4').style.display = 'block';
-  document.querySelectorAll('#wizardSteps .badge').forEach(function(b) {
-    b.className = 'badge bg-primary me-1';
-  });
+  actualizarProgressBar(4);
   WIZARD.step = 4;
 
   document.getElementById('checkPago').addEventListener('change', function() {
@@ -558,8 +694,14 @@ function goWizardStep4() {
 
 // Payment methods
 function togglePago() {
-  var metodo = document.getElementById('wMetodoPago').value;
-  document.getElementById('wIbanGroup').style.display = metodo === 'IBAN' ? '' : 'none';
+  var metodoEl = document.querySelector('input[name="wMetodoPago"]:checked');
+  var metodo = metodoEl ? metodoEl.value : '';
+  document.getElementById('pagoIBANContent').style.display = metodo === 'IBAN' ? '' : 'none';
+  document.getElementById('pagoTarjetaContent').style.display = metodo === 'TARJETA' ? '' : 'none';
+  document.getElementById('pagoNingunoContent').style.display = metodo === 'NINGUNO' ? '' : 'none';
+  document.querySelectorAll('.pago-card').forEach(function(c) {
+    c.classList.toggle('active', c.querySelector('input') && c.querySelector('input').checked);
+  });
 }
 
 function formatearIBAN(input) {
@@ -596,7 +738,19 @@ function toggleTipoContratacion() {
   var tipo = document.getElementById('wTipoContratacion').value;
   document.getElementById('portabilidadConfig').style.display = tipo === 'PORTABILIDAD' ? '' : 'none';
   document.getElementById('nuevaAltaConfig').style.display = tipo === 'NUEVA_ALTA' ? '' : 'none';
-  // Show coverage for fiber products only when fiber family selected
+  validarPaso3();
+}
+
+// Product change - show coverage for fiber
+function onProductoChange() {
+  var select = document.getElementById('wProducto');
+  var opt = select.options[select.selectedIndex];
+  var isFiber = opt ? (opt.getAttribute('data-fiber') === 'true' || (opt.parentElement && opt.parentElement.getAttribute('data-fiber') === 'true')) : false;
+  document.getElementById('coverageSection').style.display = isFiber ? '' : 'none';
+  if (!isFiber) {
+    document.getElementById('coverageResult').innerHTML = '<div class="text-muted small"><i class="bi bi-info-circle"></i> Introduce la dirección completa para verificar la disponibilidad de fibra.</div>';
+  }
+  validarPaso2();
 }
 
 // Coverage check
@@ -604,7 +758,10 @@ function checkCoverage() {
   var dir = document.getElementById('wCoverageDir').value.trim();
   if (!dir) { alert('Introduce una dirección'); return; }
   var resultEl = document.getElementById('coverageResult');
-  resultEl.innerHTML = '<span class="text-primary"><i class="bi bi-hourglass-split"></i> Verificando cobertura...</span>';
+  var btn = document.getElementById('btnCheckCoverage');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Verificando...';
+  resultEl.innerHTML = '<div class="text-center py-3"><span class="spinner-border text-primary spinner-border-sm"></span> <span class="text-muted">Consultando cobertura...</span></div>';
 
   fetch('/cobertura/address?q=' + encodeURIComponent(dir))
     .then(function(r) { return r.json(); })
@@ -612,14 +769,17 @@ function checkCoverage() {
       if (data && data.addresses && data.addresses.length > 0) {
         var addr = data.addresses[0];
         resultEl.innerHTML =
-          '<div class="alert alert-success mb-0"><i class="bi bi-check-circle"></i> Cobertura disponible<br>' +
-          '<small>' + (addr.fullAddress || addr.address || addr.name || 'Dirección encontrada') + '</small></div>';
+          '<div class="alert alert-success mb-0 d-flex align-items-center gap-2"><i class="bi bi-check-circle-fill fs-5"></i> <span><strong>Cobertura disponible</strong><br><small>' + (addr.fullAddress || addr.address || addr.name || 'Dirección encontrada') + '</small></span></div>';
       } else {
-        resultEl.innerHTML = '<div class="alert alert-danger mb-0"><i class="bi bi-x-circle"></i> No hay cobertura en esta dirección</div>';
+        resultEl.innerHTML = '<div class="alert alert-danger mb-0 d-flex align-items-center gap-2"><i class="bi bi-x-circle-fill fs-5"></i> <span><strong>Sin cobertura</strong><br><small>No hay cobertura de fibra disponible en esta dirección</small></span></div>';
       }
     })
     .catch(function(e) {
       resultEl.innerHTML = '<div class="alert alert-warning mb-0"><i class="bi bi-exclamation-triangle"></i> Error al verificar. Introduce una dirección más concreta.</div>';
+    })
+    .finally(function() {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-search"></i> Verificar cobertura';
     });
 }
 
@@ -628,12 +788,33 @@ document.getElementById('wSimType').addEventListener('change', function() {
   document.getElementById('wIccGroup').style.display = this.value === 'fisica' ? '' : 'none';
 });
 
+// Contract preview modal
+function verContrato() {
+  var frame = document.getElementById('contratoIframe');
+  var token = document.getElementById('orderTokenHolder').value;
+  var externoLink = document.getElementById('contratoAbrirExterno');
+  if (token) {
+    frame.src = '/kyc/contrato/' + token;
+    externoLink.href = '/kyc/contrato/' + token;
+  } else {
+    frame.src = '';
+    frame.srcdoc = '<div style="text-align:center;padding:60px 20px;color:#6c757d;font-family:sans-serif;"><i class="bi bi-file-text" style="font-size:2.5rem;display:block;margin-bottom:16px;color:#0d6efd;"></i><h5>Contrato no disponible</h5><p style="color:#6c757d;">Complete la creación del cliente para visualizar el contrato.</p><small>El contrato se generará automáticamente tras el registro del cliente.</small></div>';
+    externoLink.href = '#';
+    externoLink.style.display = 'none';
+  }
+  var modal = new bootstrap.Modal(document.getElementById('contratoModal'));
+  modal.show();
+}
+
 // Create client via API
 async function crearClienteAvanzado() {
   var btn = document.getElementById('btnCrearCliente');
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Creando cliente...';
   document.getElementById('submitStatus').innerHTML = '';
+
+  var metodoPagoEl = document.querySelector('input[name="wMetodoPago"]:checked');
+  var metodoPago = metodoPagoEl ? metodoPagoEl.value : '';
 
   var data = {
     nombre: document.getElementById('wNombre').value.trim(),
@@ -645,7 +826,7 @@ async function crearClienteAvanzado() {
     ciudad: document.getElementById('wCiudad').value.trim(),
     codigo_postal: document.getElementById('wCp').value.trim(),
     customerType: document.getElementById('wCustomerType').value,
-    metodo_pago: document.getElementById('wMetodoPago').value,
+    metodo_pago: metodoPago,
     iban: document.getElementById('wIban').value.trim(),
     producto_id: document.getElementById('wProducto').value,
     tipo_contratacion: document.getElementById('wTipoContratacion').value,
@@ -663,10 +844,12 @@ async function crearClienteAvanzado() {
     var result = await response.json();
 
     if (result.ok) {
+      document.getElementById('orderTokenHolder').value = result.orderToken || '';
       document.getElementById('submitStatus').innerHTML =
         '<div class="alert alert-success"><i class="bi bi-check-circle"></i> Cliente creado correctamente</div>' +
-        '<div class="mt-2">' +
+        '<div class="mt-2 d-flex gap-2">' +
         '<button class="btn btn-primary" onclick="enviarKYCToken(\'' + result.orderToken + '\',' + result.clientId + ')"><i class="bi bi-envelope"></i> Enviar email KYC ahora</button> ' +
+        '<button class="btn btn-outline-primary" onclick="verContrato()"><i class="bi bi-file-text"></i> Ver contrato</button> ' +
         '<button class="btn btn-outline-secondary" onclick="location.href=\'/altas\'"><i class="bi bi-arrow-left"></i> Volver</button>' +
         '</div>';
       btn.style.display = 'none';
@@ -696,7 +879,6 @@ async function enviarKYC(ordenId) {
 }
 
 async function enviarKYCToken(token, clientId) {
-  // Get order ID from token
   try {
     var r = await fetch('/altas/orden/' + token);
     var res = await r.json();
@@ -889,9 +1071,147 @@ document.querySelectorAll('[data-bs-toggle="tab"]').forEach(function(tab) {
 
 if (document.querySelector('#recientes.tab-pane.active')) initAltasChart();
 if (document.querySelector('#portabilidades.tab-pane.active')) initPortaChart();
+
+// Init: disable validation
+document.addEventListener('DOMContentLoaded', function() {
+  validarPaso1();
+  validarPaso2();
+  validarPaso3();
+});
 </script>
 
 <style>
+/* Progress bar */
+.wizard-progress {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+.wiz-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  flex: 1;
+  text-align: center;
+}
+.wiz-step + .wiz-step::before {
+  content: '';
+  position: absolute;
+  top: 14px;
+  left: -50%;
+  width: 100%;
+  height: 3px;
+  background: #dee2e6;
+  z-index: 0;
+}
+.wiz-step.completed + .wiz-step::before,
+.wiz-step.active + .wiz-step::before {
+  background: #198754;
+}
+.wiz-step.active + .wiz-step::before {
+  background: linear-gradient(90deg, #198754 0%, #dee2e6 100%);
+}
+.wiz-circle {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  position: relative;
+  z-index: 1;
+  transition: all 0.3s ease;
+}
+.wiz-step.completed .wiz-circle {
+  background: #198754;
+  box-shadow: 0 0 0 3px rgba(25,135,84,0.2);
+}
+.wiz-step.active .wiz-circle {
+  background: #0d6efd;
+  box-shadow: 0 0 0 3px rgba(13,110,253,0.25);
+  transform: scale(1.1);
+}
+.wiz-step.pending .wiz-circle {
+  background: #adb5bd;
+}
+.wiz-label {
+  font-size: 10px;
+  margin-top: 6px;
+  white-space: nowrap;
+  font-weight: 500;
+  line-height: 1.2;
+}
+.wiz-step.completed .wiz-label { color: #198754; }
+.wiz-step.active .wiz-label { color: #0d6efd; font-weight: 600; }
+.wiz-step.pending .wiz-label { color: #6c757d; }
+
+/* Payment cards */
+.pago-cards {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.pago-card {
+  flex: 1;
+  min-width: 150px;
+}
+.pago-card input[type="radio"] {
+  display: none;
+}
+.pago-card label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 2px solid #dee2e6;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 13px;
+  font-weight: 500;
+  background: #fff;
+}
+.pago-card label i { font-size: 18px; color: #6c757d; }
+.pago-card label:hover {
+  border-color: #86b7fe;
+  background: #f8f9ff;
+}
+.pago-card.active label {
+  border-color: #0d6efd;
+  background: #f0f6ff;
+  box-shadow: 0 0 0 2px rgba(13,110,253,0.15);
+}
+.pago-card.active label i { color: #0d6efd; }
+.pago-detail {
+  padding: 10px 14px;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  background: #f8f9fa;
+}
+.pago-detail .input-group { max-width: 340px; }
+
+/* Wizard nav buttons */
+.btn-wizard-next:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Pendientes table badges */
+#pendientesTable .badge { font-size: 11px; font-weight: 500; }
+#pendientesTable td { vertical-align: middle; }
+#pendientesTable .text-info small { font-size: 10px; }
+
+/* Coverage section */
+#coverageSection .btn-primary {
+  letter-spacing: 0.3px;
+}
+#coverageResult .alert { margin-bottom: 0; }
+
+/* Step indicator override */
 .step-indicator .badge { font-size: 12px; padding: 6px 12px; }
 #wProducto option { padding: 4px 8px; }
 </style>

@@ -42,8 +42,9 @@
                 <td><%= c.telefono || '-' %></td>
                 <td><%= c.email || '-' %></td>
                 <td class="text-end">
-                  <a href="/customers/<%= c.id %>" class="btn btn-sm btn-outline-info"><i class="bi bi-eye"></i></a>
-                  <a href="/isp/contratos?cliente=<%= c.id %>" class="btn btn-sm btn-outline-primary"><i class="bi bi-file-text"></i></a>
+                  <a href="/isp/clientes/detalle/<%= c.id %>" class="btn btn-sm btn-outline-info" title="Detalle ISP"><i class="bi bi-eye"></i></a>
+                  <a href="/isp/contratos?cliente=<%= c.id %>" class="btn btn-sm btn-outline-primary" title="Contratos"><i class="bi bi-file-text"></i></a>
+                  <a href="/customers/<%= c.id %>" class="btn btn-sm btn-outline-secondary" title="Ficha principal"><i class="bi bi-box-arrow-up-right"></i></a>
                 </td>
               </tr>
               <% }) %>

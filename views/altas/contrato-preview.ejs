@@ -48,9 +48,9 @@ th { background: #f8f9fa; font-weight: 600; width: 30%; }
 <strong>TERCERA.- Precio y facturación.</strong> El cliente se obliga al pago de la cuota mensual correspondiente al servicio contratado. La facturación se realizará de forma mensual y el importe se cargará según el método de pago seleccionado.
 </div>
 
-<% if (pago.metodo === 'IBAN' && pago.iban) { %>
+<% if (mostrarClausulaIBAN || (pago.metodo === 'IBAN' && pago.iban)) { %>
 <div class="important">
-<strong>ⓘ Verificación de IBAN:</strong> La verificación de la cuenta IBAN tiene un coste de <strong>0,50€</strong> que se aplicará en la primera factura. Dicho importe será <strong>devuelto en la siguiente facturación</strong>. La aceptación de esta cláusula autoriza a <%= empresaNombre %> a realizar la verificación de la titularidad de la cuenta bancaria proporcionada.
+<strong>ⓘ <%= clausulaIBAN || 'CLÁUSULA ADICIONAL - VERIFICACIÓN DE IBAN: El cliente autoriza el cargo de 0,50€ en la cuenta bancaria proporcionada para verificar la titularidad y validez del IBAN. Dicho importe será reembolsado en la primera factura emitida. En caso de que el IBAN no sea válido o no se pueda verificar, se informará al cliente para que proporcione un método de pago alternativo.' %></strong>
 </div>
 <% } %>
 
