@@ -18,11 +18,46 @@ function getApi() {
   return new LikesAPI({ apiUrl: c.likes_api_url, email: c.likes_client_id, password: c.likes_client_secret, brandId: c.likes_brand_id });
 }
 
+function paginaError(titulo, error, mensaje, empresaNombre) {
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${titulo}</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+  body{background:#f5f7fa;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;display:flex;align-items:center;min-height:100vh}
+  .card-error{max-width:480px;margin:auto;background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,0.08);padding:40px;text-align:center}
+  .card-error .icono{font-size:64px;margin-bottom:16px}
+  .card-error h2{font-size:22px;font-weight:600;margin-bottom:12px;color:#333}
+  .card-error p{color:#666;font-size:15px;margin-bottom:8px;line-height:1.5}
+  .card-error .btn-contacto{display:inline-block;margin-top:20px;padding:10px 28px;background:#0050A1;color:#fff;text-decoration:none;border-radius:8px;font-size:14px}
+</style>
+</head>
+<body>
+  <div class="card-error">
+    <div class="icono">⚠️</div>
+    <h2>${error}</h2>
+    <p>${mensaje}</p>
+    <p style="font-size:13px;color:#999">${empresaNombre || 'Movilbro'} - Atención al cliente</p>
+  </div>
+</body>
+</html>`;
+}
+
 // GET /kyc/:token - main KYC page (public, no auth)
 router.get('/:token', async (req, res) => {
   try {
     const orden = db.prepare('SELECT * FROM altas_ordenes WHERE token = ?').get(req.params.token);
-    if (!orden) return res.status(404).send('Enlace no válido o expirado');
+    if (!orden) {
+      return res.status(404).send(paginaError(
+        'Enlace no válido',
+        'Enlace no válido o expirado',
+        'El enlace que has utilizado no es válido o ha expirado. Por favor, contacta con nuestro equipo de atención al cliente para que te enviemos uno nuevo.',
+        db.prepare("SELECT value FROM settings WHERE key='empresa_nombre'").get()?.value
+      ));
+    }
 
     const datos = JSON.parse(orden.datos_cliente || '{}');
     const producto = JSON.parse(orden.datos_producto || '{}');
@@ -33,16 +68,58 @@ router.get('/:token', async (req, res) => {
     // Track email open
     db.prepare('UPDATE altas_ordenes SET email_leido = 1, email_veces_leido = email_veces_leido + 1, updated_at = CURRENT_TIMESTAMP WHERE token = ?').run(req.params.token);
 
-    const paso = orden.kyc_docs_subidos >= 2 ? 2 : 1;
+    // Detección de paso mejorada
+    let paso = 1;
+    let pasoTexto = 'Verificación de identidad';
+
+    if (orden.kyc_completado || orden.estado === 'completada') {
+      paso = 3;
+      pasoTexto = 'Proceso completado';
+    } else if (orden.kyc_contrato_firmado) {
+      paso = 3;
+      pasoTexto = 'Contrato firmado';
+    } else if (orden.kyc_docs_subidos >= 2) {
+      paso = 2;
+      pasoTexto = 'Firma del contrato';
+    } else if (orden.kyc_docs_subidos === 1) {
+      paso = 1;
+      pasoTexto = 'Verificación de identidad (1/2 documentos)';
+    }
+
+    // Si la orden ya está completada, mostrar pantalla de completado
+    if (orden.estado === 'completada') {
+      return res.render('altas/kyc', {
+        title: 'Completado - ' + empresaNombre,
+        layout: false,
+        token: req.params.token,
+        orden, datos, producto,
+        paso: 3,
+        pasoTexto: 'Completado',
+        empresaNombre,
+        empresaLogo,
+        kycCompletado: 1,
+        kycDocsSubidos: orden.kyc_docs_subidos,
+        kycContratoFirmado: orden.kyc_contrato_firmado
+      });
+    }
+
+    // Si la orden está cancelada
+    if (orden.estado === 'cancelada') {
+      return res.status(410).send(paginaError(
+        'Proceso cancelado',
+        'Proceso cancelado',
+        'Este proceso de alta ha sido cancelado. Si crees que es un error, contacta con nuestro equipo de atención al cliente para resolverlo.',
+        empresaNombre
+      ));
+    }
 
     res.render('altas/kyc', {
       title: 'Verificación - ' + empresaNombre,
       layout: false,
       token: req.params.token,
-      orden,
-      datos,
-      producto,
+      orden, datos, producto,
       paso,
+      pasoTexto,
       empresaNombre,
       empresaLogo,
       kycCompletado: orden.kyc_completado,
@@ -51,7 +128,12 @@ router.get('/:token', async (req, res) => {
     });
   } catch (error) {
     console.error(error);
-    res.status(500).send('Error: ' + error.message);
+    res.status(500).send(paginaError(
+      'Error interno',
+      'Error interno',
+      'Ha ocurrido un error inesperado. Por favor, inténtalo de nuevo más tarde. Si el problema persiste, contacta con atención al cliente.',
+      db.prepare("SELECT value FROM settings WHERE key='empresa_nombre'").get()?.value
+    ));
   }
 });
 
@@ -121,20 +203,27 @@ router.post('/:token/firmar', async (req, res) => {
     const sigPath = path.join(kycUploads, sigFilename);
     fs.writeFileSync(sigPath, sigBuf);
 
-    // Upload signed document if possible
-    let contratoSubido = false;
+    // Intentar subir la firma a Likes Telecom API como documento
     try {
       const api = getApi();
-      const datos = JSON.parse(orden.datos_cliente || '{}');
+      const datosCliente = JSON.parse(orden.datos_cliente || '{}');
       let customers = await api.getCustomers();
       let custArr = Array.isArray(customers) ? customers : [];
-      let customer = custArr.find(c => c.fiscalId === datos.dni);
+      let customer = custArr.find(c => c.fiscalId === datosCliente.dni);
       if (customer) {
-        // Try to get signed contract upload URL if digitalSignature is false
-        // For digital signature it's handled by API automatically
-        contratoSubido = true;
+        const docs = customer.documentation || customer.documents || [];
+        const docFirma = docs.find(d => d.documentType === 'SIGNED_CONTRACT' || d.documentType === 'CONTRATO_FIRMADO');
+        if (docFirma && docFirma.uploadURL) {
+          const axios = require('axios');
+          await axios.put(docFirma.uploadURL, sigBuf, {
+            headers: { 'Content-Type': 'image/png' }
+          });
+          console.log('Firma subida correctamente a Likes Telecom API');
+        }
       }
-    } catch(e) {}
+    } catch (e) {
+      console.error('Error al subir firma a API (no crítico):', e.message);
+    }
 
     db.prepare("UPDATE altas_ordenes SET kyc_contrato_firmado = 1, kyc_completado = 1, estado = 'pendiente_aprobacion', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(orden.id);
 
@@ -149,7 +238,14 @@ router.post('/:token/firmar', async (req, res) => {
 router.get('/contrato/:token', async (req, res) => {
   try {
     const orden = db.prepare('SELECT * FROM altas_ordenes WHERE token = ?').get(req.params.token);
-    if (!orden) return res.status(404).send('No encontrado');
+    if (!orden) {
+      return res.status(404).send(paginaError(
+        'No encontrado',
+        'Contrato no encontrado',
+        'El contrato solicitado no existe o ha expirado.',
+        db.prepare("SELECT value FROM settings WHERE key='empresa_nombre'").get()?.value
+      ));
+    }
 
     const datos = JSON.parse(orden.datos_cliente || '{}');
     const producto = JSON.parse(orden.datos_producto || '{}');
@@ -169,20 +265,32 @@ router.get('/contrato/:token', async (req, res) => {
       if (prod) productName = prod.productName || prod.name || productName;
     } catch(e) {}
 
+    // Cláusula IBAN si el método de pago es IBAN
+    const mostrarClausulaIBAN = pago.metodo === 'IBAN';
+    const clausulaIBAN = 'CLÁUSULA ADICIONAL - VERIFICACIÓN DE IBAN: El cliente autoriza el cargo de 0,50€ en la cuenta bancaria proporcionada para verificar la titularidad y validez del IBAN. Dicho importe será reembolsado en la primera factura emitida. En caso de que el IBAN no sea válido o no se pueda verificar, se informará al cliente para que proporcione un método de pago alternativo.';
+
     res.render('altas/contrato-preview', {
       title: 'Contrato',
       layout: false,
       datos, producto, pago, orden,
       empresaNombre, empresaCif, empresaDireccion, empresaTelefono,
       productName,
+      mostrarClausulaIBAN,
+      clausulaIBAN,
       hoy: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })
     });
   } catch (error) {
-    res.status(500).send('Error: ' + error.message);
+    console.error(error);
+    res.status(500).send(paginaError(
+      'Error interno',
+      'Error interno',
+      'Ha ocurrido un error al generar el contrato. Inténtalo de nuevo más tarde.',
+      db.prepare("SELECT value FROM settings WHERE key='empresa_nombre'").get()?.value
+    ));
   }
 });
 
-// GET /api/kyc/tracking/:token.gif - tracking pixel (1x1 transparent)
+// GET /kyc/tracking/:token.gif - tracking pixel (1x1 transparent)
 router.get('/tracking/:token.gif', async (req, res) => {
   try {
     const token = req.params.token.replace('.gif', '');

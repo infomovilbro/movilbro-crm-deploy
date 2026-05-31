@@ -198,27 +198,80 @@ router.post('/enviar-kyc', requireAuth, async (req, res) => {
     const gmailPass = db.prepare("SELECT value FROM settings WHERE key='gmail_pass'").get()?.value;
     const empresaNombre = db.prepare("SELECT value FROM settings WHERE key='empresa_nombre'").get()?.value || 'Movilbro';
 
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;padding:20px;color:#333;max-width:600px;margin:0 auto}.header{background:#0050A1;color:#fff;padding:20px;text-align:center;border-radius:8px 8px 0 0}h1{margin:0;font-size:22px}.content{padding:20px;border:1px solid #ddd;border-top:none;border-radius:0 0 8px 8px}.btn{display:inline-block;background:#0050A1;color:#fff;padding:12px 30px;text-decoration:none;border-radius:6px;font-size:16px;margin:20px 0}.footer{font-size:12px;color:#999;margin-top:20px;text-align:center;border-top:1px solid #eee;padding-top:15px}</style></head><body>
-<div class="header"><h1>${empresaNombre} - Verificación de datos</h1></div>
-<div class="content">
-<p>Hola <strong>${datos.nombre || ''}</strong>,</p>
-<p>Estamos tramitando tu alta como nuevo cliente. Para completar el proceso necesitamos que verifiques tu identidad y firmes el contrato.</p>
-<p>Es un proceso rápido de 2 pasos:</p>
-<ol>
-<li><strong>Verificación de identidad</strong> — Foto con tu DNI (anverso y reverso)</li>
-<li><strong>Firma del contrato</strong> — Revisa y firma digitalmente</li>
-</ol>
-<p style="text-align:center"><a href="${kycUrl}" class="btn">Ir a verificación →</a></p>
-<p style="font-size:14px;color:#666;text-align:center">Este enlace es personal y seguro. No lo compartas.</p>
-</div>
-<div class="content" style="border-top:1px solid #ddd;margin-top:20px">
-<p style="font-size:13px;color:#666">¿Por qué te pedimos estos datos? La verificación de identidad es un requisito legal (KYC - Know Your Customer) para la contratación de servicios de telecomunicaciones. Tus datos están protegidos y solo se utilizarán para tramitar tu alta.</p>
-</div>
-<div class="footer">
-<p><strong>${empresaNombre}</strong> - <a href="mailto:${gmailUser || 'info@movilbro.com'}">${gmailUser || 'info@movilbro.com'}</a></p>
-<p><img src="${req.protocol}://${req.get('host')}/api/kyc/tracking/${orden.token}.gif" width="1" height="1" alt=""/></p>
-</div>
-</body></html>`;
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body{font-family:'Segoe UI',Arial,sans-serif;padding:0;color:#333;margin:0;background:#f4f4f4}
+    .container{max-width:600px;margin:20px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.1)}
+    .header{background:linear-gradient(135deg,#0050A1,#003d7a);color:#fff;padding:30px;text-align:center}
+    .header h1{margin:0;font-size:24px;font-weight:300}
+    .header .subtitle{font-size:14px;opacity:0.9;margin-top:8px}
+    .content{padding:30px}
+    .pasos{display:flex;gap:20px;margin:25px 0}
+    .paso{flex:1;text-align:center;padding:20px;background:#f8f9fa;border-radius:10px;border:1px solid #e9ecef;min-width:0}
+    .paso .icono{font-size:36px;margin-bottom:10px;display:block}
+    .paso h3{margin:0 0 5px;font-size:16px;color:#0050A1}
+    .paso p{margin:0;font-size:13px;color:#666}
+    .btn{display:inline-block;background:linear-gradient(135deg,#0050A1,#003d7a);color:#fff;padding:14px 40px;text-decoration:none;border-radius:8px;font-size:16px;margin:20px 0;text-align:center;font-weight:500}
+    .btn:hover{background:linear-gradient(135deg,#003d7a,#002a5e)}
+    .info-kyc{background:#fff3cd;border:1px solid #ffeeba;border-radius:8px;padding:15px;margin:20px 0;font-size:14px;color:#856404}
+    .info-kyc strong{display:block;margin-bottom:4px}
+    .footer{background:#f8f9fa;padding:20px 30px;font-size:12px;color:#999;text-align:center;border-top:1px solid #eee}
+    .footer a{color:#0050A1;text-decoration:none}
+    .aviso-privacidad{font-size:11px;color:#aaa;margin-top:10px}
+    @media(max-width:480px){.pasos{flex-direction:column;gap:12px}.header{padding:20px}.content{padding:20px}}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>${empresaNombre}</h1>
+      <div class="subtitle">Verificación de identidad y firma de contrato</div>
+    </div>
+    <div class="content">
+      <p>Hola <strong>${datos.nombre || ''} ${datos.apellidos || ''}</strong>,</p>
+      <p>Estamos tramitando tu alta como nuevo cliente de ${empresaNombre}. Para completar el proceso necesitamos que realices <strong>dos pasos muy sencillos</strong>:</p>
+
+      <div class="pasos">
+        <div class="paso">
+          <span class="icono">📷</span>
+          <h3>Paso 1: Verificar identidad</h3>
+          <p>Sube una foto de tu DNI por ambas caras</p>
+        </div>
+        <div class="paso">
+          <span class="icono">✍️</span>
+          <h3>Paso 2: Firmar contrato</h3>
+          <p>Revisa y firma digitalmente el contrato</p>
+        </div>
+      </div>
+
+      <div style="text-align:center">
+        <a href="${kycUrl}" class="btn">Siguiente paso →</a>
+      </div>
+
+      <p style="font-size:14px;color:#666;text-align:center">Este enlace es personal y seguro. No lo compartas con nadie.</p>
+
+      <div class="info-kyc">
+        <strong>🔒 ¿Por qué necesitamos estos documentos?</strong>
+        La verificación de identidad es un requisito legal obligatorio (KYC - Know Your Customer) establecido por la normativa de telecomunicaciones. Necesitamos confirmar tu identidad para activar los servicios contratados de forma segura y cumplir con la legislación vigente en materia de prevención del fraude y blanqueo de capitales.
+      </div>
+
+      <div style="text-align:center;font-size:13px;color:#666;margin-top:15px">
+        <p>¿Tienes dudas? Escríbenos a <a href="mailto:${gmailUser || 'info@movilbro.com'}">${gmailUser || 'info@movilbro.com'}</a></p>
+      </div>
+    </div>
+    <div class="footer">
+      <p><strong>${empresaNombre}</strong><br>
+      <a href="mailto:${gmailUser || 'info@movilbro.com'}">${gmailUser || 'info@movilbro.com'}</a></p>
+      <p class="aviso-privacidad">Este correo contiene información confidencial dirigida únicamente a su destinatario. Si no has solicitado este servicio, por favor ignora este mensaje. Tratamos tus datos conforme a nuestra política de privacidad. Puedes ejercer tus derechos de protección de datos contactándonos por email.</p>
+      <img src="${req.protocol}://${req.get('host')}/kyc/tracking/${orden.token}.gif" width="1" height="1" alt=""/>
+    </div>
+  </div>
+</body>
+</html>`;
 
     const transporter = nodemailer.createTransport({
       service: 'gmail',
@@ -326,25 +379,37 @@ router.post('/completar', requireAuth, async (req, res) => {
     };
 
     let apiOrderResult = null;
+    let apiOrderId = null;
+
     try {
       apiOrderResult = await api.createOrder(orderPayload);
+      apiOrderId = apiOrderResult?.id || apiOrderResult?.orderId || null;
     } catch (apiErr) {
-      console.error('Error creating order in API:', apiErr.message);
+      console.error('Error al crear orden en API:', apiErr.message);
+      // Rollback: marcar la orden con error
+      db.prepare("UPDATE altas_ordenes SET estado = 'error_api', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(orden_id);
+      db.prepare('INSERT INTO activity_log (tipo, descripcion, client_id) VALUES (?, ?, ?)').run(
+        'error_api', 'Error al enviar orden a Likes Telecom: ' + apiErr.message, orden.client_id
+      );
       return res.status(500).json({ ok: false, error: 'Error al crear orden en API: ' + apiErr.message });
     }
 
-    const apiOrderId = apiOrderResult?.id || apiOrderResult?.orderId || null;
+    // Transacción atómica para actualizaciones en base de datos
+    const completarOrden = db.transaction(() => {
+      db.prepare(`UPDATE altas_ordenes SET estado = 'completada', likes_order_id = ?, orden_data = ?, paso = 5, updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(
+        apiOrderId, JSON.stringify(orderPayload), orden_id
+      );
 
-    db.prepare(`UPDATE altas_ordenes SET estado = 'completada', likes_order_id = ?, orden_data = ?, paso = 5, updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(
-      apiOrderId, JSON.stringify(orderPayload), orden_id
-    );
+      db.prepare('INSERT INTO orders (client_id, likes_order_id, estado, tipo, producto, detalles) VALUES (?, ?, ?, ?, ?, ?)').run(
+        orden.client_id, apiOrderId, 'activa', datosProducto.tipo_contratacion || 'NUEVA_ALTA', datosProducto.producto_id, JSON.stringify(orderPayload)
+      );
 
-    // Insert into orders table too
-    db.prepare('INSERT INTO orders (client_id, likes_order_id, estado, tipo, producto, detalles) VALUES (?, ?, ?, ?, ?, ?)').run(
-      orden.client_id, apiOrderId, 'activa', datosProducto.tipo_contratacion || 'NUEVA_ALTA', datosProducto.producto_id, JSON.stringify(orderPayload)
-    );
+      db.prepare('INSERT INTO activity_log (tipo, descripcion, client_id) VALUES (?, ?, ?)').run(
+        'alta_completada', 'Orden completada y enviada a Likes Telecom. ID: ' + (apiOrderId || ''), orden.client_id
+      );
+    });
 
-    db.prepare('INSERT INTO activity_log (tipo, descripcion, client_id) VALUES (?, ?, ?)').run('alta_completada', 'Orden completada y enviada a Likes Telecom. ID: ' + (apiOrderId || ''), orden.client_id);
+    completarOrden();
 
     res.json({ ok: true, message: 'Orden completada y enviada a Likes Telecom', apiOrderId });
   } catch (error) {
@@ -374,6 +439,61 @@ router.get('/orden/:id', requireAuth, async (req, res) => {
     orden.datos_pago = JSON.parse(orden.datos_pago || '{}');
     res.json({ ok: true, orden });
   } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+// POST /altas/reanudar-orden - resume order (returns all data for the agent)
+router.post('/reanudar-orden', requireAuth, async (req, res) => {
+  try {
+    const { orden_id } = req.body;
+    if (!orden_id) return res.status(400).json({ ok: false, error: 'Se requiere orden_id' });
+
+    const orden = db.prepare('SELECT * FROM altas_ordenes WHERE id = ?').get(orden_id);
+    if (!orden) return res.status(404).json({ ok: false, error: 'Orden no encontrada' });
+
+    // Parsear todos los campos JSON
+    const datosCompletos = {
+      id: orden.id,
+      token: orden.token,
+      client_id: orden.client_id,
+      likes_customer_id: orden.likes_customer_id,
+      likes_order_id: orden.likes_order_id,
+      estado: orden.estado,
+      paso: orden.paso,
+      datos_cliente: JSON.parse(orden.datos_cliente || '{}'),
+      datos_producto: JSON.parse(orden.datos_producto || '{}'),
+      datos_pago: JSON.parse(orden.datos_pago || '{}'),
+      datos_cobertura: JSON.parse(orden.datos_cobertura || '{}'),
+      datos_donante: JSON.parse(orden.datos_donante || '{}'),
+      orden_data: orden.orden_data ? JSON.parse(orden.orden_data) : null,
+      email_enviado: orden.email_enviado,
+      email_leido: orden.email_leido,
+      email_veces_leido: orden.email_veces_leido,
+      kyc_completado: orden.kyc_completado,
+      kyc_docs_subidos: orden.kyc_docs_subidos,
+      kyc_contrato_firmado: orden.kyc_contrato_firmado,
+      created_at: orden.created_at,
+      updated_at: orden.updated_at
+    };
+
+    // Obtener datos del cliente local si existe
+    let cliente = null;
+    if (orden.client_id) {
+      cliente = db.prepare('SELECT * FROM clients WHERE id = ?').get(orden.client_id);
+    }
+
+    // Obtener documentos KYC subidos
+    const docs = db.prepare('SELECT * FROM altas_kyc_docs WHERE orden_id = ? ORDER BY created_at').all(orden_id);
+
+    res.json({
+      ok: true,
+      orden: datosCompletos,
+      cliente,
+      documentos_kyc: docs
+    });
+  } catch (error) {
+    console.error(error);
     res.status(500).json({ ok: false, error: error.message });
   }
 });
