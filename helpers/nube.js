@@ -23,49 +23,27 @@ function ensureDir(dir) {
 }
 
 async function generarPDF(htmlContent, filename) {
-  if (!process.env.PLAYWRIGHT_BROWSERS_PATH && process.env.RENDER) {
-    process.env.PLAYWRIGHT_BROWSERS_PATH = '/opt/render/.cache/ms-playwright';
-  }
   try {
     var { chromium } = require('playwright');
-    // Try to find the executable
     var execPath;
     try { execPath = chromium.executablePath(); } catch(e) {}
     if (!execPath || !fs.existsSync(execPath)) {
-      console.error('Playwright not found at default path' + (execPath ? ': ' + execPath : ''));
-      // Try common fallback paths
-      var fallbacks = [];
-      if (process.env.RENDER) {
-        fallbacks = [
-          '/opt/render/.cache/ms-playwright/chromium-1223/chrome-linux/chrome',
-          '/opt/render/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell'
-        ];
-      }
-      var found = false;
-      for (var f of fallbacks) {
-        if (fs.existsSync(f)) { execPath = f; found = true; break; }
-      }
-      if (!found) {
-        console.log('Attempting to install Playwright browser runtime...');
-        var { execSync } = require('child_process');
-        execSync('npx playwright install chromium 2>&1; npx playwright install --with-deps 2>&1', { stdio: 'inherit', timeout: 120000 });
-      }
+      var fallbacks = [
+        '/opt/render/.cache/ms-playwright/chromium-1223/chrome-linux/chrome',
+        '/opt/render/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell'
+      ];
+      for (var f of fallbacks) { if (fs.existsSync(f)) { execPath = f; break; } }
     }
-    var launchOpts = { headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] };
-    if (execPath && fs.existsSync(execPath)) { launchOpts.executablePath = execPath; }
-    var browser = await chromium.launch(launchOpts);
-    try {
-      var page = await browser.newPage();
-      await page.setContent(htmlContent, { waitUntil: 'networkidle' });
-      var pdfBuf = await page.pdf({ format: 'A4', margin: { top: '0mm', bottom: '0mm', left: '0mm', right: '0mm' }, printBackground: true });
-      return pdfBuf;
-    } finally {
-      await browser.close();
+    if (execPath && fs.existsSync(execPath)) {
+      var browser = await chromium.launch({ headless: true, executablePath: execPath, args: ['--no-sandbox','--disable-setuid-sandbox'] });
+      try {
+        var page = await browser.newPage();
+        await page.setContent(htmlContent, { waitUntil: 'networkidle' });
+        return await page.pdf({ format: 'A4', margin: { top: '0mm', bottom: '0mm', left: '0mm', right: '0mm' }, printBackground: true });
+      } finally { await browser.close(); }
     }
-  } catch(e) {
-    console.error('Error generando PDF con Playwright:', e.message);
-    throw new Error('No se pudo generar el PDF (Playwright). Error: ' + e.message);
-  }
+  } catch(e) { console.error('Playwright error:', e.message); }
+  return null; // fallback: route will redirect to HTML view
 }
 
 async function guardarLocal(pdfBuf, periodo, nombreArchivo) {
@@ -105,6 +83,7 @@ async function procesarFactura(factura, lineas, cdrsDetalle, llamadas, history) 
   var tpl = fs.readFileSync(path.join(__dirname, '..', 'views', 'isp', 'facturacion', 'invoice-html.ejs'), 'utf8');
   var html = ejs.render(tpl, { factura, lineas, cdrsDetalle, llamadas: llamadas || [], history: history || [], layout: false });
   var pdfBuf = await generarPDF(html, 'factura.pdf');
+  if (!pdfBuf) return null; // fallback to HTML view
   var numFactura = (factura.serie || 'F') + '-' + String(factura.numero_factura || factura.id).padStart(5, '0');
   var nombreArchivo = 'Factura-' + numFactura + '.pdf';
   var local = await guardarLocal(pdfBuf, factura.periodo, nombreArchivo);

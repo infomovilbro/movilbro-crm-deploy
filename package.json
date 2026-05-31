@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "postinstall": "npx playwright install 2>&1; npx playwright install --with-deps 2>&1 || echo 'Playwright done (non-fatal)'"
+    "postinstall": "echo 'Playwright browser install disabled for Render'"
   },
   "dependencies": {
     "@aws-sdk/client-cognito-identity": "^3.1054.0",

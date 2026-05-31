@@ -299,6 +299,7 @@ router.get('/pdf/:id', async (req, res) => {
     }
 
     var result = await nube.procesarFactura(factura, lineas, cdrsDetalle, llamadas, history);
+    if (!result) return res.redirect('/isp/facturacion/facturas/' + req.params.id + '/view');
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename="' + nombreArchivo + '"');
     res.send(result.pdfBuf);
