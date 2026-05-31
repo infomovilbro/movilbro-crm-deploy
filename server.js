@@ -566,3 +566,5 @@ if (!isProd) {
     console.log('[CamRelay] Reloj de cámara activado (local -> Render)');
   })();
 }
+
+// redeploy trigger 2026-05-31 18:45:15
