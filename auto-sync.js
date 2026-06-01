@@ -345,38 +345,8 @@ async function runSync() {
 
     console.log('[AutoSync] Resultado:', { upserted, created, errors, cdrs: cdrsFetched });
 
-    // Step 7: Generate PDFs for current month
-    syncProgress.step = 'Generando PDFs...';
-    try {
-      var facturas = db.prepare('SELECT * FROM isp_facturas WHERE periodo=? ORDER BY id ASC').all(periodo);
-      for (var f of facturas) {
-        try {
-          var numFactura = (f.serie || 'F') + '-' + String(f.numero_factura || f.id).padStart(5, '0');
-          var nombreArchivo = 'Factura-' + numFactura + '.pdf';
-          var paths = nube.getYearMonthPaths(f.periodo);
-          if (fs.existsSync(path.join(paths.dir, nombreArchivo))) continue; // Skip if PDF exists
-          var lineasRaw = db.prepare('SELECT * FROM isp_facturas_lineas WHERE factura_id=?').all(f.id);
-          // Group CDR lines by (linea, tipo)
-          var lineas = [], cdrG = {};
-          lineasRaw.forEach(function(l) {
-            if (l.tipo === 'cdr') {
-              var k = (l.linea||'')+'|'+(l.tipo||'exceso');
-              if (!cdrG[k]) cdrG[k] = { linea: l.linea, tipo: 'cdr', total: 0, concepto: l.concepto };
-              cdrG[k].total += parseFloat(l.importe||0);
-            } else { lineas.push(l); }
-          });
-          for (var gk in cdrG) { var g=cdrG[gk]; lineas.push({ concepto: g.concepto, tipo: 'cdr', importe: Math.round(g.total*100)/100, linea: g.linea }); }
-          var cdrsDetalle = db.prepare('SELECT * FROM isp_cdrs WHERE factura_id=?').all(f.id);
-          var llamadas = db.prepare('SELECT * FROM isp_llamadas WHERE factura_id=? ORDER BY fecha, hora').all(f.id);
-          var history = [];
-          if (f.fiscal_id) {
-            var histRows = db.prepare("SELECT periodo, SUM(importe_total) as total FROM isp_facturas WHERE fiscal_id=? AND id<=? GROUP BY periodo ORDER BY periodo DESC LIMIT 6").all(f.fiscal_id, f.id);
-            history = histRows.reverse();
-          }
-          await nube.procesarFactura(f, lineas, cdrsDetalle, llamadas, history);
-        } catch(e2) {}
-      }
-    } catch(e) { console.error('[AutoSync] Error PDFs:', e.message); }
+    // PDFs ya no se generan en auto-sync (causaba crashes con Playwright en Render)
+    // Se generan bajo demanda al visitar la factura en el CRM
 
     syncProgress.status = 'completed';
     syncProgress.lastSync = new Date().toISOString();

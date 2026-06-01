@@ -394,29 +394,80 @@ cron.schedule('5 0 * * *', () => {
   cerrarDiaAutomatico(fechaAyer);
 });
 
-// ---- AUTO SYNC - Sincronización cada hora con API Likes Telecom ----
-cron.schedule('0 * * * *', () => {
-  console.log('[AutoSync] Ejecutando sincronización horaria...');
-  runSync().then(r => {
-    console.log('[AutoSync] Resultado:', r.ok ? 'OK (' + r.invoices + ' facturas)' : 'ERROR: ' + (r.error || ''));
+// ---- AUTO SYNC - Sincronización inteligente con API Likes Telecom ----
+// En lugar de sincronizar cada hora (que satura memoria y causa reinicios),
+// se verifica primero si la API de Likes Telecom está disponible.
+// - Sincronización ligera (solo facturas) cada hora si la API responde
+// - Sincronización completa (con CDRs) SOLO cuando la API se detecta como "vuelve a estar disponible"
+
+var apiWasDown = false;
+var syncIntervalId = null;
+
+function checkApiHealth() {
+  return new Promise(function(resolve) {
+    try {
+      var http = require('http');
+      var https = require('https');
+      var apiUrl = db.prepare("SELECT value FROM settings WHERE key='likes_api_url'").get()?.value || 'https://api.likestelecom.com';
+      var lib = apiUrl.indexOf('https:') === 0 ? https : http;
+      var urlObj = new URL(apiUrl);
+      var opts = { hostname: urlObj.hostname, path: '/token', method: 'HEAD', timeout: 10000 };
+      var req = lib.request(opts, function(res) { resolve(res.statusCode < 500); });
+      req.on('error', function() { resolve(false); });
+      req.on('timeout', function() { req.destroy(); resolve(false); });
+      req.end();
+    } catch(e) { resolve(false); }
   });
-});
+}
+
+function runAutoSync() {
+  checkApiHealth().then(function(apiOk) {
+    var LikesAPI = require('./likes-api');
+    var api = LikesAPI.getApiInstance();
+    if (apiOk) {
+      console.log('[AutoSync] API Likes Telecom disponible - ejecutando sincronización ligera (solo facturas)...');
+      var { syncInvoicesOnly } = require('./auto-sync');
+      syncInvoicesOnly().then(function(r) {
+        console.log('[AutoSync] Resultado:', r.ok ? 'OK (' + (r.upserted || 0) + ' upserted, ' + (r.created || 0) + ' creadas)' : 'ERROR: ' + (r.error || ''));
+      }).catch(function(e) {
+        console.error('[AutoSync] Error:', e.message);
+      });
+
+      // Si la API estaba caída y ahora responde → sincronización completa (CDRs incluidos)
+      if (apiWasDown) {
+        console.log('[AutoSync] API volvió a estar disponible - ejecutando sincronización COMPLETA...');
+        var { runSync } = require('./auto-sync');
+        runSync().then(function(r) {
+          console.log('[AutoSync] Completa resultado:', r.ok ? 'OK' : 'ERROR: ' + (r.error || ''));
+        }).catch(function(e) {
+          console.error('[AutoSync] Error en completa:', e.message);
+        });
+      }
+      apiWasDown = false;
+    } else {
+      console.log('[AutoSync] API Likes Telecom NO disponible - se omite sincronización');
+      apiWasDown = true;
+    }
+  });
+}
+
+// Sincronización cada 60 minutos (ligera, solo facturas si API responde)
+syncIntervalId = setInterval(runAutoSync, 60 * 60 * 1000);
 
 // Sincronización inicial al arrancar (solo facturas, sin CDRs - rápido)
-setTimeout(() => {
-  var { syncInvoicesOnly } = require('./auto-sync');
-  console.log('[AutoSync] Ejecutando sincronización inicial (solo facturas)...');
-  syncInvoicesOnly().then(r => {
-    console.log('[AutoSync] Sincronización inicial:', r.ok ? 'OK (' + (r.upserted || 0) + ' upserted, ' + (r.created || 0) + ' creadas)' : 'ERROR: ' + (r.error || ''));
-  }).catch(e => {
-    console.error('[AutoSync] Error crítico en sincro inicial:', e.message);
-  });
+setTimeout(function() {
+  runAutoSync();
 }, 15000);
 
-// ---- RE-SYNC MANUAL ----
-app.post('/isp/re-sync', async (req, res) => {
-  var r = await runSync();
-  res.json(r);
+// ---- RE-SYNC MANUAL (completa) ----
+app.post('/isp/re-sync', async function(req, res) {
+  try {
+    var { runSync } = require('./auto-sync');
+    var r = await runSync();
+    res.json(r);
+  } catch(e) {
+    res.json({ ok: false, error: e.message });
+  }
 });
 
 const server = http.createServer(app);
@@ -468,8 +519,10 @@ server.listen(PORT, () => {
 // ---- BACKUP + RESUMEN DIARIO a Telegram a las 22:00 (cierre de tienda) ----
 cron.schedule('0 22 * * *', () => {
   console.log('[Backup] Ejecutando backup diario a Telegram...');
-  sendBackup().then(r => {
-    console.log('[Backup] Resultado:', r.success ? 'OK' : 'ERROR: ' + (r.error || 'desconocido'));
+  Promise.resolve().then(function() { return sendBackup(); }).then(function(r) {
+    console.log('[Backup] Resultado:', r && r.success ? 'OK' : 'ERROR: ' + ((r && r.error) || 'desconocido'));
+  }).catch(function(e) {
+    console.error('[Backup] Error:', e.message);
   });
   console.log('[Bot] Enviando resumen diario...');
   sendDailySummary();
