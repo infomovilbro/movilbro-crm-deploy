@@ -80,7 +80,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Tipo de producto - bar chart (not doughnut)
   try {
-    var tpLabels = ['Main','Optional','Promotion'];
+    var tpLabels = ['Principal','Opcional','Promoción'];
     var tpData = [<%= stats.productTypes ? (stats.productTypes.Main || 0) : 0 %>,<%= stats.productTypes ? (stats.productTypes.Optional || 0) : 0 %>,<%= stats.productTypes ? (stats.productTypes.Promotion || 0) : 0 %>];
     new Chart(document.getElementById('dTypes'), {
       type: 'bar',
