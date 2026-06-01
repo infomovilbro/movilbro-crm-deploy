@@ -498,6 +498,14 @@ function initDatabase() {
     db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('stripe_public_key', ?)").run(process.env.STRIPE_PUBLIC_KEY);
   }
 
+  // Gmail desde variables de entorno (para KYC email)
+  if (process.env.GMAIL_USER) {
+    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('gmail_user', ?)").run(process.env.GMAIL_USER);
+  }
+  if (process.env.GMAIL_PASS) {
+    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('gmail_pass', ?)").run(process.env.GMAIL_PASS);
+  }
+
   // Auto-seed tienda data if empty (for Render restarts)
   try {
     var tiendaTables = ['tienda_agenda','tienda_prepago','tienda_caja','tienda_presupuestos','tienda_inventario','tienda_historial_dia','tienda_plantilla','tienda_cierres','tienda_notas_diarias','tienda_devoluciones'];
