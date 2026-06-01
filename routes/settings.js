@@ -1,8 +1,11 @@
 const express = require('express');
 const { db } = require('../database');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireAdmin } = require('../middleware/auth');
 const bcrypt = require('bcryptjs');
 const router = express.Router();
+
+router.use(requireAuth);
+router.use(requireAdmin);
 
 function loadSettings() {
   const rows = db.prepare('SELECT key, value FROM settings').all();

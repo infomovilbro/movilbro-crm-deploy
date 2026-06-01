@@ -2,6 +2,10 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const router = express.Router();
 const { db } = require('../database');
+const { requireAuth, requireAdmin } = require('../middleware/auth');
+
+router.use(requireAuth);
+router.use(requireAdmin);
 
 const PERMISSION_MODULES = [
   'dashboard', 'kpis', 'altas', 'aftersales', 'massive_processes',
