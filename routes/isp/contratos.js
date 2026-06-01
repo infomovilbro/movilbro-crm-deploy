@@ -124,11 +124,11 @@ router.get('/:id', async (req, res) => {
       } catch(e) {}
     }
 
-    res.render('isp/contratos-view', { title: 'Contrato #' + contrato.id, contrato });
+    res.render('isp/contratos-view', { title: (contrato.cliente_nombre || 'Contrato #' + contrato.id), contrato });
   } catch (e) { res.status(500).send('Error: ' + e.message); }
 });
 
-// Generate contract PDF locally using Playwright
+// Generate contract PDF with Playwright fallback to HTML view
 router.get('/:id/pdf', async (req, res) => {
   try {
     var contrato = null;
@@ -174,17 +174,22 @@ router.get('/:id/pdf', async (req, res) => {
     var tpl = fs.readFileSync(tplPath, 'utf8');
     var html = ejs.render(tpl, { contrato, layout: false });
 
-    var { chromium } = require('playwright');
-    var browser = await chromium.launch({ headless: true });
     try {
-      var page = await browser.newPage();
-      await page.setContent(html, { waitUntil: 'networkidle' });
-      var pdfBuf = await page.pdf({ format: 'A4', margin: { top: '0mm', bottom: '0mm', left: '0mm', right: '0mm' }, printBackground: true });
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', 'attachment; filename="contrato-' + req.params.id + '.pdf"');
-      res.send(pdfBuf);
-    } finally {
-      if (browser) await browser.close();
+      var { chromium } = require('playwright');
+      var browser = await chromium.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+      try {
+        var page = await browser.newPage();
+        await page.setContent(html, { waitUntil: 'networkidle' });
+        var pdfBuf = await page.pdf({ format: 'A4', margin: { top: '0mm', bottom: '0mm', left: '0mm', right: '0mm' }, printBackground: true });
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', 'attachment; filename="contrato-' + req.params.id + '.pdf"');
+        return res.send(pdfBuf);
+      } finally {
+        if (browser) await browser.close();
+      }
+    } catch(e) {
+      console.error('Playwright fallback, usando vista HTML:', e.message);
+      res.send('<html><head><title>Contrato #' + contrato.id + '</title><style>body{font-family:Arial;padding:20px;}@media print{@page{size:A4;margin:0;}}</style></head><body>' + html + '</body></html>');
     }
   } catch(e) {
     console.error(e);

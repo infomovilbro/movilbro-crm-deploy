@@ -1072,11 +1072,24 @@ document.querySelectorAll('[data-bs-toggle="tab"]').forEach(function(tab) {
 if (document.querySelector('#recientes.tab-pane.active')) initAltasChart();
 if (document.querySelector('#portabilidades.tab-pane.active')) initPortaChart();
 
-// Init: disable validation
+// Init: disable validation + poll for changes (handles autofill, edge cases)
 document.addEventListener('DOMContentLoaded', function() {
   validarPaso1();
   validarPaso2();
   validarPaso3();
+
+  // Add click listener to product select (some browsers don't fire 'change' with size=5)
+  var wProd = document.getElementById('wProducto');
+  if (wProd) {
+    wProd.addEventListener('click', function() { setTimeout(validarPaso2, 50); });
+  }
+
+  // Poll every 400ms to handle autofill, late-loading data, etc.
+  setInterval(function() {
+    validarPaso1();
+    validarPaso2();
+    validarPaso3();
+  }, 400);
 });
 </script>
 

@@ -33,7 +33,7 @@ router.get('/', async (req, res) => {
 
 // Generar facturas del mes (masivo - optimizado)
 router.post('/generar', async (req, res) => {
-  res.json({ ok: true, message: 'Generando facturas en segundo plano...' });
+  res.json({ ok: true, message: 'Generando facturas en segundo plano...', generadas: 0, errores: 0 });
   try {
     var api = LikesAPI.getApiInstance();
     var customers = await api.getCustomers();
@@ -49,16 +49,6 @@ router.post('/generar', async (req, res) => {
     var cuentasGeneradas = 0, errores = 0;
     var periodo = new Date().toISOString().split('T')[0].substring(0, 7);
     var fechaEmision = new Date().toISOString().split('T')[0];
-    
-    // Auto-descargar CDRs desde Likes Telecom
-    try {
-      var cdrModule = require('./cdr-download');
-      var cdrResult = await cdrModule.downloadLatestCDRs();
-      if (cdrResult.ok) {
-        var imp = cdrModule.importCDRs(cdrResult.data, periodo);
-        console.log('CDRs descargados e importados:', imp);
-      }
-    } catch(e) { console.error('CDR download error:', e.message); }
     
     var fiscalIds = (Array.isArray(customers) ? customers : []).map(function(c) { return c.fiscalId; }).filter(Boolean);
     var batchSize = 20;
@@ -118,20 +108,54 @@ router.post('/generar', async (req, res) => {
         if (!pagoActivo) continue;
         
         var importeCdrs = 0;
-        // Get customer lines from their subscriptions
+        // Fetch CDRs live from API for each customer line
         var customerLines = subs.map(function(s) {
           var prods = s.products || (s.productName ? [s] : []);
           return prods.map(function(p) { return p.fixedNumber || p.lineNumber || ''; }).filter(Boolean);
         }).flat();
-        // Find CDRs for this customer - by fiscal_id OR by line number
         var cdrsPeriodo = [];
-        var cdrsByFiscal = db.prepare('SELECT * FROM isp_cdrs WHERE fiscal_id=? AND (periodo=? OR periodo=? OR periodo IS NULL) AND factura_id IS NULL').all(fiscalId, periodo, periodo.substring(0,7));
-        // Also try to find CDRs by line number if fiscal_id didn't match
-        if (cdrsByFiscal.length === 0 && customerLines.length > 0) {
-          var placeholders = customerLines.map(function() { return '?'; }).join(',');
-          cdrsByFiscal = db.prepare('SELECT * FROM isp_cdrs WHERE linea IN (' + placeholders + ') AND (periodo=? OR periodo=? OR periodo IS NULL) AND factura_id IS NULL').all.apply(null, customerLines.concat([periodo, periodo.substring(0,7)]));
+        // Try API first, fallback to DB
+        if (customerLines.length > 0) {
+          var apiCdrs = await Promise.allSettled(customerLines.map(function(linea) {
+            return api.getLineCDRs(linea);
+          }));
+          apiCdrs.forEach(function(resp) {
+            if (resp.status !== 'fulfilled' || !resp.value) return;
+            var raw = resp.value;
+            var items = Array.isArray(raw) ? raw : (raw.data || raw.cdrs || raw.records || raw.items || []);
+            if (Array.isArray(items)) {
+              items.forEach(function(item) {
+                var cdrDate = item.fecha || item.date || item.fecha_cdr || '';
+                var cdrPeriodo = cdrDate ? cdrDate.substring(0, 7) : periodo;
+                if (cdrPeriodo !== periodo) return;
+                var cdrImporte = parseFloat(item.importe || item.import || item.price || item.cost || item.total || 0);
+                var cdrUnidades = parseFloat(item.unidades || item.units || item.cantidad || item.duracion || item.duration || item.minutos || item.mb || 0);
+                var cdrTipo = (item.tipo || item.type || item.conceptType || 'exceso').toLowerCase();
+                var cdrConcepto = item.concepto || item.concept || item.description || item.name || 'Consumo';
+                var cdrLinea = item.linea || item.lineNumber || item.line || customerLines[0] || '';
+                var cdrFiscalId = item.fiscal_id || item.fiscalId || fiscalId;
+                cdrsPeriodo.push({
+                  fiscal_id: cdrFiscalId,
+                  linea: cdrLinea,
+                  concepto: cdrConcepto,
+                  tipo: cdrTipo,
+                  importe: cdrImporte,
+                  unidades: cdrUnidades,
+                  periodo: cdrPeriodo
+                });
+              });
+            }
+          });
         }
-        cdrsPeriodo = cdrsByFiscal;
+        // Fallback to DB if API returned nothing
+        if (cdrsPeriodo.length === 0) {
+          var dbCdrs = db.prepare('SELECT * FROM isp_cdrs WHERE fiscal_id=? AND (periodo=? OR periodo=? OR periodo IS NULL) AND factura_id IS NULL').all(fiscalId, periodo, periodo.substring(0,7));
+          if (dbCdrs.length === 0 && customerLines.length > 0) {
+            var placeholders = customerLines.map(function() { return '?'; }).join(',');
+            dbCdrs = db.prepare('SELECT * FROM isp_cdrs WHERE linea IN (' + placeholders + ') AND (periodo=? OR periodo=? OR periodo IS NULL) AND factura_id IS NULL').all.apply(null, customerLines.concat([periodo, periodo.substring(0,7)]));
+          }
+          cdrsPeriodo = dbCdrs;
+        }
         for (var cdr of cdrsPeriodo) {
           importeCdrs += parseFloat(cdr.importe || 0);
         }
@@ -157,9 +181,10 @@ router.post('/generar', async (req, res) => {
         for (var prod of productos) {
           db.prepare('INSERT INTO isp_facturas_lineas (factura_id, concepto, tipo, importe, linea) VALUES (?,?,?,?,?)').run(facturaId, prod.nombre, 'cuota', prod.precio, prod.linea);
         }
-        // Link all CDRs to this invoice first
+        // Save all CDRs to DB (for detail view) and link to this invoice
+        var insertCdr = db.prepare('INSERT OR IGNORE INTO isp_cdrs (fiscal_id, linea, concepto, tipo, importe, unidades, periodo, factura_id) VALUES (?,?,?,?,?,?,?,?)');
         for (var cdr of cdrsPeriodo) {
-          db.prepare('UPDATE isp_cdrs SET factura_id=? WHERE id=?').run(facturaId, cdr.id);
+          insertCdr.run(cdr.fiscal_id || fiscalId, cdr.linea || '', cdr.concepto || 'Consumo', cdr.tipo || 'exceso', cdr.importe || 0, cdr.unidades || 0, cdr.periodo || periodo, facturaId);
         }
         // Group CDRs by (linea, tipo) and insert ONE summary line per group
         var grupos = {};
@@ -268,7 +293,7 @@ router.get('/facturas', (req, res) => {
 });
 
 // Ver factura como HTML profesional (para impresión/visualización)
-router.get('/facturas/:id/view', (req, res) => {
+router.get('/facturas/:id/view', async (req, res) => {
   try {
     var factura = db.prepare('SELECT * FROM isp_facturas WHERE id=?').get(req.params.id);
     if (!factura) return res.status(404).send('No encontrada');
@@ -293,9 +318,40 @@ router.get('/facturas/:id/view', (req, res) => {
     }
     
     // Get CDR details for this invoice
-    var cdrsDetalle = db.prepare('SELECT * FROM isp_cdrs WHERE factura_id=?').all(req.params.id);
+    var cdrsDetalle = [];
+    try { cdrsDetalle = db.prepare('SELECT * FROM isp_cdrs WHERE factura_id=?').all(req.params.id); } catch(e) {}
     var llamadas = [];
     try { llamadas = db.prepare('SELECT * FROM isp_llamadas WHERE factura_id=? ORDER BY fecha, hora').all(req.params.id); } catch(e) {}
+
+    // If no CDRs in DB, try API live
+    if (cdrsDetalle.length === 0 && factura.fiscal_id) {
+      try {
+        var api = LikesAPI.getApiInstance();
+        var subsRaw = await api.request('GET', '/subscriptions?fiscalId=' + encodeURIComponent(factura.fiscal_id) + '&brand_id=264');
+        var subsItems = Array.isArray(subsRaw) ? subsRaw : (subsRaw.data || subsRaw.subscriptions || []);
+        var lines = [];
+        subsItems.forEach(function(s) {
+          var prods = s.products || (s.productName ? [s] : []);
+          prods.forEach(function(p) { if (p.fixedNumber || p.lineNumber) lines.push(p.fixedNumber || p.lineNumber); });
+        });
+        var lineasUnicas = [];
+        lines.forEach(function(l) { if (lineasUnicas.indexOf(l) === -1) lineasUnicas.push(l); });
+        var apiCdrsResults = await Promise.allSettled(lineasUnicas.map(function(l) { return api.getLineCDRs(l); }));
+        apiCdrsResults.forEach(function(resp) {
+          if (resp.status !== 'fulfilled' || !resp.value) return;
+          var raw = resp.value;
+          var items = Array.isArray(raw) ? raw : (raw.data || raw.cdrs || raw.records || raw.items || []);
+          if (Array.isArray(items)) {
+            items.forEach(function(item) {
+              var cdrDate = item.fecha || item.date || '';
+              var cdrPeriodo = cdrDate ? cdrDate.substring(0, 7) : factura.periodo;
+              if (cdrPeriodo !== factura.periodo) return;
+              cdrsDetalle.push(item);
+            });
+          }
+        });
+      } catch(e) { console.error('API CDR fetch for view:', e.message); }
+    }
     
     // Get payment history (last 6 months) for the chart
     var history = [];
@@ -318,7 +374,7 @@ router.get('/facturas/:id/view', (req, res) => {
 });
 
 // Detalle de factura
-router.get('/facturas/:id', (req, res) => {
+router.get('/facturas/:id', async (req, res) => {
   try {
     var factura = db.prepare('SELECT * FROM isp_facturas WHERE id=?').get(req.params.id);
     if (!factura) return res.status(404).send('No encontrada');
@@ -327,6 +383,43 @@ router.get('/facturas/:id', (req, res) => {
     try { cdrsDetalle = db.prepare('SELECT * FROM isp_cdrs WHERE factura_id=?').all(req.params.id); } catch(e) {}
     var llamadas = [];
     try { llamadas = db.prepare('SELECT * FROM isp_llamadas WHERE factura_id=? ORDER BY fecha, hora').all(req.params.id); } catch(e) {}
+
+    // If no CDRs in DB, try fetching from API live
+    if (cdrsDetalle.length === 0 && factura.fiscal_id) {
+      try {
+        var api = LikesAPI.getApiInstance();
+        var subsRaw = await api.request('GET', '/subscriptions?fiscalId=' + encodeURIComponent(factura.fiscal_id) + '&brand_id=264');
+        var subsItems = Array.isArray(subsRaw) ? subsRaw : (subsRaw.data || subsRaw.subscriptions || []);
+        var lines = [];
+        subsItems.forEach(function(s) {
+          var prods = s.products || (s.productName ? [s] : []);
+          prods.forEach(function(p) { if (p.fixedNumber || p.lineNumber) lines.push(p.fixedNumber || p.lineNumber); });
+        });
+        var lineasUnicas = [];
+        lines.forEach(function(l) { if (lineasUnicas.indexOf(l) === -1) lineasUnicas.push(l); });
+        var apiCdrsResults = await Promise.allSettled(lineasUnicas.map(function(l) { return api.getLineCDRs(l); }));
+        apiCdrsResults.forEach(function(resp) {
+          if (resp.status !== 'fulfilled' || !resp.value) return;
+          var raw = resp.value;
+          var items = Array.isArray(raw) ? raw : (raw.data || raw.cdrs || raw.records || raw.items || []);
+          if (Array.isArray(items)) {
+            items.forEach(function(item) {
+              var cdrDate = item.fecha || item.date || '';
+              var cdrPeriodo = cdrDate ? cdrDate.substring(0, 7) : factura.periodo;
+              if (cdrPeriodo !== factura.periodo) return;
+              cdrsDetalle.push({
+                concepto: item.concepto || item.concept || item.description || 'Consumo',
+                linea: item.linea || item.lineNumber || item.line || '',
+                tipo: (item.tipo || item.type || 'exceso').toLowerCase(),
+                unidades: parseFloat(item.unidades || item.units || item.duracion || 0),
+                importe: parseFloat(item.importe || item.import || item.price || 0)
+              });
+            });
+          }
+        });
+      } catch(e) { console.error('API CDR fetch for detail:', e.message); }
+    }
+
     res.render('isp/facturacion/detalle', { title: 'Factura #' + factura.id, factura, lineas, cdrsDetalle, llamadas });
   } catch(e) { res.status(500).send('Error: ' + e.message); }
 });
@@ -383,12 +476,14 @@ router.post('/facturas/:id/enviar', async (req, res) => {
       } else { lineas.push(l); }
     });
     for (var gk in cdrG) { var g=cdrG[gk]; lineas.push({ concepto: g.concepto, tipo: 'cdr', importe: Math.round(g.total*100)/100, linea: g.linea }); }
-    var cdrsDetalle = db.prepare('SELECT * FROM isp_cdrs WHERE factura_id=?').all(req.params.id);
+    var cdrsDetalle = [];
+    try { cdrsDetalle = db.prepare('SELECT * FROM isp_cdrs WHERE factura_id=?').all(req.params.id); } catch(e) {}
     
     var numFactura = (factura.serie || 'F') + '-' + String(factura.numero_factura || factura.id).padStart(5, '0');
     var fs = require('fs');
     var ejs = require('ejs');
     var path = require('path');
+    var LikesAPI = require('../../likes-api');
     var tpl = fs.readFileSync(path.join(__dirname, '..', '..', 'views', 'isp', 'facturacion', 'invoice-html.ejs'), 'utf8');
     var llamadas = [];
     var history = [];
@@ -400,6 +495,37 @@ router.post('/facturas/:id/enviar', async (req, res) => {
         history = histRows.reverse();
       }
     } catch(e) {}
+
+    // If no CDRs in DB, try API live
+    if (cdrsDetalle.length === 0 && factura.fiscal_id) {
+      try {
+        var api = LikesAPI.getApiInstance();
+        var subsRaw = await api.request('GET', '/subscriptions?fiscalId=' + encodeURIComponent(factura.fiscal_id) + '&brand_id=264');
+        var subsItems = Array.isArray(subsRaw) ? subsRaw : (subsRaw.data || subsRaw.subscriptions || []);
+        var lines = [];
+        subsItems.forEach(function(s) {
+          var prods = s.products || (s.productName ? [s] : []);
+          prods.forEach(function(p) { if (p.fixedNumber || p.lineNumber) lines.push(p.fixedNumber || p.lineNumber); });
+        });
+        var lineasUnicas = [];
+        lines.forEach(function(l) { if (lineasUnicas.indexOf(l) === -1) lineasUnicas.push(l); });
+        var apiCdrsResults = await Promise.allSettled(lineasUnicas.map(function(l) { return api.getLineCDRs(l); }));
+        apiCdrsResults.forEach(function(resp) {
+          if (resp.status !== 'fulfilled' || !resp.value) return;
+          var raw = resp.value;
+          var items = Array.isArray(raw) ? raw : (raw.data || raw.cdrs || raw.records || raw.items || []);
+          if (Array.isArray(items)) {
+            items.forEach(function(item) {
+              var cdrDate = item.fecha || item.date || '';
+              var cdrPeriodo = cdrDate ? cdrDate.substring(0, 7) : factura.periodo;
+              if (cdrPeriodo !== factura.periodo) return;
+              cdrsDetalle.push(item);
+            });
+          }
+        });
+      } catch(e) { console.error('API CDR fetch for email:', e.message); }
+    }
+
     var html = ejs.render(tpl, { factura, lineas, cdrsDetalle, llamadas, history, layout: false });
     
     var toEmail = req.body.to || factura.cliente_email;
@@ -407,9 +533,11 @@ router.post('/facturas/:id/enviar', async (req, res) => {
     
     var pdfBuf = null;
     try {
-      var nubeResult = await nube.procesarFactura(factura, lineas, cdrsDetalle);
-      pdfBuf = nubeResult.pdfBuf;
-      console.log('PDF guardado en nube:', nubeResult.nombreArchivo);
+      var nubeResult = await nube.procesarFactura(factura, lineas, cdrsDetalle, llamadas, history);
+      if (nubeResult && nubeResult.pdfBuf) {
+        pdfBuf = nubeResult.pdfBuf;
+        console.log('PDF guardado en nube:', nubeResult.nombreArchivo);
+      }
     } catch(e) { console.error('Error generando PDF:', e.message); }
     
     var sent = false;

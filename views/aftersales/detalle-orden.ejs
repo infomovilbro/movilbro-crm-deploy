@@ -1,0 +1,61 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4><i class="ri-file-list-line"></i> Orden #<%= orden.id || orden.orderId %></h4>
+    <a href="/aftersales/orders" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Volver</a>
+  </div>
+  <div class="row g-3">
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header">Información de la Orden</div>
+        <div class="card-body">
+          <table class="table table-sm">
+            <tr><th>ID</th><td>#<%= orden.id || orden.orderId %></td></tr>
+            <tr><th>Estado</th><td><span class="badge bg-<%= (orden.status||orden.estado||'').toUpperCase() === 'COMPLETED' ? 'success' : (orden.status||orden.estado||'').toUpperCase() === 'CANCELED' || (orden.status||orden.estado||'').toUpperCase() === 'CANCELLED' ? 'secondary' : 'warning' %>"><%= orden.status || orden.estado %></span></td></tr>
+            <tr><th>Cliente</th><td><%= orden.customerName || orden.cliente_nombre || '-' %></td></tr>
+            <tr><th>Línea</th><td><%= orden.lineNumber || orden.linea || '-' %></td></tr>
+            <tr><th>Producto</th><td><%= orden.productName || orden.producto || '-' %></td></tr>
+            <tr><th>Precio</th><td><%= orden.price || orden.precio || '-' %></td></tr>
+            <tr><th>Detalles</th><td><%= orden.details || orden.description || orden.detalles || '-' %></td></tr>
+            <tr><th>Fecha</th><td><%= orden.created_at || orden.created || '-' %></td></tr>
+            <tr><th>Origen</th><td><span class="badge bg-<%= orden.source === 'api' ? 'info' : 'secondary' %>"><%= orden.source === 'api' ? 'API Likes Telecom' : 'Local' %></span></td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header">Acciones</div>
+        <div class="card-body">
+          <div class="d-flex gap-2 flex-wrap">
+            <form id="formCambiarEstado" method="POST" action="/aftersales/orders/<%= orden.id || orden.orderId %>/status">
+              <input type="hidden" name="estado" value="CANCELED">
+              <button type="submit" class="btn btn-danger" onclick="return confirm('¿Cancelar esta orden?')"><i class="bi bi-x-circle"></i> Cancelar Orden</button>
+            </form>
+          </div>
+          <hr>
+          <h6>Información adicional</h6>
+          <form id="formGuardarInfo" onsubmit="return guardarInfo(event)">
+            <input type="hidden" name="id" value="<%= orden.id || orden.orderId %>">
+            <div class="mb-2">
+              <label class="form-label">Notas / Detalles</label>
+              <textarea class="form-control" name="notas" rows="3"><%= orden.details || orden.description || orden.detalles || '' %></textarea>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<script>
+document.getElementById('formCambiarEstado')?.addEventListener('submit', function(e) {
+  e.preventDefault();
+  var btn = this.querySelector('button');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+  fetch(this.action, { method: 'POST', body: new FormData(this), headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ estado: 'CANCELED' }) })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.ok) { alert(d.message); location.reload(); }
+      else { alert('Error: ' + (d.error || '')); btn.disabled = false; btn.innerHTML = '<i class="bi bi-x-circle"></i> Cancelar Orden'; }
+    });
+});
+</script>

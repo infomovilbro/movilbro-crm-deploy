@@ -13,8 +13,8 @@ var uploadDir = path.join(__dirname, '..', '..', 'public', 'uploads', 'cdrs');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 var upload = multer({ dest: uploadDir });
 
-// CDR dashboard - grouped by client
-router.get('/', (req, res) => {
+// CDR dashboard - grouped by client (includes all clients from API)
+router.get('/', async (req, res) => {
   try {
     var cdrs = db.prepare(`
       SELECT c.*, COALESCE(f.cliente_nombre, cl.nombre, c.fiscal_id, 'Sin cliente') as cliente 
@@ -23,17 +23,38 @@ router.get('/', (req, res) => {
       LEFT JOIN clients cl ON cl.likes_customer_id = c.fiscal_id 
       ORDER BY c.created_at DESC LIMIT 500
     `).all();
-    var grouped = {};
+    var cdrsByFiscal = {};
     cdrs.forEach(function(c) {
-      var key = c.cliente || c.fiscal_id || 'Sin cliente';
-      if (!grouped[key]) grouped[key] = { cliente: key, fiscal_id: c.fiscal_id, cdrs: [], total: 0 };
-      grouped[key].cdrs.push(c);
-      grouped[key].total += parseFloat(c.importe || 0);
+      var key = c.fiscal_id || 'sin_fiscal';
+      if (!cdrsByFiscal[key]) cdrsByFiscal[key] = { cdrs: [], total: 0 };
+      cdrsByFiscal[key].cdrs.push(c);
+      cdrsByFiscal[key].total += parseFloat(c.importe || 0);
     });
-    var groups = Object.keys(grouped).sort().map(function(k) { return grouped[k]; });
+
+    // Fetch all customers from API to show even those without CDRs
+    var grupos = [];
+    try {
+      var api = LikesAPI.getApiInstance();
+      var customers = await api.getCustomers();
+      (Array.isArray(customers) ? customers : []).forEach(function(c) {
+        var fiscalId = c.fiscalId || '';
+        var nombre = c.name + ' ' + (c.firstSurname || '');
+        var data = cdrsByFiscal[fiscalId] || { cdrs: [], total: 0 };
+        grupos.push({ cliente: nombre, fiscal_id: fiscalId, cdrs: data.cdrs, total: data.total });
+        delete cdrsByFiscal[fiscalId];
+      });
+    } catch(e) { console.error('Error fetching customers:', e.message); }
+
+    // Add remaining from DB that weren't in API
+    Object.keys(cdrsByFiscal).forEach(function(key) {
+      var firstCdr = cdrsByFiscal[key].cdrs[0];
+      var nombre = firstCdr ? (firstCdr.cliente || key) : key;
+      grupos.push({ cliente: nombre, fiscal_id: key, cdrs: cdrsByFiscal[key].cdrs, total: cdrsByFiscal[key].total });
+    });
+
     var total = db.prepare('SELECT COUNT(*) as c, COALESCE(SUM(importe),0) as t FROM isp_cdrs WHERE factura_id IS NULL').get();
     var clientes = db.prepare('SELECT id, nombre, likes_customer_id FROM clients WHERE likes_customer_id IS NOT NULL').all();
-    res.render('isp/cdrs/index', { title: 'CDRs y Excedentes', groups, total, clientes });
+    res.render('isp/cdrs/index', { title: 'CDRs y Excedentes', groups: grupos, total, clientes });
   } catch(e) { console.error(e); res.status(500).send('Error: ' + e.message); }
 });
 

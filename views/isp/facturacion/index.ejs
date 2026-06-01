@@ -185,8 +185,8 @@ document.addEventListener('DOMContentLoaded', function() {
       .then(r => r.json())
       .then(d => {
         if (d.ok) {
-          alert('Facturas generadas: ' + d.generadas + ' | Errores: ' + (d.errores || 0) + (d.stripeOk ? ' | Stripe OK: ' + d.stripeOk : '') + (d.stripeErr ? ' | Stripe ERR: ' + d.stripeErr : ''));
-          location.reload();
+          alert('Generación iniciada en segundo plano. Las facturas se están procesando...');
+          setTimeout(function() { location.reload(); }, 3000);
         } else {
           alert('Error: ' + (d.error || 'Error al generar facturas'));
           btn.disabled = false;

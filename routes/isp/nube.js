@@ -4,6 +4,7 @@ const { db } = require('../../database');
 const path = require('path');
 const fs = require('fs');
 const nube = require('../../helpers/nube');
+const LikesAPI = require('../../likes-api');
 const router = express.Router();
 
 var MES_NOMBRES = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -208,7 +209,7 @@ router.get('/', (req, res) => {
   });
 });
 
-router.get('/ver/:id', (req, res) => {
+router.get('/ver/:id', async (req, res) => {
   var factura = db.prepare('SELECT * FROM isp_facturas WHERE id=?').get(req.params.id);
   if (!factura) return res.status(404).send('No encontrada');
   var lineasRaw = db.prepare('SELECT * FROM isp_facturas_lineas WHERE factura_id=?').all(req.params.id);
@@ -218,9 +219,41 @@ router.get('/ver/:id', (req, res) => {
     else { lineas.push(l); }
   });
   for (var gk in cdrG) { var g=cdrG[gk]; lineas.push({concepto:g.concepto,tipo:'cdr',importe:Math.round(g.total*100)/100,linea:g.linea}); }
-  var cdrsDetalle = db.prepare('SELECT * FROM isp_cdrs WHERE factura_id=?').all(req.params.id);
+  var cdrsDetalle = [];
+  try { cdrsDetalle = db.prepare('SELECT * FROM isp_cdrs WHERE factura_id=?').all(req.params.id); } catch(e) {}
   var llamadas = [];
   try { llamadas = db.prepare('SELECT * FROM isp_llamadas WHERE factura_id=? ORDER BY fecha, hora').all(req.params.id); } catch(e) {}
+
+  // If no CDRs in DB, try API live
+  if (cdrsDetalle.length === 0 && factura.fiscal_id) {
+    try {
+      var api = LikesAPI.getApiInstance();
+      var subsRaw = await api.request('GET', '/subscriptions?fiscalId=' + encodeURIComponent(factura.fiscal_id) + '&brand_id=264');
+      var subsItems = Array.isArray(subsRaw) ? subsRaw : (subsRaw.data || subsRaw.subscriptions || []);
+      var lines = [];
+      subsItems.forEach(function(s) {
+        var prods = s.products || (s.productName ? [s] : []);
+        prods.forEach(function(p) { if (p.fixedNumber || p.lineNumber) lines.push(p.fixedNumber || p.lineNumber); });
+      });
+      var lineasUnicas = [];
+      lines.forEach(function(l) { if (lineasUnicas.indexOf(l) === -1) lineasUnicas.push(l); });
+      var apiCdrsResults = await Promise.allSettled(lineasUnicas.map(function(l) { return api.getLineCDRs(l); }));
+      apiCdrsResults.forEach(function(resp) {
+        if (resp.status !== 'fulfilled' || !resp.value) return;
+        var raw = resp.value;
+        var items = Array.isArray(raw) ? raw : (raw.data || raw.cdrs || raw.records || raw.items || []);
+        if (Array.isArray(items)) {
+          items.forEach(function(item) {
+            var cdrDate = item.fecha || item.date || '';
+            var cdrPeriodo = cdrDate ? cdrDate.substring(0, 7) : factura.periodo;
+            if (cdrPeriodo !== factura.periodo) return;
+            cdrsDetalle.push(item);
+          });
+        }
+      });
+    } catch(e) { console.error('API CDR fetch for nube ver:', e.message); }
+  }
+
   var history = [];
   try {
     if (factura.fiscal_id) {
@@ -272,9 +305,41 @@ router.get('/pdf/:id', async (req, res) => {
       } else { lineas.push(l); }
     });
     for (var gk in cdrG) { var g=cdrG[gk]; lineas.push({ concepto: g.concepto, tipo: 'cdr', importe: Math.round(g.total*100)/100, linea: g.linea }); }
-    var cdrsDetalle = db.prepare('SELECT * FROM isp_cdrs WHERE factura_id=?').all(req.params.id);
+    var cdrsDetalle = [];
+    try { cdrsDetalle = db.prepare('SELECT * FROM isp_cdrs WHERE factura_id=?').all(req.params.id); } catch(e) {}
     var llamadas = [];
     try { llamadas = db.prepare('SELECT * FROM isp_llamadas WHERE factura_id=? ORDER BY fecha, hora').all(req.params.id); } catch(e) {}
+
+    // If no CDRs in DB, try API live
+    if (cdrsDetalle.length === 0 && factura.fiscal_id) {
+      try {
+        var api = LikesAPI.getApiInstance();
+        var subsRaw = await api.request('GET', '/subscriptions?fiscalId=' + encodeURIComponent(factura.fiscal_id) + '&brand_id=264');
+        var subsItems = Array.isArray(subsRaw) ? subsRaw : (subsRaw.data || subsRaw.subscriptions || []);
+        var lines = [];
+        subsItems.forEach(function(s) {
+          var prods = s.products || (s.productName ? [s] : []);
+          prods.forEach(function(p) { if (p.fixedNumber || p.lineNumber) lines.push(p.fixedNumber || p.lineNumber); });
+        });
+        var lineasUnicas = [];
+        lines.forEach(function(l) { if (lineasUnicas.indexOf(l) === -1) lineasUnicas.push(l); });
+        var apiCdrsResults = await Promise.allSettled(lineasUnicas.map(function(l) { return api.getLineCDRs(l); }));
+        apiCdrsResults.forEach(function(resp) {
+          if (resp.status !== 'fulfilled' || !resp.value) return;
+          var raw = resp.value;
+          var items = Array.isArray(raw) ? raw : (raw.data || raw.cdrs || raw.records || raw.items || []);
+          if (Array.isArray(items)) {
+            items.forEach(function(item) {
+              var cdrDate = item.fecha || item.date || '';
+              var cdrPeriodo = cdrDate ? cdrDate.substring(0, 7) : factura.periodo;
+              if (cdrPeriodo !== factura.periodo) return;
+              cdrsDetalle.push(item);
+            });
+          }
+        });
+      } catch(e) { console.error('API CDR fetch for pdf:', e.message); }
+    }
+
     var history = [];
     try {
       if (factura.fiscal_id) {
@@ -373,9 +438,39 @@ router.post('/generar-todas', async (req, res) => {
         else { lineas.push(l); }
       });
       for (var gk in cdrG) { var g=cdrG[gk]; lineas.push({concepto:g.concepto,tipo:'cdr',importe:Math.round(g.total*100)/100,linea:g.linea}); }
-      var cdrsDetalle = db.prepare('SELECT * FROM isp_cdrs WHERE factura_id=?').all(f.id);
+      var cdrsDetalle = [];
+      try { cdrsDetalle = db.prepare('SELECT * FROM isp_cdrs WHERE factura_id=?').all(f.id); } catch(e) {}
       var llamadas = [];
       try { llamadas = db.prepare('SELECT * FROM isp_llamadas WHERE factura_id=? ORDER BY fecha, hora').all(f.id); } catch(e) {}
+      // If no CDRs in DB, try API live
+      if (cdrsDetalle.length === 0 && f.fiscal_id) {
+        try {
+          var api = LikesAPI.getApiInstance();
+          var subsRaw = await api.request('GET', '/subscriptions?fiscalId=' + encodeURIComponent(f.fiscal_id) + '&brand_id=264');
+          var subsItems = Array.isArray(subsRaw) ? subsRaw : (subsRaw.data || subsRaw.subscriptions || []);
+          var lines = [];
+          subsItems.forEach(function(s) {
+            var prods = s.products || (s.productName ? [s] : []);
+            prods.forEach(function(p) { if (p.fixedNumber || p.lineNumber) lines.push(p.fixedNumber || p.lineNumber); });
+          });
+          var lineasUnicas = [];
+          lines.forEach(function(l) { if (lineasUnicas.indexOf(l) === -1) lineasUnicas.push(l); });
+          var apiCdrsResults = await Promise.allSettled(lineasUnicas.map(function(l) { return api.getLineCDRs(l); }));
+          apiCdrsResults.forEach(function(resp) {
+            if (resp.status !== 'fulfilled' || !resp.value) return;
+            var raw = resp.value;
+            var items = Array.isArray(raw) ? raw : (raw.data || raw.cdrs || raw.records || raw.items || []);
+            if (Array.isArray(items)) {
+              items.forEach(function(item) {
+                var cdrDate = item.fecha || item.date || '';
+                var cdrPeriodo = cdrDate ? cdrDate.substring(0, 7) : f.periodo;
+                if (cdrPeriodo !== f.periodo) return;
+                cdrsDetalle.push(item);
+              });
+            }
+          });
+        } catch(e) { console.error('API CDR fetch for generar-todas:', e.message); }
+      }
       var history = [];
       try {
         if (f.fiscal_id) {
@@ -396,6 +491,49 @@ router.post('/importar-zips', (req, res) => {
     res.json(result);
   } catch(e) {
     res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Browse folder contents
+router.get('/carpeta', (req, res) => {
+  try {
+    var folderPath = req.query.path || '';
+    if (!folderPath || !folderPath.startsWith(nube.NUBE_DIR)) {
+      // Convert relative to absolute
+      var absPath = path.join(nube.NUBE_DIR, folderPath);
+      if (fs.existsSync(absPath) && absPath.startsWith(nube.NUBE_DIR)) folderPath = absPath;
+      else return res.status(400).send('Ruta no válida');
+    }
+    if (!fs.existsSync(folderPath)) return res.status(404).send('Carpeta no encontrada');
+    var items = fs.readdirSync(folderPath).map(function(e) {
+      var fp = path.join(folderPath, e);
+      var stat = fs.statSync(fp);
+      return {
+        name: e,
+        isDirectory: stat.isDirectory(),
+        size: stat.isDirectory() ? 0 : stat.size,
+        modified: stat.mtime,
+        path: fp,
+        ext: path.extname(e).toLowerCase()
+      };
+    });
+    items.sort(function(a, b) {
+      if (a.isDirectory && !b.isDirectory) return -1;
+      if (!a.isDirectory && b.isDirectory) return 1;
+      return a.name.localeCompare(b.name);
+    });
+    var relativePath = folderPath.replace(nube.NUBE_DIR, '').replace(/^[\\\/]/, '');
+    res.render('isp/nube-carpeta', {
+      title: 'Nube - ' + (relativePath || 'Raíz'),
+      items: items,
+      folderPath: folderPath,
+      relativePath: relativePath,
+      parentPath: path.dirname(folderPath),
+      isRoot: folderPath === nube.NUBE_DIR,
+      layout: 'layout'
+    });
+  } catch(e) {
+    res.status(500).send('Error: ' + e.message);
   }
 });
 

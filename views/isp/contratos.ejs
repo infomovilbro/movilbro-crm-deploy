@@ -59,7 +59,7 @@
             <% } else { %>
               <% contratos.forEach(function(c) { %>
               <tr class="contrato-row">
-                <td><a href="/isp/contratos/<%= c.id %>" class="fw-bold">#<%= c.id %></a></td>
+                <td><a href="/isp/contratos/<%= c.id %>" class="fw-bold"><%= c.cliente_nombre || ('#' + c.id) %></a></td>
                 <td><%= c.cliente_nombre || '-' %></td>
                 <td><span class="badge bg-secondary"><%= c.tipo %></span></td>
                 <td><span class="badge bg-<%= c.estado === 'activo' ? 'success' : c.estado === 'pendiente' ? 'warning' : c.estado === 'baja' ? 'secondary' : 'danger' %> fs-6"><%= c.estado %></span></td>

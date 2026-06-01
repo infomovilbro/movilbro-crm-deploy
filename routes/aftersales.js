@@ -190,4 +190,74 @@ router.get('/processes', async (req, res) => {
   }
 });
 
+// Order detail view
+router.get('/orders/:id', async (req, res) => {
+  try {
+    var api = getApiInstance();
+    var order = null;
+    try {
+      var raw = await api.request('GET', '/orders?brand_id=' + api.brandId);
+      var items = api.extractData(raw);
+      order = items.find(function(o) { return String(o.id || o.orderId || o.order_id) === req.params.id; });
+    } catch(e) {}
+    if (!order) {
+      var local = db.prepare('SELECT o.*, c.nombre as cliente_nombre, c.telefono, c.email FROM orders o LEFT JOIN clients c ON o.client_id = c.id WHERE o.id = ?').get(req.params.id);
+      if (local) {
+        order = {
+          id: local.id,
+          orderId: local.id,
+          cliente_nombre: local.cliente_nombre || 'Local',
+          customerName: local.cliente_nombre || 'Local',
+          linea: '',
+          lineNumber: '',
+          producto: local.producto || '',
+          productName: local.producto || '',
+          estado: local.estado || 'PENDIENTE',
+          status: local.estado || 'PENDIENTE',
+          tipo: local.tipo || 'general',
+          detalles: local.detalles || '',
+          description: local.detalles || '',
+          created_at: local.created_at,
+          source: 'local',
+          telefono: local.telefono,
+          email: local.email
+        };
+      }
+    } else {
+      order.source = 'api';
+    }
+    if (!order) return res.status(404).send('Orden no encontrada');
+    res.render('aftersales/detalle-orden', { title: 'Orden #' + req.params.id, orden: order, layout: 'layout' });
+  } catch(e) {
+    res.status(500).send('Error: ' + e.message);
+  }
+});
+
+// Cancel/update order status
+router.post('/orders/:id/status', async (req, res) => {
+  try {
+    var estado = req.body.estado || 'CANCELED';
+    var local = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
+    if (local) {
+      db.prepare('UPDATE orders SET estado = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(estado, req.params.id);
+      return res.json({ ok: true, message: 'Estado actualizado a ' + estado });
+    }
+    var api = getApiInstance();
+    try {
+      await api.request('POST', '/orders/' + req.params.id + '/status', { status: estado });
+      return res.json({ ok: true, message: 'Orden cancelada en API' });
+    } catch(e) {
+      // Try alternate endpoint
+      try {
+        await api.request('PUT', '/order/' + req.params.id, { blocked: estado === 'CANCELED' });
+        return res.json({ ok: true, message: 'Orden cancelada en API' });
+      } catch(e2) {
+        return res.json({ ok: false, error: 'No se pudo cancelar en API: ' + e2.message });
+      }
+    }
+  } catch(e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 module.exports = router;
