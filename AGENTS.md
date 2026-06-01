@@ -24,3 +24,11 @@
 - [x] Usar `-e` con escapado de PowerShell → usar archivos .js
 - [x] Asumir que deploy ya terminó → verificar en dashboard primero
 - [x] Postinstall que esconde errores
+- [x] Formularios sin `name` + sin `onchange` → autofill del navegador no dispara validación → poner `name` y `onchange` además de `oninput`
+- [x] No tener acceso a Render dashboard → pedir contraseña o URL de deploy hook al principio; no esperar a necesitarla
+- [x] Repetir el mismo error de escapado PowerShell 4+ veces → usar SIEMPRE archivo .js, nunca -e
+
+## Auto-Deploy Render
+- Si auto-deploy no funciona, revisar Build Filters en Settings del servicio en Render dashboard.
+- Solución temporal: Manual Deploy desde dashboard.
+- Para evitar depender del dashboard, instalar Render CLI o usar Deploy Hook URL (Settings → Deploy Hook).
