@@ -343,6 +343,22 @@ async function runSync() {
       db.prepare('DELETE FROM isp_cdrs WHERE factura_id IS NOT NULL AND factura_id NOT IN (SELECT id FROM isp_facturas)').run();
     } catch(e) {}
 
+    // Step 8: Sync portabilities
+    syncProgress.step = 'Sincronizando portabilidades...';
+    await syncPortabilities(api);
+
+    // Step 9: Sync tickets
+    syncProgress.step = 'Sincronizando tickets...';
+    await syncTickets(api);
+
+    // Step 10: Update customer info from API
+    syncProgress.step = 'Actualizando info de clientes...';
+    await syncCustomers(api, customersArr);
+
+    // Step 11: Sync lines info
+    syncProgress.step = 'Sincronizando líneas...';
+    await syncLines(api, allSubsData);
+
     console.log('[AutoSync] Resultado:', { upserted, created, errors, cdrs: cdrsFetched });
 
     // PDFs ya no se generan en auto-sync (causaba crashes con Playwright en Render)
@@ -369,4 +385,201 @@ function extractProducts(sub) {
   return Array.isArray(prods) ? prods : [];
 }
 
-module.exports = { runSync, syncInvoicesOnly, getProgress };
+async function syncPortabilities(api) {
+  try {
+    var portabilidades = await api.getPortabilities();
+    if (!Array.isArray(portabilidades) || portabilidades.length === 0) {
+      console.log('[AutoSync] No hay portabilidades para sincronizar');
+      return { ok: true, count: 0 };
+    }
+    var upserted = 0;
+    for (var p of portabilidades) {
+      try {
+        var linea = p.line || p.lineNumber || p.fixedNumber || '';
+        if (!linea) continue;
+        var existing = db.prepare('SELECT id FROM isp_portabilidades WHERE linea=?').get(linea);
+        var clientId = null;
+        if (p.customerId || p.clientId) {
+          var cl = db.prepare('SELECT id FROM clients WHERE likes_customer_id=? OR id=?').get(p.customerId || p.clientId, p.customerId || p.clientId);
+          if (cl) clientId = cl.id;
+        }
+        var estado = p.status || p.estado || 'pendiente';
+        var fechaSolicitud = p.requestDate || p.fecha_solicitud || p.createdAt || '';
+        var fechaPort = p.portDate || p.fecha_portabilidad || '';
+        var referencia = p.reference || p.referencia || '';
+        var notas = p.notes || p.notas || '';
+        var operadorOrigen = p.donorOperator || p.operador_origen || '';
+        if (existing) {
+          db.prepare('UPDATE isp_portabilidades SET client_id=?, linea=?, operador_origen=?, estado=?, fecha_solicitud=?, fecha_portabilidad=?, referencia=?, notas=?, updated_at=CURRENT_TIMESTAMP WHERE id=?').run(clientId, linea, operadorOrigen, estado, fechaSolicitud, fechaPort, referencia, notas, existing.id);
+        } else {
+          db.prepare('INSERT INTO isp_portabilidades (client_id, linea, operador_origen, operador_destino, estado, fecha_solicitud, fecha_portabilidad, referencia, notas) VALUES (?,?,?,?,?,?,?,?,?)').run(clientId, linea, operadorOrigen, 'Movilbro', estado, fechaSolicitud, fechaPort, referencia, notas);
+        }
+        upserted++;
+      } catch(e) { /* ignorar error individual */ }
+    }
+    console.log('[AutoSync] Portabilidades sincronizadas:', upserted);
+    return { ok: true, count: upserted };
+  } catch(e) {
+    console.error('[AutoSync] Error syncPortabilities:', e.message);
+    return { ok: false, error: e.message, count: 0 };
+  }
+}
+
+async function syncTickets(api) {
+  try {
+    var tickets = await api.getTickets();
+    if (!Array.isArray(tickets) || tickets.length === 0) {
+      console.log('[AutoSync] No hay tickets para sincronizar');
+      return { ok: true, count: 0 };
+    }
+    var upserted = 0;
+    for (var t of tickets) {
+      try {
+        var asunto = t.subject || t.asunto || t.title || 'Ticket';
+        var descripcion = t.description || t.descripcion || '';
+        var estado = t.status || t.estado || 'abierta';
+        var prioridad = t.priority || t.prioridad || 'normal';
+        var categoria = t.category || t.categoria || 'general';
+        var fechaResolucion = t.resolutionDate || t.fecha_resolucion || t.closedAt || null;
+        var solucion = t.solution || t.solucion || '';
+        var clientId = null;
+        if (t.customerId || t.clientId) {
+          var cl = db.prepare('SELECT id FROM clients WHERE likes_customer_id=? OR id=?').get(t.customerId || t.clientId, t.customerId || t.clientId);
+          if (cl) clientId = cl.id;
+        }
+        var existing = db.prepare('SELECT id FROM isp_incidencias WHERE asunto=? AND client_id=? ORDER BY created_at DESC LIMIT 1').get(asunto, clientId);
+        if (existing) {
+          db.prepare('UPDATE isp_incidencias SET categoria=?, asunto=?, descripcion=?, estado=?, prioridad=?, solucion=?, fecha_resolucion=? WHERE id=?').run(categoria, asunto, descripcion, estado, prioridad, solucion, fechaResolucion, existing.id);
+        } else {
+          db.prepare('INSERT INTO isp_incidencias (categoria, asunto, descripcion, estado, prioridad, client_id, solucion, fecha_resolucion) VALUES (?,?,?,?,?,?,?,?)').run(categoria, asunto, descripcion, estado, prioridad, clientId, solucion, fechaResolucion);
+        }
+        upserted++;
+      } catch(e) { /* ignorar error individual */ }
+    }
+    console.log('[AutoSync] Tickets sincronizados:', upserted);
+    return { ok: true, count: upserted };
+  } catch(e) {
+    console.error('[AutoSync] Error syncTickets:', e.message);
+    return { ok: false, error: e.message, count: 0 };
+  }
+}
+
+async function syncCustomers(api, customersArr) {
+  try {
+    if (!Array.isArray(customersArr) || customersArr.length === 0) return { ok: true, count: 0 };
+    var updated = 0;
+    for (var c of customersArr) {
+      try {
+        var fiscalId = c.fiscalId || c.dni_nif || c.nif || '';
+        var customerId = c.customerId || c.id || '';
+        if (!fiscalId && !customerId) continue;
+        var nombre = c.name || c.nombre || '';
+        var apellidos = c.firstSurname || c.apellidos || c.surname || '';
+        var email = c.email || '';
+        var telefono = c.phone || c.telefono || '';
+        var direccion = c.address || c.direccion || '';
+        var ciudad = c.city || c.ciudad || '';
+        var provincia = c.province || c.provincia || '';
+        var codigoPostal = c.postalCode || c.codigo_postal || c.zipCode || '';
+        var existing = db.prepare('SELECT id FROM clients WHERE likes_customer_id=? OR dni_nif=?').get(customerId, fiscalId);
+        if (existing) {
+          var sets = [];
+          var vals = [];
+          if (nombre) { sets.push('nombre=?'); vals.push(nombre); }
+          if (email) { sets.push('email=?'); vals.push(email); }
+          if (telefono) { sets.push('telefono=?'); vals.push(telefono); }
+          if (direccion) { sets.push('direccion=?'); vals.push(direccion); }
+          if (ciudad) { sets.push('ciudad=?'); vals.push(ciudad); }
+          if (provincia) { sets.push('provincia=?'); vals.push(provincia); }
+          if (codigoPostal) { sets.push('codigo_postal=?'); vals.push(codigoPostal); }
+          if (apellidos) { sets.push('apellidos=?'); vals.push(apellidos); }
+          if (customerId) { sets.push('likes_customer_id=?'); vals.push(customerId); }
+          if (sets.length > 0) {
+            sets.push('updated_at=CURRENT_TIMESTAMP');
+            vals.push(existing.id);
+            db.prepare('UPDATE clients SET ' + sets.join(',') + ' WHERE id=?').run.apply(null, vals);
+            updated++;
+          }
+        } else {
+          db.prepare('INSERT INTO clients (likes_customer_id, nombre, apellidos, dni_nif, email, telefono, direccion, ciudad, provincia, codigo_postal) VALUES (?,?,?,?,?,?,?,?,?,?)').run(customerId || null, nombre || 'Sin nombre', apellidos || '', fiscalId || null, email || '', telefono || '', direccion || '', ciudad || '', provincia || '', codigoPostal || '');
+          updated++;
+        }
+      } catch(e) { /* ignorar error individual */ }
+    }
+    console.log('[AutoSync] Clientes sincronizados:', updated);
+    return { ok: true, count: updated };
+  } catch(e) {
+    console.error('[AutoSync] Error syncCustomers:', e.message);
+    return { ok: false, error: e.message, count: 0 };
+  }
+}
+
+async function syncLines(api, allSubsData) {
+  try {
+    var apiLines = [];
+    try { apiLines = await api.getLines(); } catch(e) {}
+    if (!Array.isArray(apiLines)) apiLines = [];
+    var updated = 0;
+    if (Array.isArray(allSubsData)) {
+      for (var sd of allSubsData) {
+        var subs = sd.subs || [];
+        for (var s of subs) {
+          var prods = extractProducts(s);
+          for (var p of prods) {
+            var ln = p.fixedNumber || p.lineNumber || '';
+            if (!ln) continue;
+            var estado = p.status || p.estado || 'activa';
+            var producto = p.productName || s.productName || '';
+            var subId = s.subscriptionId || s.id || '';
+            var existingSub = db.prepare('SELECT id FROM subscriptions WHERE linea=? OR likes_subscription_id=?').get(ln, subId);
+            if (existingSub) {
+              db.prepare('UPDATE subscriptions SET estado=?, producto=?, updated_at=CURRENT_TIMESTAMP WHERE id=?').run(estado, producto, existingSub.id);
+            } else {
+              var cl = db.prepare('SELECT id FROM clients WHERE dni_nif=? OR likes_customer_id=?').get(sd.fiscalId, sd.fiscalId);
+              if (cl) {
+                db.prepare('INSERT INTO subscriptions (client_id, likes_subscription_id, linea, producto, estado) VALUES (?,?,?,?,?)').run(cl.id, subId, ln, producto, estado);
+              }
+            }
+            updated++;
+          }
+        }
+      }
+    }
+    for (var al of apiLines) {
+      try {
+        var lineNumber = al.line || al.lineNumber || al.number || al.fixedNumber || '';
+        if (!lineNumber) continue;
+        var lineStatus = al.status || al.estado || '';
+        var lineProduct = al.productName || al.product_name || '';
+        var subId = al.subscriptionId || '';
+        var existingSub = db.prepare('SELECT id, client_id FROM subscriptions WHERE linea=?').get(lineNumber);
+        if (existingSub) {
+          var updSets = [];
+          var updVals = [];
+          if (lineStatus) { updSets.push('estado=?'); updVals.push(lineStatus); }
+          if (lineProduct) { updSets.push('producto=?'); updVals.push(lineProduct); }
+          if (updSets.length > 0) {
+            updSets.push('updated_at=CURRENT_TIMESTAMP');
+            updVals.push(existingSub.id);
+            db.prepare('UPDATE subscriptions SET ' + updSets.join(',') + ' WHERE id=?').run.apply(null, updVals);
+          }
+        } else if (lineNumber) {
+          var fiscalId = al.fiscalId || al.fiscal_id || '';
+          if (fiscalId) {
+            var cl = db.prepare('SELECT id FROM clients WHERE dni_nif=? OR likes_customer_id=?').get(fiscalId, fiscalId);
+            if (cl) {
+              db.prepare('INSERT INTO subscriptions (client_id, likes_subscription_id, linea, producto, estado) VALUES (?,?,?,?,?)').run(cl.id, subId, lineNumber, lineProduct, lineStatus || 'activa');
+            }
+          }
+        }
+      } catch(e) { /* ignorar error individual */ }
+    }
+    console.log('[AutoSync] Líneas sincronizadas:', updated);
+    return { ok: true, count: updated };
+  } catch(e) {
+    console.error('[AutoSync] Error syncLines:', e.message);
+    return { ok: false, error: e.message, count: 0 };
+  }
+}
+
+module.exports = { runSync, syncInvoicesOnly, syncPortabilities, syncTickets, syncCustomers, syncLines, getProgress };
