@@ -6,6 +6,7 @@ const router = express.Router();
 const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
+const { sendEmailViaMailjet } = require('./auth');
 
 function getApi() {
   const s = db.prepare("SELECT key, value FROM settings WHERE key LIKE 'likes_%'").all();
@@ -191,12 +192,10 @@ router.post('/enviar-kyc', requireAuth, async (req, res) => {
     const datos = JSON.parse(orden.datos_cliente || '{}');
     if (!datos.email) return res.status(400).json({ ok: false, error: 'El cliente no tiene email' });
 
-    const nodemailer = require('nodemailer');
     const kycUrl = `${req.protocol}://${req.get('host')}/kyc/${orden.token}`;
 
-    const gmailUser = db.prepare("SELECT value FROM settings WHERE key='gmail_user'").get()?.value;
-    const gmailPass = db.prepare("SELECT value FROM settings WHERE key='gmail_pass'").get()?.value;
     const empresaNombre = db.prepare("SELECT value FROM settings WHERE key='empresa_nombre'").get()?.value || 'Movilbro';
+    const gmailUser = db.prepare("SELECT value FROM settings WHERE key='gmail_user'").get()?.value || 'info@movilbro.com';
 
     const html = `<!DOCTYPE html>
 <html>
@@ -260,12 +259,12 @@ router.post('/enviar-kyc', requireAuth, async (req, res) => {
       </div>
 
       <div style="text-align:center;font-size:13px;color:#666;margin-top:15px">
-        <p>¿Tienes dudas? Escríbenos a <a href="mailto:${gmailUser || 'info@movilbro.com'}">${gmailUser || 'info@movilbro.com'}</a></p>
+        <p>¿Tienes dudas? Escríbenos a <a href="mailto:${gmailUser}">${gmailUser}</a></p>
       </div>
     </div>
     <div class="footer">
       <p><strong>${empresaNombre}</strong><br>
-      <a href="mailto:${gmailUser || 'info@movilbro.com'}">${gmailUser || 'info@movilbro.com'}</a></p>
+      <a href="mailto:${gmailUser}">${gmailUser}</a></p>
       <p class="aviso-privacidad">Este correo contiene información confidencial dirigida únicamente a su destinatario. Si no has solicitado este servicio, por favor ignora este mensaje. Tratamos tus datos conforme a nuestra política de privacidad. Puedes ejercer tus derechos de protección de datos contactándonos por email.</p>
       <img src="${req.protocol}://${req.get('host')}/kyc/tracking/${orden.token}.gif" width="1" height="1" alt=""/>
     </div>
@@ -273,23 +272,24 @@ router.post('/enviar-kyc', requireAuth, async (req, res) => {
 </body>
 </html>`;
 
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: { user: gmailUser, pass: gmailPass }
-    });
+    const emailOk = await sendEmailViaMailjet(datos.email, datos.nombre || datos.email, empresaNombre + ' - Verifica tu identidad para completar el alta', html);
 
-    await transporter.sendMail({
-      from: gmailUser,
-      to: datos.email,
-      subject: empresaNombre + ' - Verifica tu identidad para completar el alta',
-      html: html
-    });
+    if (emailOk) {
+      db.prepare('UPDATE altas_ordenes SET email_enviado = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(orden_id);
+      return res.json({ ok: true, message: 'Email enviado a ' + datos.email, kycUrl });
+    }
 
-    db.prepare('UPDATE altas_ordenes SET email_enviado = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(orden_id);
-    res.json({ ok: true, message: 'Email enviado a ' + datos.email });
+    console.warn('No se pudo enviar el email. Se devuelve la URL de KYC al agente.');
+    res.json({
+      ok: true,
+      message: 'No se pudo enviar el email automáticamente. Comparte este enlace con el cliente.',
+      kycUrl,
+      email_no_enviado: true
+    });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ ok: false, error: error.message });
+    const kycUrl = `${req.protocol}://${req.get('host')}/kyc/${req.body.orden_id ? db.prepare('SELECT token FROM altas_ordenes WHERE id = ?').get(req.body.orden_id)?.token || '' : ''}`;
+    res.json({ ok: true, message: 'Comparte este enlace con el cliente para completar el KYC', kycUrl: kycUrl || '', email_no_enviado: true });
   }
 });
 
