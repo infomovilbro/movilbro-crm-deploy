@@ -498,12 +498,21 @@ function initDatabase() {
     db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('stripe_public_key', ?)").run(process.env.STRIPE_PUBLIC_KEY);
   }
 
-  // Gmail desde variables de entorno (para KYC email)
-  if (process.env.GMAIL_USER) {
-    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('gmail_user', ?)").run(process.env.GMAIL_USER);
-  }
-  if (process.env.GMAIL_PASS) {
-    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('gmail_pass', ?)").run(process.env.GMAIL_PASS);
+  // Gmail desde variables de entorno (para KYC email y envio facturas)
+  var defaultGmail = {
+    gmail_user: 'infomovilbro@gmail.com',
+    gmail_pass: 'tohb tnjv pign etuj'
+  };
+  for (var _g in defaultGmail) {
+    var gEnv = process.env[_g.toUpperCase()];
+    if (gEnv) {
+      db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(_g, gEnv);
+    } else {
+      var gExists = db.prepare('SELECT value FROM settings WHERE key=?').get(_g);
+      if (!gExists) {
+        db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)').run(_g, defaultGmail[_g]);
+      }
+    }
   }
 
   // Auto-seed tienda data if empty (for Render restarts)
