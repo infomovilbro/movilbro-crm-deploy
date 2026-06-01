@@ -311,9 +311,9 @@ function initDatabase() {
 
   const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get();
   if (userCount.count === 0) {
-    const hash = bcrypt.hashSync('admin', 10);
+    const hash = bcrypt.hashSync('aaa123', 10);
     db.prepare('INSERT INTO users (username, password, nombre, email, rol) VALUES (?, ?, ?, ?, ?)').run(
-      'admin', hash, 'Administrador', 'admin@movilbro.com', 'admin'
+      'aaa1', hash, 'Administrador', 'aaa1', 'admin'
     );
     const hash2 = bcrypt.hashSync('movilbro2026', 10);
     db.prepare('INSERT INTO users (username, password, nombre, email, rol) VALUES (?, ?, ?, ?, ?)').run(
@@ -332,6 +332,20 @@ function initDatabase() {
         u.username, hash, u.nombre, u.email, u.rol
       );
     }
+  }
+
+  // Ensure admin aaa1/aaa123 exists
+  const adminExists = db.prepare('SELECT id FROM users WHERE username = ? OR email = ?').get('aaa1', 'aaa1');
+  if (!adminExists) {
+    const hash = bcrypt.hashSync('aaa123', 10);
+    db.prepare('INSERT INTO users (username, password, nombre, email, rol) VALUES (?, ?, ?, ?, ?)').run(
+      'aaa1', hash, 'Administrador', 'aaa1', 'admin'
+    );
+  } else {
+    const hash = bcrypt.hashSync('aaa123', 10);
+    db.prepare('UPDATE users SET password = ?, email = ?, nombre = ?, rol = ? WHERE id = ?').run(
+      hash, 'aaa1', 'Administrador', 'admin', adminExists.id
+    );
   }
 
   // Ensure all users have email set
