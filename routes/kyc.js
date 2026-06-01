@@ -78,12 +78,12 @@ router.get('/:token', async (req, res) => {
     } else if (orden.kyc_contrato_firmado) {
       paso = 3;
       pasoTexto = 'Contrato firmado';
-    } else if (orden.kyc_docs_subidos >= 2) {
+    } else if (orden.kyc_docs_subidos >= 4) {
       paso = 2;
       pasoTexto = 'Firma del contrato';
-    } else if (orden.kyc_docs_subidos === 1) {
+    } else if (orden.kyc_docs_subidos >= 1) {
       paso = 1;
-      pasoTexto = 'Verificación de identidad (1/2 documentos)';
+      pasoTexto = 'Verificación de identidad (' + orden.kyc_docs_subidos + '/4 documentos)';
     }
 
     // Si la orden ya está completada, mostrar pantalla de completado
@@ -178,7 +178,7 @@ router.post('/:token/subir-doc', upload.single('file'), async (req, res) => {
     // Clean up temp file
     try { fs.unlinkSync(req.file.path); } catch(e) {}
 
-    res.json({ ok: true, message: 'Documento subido correctamente', count, paso: count >= 2 ? 2 : 1 });
+    res.json({ ok: true, message: 'Documento subido correctamente', count, paso: count >= 4 ? 2 : 1 });
   } catch (error) {
     console.error(error);
     res.status(500).json({ ok: false, error: error.message });

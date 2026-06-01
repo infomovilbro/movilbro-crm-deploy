@@ -16,7 +16,6 @@ body { background: #f5f7fa; font-family: -apple-system, BlinkMacSystemFont, 'Seg
 .kyc-step { display: none; }
 .kyc-step.active { display: block; }
 
-/* Animations */
 .kyc-step { animation: none; }
 .kyc-step.active { animation: fadeIn 0.4s ease-out; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
@@ -27,7 +26,6 @@ body { background: #f5f7fa; font-family: -apple-system, BlinkMacSystemFont, 'Seg
 .animate-slide { animation: slideDown 0.3s ease-out; }
 .animate-pop { animation: popIn 0.5s ease-out; }
 
-/* Progress bar */
 .progress-steps { margin-bottom: 20px; }
 .progress-steps .progress { height: 6px; border-radius: 3px; margin-bottom: 8px; overflow: hidden; background: #e9ecef; }
 .progress-steps .progress-bar { background: #0050A1; transition: width 0.6s ease; }
@@ -44,22 +42,23 @@ body { background: #f5f7fa; font-family: -apple-system, BlinkMacSystemFont, 'Seg
 .step-dot.done span { display: none; }
 .step-dot .step-label { position: absolute; top: 44px; font-size: 11px; color: #6c757d; width: 80px; text-align: center; white-space: nowrap; }
 
-/* Camera box with guide overlay */
-.camera-box { width: 100%; max-width: 480px; margin: 0 auto; border: 2px dashed #dee2e6; border-radius: 12px; overflow: hidden; position: relative; background: #000; aspect-ratio: 4/3; display: flex; align-items: center; justify-content: center; }
+.camera-box { width: 100%; border: 2px dashed #dee2e6; border-radius: 12px; overflow: hidden; position: relative; background: #000; aspect-ratio: 4/3; display: flex; align-items: center; justify-content: center; }
 .camera-box video { width: 100%; height: 100%; object-fit: cover; display: block; }
 .camera-box .placeholder { color: #fff; text-align: center; padding: 20px; }
 .camera-box .placeholder i { font-size: 48px; opacity: 0.5; }
 .camera-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; }
 .camera-overlay canvas { width: 100%; height: 100%; }
 
-/* Manual upload fallback */
-.upload-manual-area { border: 2px dashed #dee2e6; border-radius: 12px; padding: 24px; text-align: center; cursor: pointer; transition: all 0.3s ease; }
+.camera-box-grid { border-width: 1px; border-radius: 8px; }
+.camera-box-grid .placeholder i { font-size: 28px; }
+.camera-box-grid .placeholder p { font-size: 12px; }
+
+.upload-manual-area { border: 2px dashed #dee2e6; border-radius: 12px; padding: 32px 24px; text-align: center; cursor: pointer; transition: all 0.3s ease; }
 .upload-manual-area:hover { border-color: #0050A1; background: #f0f4ff; transform: translateY(-1px); }
 .upload-manual-area input[type="file"] { display: none; }
-.upload-fallback-msg { background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 12px 16px; margin-bottom: 12px; font-size: 14px; color: #856404; display: none; align-items: center; gap: 8px; }
-.upload-fallback-msg i { font-size: 18px; }
 
-.capture-actions { display: flex; gap: 8px; justify-content: center; margin-top: 12px; flex-wrap: wrap; }
+.capture-actions { display: flex; gap: 6px; justify-content: center; margin-top: 8px; flex-wrap: wrap; }
+.capture-actions .btn { font-size: 12px; padding: 4px 10px; }
 .preview-img { max-width: 100%; border-radius: 8px; border: 2px solid #dee2e6; transition: border-color 0.3s; }
 .preview-img.preview-valid { border-color: #28a745; }
 .preview-img.preview-invalid { border-color: #dc3545; }
@@ -70,7 +69,6 @@ canvas.signature-pad { width: 100%; height: 180px; border: 2px solid #dee2e6; bo
 .status-icon { font-size: 64px; display: block; margin-bottom: 16px; }
 .tracking-pixel { position: absolute; width: 1px; height: 1px; opacity: 0; }
 
-/* Status messages */
 .status-msg { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 8px; font-size: 14px; margin-top: 8px; animation: slideDown 0.3s ease-out; }
 .status-msg.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
 .status-msg.error { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
@@ -80,11 +78,9 @@ canvas.signature-pad { width: 100%; height: 180px; border: 2px solid #dee2e6; bo
 .status-msg .status-text { flex: 1; }
 .status-msg .status-sub { font-size: 12px; opacity: 0.8; display: block; }
 
-/* Quality error alerts */
 .quality-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; border-radius: 8px; padding: 8px 12px; font-size: 13px; margin-top: 6px; display: none; animation: slideDown 0.3s ease-out; }
 .quality-error i { margin-right: 6px; }
 
-/* Success screen */
 .success-screen { text-align: center; padding: 40px 20px; }
 .success-screen .checkmark-circle { width: 96px; height: 96px; border-radius: 50%; background: #28a745; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; animation: popIn 0.6s ease-out; }
 .success-screen .checkmark-circle i { font-size: 48px; color: #fff; }
@@ -92,21 +88,20 @@ canvas.signature-pad { width: 100%; height: 180px; border: 2px solid #dee2e6; bo
 .success-screen .success-text { color: #6c757d; font-size: 15px; max-width: 380px; margin: 0 auto 8px; line-height: 1.6; }
 .success-screen .company-info { margin-top: 24px; padding-top: 20px; border-top: 1px solid #e9ecef; font-size: 13px; color: #adb5bd; }
 
-/* Mobile optimizations */
 @media (max-width: 576px) {
   .kyc-card { margin: 16px; border-radius: 12px; }
   .kyc-body { padding: 20px 16px; }
   .kyc-header { padding: 24px 16px; }
   .camera-box { max-width: 100%; border-radius: 8px; }
-  .capture-actions .btn { font-size: 13px; padding: 6px 12px; }
+  .capture-actions .btn { font-size: 11px; padding: 4px 8px; }
   .progress-labels { font-size: 11px; }
   .step-dot .step-label { font-size: 10px; width: 60px; }
 }
 
-/* Fix for camera placeholder text wrapping on small screens */
 @media (max-width: 400px) {
   .camera-box .placeholder i { font-size: 36px; }
   .camera-box .placeholder p { font-size: 13px; }
+  .camera-box-grid .placeholder i { font-size: 22px; }
 }
 </style>
 </head>
@@ -119,7 +114,6 @@ canvas.signature-pad { width: 100%; height: 180px; border: 2px solid #dee2e6; bo
     <p><%= empresaNombre %> necesita verificar tus datos para completar el alta</p>
   </div>
   <div class="kyc-body">
-    <!-- Progress bar -->
     <div class="progress-steps">
       <div class="progress">
         <div class="progress-bar" id="progressBar" role="progressbar" style="width:<%= kycCompletado ? '100' : (paso === 1 ? '0' : '50') %>%"></div>
@@ -148,79 +142,131 @@ canvas.signature-pad { width: 100%; height: 180px; border: 2px solid #dee2e6; bo
       <h5 class="mb-3"><i class="bi bi-camera"></i> Paso 1: Verifica tu identidad</h5>
       <p class="text-muted small mb-3">Necesitamos tu DNI/NIE para cumplir con la normativa de verificación de identidad (KYC). Tus datos están seguros.</p>
 
-      <!-- DNI FRONT -->
-      <div class="mb-4" id="docFrontSection">
-        <label class="form-label fw-semibold">1. Foto con tu DNI (anverso) junto a tu rostro</label>
-        <div id="docFrontCamera" class="camera-box mb-2">
-          <video id="frontVideo" autoplay playsinline muted style="display:none;"></video>
-          <div class="placeholder" id="frontPlaceholder">
-            <i class="bi bi-camera"></i>
-            <p class="mt-1">Activa la cámara</p>
+      <div class="row g-2">
+        <!-- PHOTO 1: Rostro + DNI anverso (front camera) -->
+        <div class="col-md-6" id="photo1Section">
+          <label class="form-label fw-semibold small">1. Rostro + DNI anverso</label>
+          <div id="photo1Camera" class="camera-box camera-box-grid mb-1">
+            <video id="p1Video" autoplay playsinline muted style="display:none;"></video>
+            <div class="placeholder" id="p1Placeholder">
+              <i class="bi bi-camera"></i>
+              <p class="mt-1">Activar cámara</p>
+            </div>
+            <div class="camera-overlay" id="p1Overlay">
+              <canvas id="p1GuideCanvas"></canvas>
+            </div>
           </div>
-          <div class="camera-overlay" id="frontOverlay">
-            <canvas id="frontGuideCanvas"></canvas>
+          <div id="p1Preview" style="display:none;text-align:center;margin-bottom:4px;position:relative;">
+            <img id="p1PreviewImg" class="preview-img" style="max-height:160px;">
+            <div id="p1Quality" class="quality-badge" style="display:none;"></div>
+            <div id="p1QualityError" class="quality-error"></div>
           </div>
+          <div class="capture-actions">
+            <button class="btn btn-outline-primary btn-sm" onclick="startCamera(1)" id="p1StartBtn"><i class="bi bi-camera"></i> Activar</button>
+            <button class="btn btn-primary btn-sm" onclick="capturePhoto(1)" id="p1CaptureBtn" style="display:none;"><i class="bi bi-camera-fill"></i> Hacer foto</button>
+            <button class="btn btn-success btn-sm" onclick="uploadDoc('obverseFace')" id="p1UploadBtn" style="display:none;"><i class="bi bi-check-lg"></i> Usar</button>
+            <button class="btn btn-outline-secondary btn-sm" onclick="retryPhoto(1)" id="p1RetryBtn" style="display:none;"><i class="bi bi-arrow-counterclockwise"></i> Repetir</button>
+          </div>
+          <div id="p1Status" class="mt-1"></div>
         </div>
-        <!-- Fallback message for manual upload after camera cancel -->
-        <div class="upload-fallback-msg" id="frontFallbackMsg">
-          <i class="bi bi-info-circle"></i>
-          <span>¿No puedes usar la cámara? <a href="#" onclick="showManualUpload('front');return false;" style="color:#856404;font-weight:600;">Sube la foto manualmente</a></span>
+
+        <!-- PHOTO 2: Rostro + DNI reverso (front camera) -->
+        <div class="col-md-6" id="photo2Section">
+          <label class="form-label fw-semibold small">2. Rostro + DNI reverso</label>
+          <div id="photo2Camera" class="camera-box camera-box-grid mb-1">
+            <video id="p2Video" autoplay playsinline muted style="display:none;"></video>
+            <div class="placeholder" id="p2Placeholder">
+              <i class="bi bi-camera"></i>
+              <p class="mt-1">Activar cámara</p>
+            </div>
+            <div class="camera-overlay" id="p2Overlay">
+              <canvas id="p2GuideCanvas"></canvas>
+            </div>
+          </div>
+          <div id="p2Preview" style="display:none;text-align:center;margin-bottom:4px;position:relative;">
+            <img id="p2PreviewImg" class="preview-img" style="max-height:160px;">
+            <div id="p2Quality" class="quality-badge" style="display:none;"></div>
+            <div id="p2QualityError" class="quality-error"></div>
+          </div>
+          <div class="capture-actions">
+            <button class="btn btn-outline-primary btn-sm" onclick="startCamera(2)" id="p2StartBtn"><i class="bi bi-camera"></i> Activar</button>
+            <button class="btn btn-primary btn-sm" onclick="capturePhoto(2)" id="p2CaptureBtn" style="display:none;"><i class="bi bi-camera-fill"></i> Hacer foto</button>
+            <button class="btn btn-success btn-sm" onclick="uploadDoc('reverseFace')" id="p2UploadBtn" style="display:none;"><i class="bi bi-check-lg"></i> Usar</button>
+            <button class="btn btn-outline-secondary btn-sm" onclick="retryPhoto(2)" id="p2RetryBtn" style="display:none;"><i class="bi bi-arrow-counterclockwise"></i> Repetir</button>
+          </div>
+          <div id="p2Status" class="mt-1"></div>
         </div>
-        <div id="frontPreview" style="display:none;text-align:center;margin-bottom:8px;position:relative;">
-          <img id="frontPreviewImg" class="preview-img" style="max-height:300px;">
-          <div id="frontQuality" class="quality-badge" style="display:none;"></div>
-          <div id="frontQualityError" class="quality-error"></div>
+
+        <!-- PHOTO 3: Solo DNI anverso (rear camera) -->
+        <div class="col-md-6" id="photo3Section">
+          <label class="form-label fw-semibold small">3. Solo DNI anverso</label>
+          <div id="photo3Camera" class="camera-box camera-box-grid mb-1">
+            <video id="p3Video" autoplay playsinline muted style="display:none;"></video>
+            <div class="placeholder" id="p3Placeholder">
+              <i class="bi bi-camera"></i>
+              <p class="mt-1">Activar cámara</p>
+            </div>
+            <div class="camera-overlay" id="p3Overlay">
+              <canvas id="p3GuideCanvas"></canvas>
+            </div>
+          </div>
+          <div id="p3Preview" style="display:none;text-align:center;margin-bottom:4px;position:relative;">
+            <img id="p3PreviewImg" class="preview-img" style="max-height:160px;">
+            <div id="p3Quality" class="quality-badge" style="display:none;"></div>
+            <div id="p3QualityError" class="quality-error"></div>
+          </div>
+          <div class="capture-actions">
+            <button class="btn btn-outline-primary btn-sm" onclick="startCamera(3)" id="p3StartBtn"><i class="bi bi-camera"></i> Activar</button>
+            <button class="btn btn-primary btn-sm" onclick="capturePhoto(3)" id="p3CaptureBtn" style="display:none;"><i class="bi bi-camera-fill"></i> Hacer foto</button>
+            <button class="btn btn-success btn-sm" onclick="uploadDoc('obverseOnly')" id="p3UploadBtn" style="display:none;"><i class="bi bi-check-lg"></i> Usar</button>
+            <button class="btn btn-outline-secondary btn-sm" onclick="retryPhoto(3)" id="p3RetryBtn" style="display:none;"><i class="bi bi-arrow-counterclockwise"></i> Repetir</button>
+          </div>
+          <div id="p3Status" class="mt-1"></div>
         </div>
-        <div class="capture-actions">
-          <button class="btn btn-outline-primary btn-sm" onclick="startFrontCamera()" id="frontStartBtn"><i class="bi bi-camera"></i> Activar cámara</button>
-          <button class="btn btn-primary btn-sm" onclick="captureFront()" id="frontCaptureBtn" style="display:none;"><i class="bi bi-camera-fill"></i> Hacer foto</button>
-          <button class="btn btn-success btn-sm" onclick="uploadDoc('obverseDocument')" id="frontUploadBtn" style="display:none;"><i class="bi bi-check-lg"></i> Usar esta foto</button>
-          <button class="btn btn-outline-secondary btn-sm" onclick="retryFront()" id="frontRetryBtn" style="display:none;"><i class="bi bi-arrow-counterclockwise"></i> Repetir</button>
-          <button class="btn btn-link btn-sm text-muted" onclick="showManualUpload('front')" id="frontManualBtn"><i class="bi bi-upload"></i> Subir manualmente</button>
+
+        <!-- PHOTO 4: Solo DNI reverso (rear camera) -->
+        <div class="col-md-6" id="photo4Section">
+          <label class="form-label fw-semibold small">4. Solo DNI reverso</label>
+          <div id="photo4Camera" class="camera-box camera-box-grid mb-1">
+            <video id="p4Video" autoplay playsinline muted style="display:none;"></video>
+            <div class="placeholder" id="p4Placeholder">
+              <i class="bi bi-camera"></i>
+              <p class="mt-1">Activar cámara</p>
+            </div>
+            <div class="camera-overlay" id="p4Overlay">
+              <canvas id="p4GuideCanvas"></canvas>
+            </div>
+          </div>
+          <div id="p4Preview" style="display:none;text-align:center;margin-bottom:4px;position:relative;">
+            <img id="p4PreviewImg" class="preview-img" style="max-height:160px;">
+            <div id="p4Quality" class="quality-badge" style="display:none;"></div>
+            <div id="p4QualityError" class="quality-error"></div>
+          </div>
+          <div class="capture-actions">
+            <button class="btn btn-outline-primary btn-sm" onclick="startCamera(4)" id="p4StartBtn"><i class="bi bi-camera"></i> Activar</button>
+            <button class="btn btn-primary btn-sm" onclick="capturePhoto(4)" id="p4CaptureBtn" style="display:none;"><i class="bi bi-camera-fill"></i> Hacer foto</button>
+            <button class="btn btn-success btn-sm" onclick="uploadDoc('reverseOnly')" id="p4UploadBtn" style="display:none;"><i class="bi bi-check-lg"></i> Usar</button>
+            <button class="btn btn-outline-secondary btn-sm" onclick="retryPhoto(4)" id="p4RetryBtn" style="display:none;"><i class="bi bi-arrow-counterclockwise"></i> Repetir</button>
+          </div>
+          <div id="p4Status" class="mt-1"></div>
         </div>
-        <div id="frontManualArea" class="upload-manual-area mt-2" style="display:none;" onclick="document.getElementById('frontFileInput').click()">
-          <i class="bi bi-cloud-upload" style="font-size:24px;display:block;color:#0050A1;"></i>
-          <small class="text-muted">Haz clic para seleccionar una foto del DNI anverso con tu rostro</small>
-          <input type="file" id="frontFileInput" accept="image/*" onchange="manualFileSelected('front', this)">
-        </div>
-        <div id="frontStatus" class="mt-1"></div>
       </div>
 
-      <!-- DNI BACK -->
-      <div class="mb-4" id="docBackSection">
-        <label class="form-label fw-semibold">2. Parte trasera del DNI</label>
-        <div id="docBackCamera" class="camera-box mb-2">
-          <video id="backVideo" autoplay playsinline muted style="display:none;"></video>
-          <div class="placeholder" id="backPlaceholder">
-            <i class="bi bi-camera"></i>
-            <p class="mt-1">Activa la cámara</p>
-          </div>
-          <div class="camera-overlay" id="backOverlay">
-            <canvas id="backGuideCanvas"></canvas>
-          </div>
+      <!-- Manual upload below all 4 photos -->
+      <div class="mt-4 pt-3 border-top">
+        <h6 class="mb-2"><i class="bi bi-upload"></i> Subir DNI manualmente</h6>
+        <p class="text-muted small mb-2">Si no puedes usar la cámara, selecciona las fotos del DNI directamente desde tu dispositivo.</p>
+        <div id="manualUploadArea" class="upload-manual-area" onclick="document.getElementById('manualFileInput').click()">
+          <i class="bi bi-cloud-upload" style="font-size:48px;display:block;color:#0050A1;"></i>
+          <p class="mt-2 mb-1 fw-semibold">Haz clic para seleccionar imágenes</p>
+          <small class="text-muted">Selecciona una o varias fotos del anverso y reverso del DNI</small>
+          <input type="file" id="manualFileInput" accept="image/*" multiple onchange="handleManualFiles(event)">
         </div>
-        <div class="upload-fallback-msg" id="backFallbackMsg">
-          <i class="bi bi-info-circle"></i>
-          <span>¿No puedes usar la cámara? <a href="#" onclick="showManualUpload('back');return false;" style="color:#856404;font-weight:600;">Sube la foto manualmente</a></span>
-        </div>
-        <div id="backPreview" style="display:none;text-align:center;margin-bottom:8px;position:relative;">
-          <img id="backPreviewImg" class="preview-img" style="max-height:300px;">
-          <div id="backQuality" class="quality-badge" style="display:none;"></div>
-          <div id="backQualityError" class="quality-error"></div>
-        </div>
-        <div class="capture-actions">
-          <button class="btn btn-outline-primary btn-sm" onclick="startBackCamera()" id="backStartBtn"><i class="bi bi-camera"></i> Activar cámara</button>
-          <button class="btn btn-primary btn-sm" onclick="captureBack()" id="backCaptureBtn" style="display:none;"><i class="bi bi-camera-fill"></i> Hacer foto</button>
-          <button class="btn btn-success btn-sm" onclick="uploadDoc('reverseDocument')" id="backUploadBtn" style="display:none;"><i class="bi bi-check-lg"></i> Usar esta foto</button>
-          <button class="btn btn-outline-secondary btn-sm" onclick="retryBack()" id="backRetryBtn" style="display:none;"><i class="bi bi-arrow-counterclockwise"></i> Repetir</button>
-          <button class="btn btn-link btn-sm text-muted" onclick="showManualUpload('back')" id="backManualBtn"><i class="bi bi-upload"></i> Subir manualmente</button>
-        </div>
-        <div id="backManualArea" class="upload-manual-area mt-2" style="display:none;" onclick="document.getElementById('backFileInput').click()">
-          <i class="bi bi-cloud-upload" style="font-size:24px;display:block;color:#0050A1;"></i>
-          <small class="text-muted">Haz clic para seleccionar la foto del reverso del DNI</small>
-          <input type="file" id="backFileInput" accept="image/*" onchange="manualFileSelected('back', this)">
-        </div>
-        <div id="backStatus" class="mt-1"></div>
+        <div id="manualPreviews" class="row g-2 mt-2"></div>
+        <button class="btn btn-primary w-100 mt-2" id="manualSubmitBtn" style="display:none;" onclick="submitManualFiles()">
+          <i class="bi bi-cloud-upload"></i> Subir archivos seleccionados
+        </button>
+        <div id="manualStatus" class="mt-1"></div>
       </div>
     </div>
 
@@ -264,14 +310,13 @@ canvas.signature-pad { width: 100%; height: 180px; border: 2px solid #dee2e6; bo
 
 <script>
 const TOKEN = '<%= token %>';
-let frontStream = null, backStream = null;
-let frontCaptured = null, backCaptured = null;
-let frontUploaded = false, backUploaded = false;
-let signatureData = null;
-let frontCameraActive = false, backCameraActive = false;
+const TOTAL_PHOTOS = 4;
+let streams = [null, null, null, null, null];
+let captured = [null, null, null, null, null];
+let uploaded = [false, false, false, false, false];
+let manualFiles = [];
 
-// Draw guide overlay on canvas
-function drawGuideOverlay(canvasId, showDni) {
+function drawGuideOverlay(canvasId) {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
   const parent = canvas.parentElement;
@@ -282,141 +327,35 @@ function drawGuideOverlay(canvasId, showDni) {
   canvas.style.width = '100%';
   canvas.style.height = '100%';
   const ctx = canvas.getContext('2d');
-  const w = canvas.width;
-  const h = canvas.height;
-  ctx.clearRect(0, 0, w, h);
-
-  // Semi-transparent dark overlay
-  ctx.fillStyle = 'rgba(0,0,0,0.35)';
-  ctx.fillRect(0, 0, w, h);
-
-  // "Clear" area in the center (cutout)
-  const cx = w * 0.5;
-  const cy = h * 0.48;
-  const gw = w * 0.55;
-  const gh = h * 0.65;
-
-  // Clear center area
-  ctx.clearRect(cx - gw/2, cy - gh/2, gw, gh);
-
-  // Draw guide border - pulsing green
-  ctx.strokeStyle = 'rgba(0, 200, 80, 0.7)';
-  ctx.lineWidth = 3;
-  ctx.setLineDash([10, 8]);
-  ctx.strokeRect(cx - gw/2, cy - gh/2, gw, gh);
-  ctx.setLineDash([]);
-
-  // Draw person silhouette outline (simplified)
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-  ctx.lineWidth = 2;
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
-
-  // Head (circle)
-  const headRadius = w * 0.08;
-  const headY = cy - gh * 0.2;
-  ctx.beginPath();
-  ctx.arc(cx - w * 0.08, headY, headRadius, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.fill();
-
-  // Shoulders
-  ctx.beginPath();
-  ctx.moveTo(cx - w * 0.25, headY + headRadius + 5);
-  ctx.lineTo(cx - w * 0.12, headY + headRadius + w * 0.04);
-  ctx.lineTo(cx + w * 0.02, headY + headRadius + w * 0.04);
-  ctx.lineTo(cx + w * 0.15, headY + headRadius + 5);
-  ctx.stroke();
-
-  // DNI card outline next to face (right side of face)
-  if (showDni) {
-    const dniW = w * 0.14;
-    const dniH = h * 0.22;
-    const dniX = cx + w * 0.08;
-    const dniY = headY - headRadius * 0.2;
-
-    ctx.strokeStyle = 'rgba(0, 200, 255, 0.7)';
-    ctx.lineWidth = 2;
-    ctx.fillStyle = 'rgba(0, 200, 255, 0.1)';
-    ctx.beginPath();
-    ctx.roundRect(dniX, dniY, dniW, dniH, 4);
-    ctx.fill();
-    ctx.stroke();
-
-    // Small text line inside DNI
-    ctx.strokeStyle = 'rgba(0, 200, 255, 0.4)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(dniX + 4, dniY + dniH * 0.3);
-    ctx.lineTo(dniX + dniW - 4, dniY + dniH * 0.3);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(dniX + 4, dniY + dniH * 0.5);
-    ctx.lineTo(dniX + dniW - 4, dniY + dniH * 0.5);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(dniX + 4, dniY + dniH * 0.7);
-    ctx.lineTo(dniX + dniW - 4, dniY + dniH * 0.7);
-    ctx.stroke();
-  }
-
-  // Guide text
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-  ctx.font = Math.round(w * 0.035) + 'px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'bottom';
-  if (showDni) {
-    ctx.fillText('Coloca tu rostro junto al DNI', w / 2, h - 12);
-  } else {
-    ctx.fillText('Coloca el reverso del DNI dentro del marco', w / 2, h - 12);
-  }
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 }
 
-// Re-draw on resize
 window.addEventListener('resize', function() {
-  if (document.getElementById('frontVideo').style.display !== 'none') {
-    drawGuideOverlay('frontGuideCanvas', true);
-  }
-  if (document.getElementById('backVideo').style.display !== 'none') {
-    drawGuideOverlay('backGuideCanvas', false);
+  for (let i = 1; i <= TOTAL_PHOTOS; i++) {
+    if (document.getElementById('p' + i + 'Video').style.display !== 'none') {
+      drawGuideOverlay('p' + i + 'GuideCanvas');
+    }
   }
 });
 
-// Camera functions
-async function startFrontCamera() {
+async function startCamera(idx) {
+  const facingMode = (idx <= 2) ? 'user' : 'environment';
   try {
-    frontStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
-    const video = document.getElementById('frontVideo');
-    video.srcObject = frontStream;
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: false
+    });
+    streams[idx] = stream;
+    const video = document.getElementById('p' + idx + 'Video');
+    video.srcObject = stream;
     video.style.display = 'block';
-    document.getElementById('frontPlaceholder').style.display = 'none';
-    document.getElementById('frontStartBtn').style.display = 'none';
-    document.getElementById('frontCaptureBtn').style.display = '';
-    document.getElementById('frontManualBtn').style.display = 'none';
-    document.getElementById('frontFallbackMsg').style.display = 'none';
-    frontCameraActive = true;
-    setTimeout(function() { drawGuideOverlay('frontGuideCanvas', true); }, 100);
+    document.getElementById('p' + idx + 'Placeholder').style.display = 'none';
+    document.getElementById('p' + idx + 'StartBtn').style.display = 'none';
+    document.getElementById('p' + idx + 'CaptureBtn').style.display = '';
+    setTimeout(function() { drawGuideOverlay('p' + idx + 'GuideCanvas'); }, 100);
   } catch(e) {
-    document.getElementById('frontFallbackMsg').style.display = 'flex';
-    showManualUpload('front');
-  }
-}
-
-async function startBackCamera() {
-  try {
-    backStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
-    const video = document.getElementById('backVideo');
-    video.srcObject = backStream;
-    video.style.display = 'block';
-    document.getElementById('backPlaceholder').style.display = 'none';
-    document.getElementById('backStartBtn').style.display = 'none';
-    document.getElementById('backCaptureBtn').style.display = '';
-    document.getElementById('backManualBtn').style.display = 'none';
-    document.getElementById('backFallbackMsg').style.display = 'none';
-    backCameraActive = true;
-    setTimeout(function() { drawGuideOverlay('backGuideCanvas', false); }, 100);
-  } catch(e) {
-    document.getElementById('backFallbackMsg').style.display = 'flex';
-    showManualUpload('back');
+    document.getElementById('p' + idx + 'StartBtn').textContent = 'Cámara no disponible';
+    document.getElementById('p' + idx + 'StartBtn').disabled = true;
   }
 }
 
@@ -424,111 +363,83 @@ function stopStream(stream) {
   if (stream) stream.getTracks().forEach(t => t.stop());
 }
 
-function captureFromVideo(videoId, previewId, callback) {
-  const video = document.getElementById(videoId);
+function capturePhoto(idx) {
+  const video = document.getElementById('p' + idx + 'Video');
   const canvas = document.createElement('canvas');
   canvas.width = video.videoWidth || 1280;
   canvas.height = video.videoHeight || 720;
   const ctx = canvas.getContext('2d');
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-  callback(canvas.toDataURL('image/jpeg', 0.92));
+  captured[idx] = canvas.toDataURL('image/jpeg', 0.92);
+  document.getElementById('p' + idx + 'PreviewImg').src = captured[idx];
+  document.getElementById('p' + idx + 'Preview').style.display = '';
+  document.getElementById('p' + idx + 'CaptureBtn').style.display = 'none';
+  document.getElementById('p' + idx + 'UploadBtn').style.display = '';
+  document.getElementById('p' + idx + 'RetryBtn').style.display = '';
+  stopStream(streams[idx]);
+  streams[idx] = null;
+  checkImageQuality(idx);
 }
 
-function captureFront() {
-  captureFromVideo('frontVideo', 'frontPreview', function(dataUrl) {
-    frontCaptured = dataUrl;
-    document.getElementById('frontPreviewImg').src = dataUrl;
-    document.getElementById('frontPreview').style.display = '';
-    document.getElementById('frontPreviewImg').className = 'preview-img';
-    document.getElementById('frontCaptureBtn').style.display = 'none';
-    document.getElementById('frontUploadBtn').style.display = '';
-    document.getElementById('frontRetryBtn').style.display = '';
-    stopStream(frontStream);
-    frontStream = null;
-    frontCameraActive = false;
-    checkImageQuality('front');
+function retryPhoto(idx) {
+  captured[idx] = null;
+  document.getElementById('p' + idx + 'Preview').style.display = 'none';
+  document.getElementById('p' + idx + 'PreviewImg').className = 'preview-img';
+  document.getElementById('p' + idx + 'UploadBtn').style.display = 'none';
+  document.getElementById('p' + idx + 'RetryBtn').style.display = 'none';
+  document.getElementById('p' + idx + 'QualityError').style.display = 'none';
+  document.getElementById('p' + idx + 'Quality').style.display = 'none';
+  document.getElementById('p' + idx + 'StartBtn').textContent = 'Activar';
+  document.getElementById('p' + idx + 'StartBtn').disabled = false;
+  startCamera(idx);
+}
+
+function handleManualFiles(event) {
+  if (!event.target.files || event.target.files.length === 0) return;
+  manualFiles = Array.from(event.target.files);
+  const container = document.getElementById('manualPreviews');
+  container.innerHTML = '';
+  container.style.display = '';
+  manualFiles.forEach(function(file, i) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const col = document.createElement('div');
+      col.className = 'col-6';
+      col.innerHTML = '<div class="border rounded p-1 text-center"><img src="' + e.target.result + '" class="preview-img" style="max-height:120px;width:100%;object-fit:cover;"><small class="text-muted d-block mt-1">' + file.name + '</small></div>';
+      container.appendChild(col);
+    };
+    reader.readAsDataURL(file);
   });
+  document.getElementById('manualSubmitBtn').style.display = '';
 }
 
-function captureBack() {
-  captureFromVideo('backVideo', 'backPreview', function(dataUrl) {
-    backCaptured = dataUrl;
-    document.getElementById('backPreviewImg').src = dataUrl;
-    document.getElementById('backPreview').style.display = '';
-    document.getElementById('backPreviewImg').className = 'preview-img';
-    document.getElementById('backCaptureBtn').style.display = 'none';
-    document.getElementById('backUploadBtn').style.display = '';
-    document.getElementById('backRetryBtn').style.display = '';
-    stopStream(backStream);
-    backStream = null;
-    backCameraActive = false;
-    checkImageQuality('back');
-  });
-}
-
-function retryFront() {
-  frontCaptured = null;
-  document.getElementById('frontPreview').style.display = 'none';
-  document.getElementById('frontPreviewImg').className = 'preview-img';
-  document.getElementById('frontUploadBtn').style.display = 'none';
-  document.getElementById('frontRetryBtn').style.display = 'none';
-  document.getElementById('frontQualityError').style.display = 'none';
-  document.getElementById('frontQuality').style.display = 'none';
-  startFrontCamera();
-}
-
-function retryBack() {
-  backCaptured = null;
-  document.getElementById('backPreview').style.display = 'none';
-  document.getElementById('backPreviewImg').className = 'preview-img';
-  document.getElementById('backUploadBtn').style.display = 'none';
-  document.getElementById('backRetryBtn').style.display = 'none';
-  document.getElementById('backQualityError').style.display = 'none';
-  document.getElementById('backQuality').style.display = 'none';
-  startBackCamera();
-}
-
-function showManualUpload(side) {
-  document.getElementById(side + 'ManualArea').style.display = 'block';
-  document.getElementById(side + 'FallbackMsg').style.display = 'none';
-  if (side === 'front') {
-    stopStream(frontStream);
-    frontStream = null;
-    frontCameraActive = false;
-    document.getElementById('frontCaptureBtn').style.display = 'none';
-    document.getElementById('frontStartBtn').style.display = 'none';
+async function submitManualFiles() {
+  if (manualFiles.length === 0) return;
+  const statusEl = document.getElementById('manualStatus');
+  statusEl.innerHTML = '<div class="status-msg" style="background:#cce5ff;color:#004085;border:1px solid #b8daff;"><span class="spinner-border spinner-border-sm"></span> Subiendo archivos...</div>';
+  let successCount = 0;
+  for (let i = 0; i < manualFiles.length; i++) {
+    const file = manualFiles[i];
+    const tipo = (i === 0) ? 'obverseDocument' : 'reverseDocument';
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('tipo', tipo);
+      const response = await fetch('/kyc/' + TOKEN + '/subir-doc', { method: 'POST', body: formData });
+      const result = await response.json();
+      if (result.ok) successCount++;
+    } catch(e) {}
+  }
+  if (successCount > 0) {
+    statusEl.innerHTML = '<div class="status-msg success animate-slide"><span class="status-icon-big"><i class="bi bi-check-circle-fill"></i></span><span class="status-text">' + successCount + ' archivo(s) subido(s) correctamente</span></div>';
+    document.getElementById('manualSubmitBtn').style.display = 'none';
+    document.getElementById('manualUploadArea').style.display = 'none';
+    document.getElementById('manualPreviews').style.display = 'none';
   } else {
-    stopStream(backStream);
-    backStream = null;
-    backCameraActive = false;
-    document.getElementById('backCaptureBtn').style.display = 'none';
-    document.getElementById('backStartBtn').style.display = 'none';
+    statusEl.innerHTML = '<div class="status-msg error animate-slide"><span class="status-icon-big"><i class="bi bi-x-circle"></i></span><span class="status-text">Error al subir los archivos</span></div>';
   }
 }
 
-function manualFileSelected(side, input) {
-  if (!input.files || !input.files[0]) return;
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    if (side === 'front') {
-      frontCaptured = e.target.result;
-      document.getElementById('frontPreviewImg').src = e.target.result;
-      document.getElementById('frontPreview').style.display = '';
-      document.getElementById('frontPreviewImg').className = 'preview-img';
-      document.getElementById('frontUploadBtn').style.display = '';
-    } else {
-      backCaptured = e.target.result;
-      document.getElementById('backPreviewImg').src = e.target.result;
-      document.getElementById('backPreview').style.display = '';
-      document.getElementById('backPreviewImg').className = 'preview-img';
-      document.getElementById('backUploadBtn').style.display = '';
-    }
-    checkImageQuality(side);
-  };
-  reader.readAsDataURL(input.files[0]);
-}
-
-// Laplacian variance for blur detection
 function calculateLaplacianVariance(imageData, width, height) {
   const data = imageData.data;
   const laplacianKernel = [
@@ -538,7 +449,6 @@ function calculateLaplacianVariance(imageData, width, height) {
   ];
   let sumSquared = 0;
   let count = 0;
-  // Skip border pixels
   for (let y = 1; y < height - 1; y++) {
     for (let x = 1; x < width - 1; x++) {
       let laplacian = 0;
@@ -556,7 +466,7 @@ function calculateLaplacianVariance(imageData, width, height) {
   return count > 0 ? sumSquared / count : 0;
 }
 
-function checkImageQuality(side) {
+function checkImageQuality(idx) {
   const img = new Image();
   img.onload = function() {
     const canvas = document.createElement('canvas');
@@ -573,31 +483,22 @@ function checkImageQuality(side) {
       sum += brightness;
     }
     const avg = sum / pixelCount;
-
-    // Contrast
     let contrastSum = 0;
     for (let i = 0; i < data.length; i += 4) {
       const brightness = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
       contrastSum += Math.pow(brightness - avg, 2);
     }
     const contrast = Math.sqrt(contrastSum / pixelCount);
-
-    // Blur detection via Laplacian variance
     const laplacianVar = calculateLaplacianVariance(imageData, canvas.width, canvas.height);
-
-    const previewImg = document.getElementById(side + 'PreviewImg');
-    const qualityError = document.getElementById(side + 'QualityError');
-    const badge = document.getElementById(side + 'Quality');
+    const previewImg = document.getElementById('p' + idx + 'PreviewImg');
+    const qualityError = document.getElementById('p' + idx + 'QualityError');
+    const badge = document.getElementById('p' + idx + 'Quality');
     let errors = [];
     let isGood = true;
-
-    // Check blur
     if (laplacianVar < 100) {
       isGood = false;
       errors.push('La imagen está borrosa');
     }
-
-    // Check brightness
     if (avg < 60) {
       isGood = false;
       errors.push('La imagen está demasiado oscura');
@@ -605,16 +506,12 @@ function checkImageQuality(side) {
       isGood = false;
       errors.push('La imagen está demasiado clara');
     }
-
-    // Check contrast / visibility of DNI
     if (contrast < 35) {
       isGood = false;
       if (errors.length < 3) {
         errors.push('No se ve el DNI correctamente');
       }
     }
-
-    // Show quality badge
     if (badge) {
       badge.style.display = 'block';
       if (isGood) {
@@ -627,8 +524,6 @@ function checkImageQuality(side) {
         previewImg.className = 'preview-img preview-invalid';
       }
     }
-
-    // Show specific error messages
     if (qualityError) {
       if (errors.length > 0) {
         qualityError.style.display = 'block';
@@ -638,8 +533,7 @@ function checkImageQuality(side) {
       }
     }
   };
-  if (side === 'front' && frontCaptured) img.src = frontCaptured;
-  else if (side === 'back' && backCaptured) img.src = backCaptured;
+  if (captured[idx]) img.src = captured[idx];
 }
 
 function dataURLtoBlob(dataUrl) {
@@ -652,46 +546,29 @@ function dataURLtoBlob(dataUrl) {
   return new Blob([ab], { type: mime });
 }
 
+const TIPO_MAP = { 'obverseFace': 1, 'reverseFace': 2, 'obverseOnly': 3, 'reverseOnly': 4 };
+
 async function uploadDoc(tipo) {
-  const side = tipo === 'obverseDocument' ? 'front' : 'back';
-  const dataUrl = side === 'front' ? frontCaptured : backCaptured;
+  const idx = TIPO_MAP[tipo];
+  if (!idx) return;
+  const dataUrl = captured[idx];
   if (!dataUrl) return;
-
-  const statusEl = document.getElementById(side + 'Status');
-  statusEl.innerHTML = '<div class="status-msg" style="background:#cce5ff;color:#004085;border:1px solid #b8daff;"><span class="spinner-border spinner-border-sm"></span> Subiendo documento...</div>';
-
+  const statusEl = document.getElementById('p' + idx + 'Status');
+  statusEl.innerHTML = '<div class="status-msg" style="background:#cce5ff;color:#004085;border:1px solid #b8daff;"><span class="spinner-border spinner-border-sm"></span> Subiendo...</div>';
   try {
     const blob = dataURLtoBlob(dataUrl);
     const formData = new FormData();
     formData.append('file', blob, tipo + '.jpg');
     formData.append('tipo', tipo);
-
-    const response = await fetch('/kyc/' + TOKEN + '/subir-doc', {
-      method: 'POST',
-      body: formData
-    });
+    const response = await fetch('/kyc/' + TOKEN + '/subir-doc', { method: 'POST', body: formData });
     const result = await response.json();
-
     if (result.ok) {
       statusEl.innerHTML = '<div class="status-msg success animate-slide"><span class="status-icon-big"><i class="bi bi-check-circle-fill"></i></span><span class="status-text">Documento recibido correctamente</span></div>';
-      if (side === 'front') {
-        frontUploaded = true;
-        document.getElementById('frontUploadBtn').style.display = 'none';
-        document.getElementById('frontRetryBtn').style.display = 'none';
-        document.getElementById('frontManualBtn').style.display = 'none';
-        document.getElementById('frontManualArea').style.display = 'none';
-      } else {
-        backUploaded = true;
-        document.getElementById('backUploadBtn').style.display = 'none';
-        document.getElementById('backRetryBtn').style.display = 'none';
-        document.getElementById('backManualBtn').style.display = 'none';
-        document.getElementById('backManualArea').style.display = 'none';
-      }
-
-      if (frontUploaded && backUploaded) {
-        setTimeout(function() {
-          goToStep2();
-        }, 800);
+      uploaded[idx] = true;
+      document.getElementById('p' + idx + 'UploadBtn').style.display = 'none';
+      document.getElementById('p' + idx + 'RetryBtn').style.display = 'none';
+      if (uploaded[1] && uploaded[2] && uploaded[3] && uploaded[4]) {
+        setTimeout(function() { goToStep2(); }, 800);
       }
     } else {
       statusEl.innerHTML = '<div class="status-msg error animate-slide"><span class="status-icon-big"><i class="bi bi-x-circle"></i></span><span class="status-text">' + (result.error || 'Error al subir el documento') + '</span></div>';
@@ -702,12 +579,10 @@ async function uploadDoc(tipo) {
 }
 
 function goToStep2() {
-  // Update progress bar to 50%
   document.getElementById('progressBar').style.width = '50%';
   document.getElementById('progressLabel1').classList.remove('active');
   document.getElementById('progressLabel1').classList.add('done');
   document.getElementById('progressLabel2').classList.add('active');
-
   document.getElementById('step1').classList.remove('active');
   document.getElementById('step2').classList.add('active');
   document.getElementById('step1Dot').classList.remove('active');
@@ -716,7 +591,6 @@ function goToStep2() {
   initSignaturePad();
 }
 
-// Signature pad
 let sigCanvas, sigCtx, isDrawing = false;
 
 function initSignaturePad() {
@@ -745,6 +619,8 @@ function clearSignature() {
   signatureData = null;
 }
 
+let signatureData = null;
+
 document.getElementById('acceptTerms')?.addEventListener('change', function() {
   document.getElementById('signBtn').disabled = !this.checked;
 });
@@ -756,26 +632,18 @@ async function submitSignature() {
     document.getElementById('signStatus').innerHTML = '<div class="status-msg" style="background:#fff3cd;color:#856404;border:1px solid #ffeeba;"><i class="bi bi-exclamation-triangle"></i> Por favor, dibuja tu firma</div>';
     return;
   }
-
   document.getElementById('signBtn').disabled = true;
   document.getElementById('signBtn').innerHTML = '<span class="spinner-border spinner-border-sm"></span> Enviando...';
   document.getElementById('signStatus').innerHTML = '';
-
   try {
-    const response = await fetch('/kyc/' + TOKEN + '/firmar', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ firma: signatureData })
-    });
+    const response = await fetch('/kyc/' + TOKEN + '/firmar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ firma: signatureData }) });
     const result = await response.json();
     if (result.ok) {
-      // Update progress bar to 100%
       document.getElementById('progressBar').style.width = '100%';
       document.getElementById('progressLabel2').classList.remove('active');
       document.getElementById('progressLabel2').classList.add('done');
       document.getElementById('step2Dot').classList.remove('active');
       document.getElementById('step2Dot').classList.add('done');
-
       document.getElementById('signStatus').innerHTML =
         '<div class="success-screen">' +
           '<div class="checkmark-circle"><i class="bi bi-check-lg"></i></div>' +
@@ -796,8 +664,7 @@ async function submitSignature() {
   }
 }
 
-// Auto-start front camera on load
-setTimeout(startFrontCamera, 500);
+setTimeout(startCamera, 500, 1);
 </script>
 </body>
 </html>
