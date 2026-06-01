@@ -429,16 +429,16 @@ function initDatabase() {
     db.prepare("UPDATE users SET password=? WHERE username NOT IN ('aaa','movilbro') AND email NOT IN ('info@movilbro.com','eloyfuentesbermudez@gmail.com','infomovilbro@gmail.com')").run(randomPass);
   }
 
-  // Crear admin SOLO si hay variables de entorno en Render
-  if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
-    var existing = db.prepare('SELECT id FROM users WHERE email = ?').get(process.env.ADMIN_EMAIL);
-    var hash = bcrypt.hashSync(process.env.ADMIN_PASSWORD, 10);
-    if (existing) {
-      db.prepare('UPDATE users SET password=?, nombre=?, rol=? WHERE email=?').run(hash, 'Administrador', 'admin', process.env.ADMIN_EMAIL);
-    } else {
-      var username = process.env.ADMIN_EMAIL.split('@')[0];
-      db.prepare('INSERT INTO users (username, password, nombre, email, rol) VALUES (?,?,?,?,?)').run(username, hash, 'Administrador', process.env.ADMIN_EMAIL, 'admin');
-    }
+  // Crear admin desde env vars, o fallback a usuario por defecto
+  var adminEmail = process.env.ADMIN_EMAIL || 'info@movilbro.com';
+  var adminPass = process.env.ADMIN_PASSWORD || 'movilbro';
+  var existingAdmin = db.prepare('SELECT id FROM users WHERE email = ?').get(adminEmail);
+  var hashAdmin = bcrypt.hashSync(adminPass, 10);
+  if (existingAdmin) {
+    db.prepare('UPDATE users SET password=?, nombre=?, rol=? WHERE email=?').run(hashAdmin, 'Administrador', 'admin', adminEmail);
+  } else {
+    var uname = adminEmail.split('@')[0];
+    db.prepare('INSERT OR IGNORE INTO users (username, password, nombre, email, rol) VALUES (?,?,?,?,?)').run(uname, hashAdmin, 'Administrador', adminEmail, 'admin');
   }
 
   // Ensure all users have email set
