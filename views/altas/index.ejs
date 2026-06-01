@@ -51,36 +51,36 @@
               <div class="row g-3">
                 <div class="col-md-6">
                   <label class="form-label">Nombre *</label>
-                  <input type="text" id="wNombre" class="form-control" required placeholder="Nombre" oninput="validarPaso1()">
+                  <input type="text" id="wNombre" name="wNombre" class="form-control" required placeholder="Nombre" oninput="validarPaso1()" onchange="validarPaso1()">
                 </div>
                 <div class="col-md-6">
                   <label class="form-label">Apellidos</label>
-                  <input type="text" id="wApellidos" class="form-control" placeholder="Apellidos">
+                  <input type="text" id="wApellidos" name="wApellidos" class="form-control" placeholder="Apellidos">
                 </div>
                 <div class="col-md-4">
                   <label class="form-label">DNI / NIF *</label>
-                  <input type="text" id="wDni" class="form-control" required placeholder="12345678Z" onblur="validarDNI(this)" oninput="validarPaso1()">
+                  <input type="text" id="wDni" name="wDni" class="form-control" required placeholder="12345678Z" onblur="validarDNI(this)" oninput="validarPaso1()" onchange="validarPaso1()">
                   <small class="text-muted" id="wDniVal"></small>
                 </div>
                 <div class="col-md-4">
                   <label class="form-label">Teléfono *</label>
-                  <input type="text" id="wTelefono" class="form-control" required placeholder="612345678" oninput="validarPaso1()">
+                  <input type="text" id="wTelefono" name="wTelefono" class="form-control" required placeholder="612345678" oninput="validarPaso1()" onchange="validarPaso1()">
                 </div>
                 <div class="col-md-4">
-                  <label class="form-label">Email *</label>
-                  <input type="email" id="wEmail" class="form-control" placeholder="cliente@email.com" oninput="validarPaso1()">
+                  <label class="form-label">Email</label>
+                  <input type="email" id="wEmail" name="wEmail" class="form-control" placeholder="cliente@email.com" onchange="validarPaso1()">
                 </div>
                 <div class="col-md-6">
                   <label class="form-label">Dirección</label>
-                  <input type="text" id="wDireccion" class="form-control" placeholder="Calle, número, piso">
+                  <input type="text" id="wDireccion" name="wDireccion" class="form-control" placeholder="Calle, número, piso">
                 </div>
                 <div class="col-md-3">
                   <label class="form-label">Ciudad</label>
-                  <input type="text" id="wCiudad" class="form-control" value="Antequera">
+                  <input type="text" id="wCiudad" name="wCiudad" class="form-control" value="Antequera">
                 </div>
                 <div class="col-md-3">
                   <label class="form-label">Código Postal</label>
-                  <input type="text" id="wCp" class="form-control" value="29200">
+                  <input type="text" id="wCp" name="wCp" class="form-control" value="29200">
                 </div>
                 <div class="col-md-4">
                   <label class="form-label">Tipo de cliente</label>
