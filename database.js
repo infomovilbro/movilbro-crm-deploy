@@ -431,7 +431,7 @@ function initDatabase() {
 
   // Crear admin desde env vars, o fallback a usuario por defecto
   var adminEmail = process.env.ADMIN_EMAIL || 'info@movilbro.com';
-  var adminPass = process.env.ADMIN_PASSWORD || 'movilbro';
+  var adminPass = process.env.ADMIN_PASSWORD || 'Teresa88.';
   var existingAdmin = db.prepare('SELECT id FROM users WHERE email = ?').get(adminEmail);
   var hashAdmin = bcrypt.hashSync(adminPass, 10);
   if (existingAdmin) {
