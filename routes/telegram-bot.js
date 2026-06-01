@@ -26,8 +26,8 @@ function addAllowed(cid) {
   return false;
 }
 
-// Auto-agregar admin al inicio
-addAllowed(ADMIN_UID);
+// Auto-agregar admin al inicio (con retardo para que initDatabase se ejecute primero)
+try { addAllowed(ADMIN_UID); } catch(e) { /* settings table may not exist yet, will be retried at first bot message */ }
 
 function getToken() {
   if (process.env.TELEGRAM_BOT_TOKEN) return process.env.TELEGRAM_BOT_TOKEN;
