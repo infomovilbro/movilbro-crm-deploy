@@ -3,6 +3,12 @@ const path = require('path');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 
+const seedPath = path.join(__dirname, 'movilbro_seed.db');
+var fs = require('fs');
+if (!fs.existsSync(path.join(__dirname, 'movilbro.db')) && fs.existsSync(seedPath)) {
+  fs.copyFileSync(seedPath, path.join(__dirname, 'movilbro.db'));
+  console.log('[DB] Copiado movilbro_seed.db -> movilbro.db (' + fs.statSync(path.join(__dirname, 'movilbro.db')).size + ' bytes)');
+}
 const dbPath = path.join(__dirname, 'movilbro.db');
 const db = new Database(dbPath);
 
