@@ -4,8 +4,11 @@ const axios = require('axios');
 const crypto = require('crypto');
 const { db } = require('../database');
 
-const HF_API_URL = 'https://api-inference.huggingface.co/models/';
-const HF_MODELS = ['mistralai/Mistral-7B-Instruct-v0.3', 'HuggingFaceH4/zephyr-7b-beta'];
+const FREE_API_PROVIDERS = [
+  { url: 'https://api-inference.huggingface.co/models/', model: 'mistralai/Mistral-7B-Instruct-v0.3' },
+  { url: 'https://router.huggingface.co/hf-inference/models/', model: 'mistralai/Mistral-7B-Instruct-v0.3' },
+  { url: 'https://api-inference.huggingface.co/models/', model: 'HuggingFaceH4/zephyr-7b-beta' },
+];
 
 const tasks = new Map();
 const MAX_TASKS = 20;
@@ -82,14 +85,15 @@ setInterval(truncateOldConversations, 3600000);
 
 async function callLLM(systemPrompt, userMessage, temperature) {
   var fullPrompt = systemPrompt + '\n\n' + userMessage;
-  var payload = {
-    inputs: fullPrompt,
-    parameters: { max_new_tokens: 600, temperature: temperature || 0.7, return_full_text: false }
-  };
   var lastError = '';
-  for (var model of HF_MODELS) {
+  for (var prov of FREE_API_PROVIDERS) {
     try {
-      var r = await axios.post(HF_API_URL + model, payload, {
+      var url = prov.url + prov.model;
+      var payload = {
+        inputs: fullPrompt,
+        parameters: { max_new_tokens: 600, temperature: temperature || 0.7, return_full_text: false }
+      };
+      var r = await axios.post(url, payload, {
         timeout: 45000,
         headers: { 'Content-Type': 'application/json' }
       });
@@ -97,6 +101,27 @@ async function callLLM(systemPrompt, userMessage, temperature) {
       if (Array.isArray(r.data) && r.data[0]) text = r.data[0].generated_text || '';
       else text = r.data.generated_text || '';
       if (text) return text.trim();
+      lastError = 'Respuesta vacía';
+    } catch(e) {
+      lastError = e.message;
+    }
+  }
+  if (process.env.LLM_API_KEY) {
+    try {
+      var r2 = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
+        model: 'llama3-8b-8192',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMessage }
+        ],
+        temperature: temperature || 0.7,
+        max_tokens: 600
+      }, {
+        timeout: 30000,
+        headers: { 'Authorization': 'Bearer ' + process.env.LLM_API_KEY, 'Content-Type': 'application/json' }
+      });
+      var t = r2?.data?.choices?.[0]?.message?.content;
+      if (t) return t.trim();
     } catch(e) {
       lastError = e.message;
     }
