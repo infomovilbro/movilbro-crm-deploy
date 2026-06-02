@@ -8,6 +8,22 @@ const DEEPSEEK_API_URL = process.env.DEEPSEEK_API_URL || 'https://api.deepseek.c
 const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-chat';
 
 const tasks = new Map();
+const MAX_TASKS = 20;
+const TASK_TTL_MS = 30 * 60 * 1000;
+
+setInterval(function cleanupOldTasks() {
+  var now = Date.now();
+  for (var [id, task] of tasks) {
+    if (task.done && (now - task.endTime > TASK_TTL_MS)) {
+      tasks.delete(id);
+    }
+  }
+  if (tasks.size > MAX_TASKS) {
+    var entries = Array.from(tasks.entries()).sort(function(a, b) { return a[1].startTime - b[1].startTime; });
+    var toDelete = entries.slice(0, entries.length - MAX_TASKS);
+    toDelete.forEach(function(e) { tasks.delete(e[0]); });
+  }
+}, 60000);
 
 function generateTaskId() {
   return 'co_' + Date.now().toString(36) + '_' + crypto.randomBytes(4).toString('hex');
