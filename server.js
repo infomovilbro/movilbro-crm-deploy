@@ -385,6 +385,16 @@ const server = app.listen(PORT, () => {
   console.log(`CRM Movilbro iniciado en puerto ${PORT} (${isProd ? 'produccion' : 'desarrollo'})`);
 });
 
+// ---- SELF-PING - Evita que Render duerma el servicio gratis ----
+function selfPing() {
+  const { get } = require('https');
+  const url = process.env.RENDER_EXTERNAL_URL || 'https://movilbro-crm.onrender.com';
+  const req = get(url + '/health', (res) => { res.on('data', () => {}); });
+  req.on('error', () => {});
+  req.end();
+}
+setInterval(selfPing, 14 * 60 * 1000);
+
 // ---- GRACEFUL SHUTDOWN - Cerrar conexiones limpiamente ----
 function shutdown(signal) {
   console.log(`\n[${signal}] Cerrando servidor...`);
