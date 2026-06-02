@@ -36,4 +36,6 @@ ANCHORED_SUMMARY.md
 
 movilbro.db-shm
 movilbro.db-wal
+movilbro_seed.db-shm
+movilbro_seed.db-wal
 
