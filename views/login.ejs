@@ -31,7 +31,7 @@
     <form method="POST" action="/auth/login" id="loginForm">
       <div class="mb-3">
         <label class="form-label">Correo electrónico</label>
-        <input type="email" name="email" class="form-control" value="<%= typeof email !== 'undefined' ? email : '' %>" required autofocus placeholder="tu@correo.com">
+        <input type="text" name="email" class="form-control" value="<%= typeof email !== 'undefined' ? email : '' %>" required autofocus placeholder="Email o usuario">
       </div>
       <div class="mb-3" id="passwordGroup">
         <label class="form-label">Contraseña</label>
