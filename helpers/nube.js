@@ -256,6 +256,12 @@ function guardarArchivo(tempPath, originalName, destFolder) {
   }
   fs.copyFileSync(tempPath, destPath);
   try { fs.unlinkSync(tempPath); } catch(e) {}
+  if (ext.toLowerCase() === '.pdf') {
+    try {
+      var buf = fs.readFileSync(destPath);
+      guardarEnDB(path.basename(destPath), buf, null);
+    } catch(e) { console.error('Error guardando PDF en DB:', e.message); }
+  }
   return { destPath, destDir, fileName: path.basename(destPath) };
 }
 

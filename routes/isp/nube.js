@@ -37,7 +37,16 @@ router.post('/subir-zip', (req, res) => {
           var dir = path.join(nube.NUBE_DIR, year, monthName);
           nube.ensureDir(dir);
           var destPath = path.join(dir, path.basename(entry.entryName));
-          if (!fs.existsSync(destPath)) { fs.writeFileSync(destPath, zip.readFile(entry)); imported++; }
+          if (!fs.existsSync(destPath)) {
+            var buf = zip.readFile(entry);
+            fs.writeFileSync(destPath, buf);
+            try {
+              var mIdx = MES_NOMBRES.indexOf(monthName);
+              var dbPeriodo = year + '-' + String(mIdx).padStart(2, '0');
+              nube.guardarEnDB(path.basename(entry.entryName), buf, dbPeriodo);
+            } catch(e2) {}
+            imported++;
+          }
         }
       });
       try { fs.unlinkSync(req.file.path); } catch(e) {}
