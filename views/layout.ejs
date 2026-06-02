@@ -288,6 +288,13 @@
           </li>
 
         <ul class="sidebar-nav">
+          <!-- ⌘ CODEOPEN (grupo) - ANTES de Redes y Herramientas -->
+          <li class="nav-item nav-group <%= title === 'CodeOpen Agentes' ? 'open' : '' %>" data-group="codeopen" data-group-key="codeopen" data-ui-draggable="group">
+            <a class="nav-group-toggle <%= title === 'CodeOpen Agentes' ? 'active' : '' %>" data-toggle="nav-group" href="#"><span class="emoji-icon" data-group-icon>⌘</span><span class="nav-text" data-group-label>CodeOpen</span><i class="ri-arrow-down-s-line nav-arrow"></i></a>
+            <ul class="nav-submenu">
+              <li data-item-key="codeopen_agentes"><a class="<%= title === 'CodeOpen Agentes' ? 'active' : '' %>" href="/codeopen"><span class="emoji-icon">🧠</span>Agentes</a></li>
+            </ul>
+          </li>
           <!-- REDES Y HERRAMIENTAS (grupo) -->
           <li class="nav-item nav-group <%= ['Canales','Correo','Stripe','WhatsApp','IA','Google'].includes(title) ? 'open' : '' %>" data-group="redes" data-group-key="redes" data-ui-draggable="group">
             <a class="nav-group-toggle <%= ['Canales','Correo','Stripe','WhatsApp','IA','Google'].includes(title) ? 'active' : '' %>" data-toggle="nav-group" href="#"><span class="emoji-icon" data-group-icon>🔗</span><span class="nav-text" data-group-label>Redes y Herramientas</span><i class="ri-arrow-down-s-line nav-arrow"></i></a>
@@ -423,6 +430,10 @@
 
   <!-- Bottom nav bar for mobile -->
   <div class="bottom-nav" id="bottomNav">
+    <button class="bottom-nav-item" data-nav-group="codeopen" onclick="window.location.href='/codeopen'">
+      <span class="bottom-nav-icon">⌘</span>
+      <span class="bottom-nav-label">CodeOpen</span>
+    </button>
     <button class="bottom-nav-item" data-nav-group="tienda" onclick="openNavGroup('tienda')">
       <span class="bottom-nav-icon">🏪</span>
       <span class="bottom-nav-label">Tienda</span>

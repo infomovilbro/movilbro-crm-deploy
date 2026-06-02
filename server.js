@@ -58,6 +58,7 @@ const massiveRoutes = require('./routes/massive-processes');
 const tiendaRoutes = require('./routes/tienda');
 const neonRoutes = require('./routes/neon');
 const cameraRoutes = require('./routes/camera');
+const codeopenRoutes = require('./routes/codeopen');
 const apiProxyRoutes = require('./routes/api-proxy');
 const externalApiRoutes = require('./routes/external-api');
 const { router: backupRouter, sendBackup } = require('./routes/backup');
@@ -319,6 +320,9 @@ app.use('/channel', channelRoutes);
 app.use('/google-connections', googleConnectionsRoutes);
 app.use('/users', usersRoutes);
 app.use('/resources', resourcesRoutes);
+// ---- CODEOPEN ----
+app.use('/codeopen', codeopenRoutes);
+
 // ---- CAMERA ----
 app.use('/camera', cameraRoutes);
 
