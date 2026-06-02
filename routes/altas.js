@@ -132,6 +132,9 @@ router.post('/crear-cliente-avanzado', requireAuth, async (req, res) => {
 
     db.prepare('INSERT INTO activity_log (tipo, descripcion, client_id) VALUES (?, ?, ?)').run('alta_cliente', 'Cliente ' + nombre + ' ' + apellidos + ' creado. Pendiente KYC', clientId);
 
+    // Auto-sync ligero tras crear alta
+    try { require('../auto-sync').syncInvoicesOnly().catch(function(){}); } catch(e) {}
+
     // 5. Return success with order token
     res.json({
       ok: true,
@@ -176,6 +179,7 @@ router.post('/crear-orden', requireAuth, async (req, res) => {
     );
 
     db.prepare('INSERT INTO activity_log (tipo, descripcion, client_id) VALUES (?, ?, ?)').run('alta_orden', 'Orden creada para cliente ' + cliente.nombre, client_id);
+    try { require('../auto-sync').syncInvoicesOnly().catch(function(){}); } catch(e) {}
     res.redirect('/altas?success=Orden creada correctamente');
   } catch (error) {
     res.redirect('/altas?error=' + error.message);

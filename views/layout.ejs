@@ -307,6 +307,7 @@
               <li data-item-key="redes_neon"><a href="/neon/neon"><span class="emoji-icon">💡</span>Neon</a></li>
               <li data-item-key="redes_regleta"><a href="/neon/regleta"><span class="emoji-icon">🔌</span>Regleta</a></li>
               <li data-item-key="redes_camara"><a href="/camera" title="Cámara iCam365"><span class="emoji-icon">📹</span>Cámara</a></li>
+              <li data-item-key="redes_codeopen"><a href="/codeopen" title="Asistente de programación con IA"><span class="emoji-icon">🤖</span>CodeOpen AI</a></li>
             </ul>
           </li>
         </ul>
@@ -337,6 +338,11 @@
           <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" id="aiChatToggle" title="Asistente IA" style="border-radius:20px;padding:4px 12px;">
             <i class="ri-robot-line"></i>
             <span class="d-none d-sm-inline">IA</span>
+          </button>
+          <!-- Sync Now -->
+          <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1" id="syncNowBtn" title="Sincronizar ahora con Likes Telecom" style="border-radius:20px;padding:4px 12px;">
+            <i class="ri-refresh-line"></i>
+            <span class="d-none d-sm-inline">Sync</span>
           </button>
           <!-- Notification Bell -->
           <% var _notif = typeof notificaciones !== 'undefined' ? notificaciones : {agenda:[], facturas:[], total:0}; %>
@@ -1904,6 +1910,38 @@
       dropdown.style.display = 'block';
     }
   });
+})();
+
+// Sync Now button
+(function() {
+  var btn = document.getElementById('syncNowBtn');
+  if (btn) {
+    btn.addEventListener('click', function() {
+      var icon = btn.querySelector('i');
+      icon.className = 'ri-refresh-line spinner';
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Sincro...';
+      fetch('/isp/re-sync', { method: 'POST' })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          if (d.ok) {
+            btn.innerHTML = '<i class="ri-check-line"></i> OK';
+            setTimeout(function() { btn.innerHTML = '<i class="ri-refresh-line"></i><span class="d-none d-sm-inline">Sync</span>'; btn.disabled = false; }, 2000);
+          } else {
+            btn.innerHTML = '<i class="ri-close-line"></i> Error';
+            console.error('Sync error:', d.error);
+            setTimeout(function() { btn.innerHTML = '<i class="ri-refresh-line"></i><span class="d-none d-sm-inline">Sync</span>'; btn.disabled = false; }, 3000);
+          }
+          // Show progress bar
+          var bar = document.getElementById('syncProgressBar');
+          if (bar) bar.classList.remove('d-none');
+        })
+        .catch(function() {
+          btn.innerHTML = '<i class="ri-close-line"></i> Error';
+          setTimeout(function() { btn.innerHTML = '<i class="ri-refresh-line"></i><span class="d-none d-sm-inline">Sync</span>'; btn.disabled = false; }, 3000);
+        });
+    });
+  }
 })();
 
 // Sync progress - solo comprobar al cargar la página, no cada 5s

@@ -1,0 +1,133 @@
+<div class="container-fluid py-3" style="max-width:900px;">
+  <div class="card shadow-sm" style="border-radius:12px;border:0;min-height:70vh;">
+    <div class="card-header d-flex align-items-center gap-2 py-3" style="background:var(--primary-gradient,linear-gradient(-72.47deg,#0050A1 22.16%,#0050A1b3 76.47%));color:#fff;border-radius:12px 12px 0 0;">
+      <i class="ri-robot-line" style="font-size:1.5rem;"></i>
+      <div class="flex-grow-1">
+        <strong style="font-size:1.1rem;">CodeOpen AI</strong>
+        <small class="d-block text-white-50">DeepSeek V4 Flash Free — <span id="modelStatus" style="font-size:0.75rem;">conectando...</span></small>
+      </div>
+      <button class="btn btn-sm btn-outline-light" id="clearChatBtn" title="Borrar historial"><i class="ri-delete-bin-line"></i></button>
+    </div>
+
+    <div id="chatMessages" class="card-body" style="overflow-y:auto;height:55vh;display:flex;flex-direction:column;gap:12px;padding:16px;">
+      <div class="text-center text-muted py-5" id="emptyState">
+        <i class="ri-robot-line" style="font-size:3rem;display:block;margin-bottom:12px;opacity:0.3;"></i>
+        <p>Pregúntame lo que necesites sobre programación, desarrollo, servidores o el CRM.</p>
+        <small>Ej: "explica cómo funciona una API REST", "crea un script para migrar datos", "qué es mejor-sqlite3?"</small>
+      </div>
+    </div>
+
+    <div class="card-footer" style="background:#fff;border-radius:0 0 12px 12px;border-top:1px solid #eee;padding:12px 16px;">
+      <form id="chatForm" class="d-flex gap-2">
+        <input type="text" id="chatInput" class="form-control" placeholder="Escribe tu consulta sobre programación..." autocomplete="off" style="border-radius:8px;">
+        <button type="submit" class="btn btn-primary d-flex align-items-center gap-1" style="border-radius:8px;white-space:nowrap;">
+          <i class="ri-send-plane-2-line"></i>
+          <span class="d-none d-sm-inline">Enviar</span>
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const chatMessages = document.getElementById('chatMessages');
+  const chatInput = document.getElementById('chatInput');
+  const chatForm = document.getElementById('chatForm');
+  const emptyState = document.getElementById('emptyState');
+  const clearBtn = document.getElementById('clearChatBtn');
+  const modelStatus = document.getElementById('modelStatus');
+
+  async function sendMessage(msg) {
+    emptyState.style.display = 'none';
+    appendMessage('user', msg);
+    chatInput.disabled = true;
+    chatInput.value = '';
+
+    const bubble = document.createElement('div');
+    bubble.className = 'd-flex align-items-start gap-2 ai-message';
+    bubble.innerHTML = '<div class="spinner-border spinner-border-sm text-primary mt-2" role="status"></div>';
+    chatMessages.appendChild(bubble);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    try {
+      const r = await fetch('/codeopen', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg })
+      });
+      const data = await r.json();
+      bubble.remove();
+      const reply = data.response || 'Sin respuesta.';
+      appendMessage('assistant', reply);
+    } catch(e) {
+      bubble.remove();
+      appendMessage('assistant', 'Error de conexión.');
+    }
+    chatInput.disabled = false;
+    chatInput.focus();
+  }
+
+  function appendMessage(role, text) {
+    const div = document.createElement('div');
+    div.className = 'd-flex align-items-start gap-2 ' + (role === 'user' ? 'justify-content-end' : 'ai-message');
+
+    if (role === 'assistant') {
+      div.innerHTML = '<div class="ai-avatar" style="width:32px;height:32px;border-radius:50%;background:var(--primary-gradient);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.85rem;"><i class="ri-robot-line"></i></div>';
+    }
+
+    const bubble = document.createElement('div');
+    bubble.className = role === 'user' ? 'user-bubble' : 'ai-bubble';
+    bubble.style.cssText = 'padding:10px 16px;border-radius:' + (role === 'user' ? '14px 14px 4px 14px' : '14px 14px 14px 4px') + ';max-width:80%;line-height:1.5;font-size:0.9rem;';
+    bubble.style.background = role === 'user' ? 'var(--primary-gradient,linear-gradient(-72.47deg,#0050A1 22.16%,#0050A1b3 76.47%))' : '#f0f2f5';
+    bubble.style.color = role === 'user' ? '#fff' : '#222';
+    bubble.textContent = text;
+    div.appendChild(bubble);
+    chatMessages.appendChild(div);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+
+  chatForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    const msg = chatInput.value.trim();
+    if (!msg) return;
+    sendMessage(msg);
+  });
+
+  chatInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      chatForm.dispatchEvent(new Event('submit'));
+    }
+  });
+
+  clearBtn.addEventListener('click', async function() {
+    if (!confirm('¿Borrar todo el historial de esta conversación?')) return;
+    try {
+      await fetch('/codeopen/clear', { method: 'POST' });
+      chatMessages.querySelectorAll('.ai-message, .justify-content-end').forEach(el => el.remove());
+      emptyState.style.display = '';
+      modelStatus.textContent = 'historial borrado';
+    } catch(e) {
+      alert('Error al borrar historial');
+    }
+  });
+
+  modelStatus.textContent = 'conectado ✓';
+
+  chatInput.focus();
+})();
+</script>
+
+<style>
+  .ai-bubble a, .user-bubble a { color: inherit; text-decoration: underline; }
+  .ai-bubble code, .user-bubble code {
+    background: rgba(0,0,0,0.06); padding: 2px 6px; border-radius: 4px; font-size: 0.85em;
+  }
+  .ai-bubble pre, .user-bubble pre {
+    background: #1e1e1e; color: #d4d4d4; padding: 12px; border-radius: 8px;
+    overflow-x: auto; font-size: 0.8rem; margin: 8px 0;
+  }
+  #chatMessages::-webkit-scrollbar { width: 6px; }
+  #chatMessages::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+</style>

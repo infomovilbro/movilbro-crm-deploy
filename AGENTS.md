@@ -32,3 +32,10 @@
 - Si auto-deploy no funciona, revisar Build Filters en Settings del servicio en Render dashboard.
 - Solución temporal: Manual Deploy desde dashboard.
 - Para evitar depender del dashboard, instalar Render CLI o usar Deploy Hook URL (Settings → Deploy Hook).
+
+## CodeOpen API Key (DeepSeek V4 Flash Free)
+- La API key de opencode está en `C:\Users\xtptx\.local\share\opencode\auth.json` — campo `opencode.key`
+- La key funciona con `https://opencode.ai/zen/v1/chat/completions` y modelo `deepseek-v4-flash-free`
+- Es **gratis** (cost: "0" en las respuestas)
+- NO hardcodear la key en código fuente si se sube a git — usar `process.env.OPENCODE_API_KEY`
+- En local, la key está en el código como fallback; en Render se configura desde Environment Variables del dashboard

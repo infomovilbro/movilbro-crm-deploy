@@ -456,7 +456,7 @@ function runAutoSync() {
 }
 
 // Sincronización cada 15 minutos (ligera, solo facturas si API responde)
-syncIntervalId = setInterval(runAutoSync, 15 * 60 * 1000);
+syncIntervalId = setInterval(runAutoSync, 40 * 60 * 1000);
 
 // Sincronización inicial al arrancar (solo facturas, sin CDRs - rápido)
 setTimeout(function() {

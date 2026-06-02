@@ -366,6 +366,15 @@ function initDatabase() {
       periodo TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS chat_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      session_id TEXT NOT NULL,
+      role TEXT NOT NULL CHECK(role IN ('user','assistant','system')),
+      content TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_chat_history_session ON chat_history(session_id);
   `);
 
   try { db.prepare("ALTER TABLE users ADD COLUMN permissions TEXT DEFAULT '{}'").run(); } catch(e) {}
