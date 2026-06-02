@@ -2,6 +2,7 @@
 const path = require('path');
 const AdmZip = require('adm-zip');
 const { db } = require('../database');
+const drive = require('./drive');
 
 var NUBE_DIR = path.join(__dirname, '..', 'nube');
 var ZIPS_DIR = path.join(NUBE_DIR, '_zips');
@@ -23,13 +24,13 @@ function ensureDir(dir) {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 }
 
-function guardarEnDB(nombre, buffer, periodo) {
+function guardarEnDB(nombre, buffer, periodo, driveId) {
   var existing = db.prepare('SELECT id FROM archivos WHERE nombre=?').get(nombre);
   if (existing) {
-    db.prepare('UPDATE archivos SET datos=?, tamaño=?, periodo=?, created_at=CURRENT_TIMESTAMP WHERE id=?').run(buffer, buffer.length, periodo || null, existing.id);
+    db.prepare('UPDATE archivos SET datos=?, tamaño=?, periodo=?, drive_id=?, created_at=CURRENT_TIMESTAMP WHERE id=?').run(buffer, buffer.length, periodo || null, driveId || null, existing.id);
     return existing.id;
   }
-  var result = db.prepare('INSERT INTO archivos (nombre, tipo, datos, tamaño, periodo) VALUES (?,?,?,?,?)').run(nombre, 'pdf', buffer, buffer.length, periodo || null);
+  var result = db.prepare('INSERT INTO archivos (nombre, tipo, datos, tamaño, periodo, drive_id) VALUES (?,?,?,?,?,?)').run(nombre, 'pdf', buffer, buffer.length, periodo || null, driveId || null);
   return result.lastInsertRowid;
 }
 
@@ -71,8 +72,15 @@ async function guardarLocal(pdfBuf, periodo, nombreArchivo) {
   ensureDir(paths.dir);
   var filePath = path.join(paths.dir, nombreArchivo);
   fs.writeFileSync(filePath, pdfBuf);
-  try { guardarEnDB(nombreArchivo, pdfBuf, periodo); } catch(e) { console.error('DB save error:', e.message); }
-  return { filePath, paths, nombreArchivo };
+  var driveResult = null;
+  if (drive.isAvailable()) {
+    try {
+      driveResult = await drive.uploadToDrive(pdfBuf, nombreArchivo, paths.year, paths.month);
+      if (driveResult) fs.unlinkSync(filePath); // delete local if Drive upload succeeded
+    } catch(e) { console.error('Drive upload error:', e.message); }
+  }
+  try { guardarEnDB(nombreArchivo, pdfBuf, periodo, driveResult?.id || null); } catch(e) { console.error('DB save error:', e.message); }
+  return { filePath, paths, nombreArchivo, driveId: driveResult?.id || null };
 }
 
 function listarPDFs() {
@@ -291,6 +299,27 @@ async function regenerarPDFs() {
   return { generados, errores };
 }
 
+async function getPDFBuffer(nombre, periodo) {
+  // 1) Try Drive first
+  if (drive.isAvailable()) {
+    try {
+      var row = db.prepare('SELECT drive_id FROM archivos WHERE nombre=? AND drive_id IS NOT NULL').get(nombre);
+      if (row && row.drive_id) {
+        var buf = await drive.getFileBuffer(row.drive_id);
+        if (buf) return buf;
+      }
+    } catch(e) { console.error('Drive get error:', e.message); }
+  }
+  // 2) Try local file
+  var paths = getYearMonthPaths(periodo);
+  var localPath = path.join(paths.dir, nombre);
+  if (fs.existsSync(localPath)) return fs.readFileSync(localPath);
+  // 3) Try DB
+  var dbRow = getPDFFromDB(nombre);
+  if (dbRow) return dbRow;
+  return null;
+}
+
 function migrarPDFsADB() {
   var migrados = 0;
   if (!fs.existsSync(NUBE_DIR)) return migrados;
@@ -319,4 +348,4 @@ function migrarPDFsADB() {
   return migrados;
 }
 
-module.exports = { generarPDF, guardarLocal, listarPDFs, procesarFactura, getYearMonthPaths, NUBE_DIR, ZIPS_DIR, storeZipInNube, listZips, findPDFInZips, getPDFDataFromZip, getAllPDFNamesFromZips, importZipsFromDownloads, ensureDir, guardarArchivo, guardarEnDB, getPDFFromDB, getPDFFromDBById, regenerarPDFs, migrarPDFsADB };
+module.exports = { generarPDF, guardarLocal, listarPDFs, procesarFactura, getYearMonthPaths, NUBE_DIR, ZIPS_DIR, storeZipInNube, listZips, findPDFInZips, getPDFDataFromZip, getAllPDFNamesFromZips, importZipsFromDownloads, ensureDir, guardarArchivo, guardarEnDB, getPDFFromDB, getPDFFromDBById, regenerarPDFs, migrarPDFsADB, getPDFBuffer };

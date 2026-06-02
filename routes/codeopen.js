@@ -32,10 +32,19 @@ function generateTaskId() {
   return 'co_' + Date.now().toString(36) + '_' + crypto.randomBytes(4).toString('hex');
 }
 
+var PROJECT_SUMMARY = '';
+try {
+  PROJECT_SUMMARY = require('fs').readFileSync(require('path').join(__dirname, '..', 'PROJECT_SUMMARY.md'), 'utf8');
+} catch(e) { PROJECT_SUMMARY = ''; }
+
 function getCRMContext() {
   try {
     if (!db) return {};
+    var facts = {};
+    try { facts = Object.fromEntries(db.prepare("SELECT topic, content FROM shared_context").all().map(r => [r.topic, r.content.substring(0, 500)])); } catch(e) {}
     return {
+      project_summary: PROJECT_SUMMARY.substring(0, 3000),
+      facts: facts,
       clientes: (db.prepare("SELECT COUNT(*) as c FROM clients").get() || {}).c || 0,
       productos: (db.prepare("SELECT COUNT(*) as c FROM products").get() || {}).c || 0,
       tickets: (db.prepare("SELECT COUNT(*) as c FROM tickets").get() || {}).c || 0,
@@ -96,8 +105,14 @@ router.post('/', async (req, res) => {
   const sessionId = req.sessionID || String(req.session.user?.id || 'anon');
 
   try {
+    var crmCtx = getCRMContext();
+    var sysContext = 'Eres CodeOpen AI, asistente experto en programación y desarrollo web. Respondes en español.\n\n';
+    if (crmCtx.project_summary) sysContext += '## RESUMEN DEL PROYECTO\n' + crmCtx.project_summary + '\n\n';
+    if (Object.keys(crmCtx.facts || {}).length) sysContext += '## HECHOS CONOCIDOS\n' + JSON.stringify(crmCtx.facts, null, 2) + '\n\n';
+    sysContext += '## ESTADÍSTICAS DEL CRM\nClientes: ' + crmCtx.clientes + ' | Productos: ' + crmCtx.productos + ' | Facturas: ' + crmCtx.facturas + ' | Suscripciones: ' + crmCtx.suscripciones;
+
     const history = db.prepare("SELECT role, content FROM chat_history WHERE session_id = ? ORDER BY created_at ASC LIMIT 20").all(sessionId);
-    const messages = [{ role: 'system', content: 'Eres CodeOpen AI, asistente experto en programación, desarrollo web, bases de datos y tecnología. Respondes en español con explicaciones claras y código cuando es útil.' }];
+    const messages = [{ role: 'system', content: sysContext }];
     history.forEach(h => messages.push({ role: h.role, content: h.content }));
     messages.push({ role: 'user', content: msg });
 

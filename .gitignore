@@ -31,6 +31,31 @@ movilbro.db
 # Temp
 node_modules/
 
+# Secrets
+.opencode/drive-key.json
+
+# Junk/temp files
+-w
+cookie.txt
+cookies.txt
+headers*.txt
+*.db-shm
+*.db-wal
+cdrs_page.html
+dashboard.html
+fact_page.html
+kpis_page.html
+nube_error.html
+tienda_page.html
+checkpoint_db.js
+original_tree.json
+movilbro_full.db
+movilbro_recovered.db
+nube.html
+nube_err.html
+nube_full.html
+nube_page.html
+
 # Summary
 ANCHORED_SUMMARY.md
 

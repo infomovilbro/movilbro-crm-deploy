@@ -70,6 +70,13 @@ const isProd = process.env.NODE_ENV === 'production';
 
 initDatabase();
 
+// Seed shared_context with project summary
+try {
+  var seedSummary = require('fs').readFileSync(require('path').join(__dirname, 'PROJECT_SUMMARY.md'), 'utf8');
+  var existing = db.prepare('SELECT id FROM shared_context WHERE topic=?').get('project_summary');
+  if (!existing) db.prepare('INSERT INTO shared_context (topic, content) VALUES (?,?)').run('project_summary', seedSummary);
+} catch(e) { console.error('Error seeding shared_context:', e.message); }
+
 // Auto-create default admin user if no users exist
 var userCount = db.prepare('SELECT COUNT(*) as c FROM users').get().c;
 if (userCount === 0) {

@@ -367,9 +367,18 @@ router.get('/pdf/:id', async (req, res) => {
     var paths = nube.getYearMonthPaths(factura.periodo);
     var cachedPath = path.join(paths.dir, nombreArchivo);
 
+    // 1) Try Drive
+    var drivePdf = await nube.getPDFBuffer(nombreArchivo, factura.periodo);
+    if (drivePdf) {
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'attachment; filename="' + nombreArchivo + '"');
+      return res.send(drivePdf);
+    }
+
+    // 2) Check local file
     if (fs.existsSync(cachedPath)) return res.download(cachedPath, nombreArchivo);
 
-    // Check DB storage
+    // 3) Check DB storage
     var dbPdf = nube.getPDFFromDB(nombreArchivo);
     if (dbPdf) {
       res.setHeader('Content-Type', 'application/pdf');
@@ -377,7 +386,7 @@ router.get('/pdf/:id', async (req, res) => {
       return res.send(dbPdf);
     }
 
-    // Check ZIP storage
+    // 4) Check ZIP storage
     var zipResult = nube.findPDFInZips(nombreArchivo);
     if (zipResult) {
       res.setHeader('Content-Type', 'application/pdf');

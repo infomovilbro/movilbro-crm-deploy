@@ -364,6 +364,7 @@ function initDatabase() {
       datos BLOB,
       tamaño INTEGER,
       periodo TEXT,
+      drive_id TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -375,6 +376,13 @@ function initDatabase() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
     CREATE INDEX IF NOT EXISTS idx_chat_history_session ON chat_history(session_id);
+
+    CREATE TABLE IF NOT EXISTS shared_context (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      topic TEXT UNIQUE NOT NULL,
+      content TEXT NOT NULL,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
   `);
 
   try { db.prepare("ALTER TABLE users ADD COLUMN permissions TEXT DEFAULT '{}'").run(); } catch(e) {}
