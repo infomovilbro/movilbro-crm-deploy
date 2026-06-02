@@ -94,6 +94,9 @@
                 <% } else if (f.inZip) { %>
                 <a href="/isp/nube/ver-zip?pdf=<%= encodeURIComponent(f.numFactura+'.pdf') %>" target="_blank" class="btn btn-sm btn-outline-info" title="Ver desde ZIP"><i class="bi bi-file-zip" style="font-size:0.7rem;"></i></a>
                 <a href="/isp/nube/ver-zip?pdf=<%= encodeURIComponent(f.numFactura+'.pdf') %>&download=1" class="btn btn-sm btn-outline-primary" title="Descargar PDF"><i class="bi bi-download" style="font-size:0.7rem;"></i></a>
+                <% } else if (f.dbId) { %>
+                <a href="/isp/nube/pdf-db/<%= f.dbId %>" target="_blank" class="btn btn-sm btn-outline-info" title="Ver PDF"><i class="bi bi-file-pdf" style="font-size:0.7rem;"></i></a>
+                <a href="/isp/nube/pdf-db/<%= f.dbId %>" class="btn btn-sm btn-outline-primary" title="Descargar PDF"><i class="bi bi-download" style="font-size:0.7rem;"></i></a>
                 <% } else if (f.pdfPath) { %>
                 <a href="/isp/nube/descargar?path=<%= encodeURIComponent(f.pdfPath) %>" target="_blank" class="btn btn-sm btn-outline-info" title="Ver PDF original"><i class="bi bi-file-pdf" style="font-size:0.7rem;"></i></a>
                 <a href="/isp/nube/descargar?path=<%= encodeURIComponent(f.pdfPath) %>" class="btn btn-sm btn-outline-primary" title="Descargar PDF"><i class="bi bi-download" style="font-size:0.7rem;"></i></a>

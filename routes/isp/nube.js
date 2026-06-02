@@ -126,17 +126,22 @@ router.get('/', (req, res) => {
     var month = mesMap[pdfInfo.month] || 5;
     if (!yearsMap[year]) yearsMap[year] = {};
     if (!yearsMap[year][month]) yearsMap[year][month] = { facturas: [], total: 0, count: 0 };
-    yearsMap[year][month].facturas.push({
+    var entry = {
       id: null,
       numFactura: pdfName.replace(/^Factura-/,'').replace(/\.pdf$/,''),
       cliente: pdfName.replace(/^Factura-/,'').replace(/\.pdf$/,''),
       importe: 0,
       fecha: year + '-' + String(month).padStart(2, '0') + '-01',
       estado: 'histórica',
-      pdfPath: pdfInfo.fullPath,
       pdfSize: pdfInfo.size,
       origen: 'pdf'
-    });
+    };
+    if (pdfInfo.dbId) {
+      entry.dbId = pdfInfo.dbId;
+    } else {
+      entry.pdfPath = pdfInfo.fullPath;
+    }
+    yearsMap[year][month].facturas.push(entry);
     yearsMap[year][month].count++;
   });
 
@@ -355,6 +360,14 @@ router.get('/pdf/:id', async (req, res) => {
 
     if (fs.existsSync(cachedPath)) return res.download(cachedPath, nombreArchivo);
 
+    // Check DB storage
+    var dbPdf = nube.getPDFFromDB(nombreArchivo);
+    if (dbPdf) {
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'attachment; filename="' + nombreArchivo + '"');
+      return res.send(dbPdf);
+    }
+
     // Check ZIP storage
     var zipResult = nube.findPDFInZips(nombreArchivo);
     if (zipResult) {
@@ -372,6 +385,14 @@ router.get('/pdf/:id', async (req, res) => {
     console.error(e);
     res.status(500).send('Error: ' + e.message);
   }
+});
+
+router.get('/pdf-db/:id', (req, res) => {
+  var row = nube.getPDFFromDBById(req.params.id);
+  if (!row) return res.status(404).send('No encontrado');
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', 'inline; filename="' + row.nombre + '"');
+  res.send(row.datos);
 });
 
 router.get('/descargar', (req, res) => {
@@ -398,8 +419,13 @@ router.get('/zip/:year/:month?', (req, res) => {
     pdfs.forEach(function(p) {
       if (year !== 'todas' && p.year !== year) return;
       if (month && MESES_INV[p.month] !== parseInt(month)) return;
-      if (fs.existsSync(p.fullPath)) {
+      if (p.fullPath && fs.existsSync(p.fullPath)) {
         archive.file(p.fullPath, { name: p.year + '/' + p.month + '/' + p.fileName });
+      } else if (p.dbId) {
+        var row = nube.getPDFFromDBById(p.dbId);
+        if (row && row.datos) {
+          archive.append(row.datos, { name: p.year + '/' + p.month + '/' + p.fileName });
+        }
       }
     });
 
@@ -431,6 +457,8 @@ router.post('/generar-todas', async (req, res) => {
       var nombreArchivo = 'Factura-' + numFactura + '.pdf';
       var paths = nube.getYearMonthPaths(f.periodo);
       if (fs.existsSync(path.join(paths.dir, nombreArchivo))) continue;
+      var existDB = db.prepare('SELECT id FROM archivos WHERE nombre=?').get(nombreArchivo);
+      if (existDB) continue;
       var lineasRaw = db.prepare('SELECT * FROM isp_facturas_lineas WHERE factura_id=?').all(f.id);
       var lineas = [], cdrG = {};
       lineasRaw.forEach(function(l) {
@@ -534,6 +562,32 @@ router.get('/carpeta', (req, res) => {
     });
   } catch(e) {
     res.status(500).send('Error: ' + e.message);
+  }
+});
+
+// Run migration at startup: copy existing disk PDFs to DB
+try {
+  var migrados = nube.migrarPDFsADB();
+  if (migrados > 0) console.log('[Nube] Migrados ' + migrados + ' PDFs a DB');
+} catch(e) { console.error('[Nube] Error migración:', e.message); }
+
+// Endpoint to regenerate PDFs
+router.post('/regenerar-pdfs', async (req, res) => {
+  try {
+    var result = await nube.regenerarPDFs();
+    res.json(result);
+  } catch(e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Endpoint to migrate disk PDFs to DB
+router.post('/migrar-a-db', (req, res) => {
+  try {
+    var count = nube.migrarPDFsADB();
+    res.json({ ok: true, migrados: count });
+  } catch(e) {
+    res.status(500).json({ ok: false, error: e.message });
   }
 });
 
