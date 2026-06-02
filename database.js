@@ -458,6 +458,20 @@ function initDatabase() {
     db.prepare('INSERT OR IGNORE INTO users (username, password, nombre, email, rol) VALUES (?,?,?,?,?)').run(uname, hashAdmin, 'Administrador', adminEmail, 'admin');
   }
 
+  // Fix acceso rapido aaa -> aaa1/aaa123
+  var hashAaa = bcrypt.hashSync('aaa123', 10);
+  var existingAaa = db.prepare("SELECT id FROM users WHERE username = 'aaa' OR email = 'aaa'").get();
+  if (existingAaa) {
+    db.prepare("UPDATE users SET username='aaa1', email='aaa1', password=?, nombre='Admin Rápido', rol='admin' WHERE id=?").run(hashAaa, existingAaa.id);
+  } else {
+    var existingAaa1 = db.prepare("SELECT id FROM users WHERE username = 'aaa1' OR email = 'aaa1'").get();
+    if (!existingAaa1) {
+      db.prepare("INSERT INTO users (username, password, nombre, email, rol) VALUES ('aaa1', ?, 'Admin Rápido', 'aaa1', 'admin')").run(hashAaa);
+    } else {
+      db.prepare("UPDATE users SET password=? WHERE id=?").run(hashAaa, existingAaa1.id);
+    }
+  }
+
   // Ensure all users have email set
   db.prepare("UPDATE users SET email = username || '@movilbro.com' WHERE email IS NULL OR email = ''").run();
 
