@@ -368,6 +368,26 @@ router.post('/webhook/email', async (req, res) => {
 var imapInterval = null;
 var imapRunning = false;
 
+var BLOCKED_IMAP_DOMAINS = [
+  'linkedin.com', 'woocommerce.com', 'email.claude.com', 'google.com',
+  'facebook.com', 'instagram.com', 'x.com', 'twitter.com', 'youtube.com',
+  'notion.so', 'medium.com', 'hubspot', 'sdelsol.com', 'mailchimp',
+  'sendgrid', 'convertkit', 'brevo.com', 'amazon.com', 'amazon.es',
+  'paypal.com', 'stripe.com', 'shopify.com', 'wix.com', 'godaddy.com',
+  'zoom.us', 'teams.microsoft.com', 'calendar.', 'meet.google.com',
+  'newsletter', 'marketing', 'no-reply', 'noreply', 'notifications',
+  'updates-noreply', 'messages-noreply', 'invitations-noreply',
+  'emails', 'reply@', 'mail@'
+];
+
+function isBlockedEmail(from, subject) {
+  var lower = (from + ' ' + subject).toLowerCase();
+  for (var b of BLOCKED_IMAP_DOMAINS) {
+    if (lower.includes(b.toLowerCase())) return true;
+  }
+  return false;
+}
+
 function startIMAPPolling() {
   var gmailUser = process.env.GMAIL_USER || 'infomovilbro@gmail.com';
   var gmailPass = process.env.GMAIL_PASS || 'nrbo wbln rkmk gbll';
@@ -377,8 +397,9 @@ function startIMAPPolling() {
   }
   if (imapRunning) return;
   imapRunning = true;
-  console.log('[IMAP] Iniciando polling cada 60s para', gmailUser);
+  console.log('[IMAP] Iniciando polling cada 120s para', gmailUser);
   try { var Imap = require('imap'); var { simpleParser } = require('mailparser'); } catch(e) { console.error('[IMAP] Error cargando módulos:', e.message); imapRunning = false; return; }
+  var lastProcessTime = 0;
   function checkMail() {
     try {
       var imap = new Imap({ user: gmailUser, password: gmailPass, host: 'imap.gmail.com', port: 993, tls: true, tlsOptions: { rejectUnauthorized: false } });
@@ -388,7 +409,9 @@ function startIMAPPolling() {
           imap.search(['UNSEEN'], function(err, results) {
             if (err) { console.error('[IMAP] Error search:', err.message); imap.end(); return; }
             if (!results || results.length === 0) { imap.end(); return; }
-            var fetch = imap.fetch(results, { bodies: '', markSeen: true });
+            // Rate limit: only process max 1 email per poll
+            var toFetch = results.slice(0, 1);
+            var fetch = imap.fetch(toFetch, { bodies: '', markSeen: true });
             fetch.on('message', function(msg) {
               var chunks = [];
               msg.on('body', function(stream) { stream.on('data', function(chunk) { chunks.push(chunk.toString()); }); });
@@ -396,13 +419,15 @@ function startIMAPPolling() {
                 var raw = chunks.join('');
                 simpleParser(raw).then(function(parsed) {
                   var from = parsed.from ? parsed.from.text : 'desconocido';
+                  var fromAddr = parsed.from ? parsed.from.value[0].address : '';
                   var subject = parsed.subject || '(sin asunto)';
                   var body = parsed.text || parsed.html || '';
+                  if (isBlockedEmail(fromAddr || from, subject)) {
+                    console.log('[IMAP] Bloqueado correo de', fromAddr || from);
+                    // Mark remaining as seen too
+                    return;
+                  }
                   if (body.length > 3000) body = body.substring(0, 3000) + '...';
-                  // Check if already processed
-                  var existing = db.prepare("SELECT id FROM pending_messages WHERE from_address=? AND subject=? AND body LIKE ? AND created_at > datetime('now', '-1 hour')").get(from, subject, body.substring(0, 100) + '%');
-                  if (existing) return;
-                  // Trigger agent processing
                   var fullText = 'Asunto: ' + subject + '\nDe: ' + from + '\n\n' + body;
                   var crmCtx = getCRMContext();
                   var ctx = 'Contexto CRM: ' + JSON.stringify(crmCtx) + '\n\nCorreo recibido:\n' + fullText;
@@ -411,13 +436,24 @@ function startIMAPPolling() {
                     var synthesisInput = catDef.agents.slice(0, 4).map(function(a, i) { return '## ' + a.name + ':\n' + (results[i] || ''); }).join('\n\n') + '\n\nSintetiza todo en un correo de respuesta final listo para enviar.';
                     return callLLM(catDef.agents[4].prompt, synthesisInput, 0.8);
                   }).then(function(finalResp) {
-                    db.prepare("INSERT INTO pending_messages (source, from_name, from_address, subject, body, proposed_response, status, category) VALUES (?,?,?,?,?,?, 'pending', 'email')").run('email', from, from, subject, fullText, finalResp || '');
+                    db.prepare("INSERT INTO pending_messages (source, from_name, from_address, subject, body, proposed_response, status, category) VALUES (?,?,?,?,?,?, 'pending', 'email')").run('email', from, from, subject, fullText, finalResp || 'Error: sin respuesta');
                     console.log('[IMAP] Correo de', from, 'procesado');
+                  }).catch(function(e) {
+                    console.error('[IMAP] Error LLM:', e.message);
+                    db.prepare("INSERT INTO pending_messages (source, from_name, from_address, subject, body, proposed_response, status, category) VALUES (?,?,?,?,?,?, 'pending', 'email')").run('email', from, from, subject, fullText, 'Error: ' + e.message);
                   });
                 }).catch(function(e) { console.error('[IMAP] Parse error:', e.message); });
               });
             });
-            fetch.on('end', function() { imap.end(); });
+            fetch.on('end', function() {
+              imap.end();
+              // Mark remaining unseen emails as seen
+              if (results.length > 1) {
+                var rem = imap.fetch(results.slice(1), { bodies: '', markSeen: true });
+                rem.on('message', function() {});
+                rem.on('end', function() {});
+              }
+            });
           });
         });
       });
@@ -427,7 +463,7 @@ function startIMAPPolling() {
     } catch(e) { console.error('[IMAP] Connection error:', e.message); }
   }
   checkMail();
-  imapInterval = setInterval(checkMail, 60000);
+  imapInterval = setInterval(checkMail, 120000);
 }
 
 startIMAPPolling();
@@ -471,6 +507,13 @@ router.get('/history', (req, res) => {
   try {
     var rows = db.prepare("SELECT * FROM pending_messages ORDER BY created_at DESC LIMIT 100").all();
     res.json({ history: rows });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/pending/clear', (req, res) => {
+  try {
+    var info = db.prepare("DELETE FROM pending_messages").run();
+    res.json({ ok: true, deleted: info.changes });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
