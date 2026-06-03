@@ -1,133 +1,341 @@
-<div class="container-fluid py-3" style="max-width:900px;">
-  <div class="card shadow-sm" style="border-radius:12px;border:0;min-height:70vh;">
-    <div class="card-header d-flex align-items-center gap-2 py-3" style="background:var(--primary-gradient,linear-gradient(-72.47deg,#0050A1 22.16%,#0050A1b3 76.47%));color:#fff;border-radius:12px 12px 0 0;">
-      <i class="ri-robot-line" style="font-size:1.5rem;"></i>
-      <div class="flex-grow-1">
-        <strong style="font-size:1.1rem;">CodeOpen AI</strong>
-        <small class="d-block text-white-50">DeepSeek V4 Flash Free — <span id="modelStatus" style="font-size:0.75rem;">conectando...</span></small>
+<div class="container-fluid p-0" style="height:calc(100vh - 60px);display:flex;flex-direction:column;background:#0f0f1a;">
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@4.5.0/fonts/remixicon.css" rel="stylesheet">
+
+  <!-- Top: Category Pills -->
+  <div id="catBar" style="padding:12px 20px;background:#1a1a2e;border-bottom:1px solid #2a2a4a;display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex-shrink:0;">
+    <span style="color:#8888aa;font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-right:8px;">Agentes</span>
+    <div id="categoryPills" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+    <div style="flex-grow:1;"></div>
+    <span id="statusDot" style="width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block;"></span>
+    <span style="color:#6666aa;font-size:0.75rem;">DeepSeek V4 Free</span>
+  </div>
+
+  <!-- Main: Agent Canvas + Result -->
+  <div style="flex:1;display:flex;overflow:hidden;position:relative;">
+    <!-- Agent Canvas -->
+    <div id="canvasWrap" style="flex:1;overflow-y:auto;overflow-x:hidden;padding:20px;position:relative;">
+      <div id="emptyState" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#4444aa;text-align:center;">
+        <div style="font-size:4rem;margin-bottom:16px;opacity:0.4;">
+          <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#5555bb" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/><path d="M8 3a3 3 0 0 1 3-3h2a3 3 0 0 1 3 3"/></svg>
+        </div>
+        <h3 style="color:#6666cc;font-weight:300;margin-bottom:8px;">Panel de Agentes Inteligentes</h3>
+        <p style="color:#5555aa;max-width:400px;font-size:0.9rem;">Selecciona una categoría y escribe tu consulta. Los agentes trabajarán en paralelo y verás su progreso en tiempo real.</p>
+        <div id="quickExamples" style="margin-top:16px;display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:500px;"></div>
       </div>
-      <button class="btn btn-sm btn-outline-light" id="clearChatBtn" title="Borrar historial"><i class="ri-delete-bin-line"></i></button>
+      <div id="agentPipeline" style="display:none;flex-direction:column;gap:0;position:relative;padding:10px 0;"></div>
+      <div id="resultArea" style="display:none;margin-top:20px;"></div>
     </div>
 
-    <div id="chatMessages" class="card-body" style="overflow-y:auto;height:55vh;display:flex;flex-direction:column;gap:12px;padding:16px;">
-      <div class="text-center text-muted py-5" id="emptyState">
-        <i class="ri-robot-line" style="font-size:3rem;display:block;margin-bottom:12px;opacity:0.3;"></i>
-        <p>Pregúntame lo que necesites sobre programación, desarrollo, servidores o el CRM.</p>
-        <small>Ej: "explica cómo funciona una API REST", "crea un script para migrar datos", "qué es mejor-sqlite3?"</small>
-      </div>
+    <!-- Activity Sidebar -->
+    <div id="activitySidebar" style="width:280px;border-left:1px solid #2a2a4a;background:#15152a;display:none;flex-direction:column;flex-shrink:0;">
+      <div style="padding:12px 16px;border-bottom:1px solid #2a2a4a;font-size:0.8rem;color:#8888bb;font-weight:600;text-transform:uppercase;letter-spacing:1px;">Actividad</div>
+      <div id="activityFeed" style="flex:1;overflow-y:auto;padding:8px;font-size:0.8rem;"></div>
     </div>
+  </div>
 
-    <div class="card-footer" style="background:#fff;border-radius:0 0 12px 12px;border-top:1px solid #eee;padding:12px 16px;">
-      <form id="chatForm" class="d-flex gap-2">
-        <input type="text" id="chatInput" class="form-control" placeholder="Escribe tu consulta sobre programación..." autocomplete="off" style="border-radius:8px;">
-        <button type="submit" class="btn btn-primary d-flex align-items-center gap-1" style="border-radius:8px;white-space:nowrap;">
-          <i class="ri-send-plane-2-line"></i>
-          <span class="d-none d-sm-inline">Enviar</span>
-        </button>
-      </form>
-    </div>
+  <!-- Input Bar -->
+  <div style="flex-shrink:0;padding:12px 20px;background:#1a1a2e;border-top:1px solid #2a2a4a;">
+    <form id="askForm" style="display:flex;gap:10px;align-items:center;">
+      <input type="text" id="askInput" class="form-control" placeholder="Escribe tu consulta para los agentes..." autocomplete="off" style="background:#0f0f1a;border:1px solid #2a2a4a;color:#ddd;border-radius:10px;padding:12px 16px;font-size:0.9rem;">
+      <button type="submit" id="askBtn" style="background:linear-gradient(135deg,#6366f1,#0050A1);color:#fff;border:0;border-radius:10px;padding:12px 20px;font-size:0.9rem;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;">
+        <i class="ri-send-plane-2-line"></i> Ejecutar
+      </button>
+    </form>
   </div>
 </div>
 
+<style>
+@keyframes pulse-ring { 0% { transform:scale(0.8); opacity:0.7; } 50% { transform:scale(1.15); opacity:0.3; } 100% { transform:scale(0.8); opacity:0.7; } }
+@keyframes glow-pulse { 0%,100% { box-shadow:0 0 8px rgba(99,102,241,0.3); } 50% { box-shadow:0 0 20px rgba(99,102,241,0.6); } }
+@keyframes flow-particle { 0% { left:0; opacity:1; } 100% { left:100%; opacity:0; } }
+@keyframes slide-in { 0% { opacity:0; transform:translateY(10px); } 100% { opacity:1; transform:translateY(0); } }
+@keyframes shake { 0%,100% { transform:translateX(0); } 20% { transform:translateX(-4px); } 40% { transform:translateX(4px); } 60% { transform:translateX(-2px); } 80% { transform:translateX(2px); } }
+@keyframes fadeScale { 0% { opacity:0; transform:scale(0.95); } 100% { opacity:1; transform:scale(1); } }
+* { scrollbar-width:thin; scrollbar-color:#2a2a4a transparent; }
+#canvasWrap::-webkit-scrollbar, #activityFeed::-webkit-scrollbar { width:5px; }
+#canvasWrap::-webkit-scrollbar-thumb, #activityFeed::-webkit-scrollbar-thumb { background:#2a2a4a; border-radius:3px; }
+.agent-card { background:#1e1e3a; border:1px solid #2a2a5a; border-radius:14px; padding:16px; transition:all 0.3s ease; animation:slide-in 0.3s ease; position:relative; }
+.agent-card.working { border-color:#6366f1; animation:glow-pulse 1.5s infinite; }
+.agent-card.done { border-color:#22c55e; background:#1a2e1a; }
+.agent-card.error { border-color:#ef4444; background:#2e1a1a; animation:shake 0.4s ease; }
+.agent-card.waiting { opacity:0.6; }
+.agent-connector { height:24px; position:relative; display:flex; align-items:center; justify-content:center; }
+.agent-connector::before { content:''; position:absolute; width:2px; height:100%; background:#2a2a5a; }
+.agent-connector.active::before { background:linear-gradient(to bottom,#6366f1,#22c55e); }
+.agent-connector .dot { width:8px; height:8px; border-radius:50%; background:#2a2a5a; position:relative; z-index:1; transition:all 0.3s; }
+.agent-connector.active .dot { background:#6366f1; box-shadow:0 0 10px #6366f1; }
+.progress-bar { height:3px; background:#0f0f1a; border-radius:2px; overflow:hidden; margin-top:8px; }
+.progress-fill { height:100%; border-radius:2px; transition:width 0.5s ease; background:linear-gradient(90deg,#6366f1,#22c55e); }
+.category-pill { padding:6px 16px; border-radius:20px; border:1px solid #2a2a5a; background:transparent; color:#8888bb; cursor:pointer; font-size:0.8rem; transition:all 0.2s; display:flex; align-items:center; gap:6px; }
+.category-pill:hover { background:#2a2a5a; color:#ddd; }
+.category-pill.active { background:linear-gradient(135deg,#6366f1,#0050A1); color:#fff; border-color:transparent; }
+.step-text { font-size:0.75rem; color:#8888bb; margin-top:4px; transition:all 0.3s; }
+.result-markdown { line-height:1.7; font-size:0.9rem; }
+.result-markdown code { background:#1a1a3a; padding:2px 6px; border-radius:4px; font-size:0.85em; color:#a78bfa; }
+.result-markdown pre { background:#12122a; padding:14px; border-radius:10px; border:1px solid #2a2a5a; overflow-x:auto; font-size:0.8rem; }
+.activity-item { padding:6px 10px; border-radius:6px; margin-bottom:4px; animation:slide-in 0.2s ease; display:flex; align-items:start; gap:8px; }
+.activity-item .time { color:#5555aa; font-size:0.7rem; white-space:nowrap; margin-top:1px; }
+.activity-item .msg { color:#aabbdd; font-size:0.75rem; }
+</style>
+
 <script>
 (function() {
-  const chatMessages = document.getElementById('chatMessages');
-  const chatInput = document.getElementById('chatInput');
-  const chatForm = document.getElementById('chatForm');
-  const emptyState = document.getElementById('emptyState');
-  const clearBtn = document.getElementById('clearChatBtn');
-  const modelStatus = document.getElementById('modelStatus');
+  var categories = {};
+  var currentCategory = 'general';
+  var currentTaskId = null;
+  var eventSource = null;
+  var pollingTimer = null;
+  var activityVisible = false;
 
-  async function sendMessage(msg) {
-    emptyState.style.display = 'none';
-    appendMessage('user', msg);
-    chatInput.disabled = true;
-    chatInput.value = '';
+  var categoryPills = document.getElementById('categoryPills');
+  var askForm = document.getElementById('askForm');
+  var askInput = document.getElementById('askInput');
+  var askBtn = document.getElementById('askBtn');
+  var agentPipeline = document.getElementById('agentPipeline');
+  var resultArea = document.getElementById('resultArea');
+  var emptyState = document.getElementById('emptyState');
+  var activityFeed = document.getElementById('activityFeed');
+  var activitySidebar = document.getElementById('activitySidebar');
+  var quickExamples = document.getElementById('quickExamples');
+  var statusDot = document.getElementById('statusDot');
 
-    const bubble = document.createElement('div');
-    bubble.className = 'd-flex align-items-start gap-2 ai-message';
-    bubble.innerHTML = '<div class="spinner-border spinner-border-sm text-primary mt-2" role="status"></div>';
-    chatMessages.appendChild(bubble);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
+  // Load categories
+  fetch('/codeopen/categories').then(function(r) { return r.json(); }).then(function(data) {
+    categories = data.categories;
+    renderCategoryPills();
+    renderExamples('general');
+  }).catch(function(e) { console.error('Error loading categories:', e); });
 
-    try {
-      const r = await fetch('/codeopen', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: msg })
+  function renderCategoryPills() {
+    categoryPills.innerHTML = '';
+    var first = true;
+    for (var key in categories) {
+      var c = categories[key];
+      var pill = document.createElement('div');
+      pill.className = 'category-pill' + (first ? ' active' : '');
+      pill.dataset.cat = key;
+      pill.innerHTML = '<i class="' + c.icon + '" style="color:' + c.color + '"></i> ' + c.name;
+      pill.addEventListener('click', function() { selectCategory(this.dataset.cat); });
+      categoryPills.appendChild(pill);
+      if (first) { currentCategory = key; first = false; }
+    }
+  }
+
+  function selectCategory(key) {
+    if (currentTaskId) return; // don't switch mid-task
+    currentCategory = key;
+    document.querySelectorAll('.category-pill').forEach(function(p) { p.classList.remove('active'); });
+    document.querySelector('.category-pill[data-cat="' + key + '"]').classList.add('active');
+    renderExamples(key);
+    if (!agentPipeline.querySelector('.agent-card')) {
+      emptyState.style.display = 'flex';
+    }
+  }
+
+  function renderExamples(cat) {
+    fetch('/codeopen/examples/' + cat).then(function(r) { return r.json(); }).then(function(data) {
+      quickExamples.innerHTML = '';
+      (data.examples || []).slice(0, 4).forEach(function(ex) {
+        var btn = document.createElement('button');
+        btn.textContent = ex.length > 40 ? ex.substring(0, 40) + '...' : ex;
+        btn.style.cssText = 'padding:6px 12px;border-radius:8px;border:1px solid #2a2a5a;background:transparent;color:#6666aa;font-size:0.75rem;cursor:pointer;transition:all 0.2s;';
+        btn.addEventListener('mouseenter', function() { this.style.borderColor = '#6366f1'; this.style.color = '#aaaadd'; });
+        btn.addEventListener('mouseleave', function() { this.style.borderColor = '#2a2a5a'; this.style.color = '#6666aa'; });
+        btn.addEventListener('click', function() { askInput.value = ex; askInput.focus(); });
+        quickExamples.appendChild(btn);
       });
-      const data = await r.json();
-      bubble.remove();
-      const reply = data.response || 'Sin respuesta.';
-      appendMessage('assistant', reply);
-    } catch(e) {
-      bubble.remove();
-      appendMessage('assistant', 'Error de conexión.');
-    }
-    chatInput.disabled = false;
-    chatInput.focus();
+    }).catch(function() {});
   }
 
-  function appendMessage(role, text) {
-    const div = document.createElement('div');
-    div.className = 'd-flex align-items-start gap-2 ' + (role === 'user' ? 'justify-content-end' : 'ai-message');
-
-    if (role === 'assistant') {
-      div.innerHTML = '<div class="ai-avatar" style="width:32px;height:32px;border-radius:50%;background:var(--primary-gradient);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.85rem;"><i class="ri-robot-line"></i></div>';
-    }
-
-    const bubble = document.createElement('div');
-    bubble.className = role === 'user' ? 'user-bubble' : 'ai-bubble';
-    bubble.style.cssText = 'padding:10px 16px;border-radius:' + (role === 'user' ? '14px 14px 4px 14px' : '14px 14px 14px 4px') + ';max-width:80%;line-height:1.5;font-size:0.9rem;';
-    bubble.style.background = role === 'user' ? 'var(--primary-gradient,linear-gradient(-72.47deg,#0050A1 22.16%,#0050A1b3 76.47%))' : '#f0f2f5';
-    bubble.style.color = role === 'user' ? '#fff' : '#222';
-    bubble.textContent = text;
-    div.appendChild(bubble);
-    chatMessages.appendChild(div);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-  }
-
-  chatForm.addEventListener('submit', function(e) {
+  askForm.addEventListener('submit', function(e) {
     e.preventDefault();
-    const msg = chatInput.value.trim();
-    if (!msg) return;
-    sendMessage(msg);
+    var msg = askInput.value.trim();
+    if (!msg || currentTaskId) return;
+    startAgentTask(msg);
   });
 
-  chatInput.addEventListener('keydown', function(e) {
+  function startAgentTask(question) {
+    currentTaskId = 'pending';
+    askInput.disabled = true;
+    askBtn.disabled = true;
+    askBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    emptyState.style.display = 'none';
+    activitySidebar.style.display = 'flex';
+    activityVisible = true;
+    resultArea.style.display = 'none';
+    resultArea.innerHTML = '';
+    agentPipeline.style.display = 'flex';
+    agentPipeline.innerHTML = '';
+
+    // Build agent pipeline cards
+    var cat = categories[currentCategory];
+    if (!cat) { cat = categories.general; }
+    cat.agents.forEach(function(a, idx) {
+      if (idx > 0) {
+        var conn = document.createElement('div');
+        conn.className = 'agent-connector';
+        conn.id = 'conn_' + idx;
+        conn.innerHTML = '<div class="dot"></div>';
+        agentPipeline.appendChild(conn);
+      }
+      var card = document.createElement('div');
+      card.className = 'agent-card waiting';
+      card.id = 'agent_' + a.id;
+      card.innerHTML = '<div style="display:flex;align-items:center;gap:12px;"><div style="width:38px;height:38px;border-radius:10px;background:#0f0f1a;display:flex;align-items:center;justify-content:center;font-size:1.2rem;color:' + cat.color + ';"><i class="' + a.icon + '"></i></div><div style="flex:1;min-width:0;"><div style="font-weight:600;color:#ddd;font-size:0.85rem;">' + a.name + '</div><div style="font-size:0.75rem;color:#6666aa;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + a.desc + '</div></div><div id="status_' + a.id + '" style="width:10px;height:10px;border-radius:50%;flex-shrink:0;background:#2a2a5a;"></div></div><div class="progress-bar" style="margin-top:10px;"><div id="prog_' + a.id + '" class="progress-fill" style="width:0%;"></div></div><div id="step_' + a.id + '" class="step-text">Esperando...</div>';
+      agentPipeline.appendChild(card);
+    });
+
+    // Call backend
+    fetch('/codeopen/ask', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: question, category: currentCategory })
+    }).then(function(r) { return r.json(); }).then(function(data) {
+      currentTaskId = data.taskId;
+      startSSE(data.taskId);
+    }).catch(function(err) {
+      resetUI();
+      showError('Error al iniciar tarea: ' + err.message);
+    });
+  }
+
+  function startSSE(taskId) {
+    if (eventSource) { eventSource.close(); }
+    try {
+      eventSource = new EventSource('/codeopen/events/' + taskId);
+      eventSource.addEventListener('agent_step', function(e) {
+        var data = JSON.parse(e.data);
+        updateAgents(data.agents);
+      });
+      eventSource.addEventListener('agent_done', function(e) {
+        var data = JSON.parse(e.data);
+        updateAgents(data.agents);
+        addActivity(data.agentId, data.result && data.result.substring(0, 80), 'done');
+      });
+      eventSource.addEventListener('done', function(e) {
+        var data = JSON.parse(e.data);
+        updateAgents(data.agents);
+        showFinalResult(data.finalResponse);
+        addActivity('completado', 'Respuesta generada en ' + (Date.now() - data.ts || ''), 'done');
+        resetUI(true);
+      });
+      eventSource.addEventListener('error', function() {
+        // Fallback to polling
+        if (eventSource) { eventSource.close(); eventSource = null; }
+        startPolling(taskId);
+      });
+    } catch(e) {
+      startPolling(taskId);
+    }
+  }
+
+  function startPolling(taskId) {
+    if (pollingTimer) clearInterval(pollingTimer);
+    pollingTimer = setInterval(function() {
+      fetch('/codeopen/status/' + taskId).then(function(r) { return r.json(); }).then(function(data) {
+        if (data.error) { clearInterval(pollingTimer); resetUI(); return; }
+        updateAgents(data.agents);
+        if (data.done) {
+          clearInterval(pollingTimer);
+          showFinalResult(data.finalResponse);
+          resetUI(true);
+        }
+      }).catch(function() {});
+    }, 300);
+  }
+
+  function updateAgents(agents) {
+    for (var id in agents) {
+      var a = agents[id];
+      var card = document.getElementById('agent_' + id);
+      if (!card) continue;
+      card.className = 'agent-card ' + a.status;
+      var statusEl = document.getElementById('status_' + id);
+      if (statusEl) {
+        statusEl.style.background = a.status === 'done' ? '#22c55e' : a.status === 'error' ? '#ef4444' : a.status === 'working' ? '#6366f1' : '#2a2a5a';
+        if (a.status === 'working') statusEl.style.animation = 'pulse-ring 1.5s infinite';
+        else statusEl.style.animation = '';
+      }
+      var progEl = document.getElementById('prog_' + id);
+      if (progEl) progEl.style.width = (a.progress || 0) + '%';
+      var stepEl = document.getElementById('step_' + id);
+      if (stepEl && a.steps && a.steps.length > 0) {
+        var lastStep = a.steps[a.steps.length - 1];
+        stepEl.textContent = lastStep.text;
+      } else if (stepEl) {
+        stepEl.textContent = a.status === 'done' ? 'Completado' : a.status === 'error' ? 'Error' : a.status === 'working' ? 'Procesando...' : 'Esperando...';
+      }
+      // Connection dots
+      var idx = Object.keys(agents).indexOf(id);
+      if (idx > 0) {
+        var conn = document.getElementById('conn_' + idx);
+        if (conn) {
+          conn.className = 'agent-connector' + (a.status === 'working' || a.status === 'done' ? ' active' : '');
+        }
+      }
+    }
+  }
+
+  function showFinalResult(text) {
+    if (!text || text.startsWith('Error')) {
+      resultArea.innerHTML = '<div style="padding:20px;text-align:center;color:#ef4444;">' + (text || 'Error al generar respuesta') + '</div>';
+    } else {
+      resultArea.innerHTML = '<div style="background:#1a1a3a;border:1px solid #2a2a5a;border-radius:14px;padding:20px;animation:fadeScale 0.4s ease;"><h4 style="color:#8888cc;margin-bottom:12px;font-size:0.8rem;text-transform:uppercase;letter-spacing:1px;"><i class="ri-quote-text"></i> Resultado Final</h4><div class="result-markdown" style="color:#ddd;">' + formatMarkdown(text) + '</div></div>';
+    }
+    resultArea.style.display = 'block';
+    resultArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    addActivity('resultado', text.substring(0, 100), 'done');
+  }
+
+  function formatMarkdown(text) {
+    return text
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/### (.+)/g, '<h5 style="color:#a78bfa;margin:12px 0 6px;">$1</h5>')
+      .replace(/## (.+)/g, '<h4 style="color:#c4b5fd;margin:14px 0 8px;">$1</h4>')
+      .replace(/# (.+)/g, '<h3 style="color:#ddd;margin:16px 0 8px;">$1</h3>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong style="color:#f0f0ff;">$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
+      .replace(/\n- (.+)/g, '\n• $1')
+      .replace(/\n/g, '<br>');
+  }
+
+  function addActivity(agentId, text, type) {
+    if (!text) return;
+    var item = document.createElement('div');
+    item.className = 'activity-item';
+    var time = new Date().toLocaleTimeString();
+    var icon = type === 'done' ? 'ri-check-line' : 'ri-arrow-right-line';
+    var color = type === 'done' ? '#22c55e' : '#6366f1';
+    item.innerHTML = '<span class="time">' + time + '</span><i class="' + icon + '" style="color:' + color + ';font-size:0.7rem;margin-top:3px;"></i><span class="msg">' + (agentId !== 'completado' ? '<strong style="color:' + color + ';">' + agentId + '</strong>: ' : '') + (text.length > 80 ? text.substring(0, 80) + '...' : text) + '</span>';
+    activityFeed.insertBefore(item, activityFeed.firstChild);
+  }
+
+  function showError(msg) {
+    agentPipeline.innerHTML = '<div style="padding:30px;text-align:center;color:#ef4444;">' + msg + '</div>';
+  }
+
+  function resetUI(keepResult) {
+    currentTaskId = null;
+    askInput.disabled = false;
+    askBtn.disabled = false;
+    askBtn.innerHTML = '<i class="ri-send-plane-2-line"></i> Ejecutar';
+    if (!keepResult) {
+      agentPipeline.style.display = 'none';
+      emptyState.style.display = 'flex';
+      activitySidebar.style.display = 'none';
+      resultArea.style.display = 'none';
+    }
+  }
+
+  askInput.addEventListener('keydown', function(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      chatForm.dispatchEvent(new Event('submit'));
+      askForm.dispatchEvent(new Event('submit'));
     }
   });
 
-  clearBtn.addEventListener('click', async function() {
-    if (!confirm('¿Borrar todo el historial de esta conversación?')) return;
-    try {
-      await fetch('/codeopen/clear', { method: 'POST' });
-      chatMessages.querySelectorAll('.ai-message, .justify-content-end').forEach(el => el.remove());
-      emptyState.style.display = '';
-      modelStatus.textContent = 'historial borrado';
-    } catch(e) {
-      alert('Error al borrar historial');
-    }
-  });
-
-  modelStatus.textContent = 'conectado ✓';
-
-  chatInput.focus();
+  statusDot.style.background = '#22c55e';
 })();
 </script>
-
-<style>
-  .ai-bubble a, .user-bubble a { color: inherit; text-decoration: underline; }
-  .ai-bubble code, .user-bubble code {
-    background: rgba(0,0,0,0.06); padding: 2px 6px; border-radius: 4px; font-size: 0.85em;
-  }
-  .ai-bubble pre, .user-bubble pre {
-    background: #1e1e1e; color: #d4d4d4; padding: 12px; border-radius: 8px;
-    overflow-x: auto; font-size: 0.8rem; margin: 8px 0;
-  }
-  #chatMessages::-webkit-scrollbar { width: 6px; }
-  #chatMessages::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
-</style>
