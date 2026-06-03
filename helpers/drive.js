@@ -4,7 +4,8 @@ const fs = require('fs');
 const os = require('os');
 
 const KEY_PATH = path.join(__dirname, '..', '.opencode', 'drive-key.json');
-const ROOT_FOLDER_ID = '1JrStvTy-l0msOmfwT1S0Jupg6Ru6Zemx';
+const OAUTH_CONFIG_PATH = path.join(__dirname, '..', '.opencode', 'oauth-config.json');
+const ROOT_FOLDER_ID = process.env.DRIVE_ROOT_FOLDER_ID || '1JrStvTy-l0msOmfwT1S0Jupg6Ru6Zemx';
 const NUBE_FOLDER_NAME = 'nube';
 
 let _drive = null;
@@ -21,7 +22,34 @@ function getKey() {
   return null;
 }
 
+function getOAuthConfig() {
+  try {
+    if (process.env.DRIVE_OAUTH_JSON) {
+      return JSON.parse(Buffer.from(process.env.DRIVE_OAUTH_JSON, 'base64').toString());
+    }
+    if (fs.existsSync(OAUTH_CONFIG_PATH)) {
+      return JSON.parse(fs.readFileSync(OAUTH_CONFIG_PATH, 'utf8'));
+    }
+  } catch (e) { console.error('OAuth config error:', e.message); }
+  return null;
+}
+
+function isOAuthAvailable() {
+  const cfg = getOAuthConfig();
+  return !!(cfg && cfg.refresh_token);
+}
+
 function getAuth() {
+  const cfg = getOAuthConfig();
+  if (cfg && cfg.refresh_token && cfg.client_id && cfg.client_secret) {
+    try {
+      const oauth2Client = new google.auth.OAuth2(cfg.client_id, cfg.client_secret, 'urn:ietf:wg:oauth:2.0:oob');
+      oauth2Client.setCredentials({ refresh_token: cfg.refresh_token });
+      return oauth2Client;
+    } catch (e) {
+      console.error('OAuth auth error:', e.message);
+    }
+  }
   try {
     const key = getKey();
     if (!key) return null;
@@ -140,7 +168,7 @@ async function getNubeFolderId() {
 }
 
 function isAvailable() {
-  try { return (!!process.env.DRIVE_KEY_JSON || fs.existsSync(KEY_PATH)) && getAuth() !== null; } catch(e) { return false; }
+  try { return getAuth() !== null; } catch(e) { return false; }
 }
 
-module.exports = { uploadToDrive, getFileBuffer, deleteFromDrive, listFiles, ensureYearMonthPath, getNubeFolderId, isAvailable };
+module.exports = { uploadToDrive, getFileBuffer, deleteFromDrive, listFiles, ensureYearMonthPath, getNubeFolderId, isAvailable, isOAuthAvailable };

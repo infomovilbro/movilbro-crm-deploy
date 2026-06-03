@@ -64,3 +64,5 @@ movilbro.db-wal
 movilbro_seed.db-shm
 movilbro_seed.db-wal
 
+
+.opencode/oauth-config.json

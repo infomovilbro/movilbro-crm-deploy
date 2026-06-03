@@ -28,7 +28,7 @@ function captureLocal(cb) {
     '  using ($g = [Drawing.Graphics]::FromImage($bmp)) {' +
     '    $g.CopyFromScreen($r.L, $r.T, 0, 0, [Drawing.Size]::new($w, $hh));' +
     '  };' +
-    '  $bmp.Save('"'" + SNAP_FILE.replace(/\\/g, '\\\\') + "'"', [Drawing.Imaging.ImageFormat]::Jpeg);' +
+    '  $bmp.Save("' + SNAP_FILE.replace(/\\/g, '\\\\') + '", [Drawing.Imaging.ImageFormat]::Jpeg);' +
     '};' +
     '[W]::ShowWindow($h, 6); exit 0'
   ]);
