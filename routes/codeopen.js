@@ -369,8 +369,8 @@ var imapInterval = null;
 var imapRunning = false;
 
 function startIMAPPolling() {
-  var gmailUser = process.env.GMAIL_USER;
-  var gmailPass = process.env.GMAIL_PASS;
+  var gmailUser = process.env.GMAIL_USER || 'infomovilbro@gmail.com';
+  var gmailPass = process.env.GMAIL_PASS || 'nrbo wbln rkmk gbll';
   if (!gmailUser || !gmailPass) {
     console.log('[IMAP] GMAIL_USER/GMAIL_PASS no configurados, polling desactivado');
     return;
