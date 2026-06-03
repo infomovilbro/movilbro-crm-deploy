@@ -69,18 +69,16 @@ async function generarPDF(htmlContent, filename) {
 
 async function guardarLocal(pdfBuf, periodo, nombreArchivo) {
   var paths = getYearMonthPaths(periodo);
-  ensureDir(paths.dir);
-  var filePath = path.join(paths.dir, nombreArchivo);
-  fs.writeFileSync(filePath, pdfBuf);
-  var driveResult = null;
+  var zipId = null;
   if (drive.isAvailable()) {
     try {
-      driveResult = await drive.uploadToDrive(pdfBuf, nombreArchivo, paths.year, paths.month);
-      if (driveResult) fs.unlinkSync(filePath); // delete local if Drive upload succeeded
-    } catch(e) { console.error('Drive upload error:', e.message); }
+      zipId = await drive.addToMonthlyZip(pdfBuf, nombreArchivo, paths.year, paths.month);
+    } catch(e) { console.error('ZIP upload error:', e.message); }
   }
-  try { guardarEnDB(nombreArchivo, pdfBuf, periodo, driveResult?.id || null); } catch(e) { console.error('DB save error:', e.message); }
-  return { filePath, paths, nombreArchivo, driveId: driveResult?.id || null };
+  try {
+    guardarEnDB(nombreArchivo, pdfBuf, periodo, zipId || null);
+  } catch(e) { console.error('DB save error:', e.message); }
+  return { paths, nombreArchivo, zipId };
 }
 
 function listarPDFs() {
@@ -300,7 +298,8 @@ async function regenerarPDFs() {
 }
 
 async function getPDFBuffer(nombre, periodo) {
-  // 1) Try Drive first
+  var paths = getYearMonthPaths(periodo);
+  // 1) Try Drive individual file
   if (drive.isAvailable()) {
     try {
       var row = db.prepare('SELECT drive_id FROM archivos WHERE nombre=? AND drive_id IS NOT NULL').get(nombre);
@@ -310,11 +309,17 @@ async function getPDFBuffer(nombre, periodo) {
       }
     } catch(e) { console.error('Drive get error:', e.message); }
   }
-  // 2) Try local file
-  var paths = getYearMonthPaths(periodo);
+  // 2) Try Drive monthly ZIP
+  if (drive.isAvailable()) {
+    try {
+      var zipBuf = await drive.getPDFFromMonthlyZip(nombre, paths.year, paths.month);
+      if (zipBuf) return zipBuf;
+    } catch(e) { console.error('Drive ZIP get error:', e.message); }
+  }
+  // 3) Try local file
   var localPath = path.join(paths.dir, nombre);
   if (fs.existsSync(localPath)) return fs.readFileSync(localPath);
-  // 3) Try DB
+  // 4) Try DB
   var dbRow = getPDFFromDB(nombre);
   if (dbRow) return dbRow;
   return null;

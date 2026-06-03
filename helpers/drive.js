@@ -171,4 +171,86 @@ function isAvailable() {
   try { return getAuth() !== null; } catch(e) { return false; }
 }
 
-module.exports = { uploadToDrive, getFileBuffer, deleteFromDrive, listFiles, ensureYearMonthPath, getNubeFolderId, isAvailable, isOAuthAvailable };
+async function findMonthlyZip(year, month) {
+  const monthId = await ensureYearMonthPath(year, month);
+  if (!monthId) return null;
+  const mName = month.toLowerCase();
+  // Look for any ZIP matching the month name
+  const drive = getDrive();
+  if (!drive) return null;
+  const res = await drive.files.list({
+    q: `'${monthId}' in parents and name contains '${mName}' and mimeType='application/zip' and trashed=false`,
+    fields: 'files(id, name)',
+    pageSize: 5
+  });
+  const files = res.data.files || [];
+  // Find best match (contains month name)
+  for (const f of files) {
+    if (f.name.toLowerCase().includes(mName)) return { id: f.id, name: f.name, parentId: monthId };
+  }
+  return null;
+}
+
+async function addToMonthlyZip(pdfBuffer, pdfName, year, month) {
+  const drive = getDrive();
+  if (!drive) return null;
+  const monthId = await ensureYearMonthPath(year, month);
+  if (!monthId) return null;
+  const mName = month.toLowerCase();
+
+  try {
+    // Find existing ZIP or create new one
+    let zipId, zipName;
+    const existing = await findMonthlyZip(year, month);
+    let zip;
+
+    if (existing) {
+      zipId = existing.id;
+      zipName = existing.name;
+      // Download existing ZIP
+      const res = await drive.files.get({ fileId: zipId, alt: 'media' }, { responseType: 'arraybuffer' });
+      zip = new (require('adm-zip'))(Buffer.from(res.data));
+    } else {
+      zipName = `facturas ${mName} ${year}.zip`;
+      zip = new (require('adm-zip'))();
+    }
+
+    // Add PDF to ZIP (replace if exists)
+    if (zip.getEntry(pdfName)) zip.deleteFile(pdfName);
+    zip.addFile(pdfName, pdfBuffer);
+    const zipBuf = zip.toBuffer();
+
+    if (zipId) {
+      // Update existing ZIP
+      await drive.files.update({ fileId: zipId, media: { mimeType: 'application/zip', body: require('stream').Readable.from(zipBuf) } });
+    } else {
+      // Create new ZIP
+      const created = await drive.files.create({
+        requestBody: { name: zipName, parents: [monthId] },
+        media: { mimeType: 'application/zip', body: require('stream').Readable.from(zipBuf) },
+        fields: 'id'
+      });
+      zipId = created.data.id;
+    }
+    return zipId;
+  } catch (e) {
+    console.error('addToMonthlyZip error:', e.message);
+    return null;
+  }
+}
+
+async function getPDFFromMonthlyZip(pdfName, year, month) {
+  try {
+    const existing = await findMonthlyZip(year, month);
+    if (!existing) return null;
+    const drive = getDrive();
+    if (!drive) return null;
+    const res = await drive.files.get({ fileId: existing.id, alt: 'media' }, { responseType: 'arraybuffer' });
+    const zip = new (require('adm-zip'))(Buffer.from(res.data));
+    const entry = zip.getEntry(pdfName);
+    if (entry) return zip.readFile(entry);
+  } catch (e) { console.error('getPDFFromMonthlyZip error:', e.message); }
+  return null;
+}
+
+module.exports = { uploadToDrive, getFileBuffer, deleteFromDrive, listFiles, ensureYearMonthPath, getNubeFolderId, isAvailable, isOAuthAvailable, addToMonthlyZip, getPDFFromMonthlyZip };
