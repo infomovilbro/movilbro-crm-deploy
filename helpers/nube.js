@@ -228,27 +228,6 @@ function getAllPDFNamesFromZips() {
   return names;
 }
 
-function importZipsFromDownloads() {
-  var downloadsDir = path.join(process.env.USERPROFILE || 'C:\\Users\\xtptx', 'Downloads', 'facturashastaabril2026');
-  if (!fs.existsSync(downloadsDir)) return { ok: false, error: 'Directorio no encontrado: ' + downloadsDir };
-
-  var files = fs.readdirSync(downloadsDir).filter(function(f) { return f.endsWith('.zip') && f.startsWith('facturas'); });
-  var imported = [];
-
-  files.forEach(function(file) {
-    var match = file.match(/facturas\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s+(\d{4})/i);
-    if (!match) return;
-    var monthName = match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase();
-    var mName = MESES[MESES_MAP[monthName] - 1];
-    if (!mName) return;
-    var year = match[2];
-    var dest = storeZipInNube(path.join(downloadsDir, file), year, mName);
-    imported.push({ file: file, year: year, month: mName, dest: dest });
-  });
-
-  return { ok: true, imported: imported };
-}
-
 function guardarArchivo(tempPath, originalName, destFolder) {
   var destDir = path.join(NUBE_DIR, destFolder || 'general');
   ensureDir(destDir);
@@ -353,4 +332,4 @@ function migrarPDFsADB() {
   return migrados;
 }
 
-module.exports = { generarPDF, guardarLocal, listarPDFs, procesarFactura, getYearMonthPaths, NUBE_DIR, ZIPS_DIR, storeZipInNube, listZips, findPDFInZips, getPDFDataFromZip, getAllPDFNamesFromZips, importZipsFromDownloads, ensureDir, guardarArchivo, guardarEnDB, getPDFFromDB, getPDFFromDBById, regenerarPDFs, migrarPDFsADB, getPDFBuffer };
+module.exports = { generarPDF, guardarLocal, listarPDFs, procesarFactura, getYearMonthPaths, NUBE_DIR, ZIPS_DIR, storeZipInNube, listZips, findPDFInZips, getPDFDataFromZip, getAllPDFNamesFromZips, ensureDir, guardarArchivo, guardarEnDB, getPDFFromDB, getPDFFromDBById, regenerarPDFs, migrarPDFsADB, getPDFBuffer };

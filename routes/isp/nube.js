@@ -464,16 +464,6 @@ router.post('/generar-todas', async (req, res) => {
   console.log('PDFs generados');
 });
 
-// Import ZIPs from local Downloads
-router.post('/importar-zips', (req, res) => {
-  try {
-    var result = nube.importZipsFromDownloads();
-    res.json(result);
-  } catch(e) {
-    res.status(500).json({ ok: false, error: e.message });
-  }
-});
-
 // Browse folder contents
 router.get('/carpeta', (req, res) => {
   try {
