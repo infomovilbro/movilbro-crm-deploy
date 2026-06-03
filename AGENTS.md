@@ -33,9 +33,37 @@
 - Solución temporal: Manual Deploy desde dashboard.
 - Para evitar depender del dashboard, instalar Render CLI o usar Deploy Hook URL (Settings → Deploy Hook).
 
-## CodeOpen API Key (DeepSeek V4 Flash Free)
+## Variables de Entorno Requeridas
+
+Secrets removidos del código fuente. Configurar en Render → Environment:
+
+| Variable | Propósito |
+|----------|-----------|
+| `ADMIN_PASSWORD` | Contraseña admin (si no se setea, se genera aleatoria) |
+| `LIKES_CLIENT_ID` | Email Likes Telecom API |
+| `LIKES_CLIENT_SECRET` | Password Likes Telecom API |
+| `LIKES_BRAND_ID` | Brand ID Likes Telecom |
+| `GMAIL_USER` | `infomovilbro@gmail.com` |
+| `GMAIL_PASS` | App password de Gmail |
+| `LIKES_COGNITO_CLIENT_ID` | ClientId Cognito (`76opnp6ffescubvuuao8am20d`) |
+| `LIKES_COGNITO_USERNAME` | Usuario Cognito (`eloyfuentesbermudez@gmail.com`) |
+| `LIKES_COGNITO_PASSWORD` | Password Cognito (`Teresa88.`) |
+| `DRIVE_OAUTH_JSON` | Refresh token OAuth Drive (base64) |
+| `OPENCODE_API_KEY` | Key DeepSeek V4 Flash Free |
+| `SESSION_SECRET` | Secreto de sesión |
+
+## OPENCODE_API_KEY (DeepSeek V4 Flash Free)
 - La API key de opencode está en `C:\Users\xtptx\.local\share\opencode\auth.json` — campo `opencode.key`
 - La key funciona con `https://opencode.ai/zen/v1/chat/completions` y modelo `deepseek-v4-flash-free`
 - Es **gratis** (cost: "0" en las respuestas)
 - NO hardcodear la key en código fuente si se sube a git — usar `process.env.OPENCODE_API_KEY`
 - En local, la key está en el código como fallback; en Render se configura desde Environment Variables del dashboard
+
+## CDR API Fetch Refactor
+- Lógica duplicada de fetch CDR extraída a `LikesAPI.fetchCDRsForFiscalId(api, fiscalId, periodo)` en `likes-api.js`
+- Reemplaza 5 bloques idénticos en `nube.js` y `facturacion.js`
+
+## Drive ZIP Bugfix
+- `guardarLocal` guardaba `zipId` (ID del ZIP) como `drive_id` del PDF individual
+- `getPDFBuffer` step 1 trataba ese ID como PDF individual → descargaba el ZIP entero como PDF
+- Fix: no pasar `zipId` a `guardarEnDB` (step 2 de `getPDFBuffer` ya busca en ZIP mensual)

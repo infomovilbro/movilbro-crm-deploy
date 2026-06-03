@@ -63,7 +63,7 @@ async function generarPDF(htmlContent, filename) {
         return await page.pdf({ format: 'A4', margin: { top: '0mm', bottom: '0mm', left: '0mm', right: '0mm' }, printBackground: true });
       } finally { await browser.close(); }
     }
-  } catch(e) { console.error('Playwright error:', e.message); }
+    } catch(e) { console.error('Playwright error:', e.stack || e.message); }
   return null; // fallback: route will redirect to HTML view
 }
 
@@ -76,7 +76,7 @@ async function guardarLocal(pdfBuf, periodo, nombreArchivo) {
     } catch(e) { console.error('ZIP upload error:', e.message); }
   }
   try {
-    guardarEnDB(nombreArchivo, pdfBuf, periodo, zipId || null);
+    guardarEnDB(nombreArchivo, pdfBuf, periodo, null);
   } catch(e) { console.error('DB save error:', e.message); }
   return { paths, nombreArchivo, zipId };
 }

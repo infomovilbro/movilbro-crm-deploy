@@ -1,14 +1,18 @@
 const { db } = require('../../database');
 const { CognitoIdentityProviderClient, InitiateAuthCommand } = require('@aws-sdk/client-cognito-identity-provider');
 
+var LIKES_COGNITO_CLIENT = process.env.LIKES_COGNITO_CLIENT_ID || (function() { console.warn('[WARN] LIKES_COGNITO_CLIENT_ID no configurada'); return ''; })();
+var LIKES_COGNITO_USER = process.env.LIKES_COGNITO_USERNAME || (function() { console.warn('[WARN] LIKES_COGNITO_USERNAME no configurada'); return ''; })();
+var LIKES_COGNITO_PASS = process.env.LIKES_COGNITO_PASSWORD || (function() { console.warn('[WARN] LIKES_COGNITO_PASSWORD no configurada'); return ''; })();
+
 async function downloadAllCDRs() {
   try {
     console.log('Autenticando...');
     const cognito = new CognitoIdentityProviderClient({ region: 'eu-central-1' });
     const authCmd = new InitiateAuthCommand({
       AuthFlow: 'USER_PASSWORD_AUTH',
-      ClientId: '76opnp6ffescubvuuao8am20d',
-      AuthParameters: { USERNAME: 'eloyfuentesbermudez@gmail.com', PASSWORD: 'Teresa88.' }
+      ClientId: LIKES_COGNITO_CLIENT,
+      AuthParameters: { USERNAME: LIKES_COGNITO_USER, PASSWORD: LIKES_COGNITO_PASS }
     });
     const authRes = await cognito.send(authCmd);
     const tokens = { idToken: authRes.AuthenticationResult.IdToken, accessToken: authRes.AuthenticationResult.AccessToken, refreshToken: authRes.AuthenticationResult.RefreshToken };
@@ -37,13 +41,13 @@ async function downloadAllCDRs() {
 
     await page.goto('https://wd.likestelecom.com/resources', { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.evaluate(function(t) {
-      var p = 'CognitoIdentityServiceProvider.76opnp6ffescubvuuao8am20d';
-      var u = 'eloyfuentesbermudez@gmail.com';
+      var p = 'CognitoIdentityServiceProvider.' + t.clientId;
+      var u = t.username;
       localStorage.setItem(p + '.' + u + '.idToken', t.idToken);
       localStorage.setItem(p + '.' + u + '.accessToken', t.accessToken);
       localStorage.setItem(p + '.' + u + '.refreshToken', t.refreshToken);
       localStorage.setItem(p + '.LastAuthUser', u);
-    }, tokens);
+    }, { idToken: tokens.idToken, accessToken: tokens.accessToken, refreshToken: tokens.refreshToken, clientId: LIKES_COGNITO_CLIENT, username: LIKES_COGNITO_USER });
     await page.reload({ waitUntil: 'networkidle', timeout: 30000 });
     await page.waitForTimeout(3000);
 

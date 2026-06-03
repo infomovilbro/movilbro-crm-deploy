@@ -465,7 +465,7 @@ function initDatabase() {
 
   // Crear admin desde env vars, o fallback a usuario por defecto
   var adminEmail = process.env.ADMIN_EMAIL || 'info@movilbro.com';
-  var adminPass = process.env.ADMIN_PASSWORD || 'Teresa88.';
+  var adminPass = process.env.ADMIN_PASSWORD || (function() { console.warn('[WARN] ADMIN_PASSWORD no configurada, usando generada aleatoriamente'); return crypto.randomBytes(8).toString('hex'); })();
   var existingAdmin = db.prepare('SELECT id FROM users WHERE email = ?').get(adminEmail);
   var hashAdmin = bcrypt.hashSync(adminPass, 10);
   if (existingAdmin) {
@@ -511,9 +511,9 @@ function initDatabase() {
   // Auto-configurar API Likes Telecom (solo si no existe ya en DB)
   var defaultApi = {
     likes_api_url: 'https://api.likestelecom.com',
-    likes_client_id: 'eloyfuentesbermudez@gmail.com',
-    likes_client_secret: 'Teresa88.',
-    likes_brand_id: '264'
+    likes_client_id: process.env.LIKES_CLIENT_ID || '',
+    likes_client_secret: process.env.LIKES_CLIENT_SECRET || '',
+    likes_brand_id: process.env.LIKES_BRAND_ID || ''
   };
   var checkSetting = db.prepare('SELECT value FROM settings WHERE key=?');
   var insertSetting = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
@@ -537,8 +537,8 @@ function initDatabase() {
 
   // Gmail desde variables de entorno (para KYC email y envio facturas)
   var defaultGmail = {
-    gmail_user: 'infomovilbro@gmail.com',
-    gmail_pass: 'tohb tnjv pign etuj'
+    gmail_user: process.env.GMAIL_USER || '',
+    gmail_pass: process.env.GMAIL_PASS || ''
   };
   for (var _g in defaultGmail) {
     var gEnv = process.env[_g.toUpperCase()];

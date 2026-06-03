@@ -258,6 +258,37 @@ class LikesAPI {
   async getCoverageBuildings(addressId) {
     return this.request('GET', `/coverage/buildings?address_id=${addressId}`);
   }
+
+  static async fetchCDRsForFiscalId(api, fiscalId, periodo) {
+    if (!fiscalId) return [];
+    try {
+      var subsRaw = await api.request('GET', '/subscriptions?fiscalId=' + encodeURIComponent(fiscalId) + '&brand_id=264');
+      var subsItems = Array.isArray(subsRaw) ? subsRaw : (subsRaw.data || subsRaw.subscriptions || []);
+      var lines = [];
+      subsItems.forEach(function(s) {
+        var prods = s.products || (s.productName ? [s] : []);
+        prods.forEach(function(p) { if (p.fixedNumber || p.lineNumber) lines.push(p.fixedNumber || p.lineNumber); });
+      });
+      var lineasUnicas = [];
+      lines.forEach(function(l) { if (lineasUnicas.indexOf(l) === -1) lineasUnicas.push(l); });
+      var apiCdrsResults = await Promise.allSettled(lineasUnicas.map(function(l) { return api.getLineCDRs(l); }));
+      var result = [];
+      apiCdrsResults.forEach(function(resp) {
+        if (resp.status !== 'fulfilled' || !resp.value) return;
+        var raw = resp.value;
+        var items = Array.isArray(raw) ? raw : (raw.data || raw.cdrs || raw.records || raw.items || []);
+        if (Array.isArray(items)) {
+          items.forEach(function(item) {
+            var cdrDate = item.fecha || item.date || '';
+            var cdrPeriodo = cdrDate ? cdrDate.substring(0, 7) : periodo;
+            if (cdrPeriodo !== periodo) return;
+            result.push(item);
+          });
+        }
+      });
+      return result;
+    } catch(e) { console.error('fetchCDRsForFiscalId error:', e.message); return []; }
+  }
 }
 
 module.exports = LikesAPI;

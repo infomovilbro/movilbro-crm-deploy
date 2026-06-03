@@ -242,29 +242,7 @@ router.get('/ver/:id', async (req, res) => {
   if (cdrsDetalle.length === 0 && factura.fiscal_id) {
     try {
       var api = LikesAPI.getApiInstance();
-      var subsRaw = await api.request('GET', '/subscriptions?fiscalId=' + encodeURIComponent(factura.fiscal_id) + '&brand_id=264');
-      var subsItems = Array.isArray(subsRaw) ? subsRaw : (subsRaw.data || subsRaw.subscriptions || []);
-      var lines = [];
-      subsItems.forEach(function(s) {
-        var prods = s.products || (s.productName ? [s] : []);
-        prods.forEach(function(p) { if (p.fixedNumber || p.lineNumber) lines.push(p.fixedNumber || p.lineNumber); });
-      });
-      var lineasUnicas = [];
-      lines.forEach(function(l) { if (lineasUnicas.indexOf(l) === -1) lineasUnicas.push(l); });
-      var apiCdrsResults = await Promise.allSettled(lineasUnicas.map(function(l) { return api.getLineCDRs(l); }));
-      apiCdrsResults.forEach(function(resp) {
-        if (resp.status !== 'fulfilled' || !resp.value) return;
-        var raw = resp.value;
-        var items = Array.isArray(raw) ? raw : (raw.data || raw.cdrs || raw.records || raw.items || []);
-        if (Array.isArray(items)) {
-          items.forEach(function(item) {
-            var cdrDate = item.fecha || item.date || '';
-            var cdrPeriodo = cdrDate ? cdrDate.substring(0, 7) : factura.periodo;
-            if (cdrPeriodo !== factura.periodo) return;
-            cdrsDetalle.push(item);
-          });
-        }
-      });
+      cdrsDetalle = await LikesAPI.fetchCDRsForFiscalId(api, factura.fiscal_id, factura.periodo);
     } catch(e) { console.error('API CDR fetch for nube ver:', e.message); }
   }
 
@@ -328,29 +306,7 @@ router.get('/pdf/:id', async (req, res) => {
     if (cdrsDetalle.length === 0 && factura.fiscal_id) {
       try {
         var api = LikesAPI.getApiInstance();
-        var subsRaw = await api.request('GET', '/subscriptions?fiscalId=' + encodeURIComponent(factura.fiscal_id) + '&brand_id=264');
-        var subsItems = Array.isArray(subsRaw) ? subsRaw : (subsRaw.data || subsRaw.subscriptions || []);
-        var lines = [];
-        subsItems.forEach(function(s) {
-          var prods = s.products || (s.productName ? [s] : []);
-          prods.forEach(function(p) { if (p.fixedNumber || p.lineNumber) lines.push(p.fixedNumber || p.lineNumber); });
-        });
-        var lineasUnicas = [];
-        lines.forEach(function(l) { if (lineasUnicas.indexOf(l) === -1) lineasUnicas.push(l); });
-        var apiCdrsResults = await Promise.allSettled(lineasUnicas.map(function(l) { return api.getLineCDRs(l); }));
-        apiCdrsResults.forEach(function(resp) {
-          if (resp.status !== 'fulfilled' || !resp.value) return;
-          var raw = resp.value;
-          var items = Array.isArray(raw) ? raw : (raw.data || raw.cdrs || raw.records || raw.items || []);
-          if (Array.isArray(items)) {
-            items.forEach(function(item) {
-              var cdrDate = item.fecha || item.date || '';
-              var cdrPeriodo = cdrDate ? cdrDate.substring(0, 7) : factura.periodo;
-              if (cdrPeriodo !== factura.periodo) return;
-              cdrsDetalle.push(item);
-            });
-          }
-        });
+        cdrsDetalle = await LikesAPI.fetchCDRsForFiscalId(api, factura.fiscal_id, factura.periodo);
       } catch(e) { console.error('API CDR fetch for pdf:', e.message); }
     }
 
@@ -492,29 +448,7 @@ router.post('/generar-todas', async (req, res) => {
       if (cdrsDetalle.length === 0 && f.fiscal_id) {
         try {
           var api = LikesAPI.getApiInstance();
-          var subsRaw = await api.request('GET', '/subscriptions?fiscalId=' + encodeURIComponent(f.fiscal_id) + '&brand_id=264');
-          var subsItems = Array.isArray(subsRaw) ? subsRaw : (subsRaw.data || subsRaw.subscriptions || []);
-          var lines = [];
-          subsItems.forEach(function(s) {
-            var prods = s.products || (s.productName ? [s] : []);
-            prods.forEach(function(p) { if (p.fixedNumber || p.lineNumber) lines.push(p.fixedNumber || p.lineNumber); });
-          });
-          var lineasUnicas = [];
-          lines.forEach(function(l) { if (lineasUnicas.indexOf(l) === -1) lineasUnicas.push(l); });
-          var apiCdrsResults = await Promise.allSettled(lineasUnicas.map(function(l) { return api.getLineCDRs(l); }));
-          apiCdrsResults.forEach(function(resp) {
-            if (resp.status !== 'fulfilled' || !resp.value) return;
-            var raw = resp.value;
-            var items = Array.isArray(raw) ? raw : (raw.data || raw.cdrs || raw.records || raw.items || []);
-            if (Array.isArray(items)) {
-              items.forEach(function(item) {
-                var cdrDate = item.fecha || item.date || '';
-                var cdrPeriodo = cdrDate ? cdrDate.substring(0, 7) : f.periodo;
-                if (cdrPeriodo !== f.periodo) return;
-                cdrsDetalle.push(item);
-              });
-            }
-          });
+          cdrsDetalle = await LikesAPI.fetchCDRsForFiscalId(api, f.fiscal_id, f.periodo);
         } catch(e) { console.error('API CDR fetch for generar-todas:', e.message); }
       }
       var history = [];

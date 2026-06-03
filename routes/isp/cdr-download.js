@@ -1,14 +1,18 @@
 const { db } = require('../../database');
 const { CognitoIdentityProviderClient, InitiateAuthCommand } = require('@aws-sdk/client-cognito-identity-provider');
 
+var LIKES_COGNITO_CLIENT = process.env.LIKES_COGNITO_CLIENT_ID || (function() { console.warn('[WARN] LIKES_COGNITO_CLIENT_ID no configurada'); return ''; })();
+var LIKES_COGNITO_USER = process.env.LIKES_COGNITO_USERNAME || (function() { console.warn('[WARN] LIKES_COGNITO_USERNAME no configurada'); return ''; })();
+var LIKES_COGNITO_PASS = process.env.LIKES_COGNITO_PASSWORD || (function() { console.warn('[WARN] LIKES_COGNITO_PASSWORD no configurada'); return ''; })();
+
 async function downloadLatestCDRs() {
   try {
     console.log('Autenticando con Cognito...');
     const cognito = new CognitoIdentityProviderClient({ region: 'eu-central-1' });
     const authCmd = new InitiateAuthCommand({
       AuthFlow: 'USER_PASSWORD_AUTH',
-      ClientId: '76opnp6ffescubvuuao8am20d',
-      AuthParameters: { USERNAME: 'eloyfuentesbermudez@gmail.com', PASSWORD: 'Teresa88.' }
+      ClientId: LIKES_COGNITO_CLIENT,
+      AuthParameters: { USERNAME: LIKES_COGNITO_USER, PASSWORD: LIKES_COGNITO_PASS }
     });
     const authRes = await cognito.send(authCmd);
     const idToken = authRes.AuthenticationResult.IdToken;
@@ -24,8 +28,8 @@ async function downloadLatestCDRs() {
     await page.goto('https://wd.likestelecom.com/resources', { waitUntil: 'domcontentloaded', timeout: 30000 });
 
     await page.evaluate(function(tokenData) {
-      var prefix = 'CognitoIdentityServiceProvider.76opnp6ffescubvuuao8am20d';
-      var username = 'eloyfuentesbermudez@gmail.com';
+      var prefix = 'CognitoIdentityServiceProvider.' + tokenData.clientId;
+      var username = tokenData.username;
       localStorage.setItem(prefix + '.' + username + '.idToken', tokenData.idToken);
       localStorage.setItem(prefix + '.' + username + '.accessToken', tokenData.accessToken);
       localStorage.setItem(prefix + '.' + username + '.refreshToken', tokenData.refreshToken);
@@ -33,7 +37,7 @@ async function downloadLatestCDRs() {
       localStorage.setItem(prefix + '.' + username + '.signInDetails', JSON.stringify({
         loginId: username, authFlowType: 'USER_PASSWORD_AUTH'
       }));
-    }, { idToken, accessToken, refreshToken });
+    }, { idToken, accessToken, refreshToken, clientId: LIKES_COGNITO_CLIENT, username: LIKES_COGNITO_USER });
 
     await page.reload({ waitUntil: 'networkidle', timeout: 30000 });
     await page.waitForTimeout(3000);

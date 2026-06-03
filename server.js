@@ -388,7 +388,7 @@ function cerrarDiaAutomatico(fecha) {
     if (!cierreExistente) {
       db.prepare('INSERT INTO tienda_cierres (fecha, total_ingresos, gastos, saldo, num_operaciones) VALUES (?,?,?,?,?)').run(fecha, ingresos.total, gastos.total, saldo, numOps.count);
     }
-  } catch (e) {}
+  } catch (e) { console.error('[ERROR] cerrarDiaAutomatico:', e.message); }
 }
 
 const ayer = getYesterday();
@@ -565,14 +565,14 @@ const KEEP_AWAKE_INTERVAL = 4 * 60 * 1000; // cada 4 minutos (Render requiere ac
 
 function selfPing() {
   try {
-    http.get(SELF_PING_URL, (res) => { res.resume(); }).on('error', function() {});
-  } catch(e) { /* ignore ping errors */ }
+    http.get(SELF_PING_URL, (res) => { res.resume(); }).on('error', function(e) { console.error('[Ping] Local error:', e.message); });
+  } catch(e) { console.error('[Ping] Local catch:', e.message); }
   if (EXTERNAL_URL) {
     try {
       var url2 = EXTERNAL_URL + '/health';
       var lib = url2.indexOf('https:') === 0 ? https : http;
-      lib.get(url2, (res) => { res.resume(); }).on('error', function() {});
-    } catch(e) {}
+      lib.get(url2, (res) => { res.resume(); }).on('error', function(e) { console.error('[Ping] External error:', e.message); });
+    } catch(e) { console.error('[Ping] External catch:', e.message); }
   }
 }
 
