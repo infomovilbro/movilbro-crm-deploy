@@ -33,8 +33,21 @@ node_modules/
 
 # Secrets
 .opencode/drive-key.json
+.opencode/oauth-config.json
 
-# Junk/temp files
+# OAuth utility scripts (contain credentials)
+add_tester.js
+auth_drive_setup.js
+authorize_drive.js
+debug_page.js
+device_oauth.js
+get_oauth_token.js
+get_secret.js
+get_token.js
+migrate_to_drive.js
+playground_oauth.js
+setup_oauth.js
+test_oauth.js
 -w
 cookie.txt
 cookies.txt
