@@ -294,4 +294,184 @@ router.get('/examples/:category', (req, res) => {
   res.json({ examples: examples[req.params.category] || examples.general });
 });
 
+// ---- WEBHOOK WHATSAPP ----
+var whatsappMessages = [];
+var emailMessages = [];
+
+router.post('/webhook/whatsapp', async (req, res) => {
+  var from = req.body.from || req.body.remitente || 'desconocido';
+  var message = req.body.message || req.body.mensaje || req.body.text || '';
+  if (!message) return res.status(400).json({ error: 'Mensaje requerido' });
+  try {
+    var crmCtx = getCRMContext();
+    var ctx = 'Contexto CRM: ' + JSON.stringify(crmCtx) + '\n\nMensaje WhatsApp de ' + from + ': ' + message;
+    var catDef = AGENT_CATEGORIES.whatsapp;
+    var agentList = catDef.agents;
+    var results = {};
+    for (var a of agentList.slice(0, 4)) {
+      results[a.id] = await callLLM(a.prompt, ctx, 0.7);
+    }
+    var synthesisInput = agentList.slice(0, 4).map(function(a) { return '## ' + a.name + ':\n' + (results[a.id] || ''); }).join('\n\n') + '\n\nSintetiza todo en una respuesta final lista para enviar.';
+    var finalResponse = await callLLM(agentList[4].prompt, synthesisInput, 0.8);
+    var id = db.prepare("INSERT INTO pending_messages (source, from_name, from_address, body, proposed_response, status, category) VALUES (?,?,?,?,?, 'pending', 'whatsapp')").run('whatsapp', from, from, message, finalResponse || 'Error al generar respuesta');
+    whatsappMessages.push({ id: id.lastInsertRowid, from, message, response: finalResponse, status: 'pending' });
+    console.log('[WhatsApp] Mensaje de', from, '→ pendiente #' + id.lastInsertRowid);
+    res.json({ ok: true, pending_id: id.lastInsertRowid, message: 'Mensaje recibido, respuesta propuesta pendiente de aprobación' });
+  } catch(e) { console.error('[WhatsApp Webhook] Error:', e.message); res.status(500).json({ error: e.message }); }
+});
+
+router.post('/webhook/whatsapp/test', async (req, res) => {
+  var msg = req.body.message || 'Hola, quería saber el estado de mi factura';
+  var fakeReq = { body: { from: 'Cliente de prueba', message: msg } };
+  var fakeRes = { json: function(d) { console.log('[Test Webhook] Response:', d); }, status: function() { return this; } };
+  try {
+    var from = fakeReq.body.from;
+    var message = fakeReq.body.message;
+    var crmCtx = getCRMContext();
+    var ctx = 'Contexto CRM: ' + JSON.stringify(crmCtx) + '\n\nMensaje WhatsApp de ' + from + ': ' + message;
+    var catDef = AGENT_CATEGORIES.whatsapp;
+    var results = {};
+    for (var a of catDef.agents.slice(0, 4)) { results[a.id] = await callLLM(a.prompt, ctx, 0.7); }
+    var synthesisInput = catDef.agents.slice(0, 4).map(function(a) { return '## ' + a.name + ':\n' + (results[a.id] || ''); }).join('\n\n') + '\n\nSintetiza todo en una respuesta final lista para enviar.';
+    var finalResponse = await callLLM(catDef.agents[4].prompt, synthesisInput, 0.8);
+    var id = db.prepare("INSERT INTO pending_messages (source, from_name, from_address, body, proposed_response, status, category) VALUES (?,?,?,?,?, 'pending', 'whatsapp')").run('whatsapp_test', from, from, message, finalResponse || '');
+    res.json({ ok: true, pending_id: id.lastInsertRowid, response: finalResponse });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ---- WEBHOOK EMAIL ----
+router.post('/webhook/email', async (req, res) => {
+  var from = req.body.from || req.body.remitente || req.body.de || 'desconocido';
+  var subject = req.body.subject || req.body.asunto || '(sin asunto)';
+  var body = req.body.body || req.body.cuerpo || req.body.text || '';
+  if (!body && !subject) return res.status(400).json({ error: 'Cuerpo o asunto requerido' });
+  try {
+    var fullText = 'Asunto: ' + subject + '\nDe: ' + from + '\n\n' + body;
+    var crmCtx = getCRMContext();
+    var ctx = 'Contexto CRM: ' + JSON.stringify(crmCtx) + '\n\nCorreo recibido:\n' + fullText;
+    var catDef = AGENT_CATEGORIES.email;
+    var agentList = catDef.agents;
+    var results = {};
+    for (var a of agentList.slice(0, 4)) {
+      results[a.id] = await callLLM(a.prompt, ctx, 0.7);
+    }
+    var synthesisInput = agentList.slice(0, 4).map(function(a) { return '## ' + a.name + ':\n' + (results[a.id] || ''); }).join('\n\n') + '\n\nSintetiza todo en un correo de respuesta final listo para enviar.';
+    var finalResponse = await callLLM(agentList[4].prompt, synthesisInput, 0.8);
+    var id = db.prepare("INSERT INTO pending_messages (source, from_name, from_address, subject, body, proposed_response, status, category) VALUES (?,?,?,?,?,?, 'pending', 'email')").run('email', from, from, subject, fullText, finalResponse || 'Error al generar respuesta');
+    emailMessages.push({ id: id.lastInsertRowid, from, subject, body: fullText, response: finalResponse, status: 'pending' });
+    console.log('[Email] Correo de', from, '→ pendiente #' + id.lastInsertRowid);
+    res.json({ ok: true, pending_id: id.lastInsertRowid, message: 'Correo recibido, respuesta propuesta pendiente de aprobación' });
+  } catch(e) { console.error('[Email Webhook] Error:', e.message); res.status(500).json({ error: e.message }); }
+});
+
+// ---- IMAP POLLING ----
+var imapInterval = null;
+var imapRunning = false;
+
+function startIMAPPolling() {
+  var gmailUser = process.env.GMAIL_USER;
+  var gmailPass = process.env.GMAIL_PASS;
+  if (!gmailUser || !gmailPass) {
+    console.log('[IMAP] GMAIL_USER/GMAIL_PASS no configurados, polling desactivado');
+    return;
+  }
+  if (imapRunning) return;
+  imapRunning = true;
+  console.log('[IMAP] Iniciando polling cada 60s para', gmailUser);
+  try { var Imap = require('imap'); var { simpleParser } = require('mailparser'); } catch(e) { console.error('[IMAP] Error cargando módulos:', e.message); imapRunning = false; return; }
+  function checkMail() {
+    try {
+      var imap = new Imap({ user: gmailUser, password: gmailPass, host: 'imap.gmail.com', port: 993, tls: true, tlsOptions: { rejectUnauthorized: false } });
+      imap.once('ready', function() {
+        imap.openBox('INBOX', true, function(err, box) {
+          if (err) { console.error('[IMAP] Error abriendo inbox:', err.message); imap.end(); return; }
+          imap.search(['UNSEEN'], function(err, results) {
+            if (err) { console.error('[IMAP] Error search:', err.message); imap.end(); return; }
+            if (!results || results.length === 0) { imap.end(); return; }
+            var fetch = imap.fetch(results, { bodies: '', markSeen: true });
+            fetch.on('message', function(msg) {
+              var chunks = [];
+              msg.on('body', function(stream) { stream.on('data', function(chunk) { chunks.push(chunk.toString()); }); });
+              msg.on('end', function() {
+                var raw = chunks.join('');
+                simpleParser(raw).then(function(parsed) {
+                  var from = parsed.from ? parsed.from.text : 'desconocido';
+                  var subject = parsed.subject || '(sin asunto)';
+                  var body = parsed.text || parsed.html || '';
+                  if (body.length > 3000) body = body.substring(0, 3000) + '...';
+                  // Check if already processed
+                  var existing = db.prepare("SELECT id FROM pending_messages WHERE from_address=? AND subject=? AND body LIKE ? AND created_at > datetime('now', '-1 hour')").get(from, subject, body.substring(0, 100) + '%');
+                  if (existing) return;
+                  // Trigger agent processing
+                  var fullText = 'Asunto: ' + subject + '\nDe: ' + from + '\n\n' + body;
+                  var crmCtx = getCRMContext();
+                  var ctx = 'Contexto CRM: ' + JSON.stringify(crmCtx) + '\n\nCorreo recibido:\n' + fullText;
+                  var catDef = AGENT_CATEGORIES.email;
+                  Promise.all(catDef.agents.slice(0, 4).map(function(a) { return callLLM(a.prompt, ctx, 0.7); })).then(function(results) {
+                    var synthesisInput = catDef.agents.slice(0, 4).map(function(a, i) { return '## ' + a.name + ':\n' + (results[i] || ''); }).join('\n\n') + '\n\nSintetiza todo en un correo de respuesta final listo para enviar.';
+                    return callLLM(catDef.agents[4].prompt, synthesisInput, 0.8);
+                  }).then(function(finalResp) {
+                    db.prepare("INSERT INTO pending_messages (source, from_name, from_address, subject, body, proposed_response, status, category) VALUES (?,?,?,?,?,?, 'pending', 'email')").run('email', from, from, subject, fullText, finalResp || '');
+                    console.log('[IMAP] Correo de', from, 'procesado');
+                  });
+                }).catch(function(e) { console.error('[IMAP] Parse error:', e.message); });
+              });
+            });
+            fetch.on('end', function() { imap.end(); });
+          });
+        });
+      });
+      imap.once('error', function(err) { console.error('[IMAP] Error:', err.message); });
+      imap.once('end', function() {});
+      imap.connect();
+    } catch(e) { console.error('[IMAP] Connection error:', e.message); }
+  }
+  checkMail();
+  imapInterval = setInterval(checkMail, 60000);
+}
+
+startIMAPPolling();
+
+// ---- PENDING APPROVALS ----
+router.get('/pending', (req, res) => {
+  try {
+    var rows = db.prepare("SELECT * FROM pending_messages WHERE status='pending' ORDER BY created_at DESC LIMIT 50").all();
+    res.json({ pending: rows });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/pending/count', (req, res) => {
+  try {
+    var count = (db.prepare("SELECT COUNT(*) as c FROM pending_messages WHERE status='pending'").get() || {}).c || 0;
+    res.json({ count });
+  } catch(e) { res.json({ count: 0 }); }
+});
+
+router.post('/approve/:id', (req, res) => {
+  try {
+    var row = db.prepare("SELECT * FROM pending_messages WHERE id=? AND status='pending'").get(req.params.id);
+    if (!row) return res.status(404).json({ error: 'No encontrado o ya procesado' });
+    db.prepare("UPDATE pending_messages SET status='approved', responded_at=CURRENT_TIMESTAMP WHERE id=?").run(req.params.id);
+    console.log('[Aprobado] Mensaje #' + req.params.id, row.source, '→', row.from_name);
+    res.json({ ok: true, message: 'Respuesta confirmada. Envío pendiente de integración con API externa.' });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/reject/:id', (req, res) => {
+  try {
+    var row = db.prepare("SELECT * FROM pending_messages WHERE id=? AND status='pending'").get(req.params.id);
+    if (!row) return res.status(404).json({ error: 'No encontrado o ya procesado' });
+    db.prepare("UPDATE pending_messages SET status='rejected', responded_at=CURRENT_TIMESTAMP WHERE id=?").run(req.params.id);
+    console.log('[Rechazado] Mensaje #' + req.params.id, row.source, '→', row.from_name);
+    res.json({ ok: true, message: 'Respuesta descartada' });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/history', (req, res) => {
+  try {
+    var rows = db.prepare("SELECT * FROM pending_messages ORDER BY created_at DESC LIMIT 100").all();
+    res.json({ history: rows });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 module.exports = router;

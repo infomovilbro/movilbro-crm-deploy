@@ -44,7 +44,7 @@ Secrets removidos del código fuente. Configurar en Render → Environment:
 | `LIKES_CLIENT_SECRET` | Password Likes Telecom API |
 | `LIKES_BRAND_ID` | Brand ID Likes Telecom |
 | `GMAIL_USER` | `infomovilbro@gmail.com` |
-| `GMAIL_PASS` | App password de Gmail |
+| `GMAIL_PASS` | App password de Gmail (actual: `nrbo wbln rkmk gbll`) |
 | `LIKES_COGNITO_CLIENT_ID` | ClientId Cognito (`76opnp6ffescubvuuao8am20d`) |
 | `LIKES_COGNITO_USERNAME` | Usuario Cognito (`eloyfuentesbermudez@gmail.com`) |
 | `LIKES_COGNITO_PASSWORD` | Password Cognito (`Teresa88.`) |

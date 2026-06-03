@@ -383,6 +383,20 @@ function initDatabase() {
       content TEXT NOT NULL,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS pending_messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      source TEXT NOT NULL,
+      from_name TEXT,
+      from_address TEXT,
+      subject TEXT,
+      body TEXT,
+      proposed_response TEXT,
+      status TEXT DEFAULT 'pending',
+      category TEXT DEFAULT 'whatsapp',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      responded_at DATETIME
+    );
   `);
 
   try { db.prepare("ALTER TABLE users ADD COLUMN permissions TEXT DEFAULT '{}'").run(); } catch(e) {}
