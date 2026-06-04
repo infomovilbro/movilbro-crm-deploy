@@ -56,15 +56,28 @@ function getCRMContext() {
 
 async function callLLM(systemPrompt, userMessage, temperature) {
   if (!OPENCODE_API_KEY) return 'Error: OPENCODE_API_KEY no configurada';
-  try {
-    const r = await axios.post('https://opencode.ai/zen/v1/chat/completions', {
-      model: 'deepseek-v4-flash-free',
-      messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }],
-      temperature: temperature || 0.7, max_tokens: 4096
-    }, { timeout: 120000, headers: { 'Authorization': 'Bearer ' + OPENCODE_API_KEY, 'Content-Type': 'application/json' } });
-    var text = r?.data?.choices?.[0]?.message?.content;
-    return (text || '').trim() || 'Error: Respuesta vacía';
-  } catch(e) { console.error('[CodeOpen] LLM error:', e.message); return 'Error: ' + e.message; }
+  var maxRetries = 3;
+  for (var attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const r = await axios.post('https://opencode.ai/zen/v1/chat/completions', {
+        model: 'deepseek-v4-flash-free',
+        messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }],
+        temperature: temperature || 0.7, max_tokens: 4096
+      }, { timeout: 120000, headers: { 'Authorization': 'Bearer ' + OPENCODE_API_KEY, 'Content-Type': 'application/json' } });
+      var text = r?.data?.choices?.[0]?.message?.content;
+      return (text || '').trim() || 'Error: Respuesta vacía';
+    } catch(e) {
+      var isRateLimit = e.response?.status === 429 || (e.message && e.message.indexOf('429') > -1);
+      if (isRateLimit && attempt < maxRetries) {
+        var delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
+        console.log('[CodeOpen] Rate limit 429, reintento ' + attempt + '/' + maxRetries + ' en ' + Math.round(delay/1000) + 's');
+        await new Promise(function(r) { setTimeout(r, delay); });
+      } else {
+        console.error('[CodeOpen] LLM error:', e.message);
+        return 'Error: ' + e.message;
+      }
+    }
+  }
 }
 
 const AGENT_CATEGORIES = {
@@ -384,7 +397,7 @@ function setIMAPLastDate(dateStr) {
 }
 
 var gmailUser = process.env.GMAIL_USER || 'infomovilbro@gmail.com';
-var gmailPass = process.env.GMAIL_PASS || 'nrbo wbln rkmk gbll';
+var gmailPass = process.env.GMAIL_PASS || '';
 var ImapModule = null, simpleParserModule = null;
 try { ImapModule = require('imap'); simpleParserModule = require('mailparser').simpleParser; } catch(e) { console.error('[IMAP] Error cargando módulos:', e.message); }
 
@@ -546,13 +559,46 @@ router.get('/pending/count', (req, res) => {
   } catch(e) { res.json({ count: 0 }); }
 });
 
-router.post('/approve/:id', (req, res) => {
+router.post('/approve/:id', async (req, res) => {
   try {
     var row = db.prepare("SELECT * FROM pending_messages WHERE id=? AND status='pending'").get(req.params.id);
     if (!row) return res.status(404).json({ error: 'No encontrado o ya procesado' });
+
+    var sent = false;
+
+    // Send WhatsApp
+    if (row.source === 'whatsapp' || row.category === 'whatsapp') {
+      try {
+        var waService = require('../services/whatsapp');
+        if (waService.getStatus() === 'connected') {
+          var jid = row.from_address + '@s.whatsapp.net';
+          await waService.sendMessage(jid, row.proposed_response);
+          sent = true;
+          console.log('[CodeOpen] WhatsApp enviado a', row.from_address);
+        } else { console.log('[CodeOpen] WhatsApp no conectado, no se envió'); }
+      } catch(waErr) { console.error('[CodeOpen] Error WhatsApp:', waErr.message); }
+    }
+
+    // Send Email
+    if (row.source === 'email' || row.category === 'email') {
+      try {
+        var nodemailer = require('nodemailer');
+        var transporter = nodemailer.createTransport({
+          service: 'gmail',
+          auth: { user: gmailUser, pass: gmailPass }
+        });
+        await transporter.sendMail({
+          from: gmailUser, to: row.from_address,
+          subject: 'Re: ' + (row.subject || ''),
+          text: row.proposed_response
+        });
+        sent = true;
+        console.log('[CodeOpen] Email enviado a', row.from_address);
+      } catch(emailErr) { console.error('[CodeOpen] Error Email:', emailErr.message); }
+    }
+
     db.prepare("UPDATE pending_messages SET status='approved', responded_at=CURRENT_TIMESTAMP WHERE id=?").run(req.params.id);
-    console.log('[Aprobado] Mensaje #' + req.params.id, row.source, '→', row.from_name);
-    res.json({ ok: true, message: 'Respuesta confirmada. Envío pendiente de integración con API externa.' });
+    res.json({ ok: true, message: sent ? 'Respuesta enviada correctamente' : 'Aprobado (no se pudo enviar automáticamente)' });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -627,7 +673,7 @@ router.post('/scan-inbox', (req, res) => {
     imap.once('ready', function() {
       imap.openBox('INBOX', false, function(err, box) {
         if (err) { imap.end(); return res.json({ ok: false, error: err.message }); }
-        imap.search(['ALL', ['SINCE', '03-Jun-2026']], function(err, results) {
+        imap.search(['ALL', ['SINCE', getIMAPLastDate() || '03-Jun-2026']], function(err, results) {
           if (err) { imap.end(); return res.json({ ok: false, error: err.message }); }
           if (!results || results.length === 0) { imap.end(); return res.json({ ok: true, found: 0, emails: [] }); }
           // Fetch last 5
