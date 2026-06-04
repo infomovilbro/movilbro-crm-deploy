@@ -17,15 +17,17 @@
     </div>
   </div>
 
-  <!-- Google Drive (navegable como explorador) -->
+  <!-- Google Drive -->
   <% if (typeof driveAvailable !== 'undefined' && driveAvailable) { %>
   <div class="card mb-3">
     <div class="card-header py-2 d-flex justify-content-between align-items-center">
       <span><i class="bi bi-cloud"></i> <strong>Google Drive</strong></span>
-      <button class="btn btn-sm btn-outline-secondary" onclick="navegarDrive('<%= driveRootId %>')"><i class="bi bi-arrow-clockwise"></i> Recargar</button>
+      <div>
+        <button class="btn btn-sm btn-outline-secondary" onclick="navegarDrive('<%= driveRootId %>','Drive')"><i class="bi bi-arrow-clockwise"></i> Recargar</button>
+      </div>
     </div>
     <div class="card-body py-2" id="driveExplorer">
-      <div class="text-center text-muted py-2" id="driveLoading"><span class="spinner-border spinner-border-sm"></span> Cargando Drive...</div>
+      <div class="text-center py-2"><span class="spinner-border spinner-border-sm"></span> Cargando Drive...</div>
     </div>
   </div>
   <% } %>
@@ -91,6 +93,9 @@
                 <% } else if (f.pdfPath) { %>
                 <a href="/isp/nube/descargar?path=<%= encodeURIComponent(f.pdfPath) %>&view=1" target="_blank" class="btn btn-sm btn-outline-info" title="Ver PDF inline"><i class="bi bi-eye" style="font-size:0.7rem;"></i></a>
                 <a href="/isp/nube/descargar?path=<%= encodeURIComponent(f.pdfPath) %>" class="btn btn-sm btn-outline-primary" title="Descargar PDF"><i class="bi bi-download" style="font-size:0.7rem;"></i></a>
+                <% } else if (f.driveId) { %>
+                <a href="/isp/nube/descargar-drive?id=<%= f.driveId %>&view=1" target="_blank" class="btn btn-sm btn-outline-info" title="Ver PDF Drive"><i class="bi bi-eye" style="font-size:0.7rem;"></i></a>
+                <a href="/isp/nube/descargar-drive?id=<%= f.driveId %>" class="btn btn-sm btn-outline-primary" title="Descargar PDF"><i class="bi bi-download" style="font-size:0.7rem;"></i></a>
                 <% } %>
               </div>
             </div>
@@ -149,87 +154,86 @@
 
 <script>
 var driveBreadcrumb = [];
+var driveRootId = '<%= typeof driveRootId !== "undefined" ? driveRootId : "" %>';
 
-function navegarDrive(folderId) {
+function navegarDrive(folderId, folderName) {
   if (!folderId) return;
   var container = document.getElementById('driveExplorer');
-  var loading = document.getElementById('driveLoading');
   if (!container) return;
-  if (loading) loading.style.display = '';
-  container.innerHTML = '<div class="text-center text-muted py-2"><span class="spinner-border spinner-border-sm"></span> Cargando...</div>';
+  container.innerHTML = '<div class="text-center py-2"><span class="spinner-border spinner-border-sm"></span> Cargando...</div>';
+
+  // Track breadcrumb
+  if (folderName) {
+    if (driveBreadcrumb.length === 0 || driveBreadcrumb[driveBreadcrumb.length - 1].id !== folderId) {
+      driveBreadcrumb.push({ id: folderId, name: folderName });
+      if (driveBreadcrumb.length > 10) driveBreadcrumb.shift();
+    }
+  }
 
   fetch('/isp/nube/carpeta-drive?id=' + folderId)
     .then(function(r) { return r.json(); })
     .then(function(d) {
       var items = d.items || [];
-      // Breadcrumb: track navigation
-      if (driveBreadcrumb.length === 0 || driveBreadcrumb[driveBreadcrumb.length - 1].id !== folderId) {
-        driveBreadcrumb.push({ id: folderId, name: items.length > 0 ? '(cargado)' : 'Drive' });
-        if (driveBreadcrumb.length > 20) driveBreadcrumb.shift();
-      }
-
       var html = '';
-      // Breadcrumb bar
-      html += '<div class="d-flex align-items-center gap-1 mb-2 flex-wrap">';
-      html += '<button class="btn btn-sm btn-outline-secondary" onclick="navegarDriveRoot()" title="Raíz Drive"><i class="bi bi-house"></i></button>';
+
+      // Breadcrumb
+      html += '<div class="small d-flex align-items-center gap-1 mb-2 flex-wrap">';
+      html += '<button class="btn btn-sm btn-link p-0 text-decoration-none" onclick="navegarDriveRoot()" title="Raíz Drive"><i class="bi bi-house"></i></button>';
       for (var i = 0; i < driveBreadcrumb.length; i++) {
-        if (i > 0) html += '<span class="text-muted">/</span>';
+        html += '<span class="text-muted">/</span>';
         html += '<button class="btn btn-sm btn-link p-0 text-decoration-none small" onclick="navegarDriveBreadcrumb(' + i + ')">' + escaparHTML(driveBreadcrumb[i].name) + '</button>';
       }
       html += '</div>';
 
       if (items.length === 0) {
-        html += '<div class="text-center text-muted py-2">Carpeta vacía</div>';
+        html += '<div class="text-center text-muted py-3"><i class="bi bi-folder2-open" style="font-size:2rem;"></i><p class="mt-1">Carpeta vacía</p></div>';
       } else {
-        // Separate folders and files
         var folders = items.filter(function(f) { return f.isFolder; });
         var files = items.filter(function(f) { return !f.isFolder; });
 
-        html += '<div class="table-responsive"><table class="table table-sm table-hover mb-0"><thead><tr><th>Nombre</th><th style="width:80px;">Tamaño</th><th style="width:100px;">Acciones</th></tr></thead><tbody>';
-
-        folders.forEach(function(f) {
-          html += '<tr style="cursor:pointer;" onclick="navegarDrive(\'' + f.id + '\')">';
-          html += '<td><i class="bi bi-folder-fill text-warning me-1"></i><span class="text-primary text-decoration-underline">' + escaparHTML(f.name) + '/</span></td>';
-          html += '<td class="text-muted small">—</td>';
-          html += '<td><button class="btn btn-sm btn-outline-secondary py-0" onclick="event.stopPropagation();navegarDrive(\'' + f.id + '\')"><i class="bi bi-folder-open"></i></button></td>';
-          html += '</tr>';
+        html += '<div class="row g-2">';
+        folders.forEach(function(item) {
+          html += '<div class="col-md-3 col-4">';
+          html += '<div class="border rounded p-2 text-center folder-card" style="background:#f8f9fa;cursor:pointer;" onclick="navegarDrive(\'' + item.id + '\',\'' + item.name.replace(/'/g,"\\'") + '\')">';
+          html += '<div style="font-size:2rem;">📁</div>';
+          html += '<div class="fw-semibold small text-truncate">' + escaparHTML(item.name) + '/</div>';
+          html += '<div class="small text-muted">Carpeta</div>';
+          html += '<span class="btn btn-sm btn-outline-primary mt-1"><i class="bi bi-folder-open"></i> Abrir</span>';
+          html += '</div></div>';
         });
-
-        files.forEach(function(f) {
-          var isPDF = f.name.toLowerCase().endsWith('.pdf');
-          var sizeKB = f.size ? (parseInt(f.size) / 1024).toFixed(1) + ' KB' : '';
-          html += '<tr>';
-          html += '<td><i class="bi ' + (isPDF ? 'bi-file-pdf text-danger' : 'bi-file') + ' me-1"></i>' + escaparHTML(f.name) + '</td>';
-          html += '<td class="text-muted small">' + sizeKB + '</td>';
-          html += '<td>';
-          if (f.link) {
-            html += '<a href="' + f.link + '" target="_blank" class="btn btn-sm btn-outline-info py-0 me-1" title="Ver"><i class="bi bi-eye"></i></a>';
+        files.forEach(function(item) {
+          var isPDF = item.name.toLowerCase().endsWith('.pdf');
+          html += '<div class="col-md-3 col-4">';
+          html += '<div class="border rounded p-2 text-center" style="background:#f8f9fa;">';
+          html += '<div style="font-size:2rem;">' + (isPDF ? '📄' : '📎') + '</div>';
+          html += '<div class="fw-semibold small text-truncate" title="' + escaparHTML(item.name) + '">' + escaparHTML(item.name) + '</div>';
+          html += '<div class="small text-muted">' + (item.size ? (parseInt(item.size)/1024).toFixed(1) + ' KB' : 'Archivo') + '</div>';
+          html += '<div class="mt-1">';
+          if (isPDF) {
+            html += '<a href="/isp/nube/descargar-drive?id=' + item.id + '&view=1" target="_blank" class="btn btn-sm btn-outline-info py-0 me-1" title="Ver"><i class="bi bi-eye"></i></a>';
           }
-          html += '<a href="/isp/nube/descargar-drive?id=' + f.id + '" class="btn btn-sm btn-outline-primary py-0" title="Descargar"><i class="bi bi-download"></i></a>';
-          html += '</td>';
-          html += '</tr>';
+          html += '<a href="/isp/nube/descargar-drive?id=' + item.id + '" class="btn btn-sm btn-outline-primary py-0" title="Descargar"><i class="bi bi-download"></i></a>';
+          html += '</div></div></div>';
         });
-
-        html += '</tbody></table></div>';
+        html += '</div>';
       }
-
       container.innerHTML = html;
     })
-    .catch(function(e) {
-      container.innerHTML = '<div class="text-danger text-center py-2"><i class="bi bi-exclamation-triangle"></i> Error al conectar con Drive: ' + e.message + '</div>';
+    .catch(function() {
+      container.innerHTML = '<div class="text-danger text-center py-2"><i class="bi bi-exclamation-triangle"></i> Error al conectar con Drive</div>';
     });
 }
 
 function navegarDriveRoot() {
   driveBreadcrumb = [];
-  var rootId = '<%= typeof driveRootId !== "undefined" ? driveRootId : "" %>';
-  if (rootId) navegarDrive(rootId);
+  if (driveRootId) navegarDrive(driveRootId, 'Drive');
 }
 
 function navegarDriveBreadcrumb(idx) {
   if (idx < 0 || idx >= driveBreadcrumb.length) return;
   driveBreadcrumb = driveBreadcrumb.slice(0, idx + 1);
-  navegarDrive(driveBreadcrumb[driveBreadcrumb.length - 1].id);
+  var last = driveBreadcrumb[driveBreadcrumb.length - 1];
+  navegarDrive(last.id, last.name);
 }
 
 function escaparHTML(str) {
@@ -240,10 +244,7 @@ function escaparHTML(str) {
 
 // Load Drive on page ready
 (function() {
-  var rootId = '<%= typeof driveRootId !== "undefined" ? driveRootId : "" %>';
-  if (rootId && '<%= typeof driveAvailable !== "undefined" && driveAvailable ? "1" : "" %>' === '1') {
-    navegarDrive(rootId);
-  }
+  if (driveRootId) navegarDrive(driveRootId, 'Drive');
 })();
 
 // Toggle year accordion

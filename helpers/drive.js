@@ -291,4 +291,45 @@ async function getPDFFromMonthlyZip(pdfName, year, month) {
   return null;
 }
 
-module.exports = { uploadToDrive, getFileBuffer, deleteFromDrive, listFiles, ensureYearMonthPath, getNubeFolderId, isAvailable, isOAuthAvailable, addToMonthlyZip, getPDFFromMonthlyZip, listRootFolders, listFolderContents, ensureFolder };
+async function listPDFsFromDriveYear(year) {
+  const d = getDrive();
+  if (!d) return [];
+  const nubeId = await ensureFolder(ROOT_FOLDER_ID, NUBE_FOLDER_NAME);
+  if (!nubeId) return [];
+  const yearId = await ensureFolder(nubeId, String(year));
+  if (!yearId) return [];
+  try {
+    const res = await d.files.list({
+      q: `'${yearId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+      fields: 'files(id, name)',
+      pageSize: 50
+    });
+    const months = res.data.files || [];
+    const results = [];
+    for (const m of months) {
+      const fileRes = await d.files.list({
+        q: `'${m.id}' in parents and trashed=false`,
+        fields: 'files(id, name, size)',
+        pageSize: 500
+      });
+      const files = fileRes.data.files || [];
+      files.forEach(f => {
+        if (f.name.toLowerCase().endsWith('.pdf')) {
+          results.push({
+            fileName: f.name,
+            year: String(year),
+            month: m.name,
+            size: parseInt(f.size || 0),
+            driveId: f.id
+          });
+        }
+      });
+    }
+    return results;
+  } catch (e) {
+    console.error('listPDFsFromDriveYear error:', e.message);
+    return [];
+  }
+}
+
+module.exports = { uploadToDrive, getFileBuffer, deleteFromDrive, listFiles, ensureYearMonthPath, getNubeFolderId, isAvailable, isOAuthAvailable, addToMonthlyZip, getPDFFromMonthlyZip, listRootFolders, listFolderContents, ensureFolder, listPDFsFromDriveYear };

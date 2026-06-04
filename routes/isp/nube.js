@@ -90,7 +90,7 @@ router.post('/crear-carpeta', async (req, res) => {
   } catch(e) { res.json({ ok: false, error: e.message }); }
 });
 
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try { nube.migrarPDFsADB(); } catch(e) { console.error('[Nube] Error migración:', e.message); }
   var pdfs = nube.listarPDFs();
   var zipPdfs = nube.getAllPDFNamesFromZips();
@@ -180,6 +180,42 @@ router.get('/', (req, res) => {
     yearsMap[year][month].count++;
   });
 
+  // Augment with Drive PDFs (only for current and previous year, to avoid too many API calls)
+  var driveAvailable = driveHelper.isAvailable();
+  var driveRootId = process.env.DRIVE_ROOT_FOLDER_ID || '1JrStvTy-l0msOmfwT1S0Jupg6Ru6Zemx';
+  if (driveAvailable) {
+    var currentYear = new Date().getFullYear();
+    var yearsToCheck = [String(currentYear), String(currentYear - 1)];
+    for (var yi = 0; yi < yearsToCheck.length; yi++) {
+      var yStr = yearsToCheck[yi];
+      try {
+        var drivePDFs = await driveHelper.listPDFsFromDriveYear(yStr);
+        drivePDFs.forEach(function(dp) {
+          var mNum = mesMap[dp.month];
+          if (!mNum) return;
+          if (!yearsMap[yStr]) yearsMap[yStr] = {};
+          if (!yearsMap[yStr][mNum]) yearsMap[yStr][mNum] = { facturas: [], total: 0, count: 0 };
+          // Check if this PDF already exists from disk/DB
+          var exists = yearsMap[yStr][mNum].facturas.some(function(f) { return f.numFactura === dp.fileName.replace(/\.pdf$/,'') || (f.origen === 'drive' && f.driveId === dp.driveId); });
+          if (!exists) {
+            yearsMap[yStr][mNum].facturas.push({
+              id: null,
+              numFactura: dp.fileName.replace(/\.pdf$/,''),
+              cliente: dp.fileName.replace(/\.pdf$/,''),
+              importe: 0,
+              fecha: yStr + '-' + String(mNum).padStart(2, '0') + '-01',
+              estado: 'drive',
+              pdfSize: dp.size,
+              origen: 'drive',
+              driveId: dp.driveId
+            });
+            yearsMap[yStr][mNum].count++;
+          }
+        });
+      } catch(e) { console.error('Drive PDF list error for ' + yStr + ':', e.message); }
+    }
+  }
+
   var currentYear = new Date().getFullYear();
   var years = [];
   for (var y = 2024; y <= currentYear + 1; y++) {
@@ -211,15 +247,12 @@ router.get('/', (req, res) => {
     });
   });
 
-  var driveAvailable = driveHelper.isAvailable();
-  var driveRootId = process.env.DRIVE_ROOT_FOLDER_ID || '1JrStvTy-l0msOmfwT1S0Jupg6Ru6Zemx';
-
   res.render('isp/nube', {
     title: 'Nube - Facturas',
     years: years,
     totalFacturas: totalEntradas,
     totalImporte: totalImporteAll,
-    totalPDFs: pdfs.length + Object.keys(zipPdfs).length,
+    totalPDFs: totalEntradas,
     mesNombres: MES_NOMBRES,
     zipFiles: zipFiles,
     driveAvailable: driveAvailable,
@@ -537,8 +570,9 @@ router.get('/descargar-drive', async (req, res) => {
     if (!driveHelper.isAvailable()) return res.status(503).send('Drive no disponible');
     var buf = await driveHelper.getFileBuffer(fileId);
     if (!buf) return res.status(404).send('No encontrado en Drive');
+    var isView = req.query.view === '1';
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'attachment; filename="drive-file.pdf"');
+    res.setHeader('Content-Disposition', (isView ? 'inline' : 'attachment') + '; filename="drive-file.pdf"');
     res.send(buf);
   } catch(e) { res.status(500).send('Error: ' + e.message); }
 });
