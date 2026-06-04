@@ -1,5 +1,11 @@
 # Lecciones Aprendidas
 
+## Menos es Más — No Sobredimensionar
+- **NO** instalar librerías pesadas (baileys, puppeteer, playwright) para funciones simples.
+- Antes de añadir una dependencia, pensar: ¿se puede hacer más simple? ¿con menos?
+- Cada librería nueva es un punto de fallo, tiempo de build, y complejidad extra.
+- Priorizar soluciones simples sobre potentes. Lo simple funciona, lo complejo se rompe.
+
 ## PowerShell + Node -e
 - **NUNCA** usar `node -e "..."` con `\"` dentro de comillas dobles en PowerShell — el escapado de PowerShell rompe el código.
 - **SIEMPRE** escribir scripts Playwright/Node en archivos `.js` y ejecutarlos con `node archivo.js`.
