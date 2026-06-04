@@ -27,7 +27,7 @@ async function start() {
       auth: state,
       printQRInTerminal: false,
       browser: ['Movilbro CRM', 'Chrome', '1.0.0'],
-      syncFullHistory: false,
+      syncFullHistory: true,
       markOnlineOnConnect: false
     });
 
@@ -90,10 +90,34 @@ async function start() {
 async function loadChats() {
   if (!_sock) return;
   try {
-    var chats = await _sock.getChats();
+    var chats = [];
+    // Try sock.chats.all() (baileys v6)
+    if (_sock.chats && typeof _sock.chats.all === 'function') {
+      chats = _sock.chats.all() || [];
+    }
+    // Fallback: sock.chats as Map/Array
+    if (chats.length === 0 && _sock.chats) {
+      if (_sock.chats.values) chats = Array.from(_sock.chats.values());
+      else if (Array.isArray(_sock.chats)) chats = _sock.chats;
+    }
+    if (chats.length === 0) {
+      // Try fetching via store manually
+      try {
+        var store = require('@whiskeysockets/baileys').makeInMemoryStore({});
+        store.bind(_sock.ev);
+        setTimeout(function() { chats = store.chats.all() || []; }, 2000);
+      } catch(e) {}
+    }
     _chats = (chats || []).map(function(c) {
-      return { jid: c.id, name: c.name || c.id.split('@')[0] || 'Unknown', unreadCount: c.unreadCount || 0, lastMessage: c.lastMessage?.message?.conversation || '' };
+      var jid = c.id || c.jid || '';
+      var name = c.name || c.subject || jid.split('@')[0] || 'Unknown';
+      var lastMsg = '';
+      if (c.lastMessage) {
+        lastMsg = c.lastMessage.message?.conversation || c.lastMessage.message?.extendedTextMessage?.text || '';
+      }
+      return { jid: jid, name: name, unreadCount: c.unreadCount || c.unread || 0, lastMessage: lastMsg };
     });
+    console.log('[WhatsApp] Cargados ' + _chats.length + ' chats');
   } catch(e) { console.error('[WhatsApp] loadChats error:', e.message); }
 }
 
@@ -122,7 +146,16 @@ async function getMessages(jid, limit) {
   if (!_sock) return [];
   limit = limit || 50;
   try {
-    var msgs = await _sock.loadMessages(jid, limit);
+    var msgs = [];
+    // Try loadMessages
+    if (typeof _sock.loadMessages === 'function') {
+      msgs = await _sock.loadMessages(jid, limit) || [];
+    }
+    // Fallback: try store messages
+    if (msgs.length === 0 && _sock.store && _sock.store.messages) {
+      msgs = _sock.store.messages.get(jid) || [];
+      msgs = msgs.slice(-limit);
+    }
     return (msgs || []).map(function(m) {
       return {
         id: m.key?.id,
