@@ -52,6 +52,7 @@
     <div style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);flex-shrink:0;">
       <span style="font-size:0.85rem;font-weight:600;display:flex;align-items:center;gap:6px;"><i class="ri-inbox-line"></i> Pendientes</span>
       <div style="display:flex;gap:4px;">
+        <button id="refreshImapBtn" style="background:var(--accent);color:#fff;border:0;border-radius:6px;padding:4px 10px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-refresh-line"></i> Refrescar</button>
         <button id="approveAllBtn" style="background:var(--success);color:#fff;border:0;border-radius:6px;padding:4px 10px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-check-double-line"></i> Leídos</button>
         <button id="clearAllBtn" style="background:var(--error);color:#fff;border:0;border-radius:6px;padding:4px 10px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-delete-bin-line"></i> Borrar</button>
         <button id="closePending" style="background:none;border:0;cursor:pointer;font-size:1.2rem;color:var(--text-dim);padding:4px;">&times;</button>
@@ -63,6 +64,7 @@
 </div>
 
 <style>
+@keyframes spin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
 :root {
   --bg-main: #0f0f1a; --bg-card: #1e1e3a; --bg-bar: #1a1a2e;
   --bg-activity: #15152a; --bg-result: #1a1a3a; --bg-code: #12122a;
@@ -424,6 +426,18 @@ body { background:var(--bg-main); color:var(--text); }
     if (!confirm('¿Borrar todos los mensajes pendientes? Esta acción no se puede deshacer.')) return;
     fetch('/codeopen/pending/clear', { method: 'POST' }).then(function(r) { return r.json(); }).then(function(d) {
       if (d.ok) { loadPendingList(); pollPendingCount(); }
+    });
+  });
+
+  $('refreshImapBtn').addEventListener('click', function() {
+    var btn = $('refreshImapBtn');
+    btn.disabled = true; btn.innerHTML = '<i class="ri-loader-4-line" style="animation:spin 1s linear infinite"></i> Refrescando...';
+    fetch('/codeopen/refresh-imap', { method: 'POST' }).then(function(r) { return r.json(); }).then(function(d) {
+      console.log('[IMAP] Refresh:', d);
+      setTimeout(function() { loadPendingList(); pollPendingCount(); }, 3000);
+      btn.disabled = false; btn.innerHTML = '<i class="ri-refresh-line"></i> Refrescar';
+    }).catch(function(e) {
+      btn.disabled = false; btn.innerHTML = '<i class="ri-refresh-line"></i> Refrescar';
     });
   });
 

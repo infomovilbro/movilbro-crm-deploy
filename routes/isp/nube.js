@@ -90,6 +90,7 @@ router.post('/crear-carpeta', (req, res) => {
 });
 
 router.get('/', (req, res) => {
+  try { nube.migrarPDFsADB(); } catch(e) { console.error('[Nube] Error migración:', e.message); }
   var pdfs = nube.listarPDFs();
   var zipPdfs = nube.getAllPDFNamesFromZips();
   var stats = { total: pdfs.length + Object.keys(zipPdfs).length, sizeTotal: 0 };

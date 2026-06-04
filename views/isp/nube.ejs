@@ -5,6 +5,7 @@
       <small class="text-muted"><%= totalFacturas %> facturas · <%= totalPDFs %> PDFs</small>
     </div>
     <div class="d-flex gap-1 flex-wrap">
+      <button class="btn btn-outline-secondary btn-sm" onclick="syncDiskPDFs()" title="Sincronizar PDFs del disco"><i class="bi bi-arrow-repeat"></i> Sincronizar</button>
       <button class="btn btn-outline-secondary btn-sm" onclick="descargarAnio('todas')" title="Descargar todos los años"><i class="bi bi-archive"></i> Todo</button>
       <button class="btn btn-outline-primary btn-sm" onclick="generarTodas()" id="btnGenerar"><i class="bi bi-cloud-arrow-up"></i> PDFs</button>
       <button class="btn btn-outline-success btn-sm" onclick="importarZips()" id="btnImportZips"><i class="bi bi-folder-plus"></i> Importar ZIPs</button>
@@ -236,6 +237,26 @@ function descargarAnio(year) {
 
 function descargarMes(year, month) {
   window.open('/isp/nube/zip/' + year + '/' + month, '_blank');
+}
+
+function syncDiskPDFs() {
+  var btn = document.querySelector('button[onclick*="syncDiskPDFs"]');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Sincronizando...';
+  fetch('/isp/nube/migrar-a-db', { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.ok) {
+        alert('Sincronizados ' + d.migrados + ' PDFs');
+        location.reload();
+      } else {
+        alert('Error: ' + (d.error || 'desconocido'));
+        btn.disabled = false; btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Sincronizar';
+      }
+    })
+    .catch(function() {
+      alert('Error de conexión');
+      btn.disabled = false; btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Sincronizar';
+    });
 }
 
 function importarZips() {

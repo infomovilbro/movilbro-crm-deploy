@@ -383,9 +383,12 @@ function setIMAPLastDate(dateStr) {
   } catch(e) {}
 }
 
+var gmailUser = process.env.GMAIL_USER || 'infomovilbro@gmail.com';
+var gmailPass = process.env.GMAIL_PASS || 'nrbo wbln rkmk gbll';
+var ImapModule = null, simpleParserModule = null;
+try { ImapModule = require('imap'); simpleParserModule = require('mailparser').simpleParser; } catch(e) { console.error('[IMAP] Error cargando módulos:', e.message); }
+
 function startIMAPPolling() {
-  var gmailUser = process.env.GMAIL_USER || 'infomovilbro@gmail.com';
-  var gmailPass = process.env.GMAIL_PASS || 'nrbo wbln rkmk gbll';
   if (!gmailUser || !gmailPass) {
     console.log('[IMAP] GMAIL_USER/GMAIL_PASS no configurados, polling desactivado');
     return;
@@ -393,114 +396,117 @@ function startIMAPPolling() {
   if (imapRunning) return;
   imapRunning = true;
   console.log('[IMAP] Iniciando polling cada 120s para', gmailUser);
-  try { var Imap = require('imap'); var { simpleParser } = require('mailparser'); } catch(e) { console.error('[IMAP] Error cargando módulos:', e.message); imapRunning = false; return; }
 
   // Clean old UIDs from memory every hour
   setInterval(function() { processedUIDs = {}; }, 3600000);
 
-  function checkMail() {
-    try {
-      var imap = new Imap({ user: gmailUser, password: gmailPass, host: 'imap.gmail.com', port: 993, tls: true, tlsOptions: { rejectUnauthorized: false } });
-      imap.once('ready', function() {
-        imap.openBox('INBOX', true, function(err, box) {
-          if (err) { console.error('[IMAP] Error abriendo inbox:', err.message); imap.end(); return; }
+  checkMail();
+  imapInterval = setInterval(checkMail, 120000);
+}
 
-          var searchCriteria = ['UNSEEN'];
-          var lastDate = getIMAPLastDate();
-          if (lastDate) {
-            searchCriteria.push(['SINCE', lastDate]);
-            console.log('[IMAP] Buscando desde', lastDate);
-          }
+function checkMail() {
+  if (!ImapModule || !simpleParserModule) return;
+  var Imap = ImapModule;
+  var simpleParser = simpleParserModule;
+  try {
+    var imap = new Imap({ user: gmailUser, password: gmailPass, host: 'imap.gmail.com', port: 993, tls: true, tlsOptions: { rejectUnauthorized: false } });
+    imap.once('ready', function() {
+      imap.openBox('INBOX', true, function(err, box) {
+        if (err) { console.error('[IMAP] Error abriendo inbox:', err.message); imap.end(); return; }
 
-          imap.search(searchCriteria, function(err, results) {
-            if (err) { console.error('[IMAP] Error search:', err.message); imap.end(); return; }
-            if (!results || results.length === 0) { imap.end(); return; }
+        var searchCriteria = ['UNSEEN'];
+        var lastDate = getIMAPLastDate();
+        if (lastDate) {
+          searchCriteria.push(['SINCE', lastDate]);
+          console.log('[IMAP] Buscando desde', lastDate);
+        }
 
-            // Filter out already-processed UIDs
-            var newResults = results.filter(function(uid) { return !processedUIDs[uid]; });
-            if (newResults.length === 0) { imap.end(); return; }
+        imap.search(searchCriteria, function(err, results) {
+          if (err) { console.error('[IMAP] Error search:', err.message); imap.end(); return; }
+          if (!results || results.length === 0) { imap.end(); return; }
 
-            // Rate limit: process max 1 email per poll
-            var toFetch = newResults.slice(0, 1);
-            var fetch = imap.fetch(toFetch, { bodies: '', markSeen: true });
-            fetch.on('message', function(msg, seqno) {
-              var chunks = [];
-              msg.on('body', function(stream) { stream.on('data', function(chunk) { chunks.push(chunk.toString()); }); });
-              msg.on('attributes', function(attrs) {
-                var uid = attrs.uid;
-                if (uid) processedUIDs[uid] = true;
-              });
-              msg.on('end', function() {
-                var raw = chunks.join('');
-                simpleParser(raw).then(function(parsed) {
-                  var from = parsed.from ? parsed.from.text : 'desconocido';
-                  var fromAddr = parsed.from ? parsed.from.value[0].address : '';
-                  var subject = parsed.subject || '(sin asunto)';
-                  var body = parsed.text || parsed.html || '';
-                  var date = parsed.date || new Date();
-                  if (body.length > 3000) body = body.substring(0, 3000) + '...';
-                  var fullText = 'Asunto: ' + subject + '\nDe: ' + from + '\n\n' + body;
+          // Filter out already-processed UIDs
+          var newResults = results.filter(function(uid) { return !processedUIDs[uid]; });
+          if (newResults.length === 0) { imap.end(); return; }
 
-                  // Usar IA para clasificar: ¿es un cliente real o spam/publicidad?
-                  var classifyPrompt = 'Eres un asistente que clasifica correos. Responde SOLO con una palabra: CLIENTE o SPAM.\n\n' +
-                    'CLIENTE = el remitente parece un cliente real preguntando, contratando, consultando factura, pidiendo cambio de tarifa, reportando incidencia, o cualquier consulta comercial real.\n' +
-                    'SPAM = newsletter, publicidad, notificaciones automáticas, confirmaciones de pedido de tiendas, alertas de redes sociales, marketing, ofertas promocionales, correos masivos.\n\n' +
-                    'IMPORTANTE: Un cliente PUEDE escribir desde gmail, hotmail, o cualquier dominio. No asumas que es SPAM por el dominio.\n\n' +
-                    'Correo:\nDe: ' + fromAddr + '\nAsunto: ' + subject + '\n\n' + body;
+          // Rate limit: process max 1 email per poll
+          var toFetch = newResults.slice(0, 1);
+          var fetch = imap.fetch(toFetch, { bodies: '', markSeen: true });
+          fetch.on('message', function(msg, seqno) {
+            var chunks = [];
+            msg.on('body', function(stream) { stream.on('data', function(chunk) { chunks.push(chunk.toString()); }); });
+            msg.on('attributes', function(attrs) {
+              var uid = attrs.uid;
+              if (uid) processedUIDs[uid] = true;
+            });
+            msg.on('end', function() {
+              var raw = chunks.join('');
+              simpleParser(raw).then(function(parsed) {
+                var from = parsed.from ? parsed.from.text : 'desconocido';
+                var fromAddr = parsed.from ? parsed.from.value[0].address : '';
+                var subject = parsed.subject || '(sin asunto)';
+                var body = parsed.text || parsed.html || '';
+                var date = parsed.date || new Date();
+                if (body.length > 3000) body = body.substring(0, 3000) + '...';
+                var fullText = 'Asunto: ' + subject + '\nDe: ' + from + '\n\n' + body;
 
-                  callLLM(classifyPrompt, '', 0.3).then(function(classification) {
-                    var isClient = classification && classification.toUpperCase().includes('CLIENTE');
-                    console.log('[IMAP]', fromAddr, '-', subject, '→', isClient ? 'CLIENTE' : 'SPAM');
+                // Usar IA para clasificar: ¿es un cliente real o spam/publicidad?
+                var classifyPrompt = 'Eres un asistente que clasifica correos. Responde SOLO con una palabra: CLIENTE o SPAM.\n\n' +
+                  'CLIENTE = el remitente parece un cliente real preguntando, contratando, consultando factura, pidiendo cambio de tarifa, reportando incidencia, o cualquier consulta comercial real.\n' +
+                  'SPAM = newsletter, publicidad, notificaciones automáticas, confirmaciones de pedido de tiendas, alertas de redes sociales, marketing, ofertas promocionales, correos masivos.\n\n' +
+                  'IMPORTANTE: Un cliente PUEDE escribir desde gmail, hotmail, o cualquier dominio. No asumas que es SPAM por el dominio.\n\n' +
+                  'Correo:\nDe: ' + fromAddr + '\nAsunto: ' + subject + '\n\n' + body;
 
-                    if (!isClient) {
-                      return;
-                    }
+                callLLM(classifyPrompt, '', 0.3).then(function(classification) {
+                  var isClient = classification && classification.toUpperCase().includes('CLIENTE');
+                  console.log('[IMAP]', fromAddr, '-', subject, '→', isClient ? 'CLIENTE' : 'SPAM');
 
-                    var crmCtx = getCRMContext();
-                    var ctx = 'Contexto CRM: ' + JSON.stringify(crmCtx) + '\n\nCorreo recibido:\n' + fullText;
-                    var catDef = AGENT_CATEGORIES.email;
-                    Promise.all(catDef.agents.slice(0, 4).map(function(a) { return callLLM(a.prompt, ctx, 0.7); })).then(function(results) {
-                      var synthesisInput = catDef.agents.slice(0, 4).map(function(a, i) { return '## ' + a.name + ':\n' + (results[i] || ''); }).join('\n\n') + '\n\nSintetiza todo en un correo de respuesta final listo para enviar.';
-                      return callLLM(catDef.agents[4].prompt, synthesisInput, 0.8);
-                    }).then(function(finalResp) {
-                      db.prepare("INSERT INTO pending_messages (source, from_name, from_address, subject, body, proposed_response, status, category) VALUES (?,?,?,?,?,?, 'pending', 'email')").run('email', from, from, subject, fullText, finalResp || 'Error: sin respuesta');
-                      console.log('[IMAP] Cliente procesado:', from);
-                    }).catch(function(e) {
-                      console.error('[IMAP] Error LLM:', e.message);
-                      db.prepare("INSERT INTO pending_messages (source, from_name, from_address, subject, body, proposed_response, status, category) VALUES (?,?,?,?,?,?, 'pending', 'email')").run('email', from, from, subject, fullText, 'Error: ' + e.message);
-                    });
+                  if (!isClient) {
+                    return;
+                  }
+
+                  var crmCtx = getCRMContext();
+                  var ctx = 'Contexto CRM: ' + JSON.stringify(crmCtx) + '\n\nCorreo recibido:\n' + fullText;
+                  var catDef = AGENT_CATEGORIES.email;
+                  Promise.all(catDef.agents.slice(0, 4).map(function(a) { return callLLM(a.prompt, ctx, 0.7); })).then(function(results) {
+                    var synthesisInput = catDef.agents.slice(0, 4).map(function(a, i) { return '## ' + a.name + ':\n' + (results[i] || ''); }).join('\n\n') + '\n\nSintetiza todo en un correo de respuesta final listo para enviar.';
+                    return callLLM(catDef.agents[4].prompt, synthesisInput, 0.8);
+                  }).then(function(finalResp) {
+                    db.prepare("INSERT INTO pending_messages (source, from_name, from_address, subject, body, proposed_response, status, category) VALUES (?,?,?,?,?,?, 'pending', 'email')").run('email', from, from, subject, fullText, finalResp || 'Error: sin respuesta');
+                    console.log('[IMAP] Cliente procesado:', from);
                   }).catch(function(e) {
-                    // Si falla la clasificación (ej. 429), guardamos igual como pendiente
-                    console.error('[IMAP] Error clasificación IA:', e.message, '- guardando como pendiente');
-                    db.prepare("INSERT INTO pending_messages (source, from_name, from_address, subject, body, proposed_response, status, category) VALUES (?,?,?,?,?,?, 'pending', 'email')").run('email', from, from, subject, fullText, 'Error en clasificación IA: ' + e.message + ' - Revisar manualmente');
+                    console.error('[IMAP] Error LLM:', e.message);
+                    db.prepare("INSERT INTO pending_messages (source, from_name, from_address, subject, body, proposed_response, status, category) VALUES (?,?,?,?,?,?, 'pending', 'email')").run('email', from, from, subject, fullText, 'Error: ' + e.message);
                   });
-                  // Update last processed date
-                  var dateStr = date.toISOString().split('T')[0];
-                  setIMAPLastDate(dateStr);
-                }).catch(function(e) { console.error('[IMAP] Parse error:', e.message); });
-              });
+                }).catch(function(e) {
+                  // Si falla la clasificación (ej. 429), guardamos igual como pendiente
+                  console.error('[IMAP] Error clasificación IA:', e.message, '- guardando como pendiente');
+                  db.prepare("INSERT INTO pending_messages (source, from_name, from_address, subject, body, proposed_response, status, category) VALUES (?,?,?,?,?,?, 'pending', 'email')").run('email', from, from, subject, fullText, 'Error en clasificación IA: ' + e.message + ' - Revisar manualmente');
+                });
+                // Update last processed date
+                var dateStr = date.toISOString().split('T')[0];
+                setIMAPLastDate(dateStr);
+              }).catch(function(e) { console.error('[IMAP] Parse error:', e.message); });
             });
-            fetch.on('end', function() {
-              imap.end();
-              // Mark remaining as seen too
-              if (newResults.length > 1) {
-                try {
-                  var rem = imap.fetch(newResults.slice(1), { bodies: '', markSeen: true });
-                  rem.on('message', function() {});
-                  rem.on('end', function() {});
-                } catch(e) {}
-              }
-            });
+          });
+          fetch.on('end', function() {
+            imap.end();
+            // Mark remaining as seen too
+            if (newResults.length > 1) {
+              try {
+                var rem = imap.fetch(newResults.slice(1), { bodies: '', markSeen: true });
+                rem.on('message', function() {});
+                rem.on('end', function() {});
+              } catch(e) {}
+            }
           });
         });
       });
-      imap.once('error', function(err) { console.error('[IMAP] Error:', err.message); });
-      imap.once('end', function() {});
-      imap.connect();
-    } catch(e) { console.error('[IMAP] Connection error:', e.message); }
-  }
-  checkMail();
-  imapInterval = setInterval(checkMail, 120000);
+    });
+    imap.once('error', function(err) { console.error('[IMAP] Error:', err.message); });
+    imap.once('end', function() {});
+    imap.connect();
+  } catch(e) { console.error('[IMAP] Connection error:', e.message); }
 }
 
 startIMAPPolling();
@@ -554,11 +560,34 @@ router.post('/pending/clear', (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+router.post('/refresh-imap', (req, res) => {
+  try {
+    if (!gmailUser || !gmailPass) return res.json({ ok: false, error: 'GMAIL_USER/GMAIL_PASS no configurados' });
+    checkMail();
+    res.json({ ok: true, message: 'IMAP check triggered' });
+  } catch(e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 router.post('/pending/approve-all', (req, res) => {
   try {
     var info = db.prepare("UPDATE pending_messages SET status='read', responded_at=CURRENT_TIMESTAMP WHERE status='pending'").run();
     res.json({ ok: true, updated: info.changes });
   } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Diagnostic: test IMAP polling status
+router.get('/imap-status', (req, res) => {
+  var lastDate = getIMAPLastDate();
+  var lastLog = db.prepare("SELECT value FROM settings WHERE key='imap_last_log'").get();
+  res.json({
+    pollingActive: imapRunning,
+    lastDate: lastDate || 'none',
+    processedUIDs: Object.keys(processedUIDs).length,
+    lastLog: lastLog ? lastLog.value : 'none',
+    pendingCount: (db.prepare("SELECT COUNT(*) as c FROM pending_messages WHERE status='pending'").get() || {}).c || 0
+  });
 });
 
 module.exports = router;
