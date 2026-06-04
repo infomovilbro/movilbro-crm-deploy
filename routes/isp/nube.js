@@ -199,16 +199,26 @@ router.get('/', (req, res) => {
   // Also list ZIPS for display
   var zipFiles = nube.listZips();
 
-  // List special folders (facturas_manuales, facturasgestoria2026, etc)
+  // List special folders (incluye carpetas de año con contenido no cubierto por vista principal)
   var specialFolders = [];
   var nubeRoot = nube.NUBE_DIR;
   if (fs.existsSync(nubeRoot)) {
     fs.readdirSync(nubeRoot).forEach(function(e) {
       var fp = path.join(nubeRoot, e);
-      if (fs.statSync(fp).isDirectory() && !e.startsWith('_') && !/^\d{4}$/.test(e) && e !== 'plantillas') {
-        var files = fs.readdirSync(fp).filter(function(f) { return f.endsWith('.zip') || f.endsWith('.pdf'); });
-        specialFolders.push({ name: e, path: fp, files: files, source: 'local' });
+      if (!fs.statSync(fp).isDirectory() || e.startsWith('_') || e === 'plantillas') return;
+      if (/^\d{4}$/.test(e)) {
+        // Año: mostrar solo si tiene archivos sueltos o subcarpetas no-mes
+        var items = fs.readdirSync(fp);
+        var hasNonMonthItems = items.some(function(i) {
+          var ip = path.join(fp, i);
+          if (fs.statSync(ip).isDirectory() && !MES_NOMBRES.includes(i)) return true;
+          if (!fs.statSync(ip).isDirectory() && i.endsWith('.pdf')) return true;
+          return false;
+        });
+        if (!hasNonMonthItems) return;
       }
+      var files = fs.readdirSync(fp).filter(function(f) { return f.endsWith('.zip') || f.endsWith('.pdf'); });
+      specialFolders.push({ name: e, path: fp, files: files, source: 'local' });
     });
   }
 

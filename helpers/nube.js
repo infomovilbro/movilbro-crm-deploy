@@ -332,4 +332,4 @@ function migrarPDFsADB() {
   return migrados;
 }
 
-module.exports = { generarPDF, guardarLocal, listarPDFs, procesarFactura, getYearMonthPaths, NUBE_DIR, ZIPS_DIR, storeZipInNube, listZips, findPDFInZips, getPDFDataFromZip, getAllPDFNamesFromZips, ensureDir, guardarArchivo, guardarEnDB, getPDFFromDB, getPDFFromDBById, regenerarPDFs, migrarPDFsADB, getPDFBuffer };
+module.exports = { generarPDF, guardarLocal, listarPDFs, procesarFactura, getYearMonthPaths, NUBE_DIR, ZIPS_DIR, storeZipInNube, listZips, findPDFInZips, getPDFDataFromZip, getAllPDFNamesFromZips, ensureDir, guardarArchivo, guardarEnDB, getPDFFromDB, getPDFFromDBById, regenerarPDFs, migrarPDFsADB, getPDFBuffer, MESES };
