@@ -4,6 +4,7 @@ const { db } = require('../../database');
 const path = require('path');
 const fs = require('fs');
 const nube = require('../../helpers/nube');
+const driveHelper = require('../../helpers/drive');
 const LikesAPI = require('../../likes-api');
 const router = express.Router();
 
@@ -206,20 +207,37 @@ router.get('/', (req, res) => {
       var fp = path.join(nubeRoot, e);
       if (fs.statSync(fp).isDirectory() && !e.startsWith('_') && !/^\d{4}$/.test(e) && e !== 'plantillas') {
         var files = fs.readdirSync(fp).filter(function(f) { return f.endsWith('.zip') || f.endsWith('.pdf'); });
-        specialFolders.push({ name: e, path: fp, files: files });
+        specialFolders.push({ name: e, path: fp, files: files, source: 'local' });
       }
     });
   }
 
-  res.render('isp/nube', {
-    title: 'Nube - Facturas',
-    years: years,
-    totalFacturas: facturas.length,
-    totalImporte: facturas.reduce(function(s, f) { return s + parseFloat(f.importe_total || 0); }, 0),
-    totalPDFs: pdfs.length + Object.keys(zipPdfs).length,
-    mesNombres: MES_NOMBRES,
-    zipFiles: zipFiles,
-    specialFolders: specialFolders
+  // Also fetch Drive folders (e.g., "trimestrales hacienda" created from mobile)
+  driveHelper.listRootFolders().then(function(driveFolders) {
+    driveFolders.forEach(function(df) {
+      specialFolders.push({ name: df.name, path: null, driveId: df.id, files: [], source: 'drive' });
+    });
+    res.render('isp/nube', {
+      title: 'Nube - Facturas',
+      years: years,
+      totalFacturas: facturas.length,
+      totalImporte: facturas.reduce(function(s, f) { return s + parseFloat(f.importe_total || 0); }, 0),
+      totalPDFs: pdfs.length + Object.keys(zipPdfs).length,
+      mesNombres: MES_NOMBRES,
+      zipFiles: zipFiles,
+      specialFolders: specialFolders
+    });
+  }).catch(function() {
+    res.render('isp/nube', {
+      title: 'Nube - Facturas',
+      years: years,
+      totalFacturas: facturas.length,
+      totalImporte: facturas.reduce(function(s, f) { return s + parseFloat(f.importe_total || 0); }, 0),
+      totalPDFs: pdfs.length + Object.keys(zipPdfs).length,
+      mesNombres: MES_NOMBRES,
+      zipFiles: zipFiles,
+      specialFolders: specialFolders
+    });
   });
 });
 
@@ -462,6 +480,18 @@ router.post('/generar-todas', async (req, res) => {
     } catch(e) { console.error('Error #' + f.id + ': ' + e.message); }
   }
   console.log('PDFs generados');
+});
+
+// Browse Drive folder contents
+router.get('/carpeta-drive', async (req, res) => {
+  try {
+    var folderId = req.query.id;
+    if (!folderId) return res.status(400).json({ error: 'Falta id' });
+    var items = await driveHelper.listFolderContents(folderId);
+    res.json({ items: items });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // Browse folder contents

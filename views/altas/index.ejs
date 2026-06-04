@@ -140,11 +140,11 @@
             </form>
           </div>
 
-          <!-- STEP 2: SELECCIÓN DE PRODUCTO -->
+          <!-- STEP 2: SELECCIÓN DE PRODUCTO (iconos + tarjetas + carrito) -->
           <div id="wizardStep2" style="display:none;">
             <h5 class="mb-3"><i class="bi bi-cart"></i> Selección de producto</h5>
             <form id="formStep2">
-              <div class="row g-3">
+              <div class="row g-3 mb-3">
                 <div class="col-md-6">
                   <label class="form-label">Tipo de contratación</label>
                   <select id="wTipoContratacion" class="form-select" onchange="toggleTipoContratacion()">
@@ -154,31 +154,40 @@
                     <option value="BAJA">Baja</option>
                   </select>
                 </div>
-                <div class="col-md-6">
-                  <label class="form-label">Familia / Categoría</label>
-                  <select id="wFamilia" class="form-select" onchange="filtrarProductos()">
-                    <option value="">Todas las categorías</option>
-                    <% (familias || []).forEach(function(fam) { %>
-                    <option value="<%= fam.name %>"><%= fam.name %></option>
-                    <% }); %>
-                  </select>
+              </div>
+
+              <!-- Categorías como iconos -->
+              <label class="form-label">Familia / Categoría</label>
+              <div class="row g-2 mb-3" id="familyIcons">
+                <% var FAMILY_ICONS = { Mobile: '📱', Fiber: '🌐', TV: '📺', Device: '📟', International: '🌍', Energy: '🔋', Satellite: '📡', Fixed: '📞' }; %>
+                <% var FAMILY_TRANS = { Mobile: 'Móvil', Fiber: 'Fibra', Fixed: 'Fijo', TV: 'TV', Satellite: 'Satélite', Device: 'Dispositivo', Energy: 'Energía', International: 'Internacional', Custom: 'Personalizado', Other: 'Otras' }; %>
+                <% (familias || []).forEach(function(fam) { %>
+                <div class="col-md-2 col-4 col-sm-3">
+                  <div class="family-icon-card" data-family="<%= fam.name %>" onclick="selectFamily('<%= fam.name.replace(/'/g,"\\'") %>')">
+                    <div class="family-icon-emoji"><%= FAMILY_ICONS[fam.name] || '📦' %></div>
+                    <div class="family-icon-name"><%= FAMILY_TRANS[fam.name] || fam.name %></div>
+                    <div class="family-icon-count"><%= (fam.items || []).length %> productos</div>
+                  </div>
                 </div>
-                <div class="col-12">
-                  <label class="form-label">Producto / Tarifa *</label>
-                  <select id="wProducto" class="form-select" required size="5" style="height:auto;min-height:140px;" onchange="onProductoChange()">
-                    <% if (products && products.length > 0) { %>
-                      <% (familias || []).forEach(function(fam) { %>
-                        <% var isFiber = fam.name.toUpperCase().includes('FIBRA'); %>
-                        <optgroup label="<%= fam.name %>" class="prod-group" data-family="<%= fam.name %>" data-fiber="<%= isFiber %>">
-                          <% (fam.items || []).forEach(function(p) { %>
-                            <option value="<%= p.id || p.productId %>" data-family="<%= fam.name %>" data-fiber="<%= isFiber %>" data-precio="<%= p.price || 0 %>"><%= p.productName || p.name %><%= p.price ? ' - ' + p.price + '€' : '' %></option>
-                          <% }); %>
-                        </optgroup>
-                      <% }); %>
-                    <% } else { %>
-                      <option value="">No hay productos disponibles (configura API)</option>
-                    <% } %>
-                  </select>
+                <% }); %>
+              </div>
+
+              <!-- Productos como tarjetas -->
+              <div id="productGridSection" style="display:none;">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <label class="form-label mb-0">Productos disponibles</label>
+                  <button class="btn btn-sm btn-outline-secondary" onclick="clearFamilySelection()">Cambiar categoría</button>
+                </div>
+                <div class="row g-2" id="productGrid"></div>
+              </div>
+
+              <!-- Carrito -->
+              <div id="cartSection" class="mt-3 p-3 border rounded" style="background:#f8f9fa;display:none;">
+                <h6 class="mb-2"><i class="bi bi-cart-check"></i> Carrito <span class="badge bg-primary" id="cartCount">0</span></h6>
+                <div id="cartItems"></div>
+                <div class="mt-2 d-flex justify-content-between align-items-center">
+                  <strong>Total: <span id="cartTotal">0.00€</span></strong>
+                  <button class="btn btn-sm btn-outline-danger" onclick="clearCart()"><i class="bi bi-trash"></i> Vaciar carrito</button>
                 </div>
               </div>
 
@@ -202,7 +211,7 @@
 
               <div class="mt-4 d-flex justify-content-between">
                 <button type="button" class="btn btn-outline-secondary btn-lg btn-wizard-prev" onclick="goWizardStep1()"><i class="bi bi-arrow-left"></i> Volver</button>
-                <button type="button" class="btn btn-primary btn-lg btn-wizard-next" id="btnStep2Next" onclick="goWizardStep3()"><i class="bi bi-arrow-right"></i> Siguiente</button>
+                <button type="button" class="btn btn-primary btn-lg btn-wizard-next" id="btnStep2Next" onclick="goWizardStep3()" disabled><i class="bi bi-arrow-right"></i> Siguiente</button>
               </div>
             </form>
           </div>
@@ -577,8 +586,7 @@ function validarPaso1() {
 }
 
 function validarPaso2() {
-  var producto = document.getElementById('wProducto').value;
-  document.getElementById('btnStep2Next').disabled = !producto;
+  document.getElementById('btnStep2Next').disabled = cart.length === 0;
 }
 
 function validarPaso3() {
@@ -603,6 +611,11 @@ function goWizardStep1() {
   validarPaso1();
 }
 
+// Cart state
+var cart = [];
+var allProducts = <%- JSON.stringify(products || []) %>;
+var allFamilias = <%- JSON.stringify(familias || []) %>;
+
 function goWizardStep2() {
   var nombre = document.getElementById('wNombre').value.trim();
   var telefono = document.getElementById('wTelefono').value.trim();
@@ -620,9 +633,92 @@ function goWizardStep2() {
   validarPaso2();
 }
 
+function selectFamily(family) {
+  document.querySelectorAll('.family-icon-card').forEach(function(c) { c.classList.remove('active'); });
+  document.querySelector('.family-icon-card[data-family="' + family + '"]').classList.add('active');
+  var fam = allFamilias.find(function(f) { return f.name === family; });
+  if (!fam) return;
+  var grid = document.getElementById('productGrid');
+  grid.innerHTML = '';
+  (fam.items || []).forEach(function(p) {
+    var prodId = p.id || p.productId;
+    var name = p.productName || p.name;
+    var price = parseFloat(p.price || 0).toFixed(2);
+    var inCart = cart.some(function(c) { return c.id === prodId; });
+    var card = document.createElement('div');
+    card.className = 'col-md-3 col-6';
+    card.innerHTML = '<div class="product-card' + (inCart ? ' in-cart' : '') + '" onclick="toggleCartProduct(\'' + prodId + '\',\'' + name.replace(/'/g,"\\'") + '\',' + (p.price || 0) + ')">' +
+      '<div class="product-card-name">' + name + '</div>' +
+      '<div class="product-card-price">' + price + '€</div>' +
+      '<div class="product-card-btn"><i class="bi bi-' + (inCart ? 'check-circle-fill text-success' : 'plus-circle') + '"></i></div>' +
+      '</div>';
+    grid.appendChild(card);
+  });
+  document.getElementById('productGridSection').style.display = '';
+  updateCartUI();
+}
+
+function clearFamilySelection() {
+  document.querySelectorAll('.family-icon-card').forEach(function(c) { c.classList.remove('active'); });
+  document.getElementById('productGridSection').style.display = 'none';
+  document.getElementById('productGrid').innerHTML = '';
+}
+
+function toggleCartProduct(id, name, price) {
+  var idx = cart.findIndex(function(c) { return c.id === id; });
+  if (idx > -1) {
+    cart.splice(idx, 1);
+  } else {
+    cart.push({ id: id, name: name, price: parseFloat(price || 0) });
+  }
+  // Update all product cards
+  document.querySelectorAll('.product-card').forEach(function(card) {
+    var btn = card.querySelector('.product-card-btn i');
+    if (btn && card.closest) {
+      // Re-render cards to reflect cart state
+    }
+  });
+  selectFamily(document.querySelector('.family-icon-card.active')?.dataset?.family || '');
+  updateCartUI();
+}
+
+function updateCartUI() {
+  var section = document.getElementById('cartSection');
+  var items = document.getElementById('cartItems');
+  var count = document.getElementById('cartCount');
+  var total = document.getElementById('cartTotal');
+  count.textContent = cart.length;
+  if (cart.length === 0) {
+    section.style.display = 'none';
+    items.innerHTML = '';
+    total.textContent = '0.00€';
+    document.getElementById('btnStep2Next').disabled = true;
+    return;
+  }
+  section.style.display = '';
+  document.getElementById('btnStep2Next').disabled = false;
+  var sum = 0;
+  items.innerHTML = cart.map(function(c, i) {
+    sum += c.price;
+    return '<div class="d-flex justify-content-between align-items-center py-1 border-bottom"><span><strong>' + c.name + '</strong> <small class="text-muted">' + c.price.toFixed(2) + '€</small></span><button class="btn btn-sm btn-outline-danger" onclick="removeFromCart(' + i + ')"><i class="bi bi-x"></i></button></div>';
+  }).join('');
+  total.textContent = sum.toFixed(2) + '€';
+}
+
+function removeFromCart(idx) {
+  cart.splice(idx, 1);
+  selectFamily(document.querySelector('.family-icon-card.active')?.dataset?.family || '');
+  updateCartUI();
+}
+
+function clearCart() {
+  cart = [];
+  selectFamily(document.querySelector('.family-icon-card.active')?.dataset?.family || '');
+  updateCartUI();
+}
+
 function goWizardStep3() {
-  var producto = document.getElementById('wProducto').value;
-  if (!producto) { alert('Selecciona un producto'); return; }
+  if (cart.length === 0) { alert('Añade al menos un producto al carrito'); return; }
 
   document.getElementById('wizardStep1').style.display = 'none';
   document.getElementById('wizardStep2').style.display = 'none';
@@ -646,8 +742,6 @@ function goWizardStep4() {
   var metodoPagoEl = document.querySelector('input[name="wMetodoPago"]:checked');
   var metodoPago = metodoPagoEl ? metodoPagoEl.value : '';
   var iban = document.getElementById('wIban').value.trim();
-  var producto = document.getElementById('wProducto');
-  var prodText = producto.options[producto.selectedIndex] ? producto.options[producto.selectedIndex].text : '';
   var tipoCont = document.getElementById('wTipoContratacion').value;
   var lineaPortar = document.getElementById('wLineaPortar').value.trim();
   var donante = document.getElementById('wDonante');
@@ -666,8 +760,10 @@ function goWizardStep4() {
       'NINGUNO': 'Ninguno (Pagaré después)'
     })[metodoPago] || metodoPago : 'No seleccionado') + (metodoPago === 'IBAN' && iban ? '<br>IBAN: ' + iban : '') + '</p>';
 
+  var prodText = cart.map(function(c) { return c.name + ' (' + c.price.toFixed(2) + '€)'; }).join(', ');
   document.getElementById('resumenProducto').innerHTML =
-    '<p><strong>Producto:</strong> ' + prodText + '<br>' +
+    '<p><strong>Productos:</strong> ' + prodText + '<br>' +
+    '<strong>Total:</strong> ' + cart.reduce(function(s, c) { return s + c.price; }, 0).toFixed(2) + '€<br>' +
     '<strong>Tipo:</strong> ' + (tipoCont === 'PORTABILIDAD' ? 'Portabilidad' : tipoCont === 'NUEVA_ALTA' ? 'Nueva Alta' : tipoCont) +
     (tipoCont === 'PORTABILIDAD' && lineaPortar ? '<br><strong>Línea a portar:</strong> ' + lineaPortar : '') +
     (tipoCont === 'PORTABILIDAD' && donanteText ? '<br><strong>Operador donante:</strong> ' + donanteText : '') +
@@ -726,31 +822,11 @@ function validarDNI(input) {
   }
 }
 
-// Product filtering
-function filtrarProductos() {
-  var familia = document.getElementById('wFamilia').value;
-  document.querySelectorAll('.prod-group').forEach(function(g) {
-    g.style.display = (!familia || g.dataset.family === familia) ? '' : 'none';
-  });
-}
-
 function toggleTipoContratacion() {
   var tipo = document.getElementById('wTipoContratacion').value;
   document.getElementById('portabilidadConfig').style.display = tipo === 'PORTABILIDAD' ? '' : 'none';
   document.getElementById('nuevaAltaConfig').style.display = tipo === 'NUEVA_ALTA' ? '' : 'none';
   validarPaso3();
-}
-
-// Product change - show coverage for fiber
-function onProductoChange() {
-  var select = document.getElementById('wProducto');
-  var opt = select.options[select.selectedIndex];
-  var isFiber = opt ? (opt.getAttribute('data-fiber') === 'true' || (opt.parentElement && opt.parentElement.getAttribute('data-fiber') === 'true')) : false;
-  document.getElementById('coverageSection').style.display = isFiber ? '' : 'none';
-  if (!isFiber) {
-    document.getElementById('coverageResult').innerHTML = '<div class="text-muted small"><i class="bi bi-info-circle"></i> Introduce la dirección completa para verificar la disponibilidad de fibra.</div>';
-  }
-  validarPaso2();
 }
 
 // Coverage check
@@ -828,7 +904,7 @@ async function crearClienteAvanzado() {
     customerType: document.getElementById('wCustomerType').value,
     metodo_pago: metodoPago,
     iban: document.getElementById('wIban').value.trim(),
-    producto_id: document.getElementById('wProducto').value,
+    productos: JSON.stringify(cart),
     tipo_contratacion: document.getElementById('wTipoContratacion').value,
     donante_id: document.getElementById('wDonante').value,
     linea_portabilidad: document.getElementById('wLineaPortar').value.trim(),
@@ -1078,12 +1154,6 @@ document.addEventListener('DOMContentLoaded', function() {
   validarPaso2();
   validarPaso3();
 
-  // Add click listener to product select (some browsers don't fire 'change' with size=5)
-  var wProd = document.getElementById('wProducto');
-  if (wProd) {
-    wProd.addEventListener('click', function() { setTimeout(validarPaso2, 50); });
-  }
-
   // Poll every 400ms to handle autofill, late-loading data, etc.
   setInterval(function() {
     validarPaso1();
@@ -1226,5 +1296,76 @@ document.addEventListener('DOMContentLoaded', function() {
 
 /* Step indicator override */
 .step-indicator .badge { font-size: 12px; padding: 6px 12px; }
-#wProducto option { padding: 4px 8px; }
+
+/* Family icon cards */
+.family-icon-card {
+  background: #fff;
+  border: 2px solid #dee2e6;
+  border-radius: 12px;
+  padding: 12px 8px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.family-icon-card:hover {
+  border-color: #0d6efd;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(13,110,253,0.12);
+}
+.family-icon-card.active {
+  border-color: #0d6efd;
+  background: #f0f6ff;
+  box-shadow: 0 0 0 2px rgba(13,110,253,0.15);
+}
+.family-icon-emoji {
+  font-size: 2rem;
+  margin-bottom: 4px;
+}
+.family-icon-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.family-icon-count {
+  font-size: 0.65rem;
+  color: #6c757d;
+}
+
+/* Product cards */
+.product-card {
+  background: #fff;
+  border: 2px solid #dee2e6;
+  border-radius: 10px;
+  padding: 14px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  min-height: 100px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+.product-card:hover {
+  border-color: #0d6efd;
+  box-shadow: 0 2px 8px rgba(13,110,253,0.1);
+}
+.product-card.in-cart {
+  border-color: #198754;
+  background: #f0faf4;
+}
+.product-card-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.product-card-price {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #0d6efd;
+}
+.product-card-btn {
+  margin-top: 6px;
+  font-size: 1.3rem;
+}
 </style>

@@ -162,6 +162,44 @@ async function listFiles(folderId) {
   }
 }
 
+async function listRootFolders() {
+  const d = getDrive();
+  if (!d) return [];
+  try {
+    const res = await d.files.list({
+      q: `'${ROOT_FOLDER_ID}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false and name != '${NUBE_FOLDER_NAME}'`,
+      fields: 'files(id, name, createdTime)',
+      orderBy: 'name',
+      pageSize: 50
+    });
+    return (res.data.files || []).map(function(f) {
+      return { id: f.id, name: f.name, created: f.createdTime };
+    });
+  } catch (e) {
+    console.error('listRootFolders error:', e.message);
+    return [];
+  }
+}
+
+async function listFolderContents(folderId) {
+  const d = getDrive();
+  if (!d) return [];
+  try {
+    const res = await d.files.list({
+      q: `'${folderId}' in parents and trashed=false`,
+      fields: 'files(id, name, mimeType, size, createdTime, webViewLink)',
+      orderBy: 'name',
+      pageSize: 100
+    });
+    return (res.data.files || []).map(function(f) {
+      return { id: f.id, name: f.name, mimeType: f.mimeType, size: f.size, created: f.createdTime, link: f.webViewLink, isFolder: f.mimeType === 'application/vnd.google-apps.folder' };
+    });
+  } catch (e) {
+    console.error('listFolderContents error:', e.message);
+    return [];
+  }
+}
+
 async function getNubeFolderId() {
   const id = await ensureFolder(ROOT_FOLDER_ID, NUBE_FOLDER_NAME);
   return id;
@@ -253,4 +291,4 @@ async function getPDFFromMonthlyZip(pdfName, year, month) {
   return null;
 }
 
-module.exports = { uploadToDrive, getFileBuffer, deleteFromDrive, listFiles, ensureYearMonthPath, getNubeFolderId, isAvailable, isOAuthAvailable, addToMonthlyZip, getPDFFromMonthlyZip };
+module.exports = { uploadToDrive, getFileBuffer, deleteFromDrive, listFiles, ensureYearMonthPath, getNubeFolderId, isAvailable, isOAuthAvailable, addToMonthlyZip, getPDFFromMonthlyZip, listRootFolders, listFolderContents };

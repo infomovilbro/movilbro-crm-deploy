@@ -13,16 +13,36 @@ var uploadDir = path.join(__dirname, '..', '..', 'public', 'uploads', 'cdrs');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 var upload = multer({ dest: uploadDir });
 
-// CDR dashboard - grouped by client (includes all clients from API)
+// CDR dashboard - grouped by client with month/year navigation
 router.get('/', async (req, res) => {
   try {
-    var cdrs = db.prepare(`
+    var selectedPeriodo = req.query.periodo || '';
+    var yearsMap = {};
+    var allPeriods = db.prepare("SELECT DISTINCT periodo FROM isp_cdrs WHERE periodo IS NOT NULL AND periodo != '' ORDER BY periodo DESC").all();
+    allPeriods.forEach(function(p) {
+      var parts = p.periodo.split('-');
+      if (parts.length >= 2) {
+        var y = parts[0], m = parseInt(parts[1]);
+        if (!yearsMap[y]) yearsMap[y] = {};
+        yearsMap[y][m] = true;
+      }
+    });
+
+    // Build query based on selected period
+    var query = `
       SELECT c.*, COALESCE(f.cliente_nombre, cl.nombre, c.fiscal_id, 'Sin cliente') as cliente 
       FROM isp_cdrs c 
       LEFT JOIN isp_facturas f ON c.factura_id=f.id 
       LEFT JOIN clients cl ON cl.likes_customer_id = c.fiscal_id 
-      ORDER BY c.created_at DESC LIMIT 500
-    `).all();
+    `;
+    var params = [];
+    if (selectedPeriodo) {
+      query += " WHERE c.periodo = ?";
+      params.push(selectedPeriodo);
+    }
+    query += " ORDER BY c.created_at DESC LIMIT 500";
+
+    var cdrs = db.prepare(query).all.apply(db, params);
     var cdrsByFiscal = {};
     cdrs.forEach(function(c) {
       var key = c.fiscal_id || 'sin_fiscal';
@@ -31,21 +51,8 @@ router.get('/', async (req, res) => {
       cdrsByFiscal[key].total += parseFloat(c.importe || 0);
     });
 
-    // Fetch all customers from API to show even those without CDRs
+    // Build groups: ONLY clients that have CDRs (skip API fetch for speed)
     var grupos = [];
-    try {
-      var api = LikesAPI.getApiInstance();
-      var customers = await api.getCustomers();
-      (Array.isArray(customers) ? customers : []).forEach(function(c) {
-        var fiscalId = c.fiscalId || '';
-        var nombre = c.name + ' ' + (c.firstSurname || '');
-        var data = cdrsByFiscal[fiscalId] || { cdrs: [], total: 0 };
-        grupos.push({ cliente: nombre, fiscal_id: fiscalId, cdrs: data.cdrs, total: data.total });
-        delete cdrsByFiscal[fiscalId];
-      });
-    } catch(e) { console.error('Error fetching customers:', e.message); }
-
-    // Add remaining from DB that weren't in API
     Object.keys(cdrsByFiscal).forEach(function(key) {
       var firstCdr = cdrsByFiscal[key].cdrs[0];
       var nombre = firstCdr ? (firstCdr.cliente || key) : key;
@@ -54,7 +61,7 @@ router.get('/', async (req, res) => {
 
     var total = db.prepare('SELECT COUNT(*) as c, COALESCE(SUM(importe),0) as t FROM isp_cdrs WHERE factura_id IS NULL').get();
     var clientes = db.prepare('SELECT id, nombre, likes_customer_id FROM clients WHERE likes_customer_id IS NOT NULL').all();
-    res.render('isp/cdrs/index', { title: 'CDRs y Excedentes', groups: grupos, total, clientes });
+    res.render('isp/cdrs/index', { title: 'CDRs y Excedentes', groups: grupos, total, clientes, yearsMap: yearsMap, selectedPeriodo: selectedPeriodo, MES_NOMBRES: ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'] });
   } catch(e) { console.error(e); res.status(500).send('Error: ' + e.message); }
 });
 

@@ -87,7 +87,11 @@ router.get('/', requireAuth, async (req, res) => {
 router.post('/crear-cliente-avanzado', requireAuth, async (req, res) => {
   try {
     const api = getApi();
-    const { nombre, apellidos, email, telefono, dni, direccion, ciudad, codigo_postal, customerType, metodo_pago, iban, producto_id, tipo_contratacion, donante_id, linea_portabilidad, cobertura_id } = req.body;
+    var { nombre, apellidos, email, telefono, dni, direccion, ciudad, codigo_postal, customerType, metodo_pago, iban, productos, tipo_contratacion, donante_id, linea_portabilidad, cobertura_id } = req.body;
+    // productos can be JSON string or array; parse if needed
+    if (typeof productos === 'string') { try { productos = JSON.parse(productos); } catch(e) { productos = []; } }
+    if (!Array.isArray(productos)) productos = [];
+    var producto_id = productos.length > 0 ? (productos[0].id || productos[0].producto_id || '') : (req.body.producto_id || '');
 
     // 1. Save client locally
     const result = db.prepare(`INSERT INTO clients (nombre, apellidos, email, telefono, dni_nif, direccion, ciudad, codigo_postal, tipo_cliente, metodo_pago, iban) VALUES (?,?,?,?,?,?,?,?,?,?,?)`).run(
@@ -124,7 +128,7 @@ router.post('/crear-cliente-avanzado', requireAuth, async (req, res) => {
 
     // 4. Save as pending order in altas_ordenes
     const datosCliente = JSON.stringify({ nombre, apellidos, email, telefono, dni, direccion, ciudad, codigo_postal, customerType, metodo_pago, iban, clientId, likesCustomerId });
-    const datosProducto = JSON.stringify({ producto_id, tipo_contratacion, donante_id, linea_portabilidad, cobertura_id });
+    const datosProducto = JSON.stringify({ productos: productos, producto_id, tipo_contratacion, donante_id, linea_portabilidad, cobertura_id });
 
     db.prepare(`INSERT INTO altas_ordenes (token, client_id, likes_customer_id, estado, paso, datos_cliente, datos_producto, datos_pago) VALUES (?,?,?,?,?,?,?,?)`).run(
       token, clientId, likesCustomerId, 'pendiente_kyc', 3, datosCliente, datosProducto, JSON.stringify({ metodo: metodo_pago, iban })

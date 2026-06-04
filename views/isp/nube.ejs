@@ -16,19 +16,23 @@
     </div>
   </div>
 
-  <!-- Carpetas especiales (facturas manuales, gestoría, etc) -->
+  <!-- Carpetas especiales (facturas manuales, gestoría, Drive, etc) -->
   <% if (typeof specialFolders !== 'undefined' && specialFolders.length > 0) { %>
   <div class="card mb-3">
-    <div class="card-header py-2"><i class="bi bi-folder"></i> <strong>Carpetas adicionales</strong></div>
+    <div class="card-header py-2"><i class="bi bi-folder"></i> <strong>Carpetas adicionales</strong> <small class="text-muted">(locales y Drive)</small></div>
     <div class="card-body py-2">
       <div class="row g-2">
         <% specialFolders.forEach(function(folder) { %>
         <div class="col-md-4 col-6">
+          <% if (folder.source === 'drive') { %>
+          <a href="javascript:void(0)" onclick="explorarDrive('<%= folder.driveId %>','<%= folder.name.replace(/'/g,"\\'") %>')" class="text-decoration-none">
+          <% } else { %>
           <a href="/isp/nube/carpeta?path=<%= encodeURIComponent(folder.path) %>" class="text-decoration-none">
+          <% } %>
           <div class="border rounded p-2 text-center" style="background:#f8f9fa;cursor:pointer;" onmouseover="this.style.borderColor='#0d6efd'" onmouseout="this.style.borderColor='#dee2e6'">
-            <div style="font-size:2rem;">📁</div>
+            <div style="font-size:2rem;"><%= folder.source === 'drive' ? '☁️' : '📁' %></div>
             <div class="fw-semibold small"><%= folder.name.replace(/_/g,' ') %></div>
-            <div class="small text-muted"><%= folder.files.length %> archivos</div>
+            <div class="small text-muted"><%= folder.source === 'drive' ? 'Drive' : folder.files.length + ' archivos' %></div>
             <span class="btn btn-sm btn-outline-primary mt-1"><i class="bi bi-folder-open"></i> Explorar</span>
           </div>
           </a>
@@ -162,6 +166,30 @@
 </div>
 
 <script>
+function explorarDrive(folderId, folderName) {
+  fetch('/isp/nube/carpeta-drive?id=' + folderId)
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (!d.items || d.items.length === 0) {
+        alert('La carpeta "' + folderName + '" está vacía en Drive.');
+        return;
+      }
+      var html = '<div class="modal fade" id="driveFolderModal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">☁️ ' + folderName + ' (Drive)</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="list-group">';
+      d.items.forEach(function(item) {
+        var icon = item.isFolder ? '📁' : '📄';
+        var size = item.size ? (parseInt(item.size) / 1024).toFixed(1) + ' KB' : '';
+        html += '<div class="list-group-item d-flex justify-content-between align-items-center"><span>' + icon + ' ' + item.name + '</span><span class="text-muted small">' + size + '</span></div>';
+      });
+      html += '</div></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button></div></div></div></div>';
+      var existing = document.getElementById('driveFolderModal');
+      if (existing) existing.remove();
+      document.body.insertAdjacentHTML('beforeend', html);
+      var modal = new bootstrap.Modal(document.getElementById('driveFolderModal'));
+      modal.show();
+    })
+    .catch(function() { alert('Error al conectar con Drive'); });
+}
+
 // Toggle year accordion
 function toggleYear(id) {
   var el = document.getElementById(id);

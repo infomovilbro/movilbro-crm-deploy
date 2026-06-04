@@ -67,3 +67,29 @@ Secrets removidos del código fuente. Configurar en Render → Environment:
 - `guardarLocal` guardaba `zipId` (ID del ZIP) como `drive_id` del PDF individual
 - `getPDFBuffer` step 1 trataba ese ID como PDF individual → descargaba el ZIP entero como PDF
 - Fix: no pasar `zipId` a `guardarEnDB` (step 2 de `getPDFBuffer` ya busca en ZIP mensual)
+
+## Sesión 2026-06-04 — WhatsApp/Email Webhooks + IMAP + Pendientes
+
+### Hecho
+- Generada App Password Gmail: `nrbo wbln rkmk gbll` → configurada como `GMAIL_PASS` en local (env var usuario) y en Render (vía API interna)
+- `routes/codeopen.js`: webhooks WhatsApp + Email, IMAP polling (120s con filtros + rate limit), endpoints pending/count/approve/reject/history/clear
+- `views/codeopen.ejs`: badge rojo con contador de pendientes + panel deslizante con botones Aprobar/Rechazar
+- `database.js`: tabla `pending_messages` añadida
+- `package.json`: dependencias `imap` + `mailparser`
+- Commit `c208f9e` + push a main + deploy hook lanzado
+- Filtro IMAP bloquea newsletters (linkedin, woocommerce, claude, google, etc.)
+- Rate limit: 1 email/ciclo para evitar error 429 de DeepSeek
+- Carpeta `codeopen-memoria` creada en Drive con resúmenes
+
+### Pendiente
+1. Solucionar rate limit 429 (API DeepSeek saturada)
+2. Probar IMAP con correo real de cliente (enviar desde OTRA cuenta a infomovilbro@gmail.com)
+3. Implementar envío real al aprobar (WhatsApp/Email)
+4. Limpiar scripts temporales
+
+### IMAP debugging
+- IMAP monitorea `infomovilbro@gmail.com` (puerto 993 SSL)
+- Busca UNSEEN en INBOX
+- Gmail NO entrega correos de sí mismo (enviarse a uno mismo no funciona)
+- Error 429 = rate limit de DeepSeek, esperar o cambiar API key
+- Para actualizar env vars en Render: usar CDP + fetch interno PUT /api/v1/services/{serviceId}/env-vars
