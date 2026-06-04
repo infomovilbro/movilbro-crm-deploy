@@ -6,7 +6,8 @@ const router = express.Router();
 
 router.get('/', requireAuth, (req, res) => {
   const clientes = db.prepare('SELECT id, nombre, apellidos, telefono FROM clients WHERE telefono IS NOT NULL AND telefono != \'\' ORDER BY nombre').all();
-  res.render('whatsapp', { title: 'WhatsApp', clientes: clientes || [] });
+  const phone = req.query.phone || '';
+  res.render('whatsapp', { title: 'WhatsApp', clientes: clientes || [], phone });
 });
 
 // Get connection status

@@ -495,7 +495,7 @@
                 <% var aStatus = (a.estado || '').toUpperCase(); %>
                 <td><span class="badge bg-<%= aStatus === 'ACTIVE' || aStatus === 'CREATED' ? 'success' : aStatus === 'ERROR' ? 'danger' : 'warning' %>"><%= aStatus === 'ACTIVE' ? 'Activo' : aStatus === 'CREATED' ? 'Creado' : aStatus === 'ERROR' ? 'Error' : a.estado %></span></td>
                 <td class="small"><%= new Date(a.fecha).toLocaleDateString('es-ES', { day:'2-digit', month:'short', year:'numeric' }) %></td>
-                <td><a href="https://wa.me/<%= a.telefono.replace(/[^\d]/g, '') %>" target="_blank" class="btn btn-sm btn-outline-success"><i class="bi bi-whatsapp"></i></a></td>
+                <td><a href="/whatsapp?phone=<%= a.telefono.replace(/[^\d]/g, '') %>" class="btn btn-sm btn-outline-success"><i class="bi bi-whatsapp"></i></a></td>
               </tr>
               <% }); } %>
             </tbody>
@@ -839,15 +839,16 @@ function checkCoverage() {
   btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Verificando...';
   resultEl.innerHTML = '<div class="text-center py-3"><span class="spinner-border text-primary spinner-border-sm"></span> <span class="text-muted">Consultando cobertura...</span></div>';
 
-  fetch('/cobertura/address?q=' + encodeURIComponent(dir))
+  fetch('/api/cobertura?address=' + encodeURIComponent(dir))
     .then(function(r) { return r.json(); })
     .then(function(data) {
-      if (data && data.addresses && data.addresses.length > 0) {
-        var addr = data.addresses[0];
+      var addresses = data?.addresses || data?.results || data?.data || (Array.isArray(data) ? data : []);
+      if (addresses.length > 0) {
+        var addr = addresses[0];
         resultEl.innerHTML =
-          '<div class="alert alert-success mb-0 d-flex align-items-center gap-2"><i class="bi bi-check-circle-fill fs-5"></i> <span><strong>Cobertura disponible</strong><br><small>' + (addr.fullAddress || addr.address || addr.name || 'Dirección encontrada') + '</small></span></div>';
+          '<div class="alert alert-success mb-0 d-flex align-items-center gap-2"><i class="bi bi-check-circle-fill fs-5"></i> <span><strong>Cobertura disponible</strong><br><small>' + (addr.fullAddress || addr.address || addr.name || addr.label || 'Dirección encontrada') + '</small></span></div>';
       } else {
-        resultEl.innerHTML = '<div class="alert alert-danger mb-0 d-flex align-items-center gap-2"><i class="bi bi-x-circle-fill fs-5"></i> <span><strong>Sin cobertura</strong><br><small>No hay cobertura de fibra disponible en esta dirección</small></span></div>';
+        resultEl.innerHTML = '<div class="alert alert-danger mb-0 d-flex align-items-center gap-2"><i class="bi bi-x-circle-fill fs-5"></i> <span><strong>Sin cobertura</strong><br><small>No hay cobertura disponible en esta dirección</small></span></div>';
       }
     })
     .catch(function(e) {

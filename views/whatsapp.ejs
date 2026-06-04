@@ -58,6 +58,7 @@
 var waEventSource = null;
 var waCurrentJid = null;
 var waPollInterval = null;
+var waPhoneParam = '<%= typeof phone !== "undefined" ? phone : "" %>';
 
 function iniciarWA() {
   // Check status
@@ -138,6 +139,15 @@ function cargarChatsWA() {
         html += '<div class="text-muted small text-truncate">' + (c.lastMessage || '') + '</div></div></div>';
       });
       container.innerHTML = html;
+      // Auto-select chat if phone param set
+      if (waPhoneParam) {
+        var cleanPhone = waPhoneParam.replace(/[^\d]/g, '');
+        var found = d.chats.find(function(c) { return c.jid.indexOf(cleanPhone) > -1; });
+        if (found) {
+          seleccionarChat(found.jid, found.name);
+          waPhoneParam = '';
+        }
+      }
     });
 }
 
