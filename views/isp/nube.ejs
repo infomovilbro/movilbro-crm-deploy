@@ -17,29 +17,15 @@
     </div>
   </div>
 
-  <!-- Carpetas especiales (facturas manuales, gestoría, Drive, etc) -->
-  <% if (typeof specialFolders !== 'undefined' && specialFolders.length > 0) { %>
+  <!-- Google Drive (navegable como explorador) -->
+  <% if (typeof driveAvailable !== 'undefined' && driveAvailable) { %>
   <div class="card mb-3">
-    <div class="card-header py-2"><i class="bi bi-folder"></i> <strong>Carpetas adicionales</strong> <small class="text-muted">(locales y Drive)</small></div>
-    <div class="card-body py-2">
-      <div class="row g-2">
-        <% specialFolders.forEach(function(folder) { %>
-        <div class="col-md-4 col-6">
-          <% if (folder.source === 'drive') { %>
-          <a href="javascript:void(0)" onclick="explorarDrive('<%= folder.driveId %>','<%= folder.name.replace(/'/g,"\\'") %>')" class="text-decoration-none">
-          <% } else { %>
-          <a href="/isp/nube/carpeta?path=<%= encodeURIComponent(folder.path) %>" class="text-decoration-none">
-          <% } %>
-          <div class="border rounded p-2 text-center" style="background:#f8f9fa;cursor:pointer;" onmouseover="this.style.borderColor='#0d6efd'" onmouseout="this.style.borderColor='#dee2e6'">
-            <div style="font-size:2rem;"><%= folder.source === 'drive' ? '☁️' : '📁' %></div>
-            <div class="fw-semibold small"><%= folder.name.replace(/_/g,' ') %></div>
-            <div class="small text-muted"><%= folder.source === 'drive' ? 'Drive' : folder.files.length + ' archivos' %></div>
-            <span class="btn btn-sm btn-outline-primary mt-1"><i class="bi bi-folder-open"></i> Explorar</span>
-          </div>
-          </a>
-        </div>
-        <% }); %>
-      </div>
+    <div class="card-header py-2 d-flex justify-content-between align-items-center">
+      <span><i class="bi bi-cloud"></i> <strong>Google Drive</strong></span>
+      <button class="btn btn-sm btn-outline-secondary" onclick="navegarDrive('<%= driveRootId %>')"><i class="bi bi-arrow-clockwise"></i> Recargar</button>
+    </div>
+    <div class="card-body py-2" id="driveExplorer">
+      <div class="text-center text-muted py-2" id="driveLoading"><span class="spinner-border spinner-border-sm"></span> Cargando Drive...</div>
     </div>
   </div>
   <% } %>
@@ -103,7 +89,7 @@
                 <a href="/isp/nube/pdf-db/<%= f.dbId %>" target="_blank" class="btn btn-sm btn-outline-info" title="Ver PDF"><i class="bi bi-file-pdf" style="font-size:0.7rem;"></i></a>
                 <a href="/isp/nube/pdf-db/<%= f.dbId %>" class="btn btn-sm btn-outline-primary" title="Descargar PDF"><i class="bi bi-download" style="font-size:0.7rem;"></i></a>
                 <% } else if (f.pdfPath) { %>
-                <a href="/isp/nube/descargar?path=<%= encodeURIComponent(f.pdfPath) %>" target="_blank" class="btn btn-sm btn-outline-info" title="Ver PDF original"><i class="bi bi-file-pdf" style="font-size:0.7rem;"></i></a>
+                <a href="/isp/nube/descargar?path=<%= encodeURIComponent(f.pdfPath) %>&view=1" target="_blank" class="btn btn-sm btn-outline-info" title="Ver PDF inline"><i class="bi bi-eye" style="font-size:0.7rem;"></i></a>
                 <a href="/isp/nube/descargar?path=<%= encodeURIComponent(f.pdfPath) %>" class="btn btn-sm btn-outline-primary" title="Descargar PDF"><i class="bi bi-download" style="font-size:0.7rem;"></i></a>
                 <% } %>
               </div>
@@ -147,11 +133,6 @@
                     <% }); %>
                   <% }); %>
                 </optgroup>
-                <optgroup label="Carpetas especiales">
-                  <% if (typeof specialFolders !== 'undefined') { specialFolders.forEach(function(f) { %>
-                  <option value="<%= f.name %>"><%= f.name.replace(/_/g, ' ') %></option>
-                  <% }); } %>
-                </optgroup>
               </select>
             </div>
             <small class="text-muted">O escribe una ruta personalizada: año/mes o nombre de carpeta</small>
@@ -167,29 +148,103 @@
 </div>
 
 <script>
-function explorarDrive(folderId, folderName) {
+var driveBreadcrumb = [];
+
+function navegarDrive(folderId) {
+  if (!folderId) return;
+  var container = document.getElementById('driveExplorer');
+  var loading = document.getElementById('driveLoading');
+  if (!container) return;
+  if (loading) loading.style.display = '';
+  container.innerHTML = '<div class="text-center text-muted py-2"><span class="spinner-border spinner-border-sm"></span> Cargando...</div>';
+
   fetch('/isp/nube/carpeta-drive?id=' + folderId)
     .then(function(r) { return r.json(); })
     .then(function(d) {
-      if (!d.items || d.items.length === 0) {
-        alert('La carpeta "' + folderName + '" está vacía en Drive.');
-        return;
+      var items = d.items || [];
+      // Breadcrumb: track navigation
+      if (driveBreadcrumb.length === 0 || driveBreadcrumb[driveBreadcrumb.length - 1].id !== folderId) {
+        driveBreadcrumb.push({ id: folderId, name: items.length > 0 ? '(cargado)' : 'Drive' });
+        if (driveBreadcrumb.length > 20) driveBreadcrumb.shift();
       }
-      var html = '<div class="modal fade" id="driveFolderModal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">☁️ ' + folderName + ' (Drive)</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="list-group">';
-      d.items.forEach(function(item) {
-        var icon = item.isFolder ? '📁' : '📄';
-        var size = item.size ? (parseInt(item.size) / 1024).toFixed(1) + ' KB' : '';
-        html += '<div class="list-group-item d-flex justify-content-between align-items-center"><span>' + icon + ' ' + item.name + '</span><span class="text-muted small">' + size + '</span></div>';
-      });
-      html += '</div></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button></div></div></div></div>';
-      var existing = document.getElementById('driveFolderModal');
-      if (existing) existing.remove();
-      document.body.insertAdjacentHTML('beforeend', html);
-      var modal = new bootstrap.Modal(document.getElementById('driveFolderModal'));
-      modal.show();
+
+      var html = '';
+      // Breadcrumb bar
+      html += '<div class="d-flex align-items-center gap-1 mb-2 flex-wrap">';
+      html += '<button class="btn btn-sm btn-outline-secondary" onclick="navegarDriveRoot()" title="Raíz Drive"><i class="bi bi-house"></i></button>';
+      for (var i = 0; i < driveBreadcrumb.length; i++) {
+        if (i > 0) html += '<span class="text-muted">/</span>';
+        html += '<button class="btn btn-sm btn-link p-0 text-decoration-none small" onclick="navegarDriveBreadcrumb(' + i + ')">' + escaparHTML(driveBreadcrumb[i].name) + '</button>';
+      }
+      html += '</div>';
+
+      if (items.length === 0) {
+        html += '<div class="text-center text-muted py-2">Carpeta vacía</div>';
+      } else {
+        // Separate folders and files
+        var folders = items.filter(function(f) { return f.isFolder; });
+        var files = items.filter(function(f) { return !f.isFolder; });
+
+        html += '<div class="table-responsive"><table class="table table-sm table-hover mb-0"><thead><tr><th>Nombre</th><th style="width:80px;">Tamaño</th><th style="width:100px;">Acciones</th></tr></thead><tbody>';
+
+        folders.forEach(function(f) {
+          html += '<tr style="cursor:pointer;" onclick="navegarDrive(\'' + f.id + '\')">';
+          html += '<td><i class="bi bi-folder-fill text-warning me-1"></i><span class="text-primary text-decoration-underline">' + escaparHTML(f.name) + '/</span></td>';
+          html += '<td class="text-muted small">—</td>';
+          html += '<td><button class="btn btn-sm btn-outline-secondary py-0" onclick="event.stopPropagation();navegarDrive(\'' + f.id + '\')"><i class="bi bi-folder-open"></i></button></td>';
+          html += '</tr>';
+        });
+
+        files.forEach(function(f) {
+          var isPDF = f.name.toLowerCase().endsWith('.pdf');
+          var sizeKB = f.size ? (parseInt(f.size) / 1024).toFixed(1) + ' KB' : '';
+          html += '<tr>';
+          html += '<td><i class="bi ' + (isPDF ? 'bi-file-pdf text-danger' : 'bi-file') + ' me-1"></i>' + escaparHTML(f.name) + '</td>';
+          html += '<td class="text-muted small">' + sizeKB + '</td>';
+          html += '<td>';
+          if (f.link) {
+            html += '<a href="' + f.link + '" target="_blank" class="btn btn-sm btn-outline-info py-0 me-1" title="Ver"><i class="bi bi-eye"></i></a>';
+          }
+          html += '<a href="/isp/nube/descargar-drive?id=' + f.id + '" class="btn btn-sm btn-outline-primary py-0" title="Descargar"><i class="bi bi-download"></i></a>';
+          html += '</td>';
+          html += '</tr>';
+        });
+
+        html += '</tbody></table></div>';
+      }
+
+      container.innerHTML = html;
     })
-    .catch(function() { alert('Error al conectar con Drive'); });
+    .catch(function(e) {
+      container.innerHTML = '<div class="text-danger text-center py-2"><i class="bi bi-exclamation-triangle"></i> Error al conectar con Drive: ' + e.message + '</div>';
+    });
 }
+
+function navegarDriveRoot() {
+  driveBreadcrumb = [];
+  var rootId = '<%= typeof driveRootId !== "undefined" ? driveRootId : "" %>';
+  if (rootId) navegarDrive(rootId);
+}
+
+function navegarDriveBreadcrumb(idx) {
+  if (idx < 0 || idx >= driveBreadcrumb.length) return;
+  driveBreadcrumb = driveBreadcrumb.slice(0, idx + 1);
+  navegarDrive(driveBreadcrumb[driveBreadcrumb.length - 1].id);
+}
+
+function escaparHTML(str) {
+  var div = document.createElement('div');
+  div.appendChild(document.createTextNode(str));
+  return div.innerHTML;
+}
+
+// Load Drive on page ready
+(function() {
+  var rootId = '<%= typeof driveRootId !== "undefined" ? driveRootId : "" %>';
+  if (rootId && '<%= typeof driveAvailable !== "undefined" && driveAvailable ? "1" : "" %>' === '1') {
+    navegarDrive(rootId);
+  }
+})();
 
 // Toggle year accordion
 function toggleYear(id) {

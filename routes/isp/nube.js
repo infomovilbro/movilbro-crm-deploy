@@ -77,15 +77,16 @@ router.post('/subir-archivo', (req, res) => {
   } catch(e) { res.json({ ok: false, error: e.message }); }
 });
 
-// Create a new folder in nube
-router.post('/crear-carpeta', (req, res) => {
+// Create a new folder in Drive root
+router.post('/crear-carpeta', async (req, res) => {
   try {
     var nombre = (req.body.nombre || '').trim().replace(/[^a-zA-Z0-9_\-\u00C0-\u024F ]/g, '_');
     if (!nombre) return res.json({ ok: false, error: 'Nombre inválido' });
-    var dir = path.join(nube.NUBE_DIR, nombre);
-    if (fs.existsSync(dir)) return res.json({ ok: false, error: 'La carpeta ya existe' });
-    nube.ensureDir(dir);
-    res.json({ ok: true, nombre: nombre });
+    if (!driveHelper.isAvailable()) return res.json({ ok: false, error: 'Google Drive no está configurado' });
+    var driveRootId = process.env.DRIVE_ROOT_FOLDER_ID || '1JrStvTy-l0msOmfwT1S0Jupg6Ru6Zemx';
+    var folderId = await driveHelper.ensureFolder(driveRootId, nombre);
+    if (!folderId) return res.json({ ok: false, error: 'No se pudo crear la carpeta en Drive' });
+    res.json({ ok: true, nombre: nombre, driveId: folderId });
   } catch(e) { res.json({ ok: false, error: e.message }); }
 });
 
@@ -200,55 +201,29 @@ router.get('/', (req, res) => {
   // Also list ZIPS for display
   var zipFiles = nube.listZips();
 
-  // List special folders (incluye carpetas de año con contenido no cubierto por vista principal)
-  var specialFolders = [];
-  var nubeRoot = nube.NUBE_DIR;
-  if (fs.existsSync(nubeRoot)) {
-    fs.readdirSync(nubeRoot).forEach(function(e) {
-      var fp = path.join(nubeRoot, e);
-      if (!fs.statSync(fp).isDirectory() || e.startsWith('_') || e === 'plantillas') return;
-      if (/^\d{4}$/.test(e)) {
-        // Año: mostrar solo si tiene archivos sueltos o subcarpetas no-mes
-        var items = fs.readdirSync(fp);
-        var hasNonMonthItems = items.some(function(i) {
-          var ip = path.join(fp, i);
-          if (fs.statSync(ip).isDirectory() && !MES_NOMBRES.includes(i)) return true;
-          if (!fs.statSync(ip).isDirectory() && i.endsWith('.pdf')) return true;
-          return false;
-        });
-        if (!hasNonMonthItems) return;
-      }
-      var files = fs.readdirSync(fp).filter(function(f) { return f.endsWith('.zip') || f.endsWith('.pdf'); });
-      specialFolders.push({ name: e, path: fp, files: files, source: 'local' });
+  // Calculate true totals including disk PDFs without DB invoices
+  var totalEntradas = 0;
+  var totalImporteAll = 0;
+  years.forEach(function(yr) {
+    yr.meses.forEach(function(m) {
+      totalEntradas += m.count;
+      totalImporteAll += m.total;
     });
-  }
+  });
 
-  // Also fetch Drive folders (e.g., "trimestrales hacienda" created from mobile)
-  driveHelper.listRootFolders().then(function(driveFolders) {
-    driveFolders.forEach(function(df) {
-      specialFolders.push({ name: df.name, path: null, driveId: df.id, files: [], source: 'drive' });
-    });
-    res.render('isp/nube', {
-      title: 'Nube - Facturas',
-      years: years,
-      totalFacturas: facturas.length,
-      totalImporte: facturas.reduce(function(s, f) { return s + parseFloat(f.importe_total || 0); }, 0),
-      totalPDFs: pdfs.length + Object.keys(zipPdfs).length,
-      mesNombres: MES_NOMBRES,
-      zipFiles: zipFiles,
-      specialFolders: specialFolders
-    });
-  }).catch(function() {
-    res.render('isp/nube', {
-      title: 'Nube - Facturas',
-      years: years,
-      totalFacturas: facturas.length,
-      totalImporte: facturas.reduce(function(s, f) { return s + parseFloat(f.importe_total || 0); }, 0),
-      totalPDFs: pdfs.length + Object.keys(zipPdfs).length,
-      mesNombres: MES_NOMBRES,
-      zipFiles: zipFiles,
-      specialFolders: specialFolders
-    });
+  var driveAvailable = driveHelper.isAvailable();
+  var driveRootId = process.env.DRIVE_ROOT_FOLDER_ID || '1JrStvTy-l0msOmfwT1S0Jupg6Ru6Zemx';
+
+  res.render('isp/nube', {
+    title: 'Nube - Facturas',
+    years: years,
+    totalFacturas: totalEntradas,
+    totalImporte: totalImporteAll,
+    totalPDFs: pdfs.length + Object.keys(zipPdfs).length,
+    mesNombres: MES_NOMBRES,
+    zipFiles: zipFiles,
+    driveAvailable: driveAvailable,
+    driveRootId: driveRootId
   });
 });
 
@@ -403,6 +378,12 @@ router.get('/descargar', (req, res) => {
   if (!filePath) return res.status(400).send('Falta path');
   if (!filePath.startsWith(nube.NUBE_DIR)) return res.status(403).send('Acceso denegado');
   if (!fs.existsSync(filePath)) return res.status(404).send('No encontrado');
+  var isView = req.query.view === '1';
+  if (isView) {
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="' + path.basename(filePath) + '"');
+    return res.sendFile(filePath);
+  }
   res.download(filePath);
 });
 
@@ -546,6 +527,20 @@ router.get('/carpeta', (req, res) => {
   } catch(e) {
     res.status(500).send('Error: ' + e.message);
   }
+});
+
+// Download file from Drive by ID
+router.get('/descargar-drive', async (req, res) => {
+  try {
+    var fileId = req.query.id;
+    if (!fileId) return res.status(400).send('Falta id');
+    if (!driveHelper.isAvailable()) return res.status(503).send('Drive no disponible');
+    var buf = await driveHelper.getFileBuffer(fileId);
+    if (!buf) return res.status(404).send('No encontrado en Drive');
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="drive-file.pdf"');
+    res.send(buf);
+  } catch(e) { res.status(500).send('Error: ' + e.message); }
 });
 
 // Run migration at startup: copy existing disk PDFs to DB

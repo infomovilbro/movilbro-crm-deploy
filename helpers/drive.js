@@ -291,4 +291,4 @@ async function getPDFFromMonthlyZip(pdfName, year, month) {
   return null;
 }
 
-module.exports = { uploadToDrive, getFileBuffer, deleteFromDrive, listFiles, ensureYearMonthPath, getNubeFolderId, isAvailable, isOAuthAvailable, addToMonthlyZip, getPDFFromMonthlyZip, listRootFolders, listFolderContents };
+module.exports = { uploadToDrive, getFileBuffer, deleteFromDrive, listFiles, ensureYearMonthPath, getNubeFolderId, isAvailable, isOAuthAvailable, addToMonthlyZip, getPDFFromMonthlyZip, listRootFolders, listFolderContents, ensureFolder };
