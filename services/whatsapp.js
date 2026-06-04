@@ -44,7 +44,7 @@ async function start() {
         _status = 'connected';
         _connectionAttempts = 0;
         if (_qrCallback) _qrCallback({ type: 'status', data: 'connected' });
-        loadChats();
+        // Chats arrive via events, no need to call loadChats immediately
       }
       if (connection === 'close') {
         var reason = lastDisconnect?.error?.output?.statusCode || 0;
@@ -58,6 +58,45 @@ async function start() {
           setTimeout(start, delay);
         }
       }
+    });
+
+    // Handle incoming chats (baileys streams them via events)
+    _sock.ev.on('chats.upsert', function(chats) {
+      if (!chats || !Array.isArray(chats)) return;
+      chats.forEach(function(c) {
+        var jid = c.id || '';
+        var existing = _chats.findIndex(function(x) { return x.jid === jid; });
+        var chatObj = {
+          jid: jid,
+          name: c.name || c.subject || jid.split('@')[0] || 'Unknown',
+          unreadCount: c.unreadCount || c.unread || 0,
+          lastMessage: ''
+        };
+        if (c.lastMessage) {
+          chatObj.lastMessage = c.lastMessage.message?.conversation || c.lastMessage.message?.extendedTextMessage?.text || '';
+        }
+        if (existing > -1) { _chats[existing] = chatObj; }
+        else { _chats.push(chatObj); }
+      });
+      console.log('[WhatsApp] Chats actualizados: ' + _chats.length);
+    });
+
+    _sock.ev.on('chats.update', function(updates) {
+      if (!updates || !Array.isArray(updates)) return;
+      updates.forEach(function(u) {
+        var idx = _chats.findIndex(function(c) { return c.jid === u.id; });
+        if (idx > -1) {
+          if (u.name) _chats[idx].name = u.name;
+          if (u.unreadCount !== undefined) _chats[idx].unreadCount = u.unreadCount;
+        }
+      });
+    });
+
+    _sock.ev.on('chats.delete', function(ids) {
+      if (!ids || !Array.isArray(ids)) return;
+      ids.forEach(function(id) {
+        _chats = _chats.filter(function(c) { return c.jid !== id; });
+      });
     });
 
     _sock.ev.on('messages.upsert', async function(m) {
@@ -88,37 +127,8 @@ async function start() {
 }
 
 async function loadChats() {
-  if (!_sock) return;
-  try {
-    var chats = [];
-    // Try sock.chats.all() (baileys v6)
-    if (_sock.chats && typeof _sock.chats.all === 'function') {
-      chats = _sock.chats.all() || [];
-    }
-    // Fallback: sock.chats as Map/Array
-    if (chats.length === 0 && _sock.chats) {
-      if (_sock.chats.values) chats = Array.from(_sock.chats.values());
-      else if (Array.isArray(_sock.chats)) chats = _sock.chats;
-    }
-    if (chats.length === 0) {
-      // Try fetching via store manually
-      try {
-        var store = require('@whiskeysockets/baileys').makeInMemoryStore({});
-        store.bind(_sock.ev);
-        setTimeout(function() { chats = store.chats.all() || []; }, 2000);
-      } catch(e) {}
-    }
-    _chats = (chats || []).map(function(c) {
-      var jid = c.id || c.jid || '';
-      var name = c.name || c.subject || jid.split('@')[0] || 'Unknown';
-      var lastMsg = '';
-      if (c.lastMessage) {
-        lastMsg = c.lastMessage.message?.conversation || c.lastMessage.message?.extendedTextMessage?.text || '';
-      }
-      return { jid: jid, name: name, unreadCount: c.unreadCount || c.unread || 0, lastMessage: lastMsg };
-    });
-    console.log('[WhatsApp] Cargados ' + _chats.length + ' chats');
-  } catch(e) { console.error('[WhatsApp] loadChats error:', e.message); }
+  // Chats arrive via events (chats.upsert), no manual fetch needed
+  console.log('[WhatsApp] Chats disponibles: ' + _chats.length);
 }
 
 function getQR(callback) {
@@ -147,14 +157,8 @@ async function getMessages(jid, limit) {
   limit = limit || 50;
   try {
     var msgs = [];
-    // Try loadMessages
     if (typeof _sock.loadMessages === 'function') {
       msgs = await _sock.loadMessages(jid, limit) || [];
-    }
-    // Fallback: try store messages
-    if (msgs.length === 0 && _sock.store && _sock.store.messages) {
-      msgs = _sock.store.messages.get(jid) || [];
-      msgs = msgs.slice(-limit);
     }
     return (msgs || []).map(function(m) {
       return {
