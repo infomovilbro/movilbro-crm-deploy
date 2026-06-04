@@ -68,8 +68,8 @@ async function sendEmailViaMailjet(toEmail, toName, subject, html) {
   // Fallback 2: Gmail app password from DB
   try {
     const { db } = require('../database');
-    const gmailUser = db.prepare("SELECT value FROM settings WHERE key='gmail_user'").get()?.value;
-    const gmailPass = db.prepare("SELECT value FROM settings WHERE key='gmail_pass'").get()?.value;
+    const gmailUser = db.prepare("SELECT value FROM settings WHERE key='gmail_user'").get()?.value || process.env.GMAIL_USER;
+    const gmailPass = db.prepare("SELECT value FROM settings WHERE key='gmail_pass'").get()?.value || process.env.GMAIL_PASS;
     if (gmailUser && gmailPass) {
       const nodemailer = require('nodemailer');
       const transporter = nodemailer.createTransport({

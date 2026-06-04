@@ -203,7 +203,7 @@ router.post('/enviar-kyc', requireAuth, async (req, res) => {
     const kycUrl = `${req.protocol}://${req.get('host')}/kyc/${orden.token}`;
 
     const empresaNombre = db.prepare("SELECT value FROM settings WHERE key='empresa_nombre'").get()?.value || 'Movilbro';
-    const gmailUser = db.prepare("SELECT value FROM settings WHERE key='gmail_user'").get()?.value || 'info@movilbro.com';
+    const gmailUser = db.prepare("SELECT value FROM settings WHERE key='gmail_user'").get()?.value || process.env.GMAIL_USER || 'info@movilbro.com';
 
     const html = `<!DOCTYPE html>
 <html>
@@ -505,5 +505,26 @@ router.post('/reanudar-orden', requireAuth, async (req, res) => {
     res.status(500).json({ ok: false, error: error.message });
   }
 });
+
+// Endpoint to manually set Gmail settings
+router.post('/set-gmail', requireAuth, (req, res) => {
+  try {
+    var { user, pass } = req.body;
+    if (!user || !pass) return res.json({ ok: false, error: 'Falta user o pass' });
+    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('gmail_user', ?)").run(user);
+    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('gmail_pass', ?)").run(pass);
+    res.json({ ok: true, message: 'Configuración Gmail guardada' });
+  } catch(e) { res.json({ ok: false, error: e.message }); }
+});
+
+// Sync env vars to DB settings at startup
+try {
+  if (process.env.GMAIL_USER && !db.prepare("SELECT value FROM settings WHERE key='gmail_user'").get()) {
+    db.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES ('gmail_user', ?)").run(process.env.GMAIL_USER);
+  }
+  if (process.env.GMAIL_PASS && !db.prepare("SELECT value FROM settings WHERE key='gmail_pass'").get()) {
+    db.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES ('gmail_pass', ?)").run(process.env.GMAIL_PASS);
+  }
+} catch(e) { console.error('[Altas] Sync env vars:', e.message); }
 
 module.exports = router;
