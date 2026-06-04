@@ -398,6 +398,13 @@ function setIMAPLastDate(dateStr) {
 
 var gmailUser = process.env.GMAIL_USER || 'infomovilbro@gmail.com';
 var gmailPass = process.env.GMAIL_PASS || '';
+// Fallback to DB settings if env vars not set
+try {
+  var emailService = require('../services/email');
+  var creds = emailService.getGmailCreds();
+  if (!gmailPass && creds.pass) gmailPass = creds.pass;
+  if (creds.user) gmailUser = creds.user;
+} catch(e) {}
 var ImapModule = null, simpleParserModule = null;
 try { ImapModule = require('imap'); simpleParserModule = require('mailparser').simpleParser; } catch(e) { console.error('[IMAP] Error cargando módulos:', e.message); }
 
@@ -617,18 +624,10 @@ router.post('/approve/:id', async (req, res) => {
     // Send Email
     if (row.source === 'email' || row.category === 'email') {
       try {
-        var nodemailer = require('nodemailer');
-        var transporter = nodemailer.createTransport({
-          service: 'gmail',
-          auth: { user: gmailUser, pass: gmailPass }
-        });
-        await transporter.sendMail({
-          from: gmailUser, to: row.from_address,
-          subject: 'Re: ' + (row.subject || ''),
-          text: row.proposed_response
-        });
-        sent = true;
-        console.log('[CodeOpen] Email enviado a', row.from_address);
+        var emailService = require('../services/email');
+        var sentOk = await emailService.sendEmail(row.from_address, row.from_name, 'Re: ' + (row.subject || ''), row.proposed_response);
+        if (sentOk) { sent = true; console.log('[CodeOpen] Email enviado a', row.from_address); }
+        else { console.log('[CodeOpen] No se pudo enviar email a', row.from_address); }
       } catch(emailErr) { console.error('[CodeOpen] Error Email:', emailErr.message); }
     }
 
@@ -741,6 +740,23 @@ router.post('/scan-inbox', (req, res) => {
     imap.once('error', function(err) { res.json({ ok: false, error: err.message }); });
     imap.connect();
   } catch(e) { res.json({ ok: false, error: e.message }); }
+});
+
+// Test email sending
+router.post('/test-email', async (req, res) => {
+  try {
+    var emailService = require('../services/email');
+    var to = req.body.to || 'infomovilbro@gmail.com';
+    var result = await emailService.sendEmail(to, 'Test', 'Prueba CRM Movilbro', '<h2>Email de prueba</h2><p>Si recibes esto, el email funciona correctamente.</p>');
+    res.json({ ok: result, message: result ? 'Email enviado a ' + to : 'Falló el envío' });
+  } catch(e) { res.json({ ok: false, error: e.message }); }
+});
+
+// Email connection test
+router.get('/email-status', async (req, res) => {
+  var emailService = require('../services/email');
+  var status = await emailService.testConnection();
+  res.json(status);
 });
 
 module.exports = router;

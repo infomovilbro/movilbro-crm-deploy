@@ -517,14 +517,6 @@ router.post('/set-gmail', requireAuth, (req, res) => {
   } catch(e) { res.json({ ok: false, error: e.message }); }
 });
 
-// Sync env vars to DB settings at startup
-try {
-  if (process.env.GMAIL_USER) {
-    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('gmail_user', ?)").run(process.env.GMAIL_USER);
-  }
-  if (process.env.GMAIL_PASS) {
-    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('gmail_pass', ?)").run(process.env.GMAIL_PASS);
-  }
-} catch(e) { console.error('[Altas] Sync env vars:', e.message); }
+// Sync env vars to DB settings at startup (handled by services/email.js)
 
 module.exports = router;

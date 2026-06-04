@@ -24,72 +24,8 @@ const solicitarLimiter = rateLimit({
 });
 
 async function sendEmailViaMailjet(toEmail, toName, subject, html) {
-  // Try Gmail first (most reliable)
-  try {
-    const { db } = require('../database');
-    const gmailUser = db.prepare("SELECT value FROM settings WHERE key='gmail_user'").get()?.value || process.env.GMAIL_USER;
-    const gmailPass = db.prepare("SELECT value FROM settings WHERE key='gmail_pass'").get()?.value || process.env.GMAIL_PASS;
-    if (gmailUser && gmailPass) {
-      const nodemailer = require('nodemailer');
-      const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: { user: gmailUser, pass: gmailPass }
-      });
-      await transporter.sendMail({
-        from: gmailUser, to: toEmail, subject: subject, html: html
-      });
-      console.log('[Email] Enviado correctamente a', toEmail, 'via Gmail');
-      return true;
-    }
-  } catch(e) { console.error('[Email] Gmail error:', e.message); }
-
-  // Fallback: Mailjet
-  const apiKey = process.env.MAILJET_API_KEY;
-  const secretKey = process.env.MAILJET_SECRET_KEY;
-  if (apiKey && secretKey) {
-    try {
-      await axios.post('https://api.mailjet.com/v3.1/send', {
-        Messages: [{
-          From: { Email: 'infomovilbro@gmail.com', Name: 'CRM Movilbro' },
-          To: [{ Email: toEmail, Name: toName }],
-          Subject: subject,
-          HTMLPart: html
-        }]
-      }, {
-        auth: { username: apiKey, password: secretKey },
-        timeout: 15000
-      });
-      console.log('[Email] Enviado correctamente a', toEmail, 'via Mailjet');
-      return true;
-    } catch (e) {
-      console.error('[Email] Mailjet error:', e.response?.data || e.message);
-    }
-  }
-
-  // Fallback 2: SMTP from DB
-  try {
-    const { db } = require('../database');
-    const smtpHost = db.prepare("SELECT value FROM settings WHERE key='smtp_host'").get()?.value;
-    const smtpUser = db.prepare("SELECT value FROM settings WHERE key='smtp_user'").get()?.value;
-    const smtpPass = db.prepare("SELECT value FROM settings WHERE key='smtp_pass'").get()?.value;
-    if (smtpHost && smtpUser && smtpPass) {
-      const nodemailer = require('nodemailer');
-      const transporter = nodemailer.createTransport({
-        host: smtpHost, port: parseInt(process.env.SMTP_PORT || '587'),
-        secure: false,
-        auth: { user: smtpUser, pass: smtpPass }
-      });
-      await transporter.sendMail({
-        from: process.env.SMTP_FROM || smtpUser,
-        to: toEmail, subject: subject, html: html
-      });
-      console.log('[Email] Enviado correctamente a', toEmail, 'via SMTP');
-      return true;
-    }
-  } catch(e) { console.error('[Email] SMTP error:', e.message); }
-
-  console.error('[Email] No se pudo enviar email a', toEmail, '- ningún método funcionó');
-  return false;
+  const emailService = require('../services/email');
+  return await emailService.sendEmail(toEmail, toName, subject, html);
 }
 
 function generarContrasena() {
