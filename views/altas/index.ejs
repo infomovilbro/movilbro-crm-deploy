@@ -870,16 +870,20 @@ function verContrato() {
   var token = document.getElementById('orderTokenHolder').value;
   var externoLink = document.getElementById('contratoAbrirExterno');
   if (token) {
-    frame.src = '/kyc/contrato/' + token;
-    externoLink.href = '/kyc/contrato/' + token;
+    var url = '/kyc/contrato/' + encodeURIComponent(token);
+    frame.src = url;
+    externoLink.href = url;
+    externoLink.style.display = 'inline-block';
   } else {
     frame.src = '';
-    frame.srcdoc = '<div style="text-align:center;padding:60px 20px;color:#6c757d;font-family:sans-serif;"><i class="bi bi-file-text" style="font-size:2.5rem;display:block;margin-bottom:16px;color:#0d6efd;"></i><h5>Contrato no disponible</h5><p style="color:#6c757d;">Complete la creación del cliente para visualizar el contrato.</p><small>El contrato se generará automáticamente tras el registro del cliente.</small></div>';
+    frame.srcdoc = '<div style="text-align:center;padding:60px 20px;color:#6c757d;font-family:sans-serif;"><i class="bi bi-file-text" style="font-size:2.5rem;display:block;margin-bottom:16px;color:#0d6efd;"></i><h5>Contrato no disponible</h5><p style="color:#6c757d;">Primero crea el cliente para generar el contrato.</p></div>';
     externoLink.href = '#';
     externoLink.style.display = 'none';
   }
-  var modal = new bootstrap.Modal(document.getElementById('contratoModal'));
-  modal.show();
+  try {
+    var modal = new bootstrap.Modal(document.getElementById('contratoModal'));
+    modal.show();
+  } catch(e) { alert('Error al abrir el modal: ' + e.message); }
 }
 
 // Create client via API
@@ -920,13 +924,18 @@ async function crearClienteAvanzado() {
     var result = await response.json();
 
     if (result.ok) {
-      document.getElementById('orderTokenHolder').value = result.orderToken || '';
+      var token = result.orderToken || '';
+      document.getElementById('orderTokenHolder').value = token;
+      var kycLink = window.location.origin + '/kyc/' + token;
       document.getElementById('submitStatus').innerHTML =
         '<div class="alert alert-success"><i class="bi bi-check-circle"></i> Cliente creado correctamente</div>' +
-        '<div class="mt-2 d-flex gap-2">' +
-        '<button class="btn btn-primary" onclick="enviarKYCToken(\'' + result.orderToken + '\',' + result.clientId + ')"><i class="bi bi-envelope"></i> Enviar email KYC ahora</button> ' +
-        '<button class="btn btn-outline-primary" onclick="verContrato()"><i class="bi bi-file-text"></i> Ver contrato</button> ' +
-        '<button class="btn btn-outline-secondary" onclick="location.href=\'/altas\'"><i class="bi bi-arrow-left"></i> Volver</button>' +
+        '<div class="mt-2 mb-2">' +
+        '<strong>Enlace KYC:</strong> <a href="' + kycLink + '" target="_blank" class="small">' + kycLink + '</a>' +
+        '</div>' +
+        '<div class="d-flex gap-2 flex-wrap">' +
+        '<button type="button" class="btn btn-primary" onclick="enviarKYCToken(\'' + token + '\',' + result.clientId + ')"><i class="bi bi-envelope"></i> Enviar email KYC ahora</button> ' +
+        '<button type="button" class="btn btn-outline-primary" onclick="verContrato()"><i class="bi bi-file-text"></i> Ver contrato</button> ' +
+        '<button type="button" class="btn btn-outline-secondary" onclick="location.href=\'/altas\'"><i class="bi bi-arrow-left"></i> Volver</button>' +
         '</div>';
       btn.style.display = 'none';
     } else {
@@ -949,19 +958,34 @@ async function enviarKYC(ordenId) {
       body: JSON.stringify({ orden_id: ordenId })
     });
     var res = await r.json();
-    if (res.ok) { alert('Email enviado: ' + res.message); location.reload(); }
-    else { alert('Error: ' + res.error); }
-  } catch(e) { alert('Error de conexión'); }
+    if (res.ok) {
+      if (res.kycUrl) {
+        alert(res.message + '\n\nEnlace KYC: ' + res.kycUrl);
+        if (res.email_no_enviado && confirm('¿Abrir el enlace KYC en una nueva pestaña para compartirlo manualmente?')) {
+          window.open(res.kycUrl, '_blank');
+        }
+      } else {
+        alert(res.message);
+      }
+      location.reload();
+    } else {
+      alert('Error: ' + res.error);
+    }
+  } catch(e) { alert('Error de conexión: ' + e.message); }
 }
 
 async function enviarKYCToken(token, clientId) {
   try {
-    var r = await fetch('/altas/orden/' + token);
+    if (!token) { alert('Error: Token de orden no disponible. Reintenta crear el cliente de nuevo.'); return; }
+    var r = await fetch('/altas/orden/' + encodeURIComponent(token));
+    if (!r.ok) { var errText = await r.text(); alert('Error al obtener orden: HTTP ' + r.status + (errText ? ' - ' + errText.substring(0,100) : '')); return; }
     var res = await r.json();
     if (res.ok && res.orden) {
       await enviarKYC(res.orden.id);
+    } else {
+      alert('Error: ' + (res.error || 'Orden no encontrada'));
     }
-  } catch(e) { alert('Error'); }
+  } catch(e) { alert('Error de conexión al enviar KYC: ' + e.message); }
 }
 
 async function completarOrden(ordenId) {
