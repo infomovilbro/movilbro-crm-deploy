@@ -1,5 +1,15 @@
 # Lecciones Aprendidas
 
+## Reglas de Oro (Siempre)
+- **🇪🇸 Responder en español siempre** — Nada de inglés.
+- **📊 Mostrar barra de progreso** — Cada paso con `[1/N]`, no trabajar en silencio.
+- **🤫 No preguntar, actuar** — Push, deploy, decisiones: hacer sin consultar. Deploy solo al final de una sesión completa, no cada micro-cambio.
+- **🧪 Probar en servidor (Render)** — Nada de local. El admin prueba directo en producción.
+- **🪟 Sin ventanas nuevas** — Todo en la misma página, nada de `target="_blank"` ni `window.open`.
+- **📦 Menos es más** — No meter librerías pesadas para cosas simples. Soluciones simples y cómodas.
+- **🔄 No releer** — Cuando un proceso termina, no se relee a menos que el admin lo pida.
+- **💬 Mismo hilo** — No reiniciar contexto entre pasos de una misma sesión.
+
 ## Menos es Más — No Sobredimensionar
 - **NO** instalar librerías pesadas (baileys, puppeteer, playwright) para funciones simples.
 - Antes de añadir una dependencia, pensar: ¿se puede hacer más simple? ¿con menos?
