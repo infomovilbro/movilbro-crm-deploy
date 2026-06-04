@@ -414,20 +414,29 @@ function checkMail() {
       imap.openBox('INBOX', true, function(err, box) {
         if (err) { console.error('[IMAP] Error abriendo inbox:', err.message); imap.end(); return; }
 
-        var searchCriteria = ['UNSEEN'];
-        var lastDate = getIMAPLastDate();
-        if (lastDate) {
-          searchCriteria.push(['SINCE', lastDate]);
-          console.log('[IMAP] Buscando desde', lastDate);
-        }
+          var lastDate = getIMAPLastDate();
+          var searchSince = lastDate;
+          // If no last date, search last 3 days
+          if (!searchSince) {
+            var d = new Date(); d.setDate(d.getDate() - 3);
+            searchSince = d.toISOString().split('T')[0];
+          }
 
-        imap.search(searchCriteria, function(err, results) {
-          if (err) { console.error('[IMAP] Error search:', err.message); imap.end(); return; }
-          if (!results || results.length === 0) { imap.end(); return; }
+          // Step 1: search ALL unseen + seen (to catch emails marked read before polling)
+          var searchCriteria = ['ALL', ['SINCE', searchSince]];
+          console.log('[IMAP] Buscando desde', searchSince);
 
-          // Filter out already-processed UIDs
-          var newResults = results.filter(function(uid) { return !processedUIDs[uid]; });
-          if (newResults.length === 0) { imap.end(); return; }
+          imap.search(searchCriteria, function(err, results) {
+            if (err) { console.error('[IMAP] Error search:', err.message); imap.end(); return; }
+            if (!results || results.length === 0) {
+              console.log('[IMAP] Sin resultados desde', searchSince);
+              imap.end(); return;
+            }
+
+            // Filter out already-processed UIDs
+            var newResults = results.filter(function(uid) { return !processedUIDs[uid]; });
+            if (newResults.length === 0) { console.log('[IMAP] Todos ya procesados (' + results.length + ' UIDs)'); imap.end(); return; }
+            console.log('[IMAP]', newResults.length, 'nuevos de', results.length, 'totales');
 
           // Rate limit: process max 1 email per poll
           var toFetch = newResults.slice(0, 1);
@@ -457,11 +466,17 @@ function checkMail() {
                   'IMPORTANTE: Un cliente PUEDE escribir desde gmail, hotmail, o cualquier dominio. No asumas que es SPAM por el dominio.\n\n' +
                   'Correo:\nDe: ' + fromAddr + '\nAsunto: ' + subject + '\n\n' + body;
 
+                if (emailExists(fromAddr, subject)) {
+                  console.log('[IMAP] Duplicado, saltando:', fromAddr, '-', subject);
+                  return;
+                }
+
                 callLLM(classifyPrompt, '', 0.3).then(function(classification) {
                   var isClient = classification && classification.toUpperCase().includes('CLIENTE');
                   console.log('[IMAP]', fromAddr, '-', subject, '→', isClient ? 'CLIENTE' : 'SPAM');
 
                   if (!isClient) {
+                    console.log('[IMAP] Marcado como SPAM, descartado:', fromAddr, '-', subject);
                     return;
                   }
 
@@ -472,16 +487,21 @@ function checkMail() {
                     var synthesisInput = catDef.agents.slice(0, 4).map(function(a, i) { return '## ' + a.name + ':\n' + (results[i] || ''); }).join('\n\n') + '\n\nSintetiza todo en un correo de respuesta final listo para enviar.';
                     return callLLM(catDef.agents[4].prompt, synthesisInput, 0.8);
                   }).then(function(finalResp) {
-                    db.prepare("INSERT INTO pending_messages (source, from_name, from_address, subject, body, proposed_response, status, category) VALUES (?,?,?,?,?,?, 'pending', 'email')").run('email', from, from, subject, fullText, finalResp || 'Error: sin respuesta');
-                    console.log('[IMAP] Cliente procesado:', from);
+                    if (!emailExists(fromAddr, subject)) {
+                      db.prepare("INSERT INTO pending_messages (source, from_name, from_address, subject, body, proposed_response, status, category) VALUES (?,?,?,?,?,?, 'pending', 'email')").run('email', from, from, subject, fullText, finalResp || 'Error: sin respuesta');
+                      console.log('[IMAP] Cliente procesado:', from);
+                    }
                   }).catch(function(e) {
                     console.error('[IMAP] Error LLM:', e.message);
-                    db.prepare("INSERT INTO pending_messages (source, from_name, from_address, subject, body, proposed_response, status, category) VALUES (?,?,?,?,?,?, 'pending', 'email')").run('email', from, from, subject, fullText, 'Error: ' + e.message);
+                    if (!emailExists(fromAddr, subject)) {
+                      db.prepare("INSERT INTO pending_messages (source, from_name, from_address, subject, body, proposed_response, status, category) VALUES (?,?,?,?,?,?, 'pending', 'email')").run('email', from, from, subject, fullText, 'Error: ' + e.message);
+                    }
                   });
                 }).catch(function(e) {
-                  // Si falla la clasificación (ej. 429), guardamos igual como pendiente
                   console.error('[IMAP] Error clasificación IA:', e.message, '- guardando como pendiente');
-                  db.prepare("INSERT INTO pending_messages (source, from_name, from_address, subject, body, proposed_response, status, category) VALUES (?,?,?,?,?,?, 'pending', 'email')").run('email', from, from, subject, fullText, 'Error en clasificación IA: ' + e.message + ' - Revisar manualmente');
+                  if (!emailExists(fromAddr, subject)) {
+                    db.prepare("INSERT INTO pending_messages (source, from_name, from_address, subject, body, proposed_response, status, category) VALUES (?,?,?,?,?,?, 'pending', 'email')").run('email', from, from, subject, fullText, 'Error en clasificación IA: ' + e.message + ' - Revisar manualmente');
+                  }
                 });
                 // Update last processed date
                 var dateStr = date.toISOString().split('T')[0];
@@ -577,17 +597,69 @@ router.post('/pending/approve-all', (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+function emailExists(fromAddress, subject) {
+  try {
+    var existing = db.prepare("SELECT id FROM pending_messages WHERE from_address=? AND subject=? LIMIT 1").get(fromAddress, subject);
+    return !!existing;
+  } catch(e) { return false; }
+}
+
 // Diagnostic: test IMAP polling status
 router.get('/imap-status', (req, res) => {
   var lastDate = getIMAPLastDate();
-  var lastLog = db.prepare("SELECT value FROM settings WHERE key='imap_last_log'").get();
   res.json({
     pollingActive: imapRunning,
     lastDate: lastDate || 'none',
     processedUIDs: Object.keys(processedUIDs).length,
-    lastLog: lastLog ? lastLog.value : 'none',
-    pendingCount: (db.prepare("SELECT COUNT(*) as c FROM pending_messages WHERE status='pending'").get() || {}).c || 0
+    pendingCount: (db.prepare("SELECT COUNT(*) as c FROM pending_messages WHERE status='pending'").get() || {}).c || 0,
+    allPending: db.prepare("SELECT id, from_address, subject, status, created_at FROM pending_messages ORDER BY created_at DESC LIMIT 20").all()
   });
+});
+
+// Manual scan: check for specific email or list recent inbox
+router.post('/scan-inbox', (req, res) => {
+  if (!ImapModule || !simpleParserModule) return res.json({ ok: false, error: 'IMAP modules not loaded' });
+  var Imap = ImapModule;
+  var simpleParser = simpleParserModule;
+  var results_list = [];
+  try {
+    var imap = new Imap({ user: gmailUser, password: gmailPass, host: 'imap.gmail.com', port: 993, tls: true, tlsOptions: { rejectUnauthorized: false } });
+    imap.once('ready', function() {
+      imap.openBox('INBOX', false, function(err, box) {
+        if (err) { imap.end(); return res.json({ ok: false, error: err.message }); }
+        imap.search(['ALL', ['SINCE', '03-Jun-2026']], function(err, results) {
+          if (err) { imap.end(); return res.json({ ok: false, error: err.message }); }
+          if (!results || results.length === 0) { imap.end(); return res.json({ ok: true, found: 0, emails: [] }); }
+          // Fetch last 5
+          var uids = results.slice(-5);
+          var fetch = imap.fetch(uids, { bodies: '', markSeen: false });
+          var emails = [];
+          fetch.on('message', function(msg, seqno) {
+            var chunks = [];
+            msg.on('body', function(stream) { stream.on('data', function(chunk) { chunks.push(chunk.toString()); }); });
+            msg.on('end', function() {
+              var raw = chunks.join('');
+              simpleParser(raw).then(function(parsed) {
+                emails.push({
+                  from: parsed.from ? parsed.from.text : '?',
+                  fromAddr: parsed.from ? parsed.from.value[0].address : '?',
+                  subject: parsed.subject || '(sin asunto)',
+                  date: parsed.date || '?',
+                  inDB: emailExists(parsed.from ? parsed.from.value[0].address : '', parsed.subject || '')
+                });
+              }).catch(function() {});
+            });
+          });
+          fetch.on('end', function() {
+            imap.end();
+            setTimeout(function() { res.json({ ok: true, found: uids.length, emails: emails }); }, 1000);
+          });
+        });
+      });
+    });
+    imap.once('error', function(err) { res.json({ ok: false, error: err.message }); });
+    imap.connect();
+  } catch(e) { res.json({ ok: false, error: e.message }); }
 });
 
 module.exports = router;
