@@ -453,11 +453,9 @@ function startIMAPPolling() {
                     console.log('[IMAP]', fromAddr, '-', subject, '→', isClient ? 'CLIENTE' : 'SPAM');
 
                     if (!isClient) {
-                      // No guardar, solo log
                       return;
                     }
 
-                    // Es un cliente real → procesar con agentes y guardar
                     var crmCtx = getCRMContext();
                     var ctx = 'Contexto CRM: ' + JSON.stringify(crmCtx) + '\n\nCorreo recibido:\n' + fullText;
                     var catDef = AGENT_CATEGORIES.email;
@@ -472,7 +470,9 @@ function startIMAPPolling() {
                       db.prepare("INSERT INTO pending_messages (source, from_name, from_address, subject, body, proposed_response, status, category) VALUES (?,?,?,?,?,?, 'pending', 'email')").run('email', from, from, subject, fullText, 'Error: ' + e.message);
                     });
                   }).catch(function(e) {
-                    console.error('[IMAP] Error clasificación:', e.message);
+                    // Si falla la clasificación (ej. 429), guardamos igual como pendiente
+                    console.error('[IMAP] Error clasificación IA:', e.message, '- guardando como pendiente');
+                    db.prepare("INSERT INTO pending_messages (source, from_name, from_address, subject, body, proposed_response, status, category) VALUES (?,?,?,?,?,?, 'pending', 'email')").run('email', from, from, subject, fullText, 'Error en clasificación IA: ' + e.message + ' - Revisar manualmente');
                   });
                   // Update last processed date
                   var dateStr = date.toISOString().split('T')[0];

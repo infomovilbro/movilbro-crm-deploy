@@ -8,15 +8,18 @@
       <div class="card mb-3">
         <div class="card-header d-flex justify-content-between align-items-center">
           <span><i class="ri-qr-code-line"></i> Vincular nueva línea</span>
-          <button class="btn btn-sm btn-outline-success" onclick="recargarQR()"><i class="ri-refresh-line"></i> Recargar QR</button>
+          <button class="btn btn-sm btn-outline-success" onclick="abrirWhatsAppWeb()"><i class="ri-smartphone-line"></i> Abrir WhatsApp Web</button>
         </div>
-        <div class="card-body p-2 text-center" style="height:220px;display:flex;align-items:center;justify-content:center;">
-          <div id="qrContainer" style="width:200px;height:200px;position:relative;overflow:hidden;border-radius:12px;">
-            <iframe src="/proxy/web.whatsapp.com" style="width:400px;height:400px;border:none;transform:scale(0.5);transform-origin:0 0;position:absolute;top:0;left:0;" allow="camera;microphone"></iframe>
+        <div class="card-body p-2 text-center" style="min-height:160px;display:flex;align-items:center;justify-content:center;flex-direction:column;">
+          <div class="text-center">
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=https://web.whatsapp.com" alt="WhatsApp QR" style="border-radius:8px;border:1px solid #dee2e6;" id="qrCodeImg">
+            <div class="mt-2">
+              <button class="btn btn-success btn-sm" onclick="window.open('/proxy/web.whatsapp.com','_blank')"><i class="ri-external-link-line"></i> Abrir WhatsApp Web</button>
+            </div>
           </div>
         </div>
         <div class="card-footer py-1 text-center">
-          <small class="text-muted">Abre WhatsApp en tu móvil → Ajustes → Dispositivos vinculados → Vincular un dispositivo. Escanea el código QR.</small>
+          <small class="text-muted">Abre WhatsApp en tu móvil → Ajustes → Dispositivos vinculados → Vincular un dispositivo. Escanea el código QR de arriba o abre WhatsApp Web.</small>
         </div>
       </div>
       <div class="card">
@@ -104,10 +107,8 @@ function openWAChat() {
   }
 }
 
-function recargarQR() {
-  var qrContainer = document.getElementById('qrContainer');
-  var iframe = qrContainer.querySelector('iframe');
-  if (iframe) iframe.src = '/proxy/web.whatsapp.com?t=' + Date.now();
+function abrirWhatsAppWeb() {
+  window.open('/proxy/web.whatsapp.com', '_blank');
 }
 
 // Auto-load if phone param present
