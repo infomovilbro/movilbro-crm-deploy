@@ -78,7 +78,7 @@ router.get('/:token', async (req, res) => {
     } else if (orden.kyc_contrato_firmado) {
       paso = 3;
       pasoTexto = 'Contrato firmado';
-    } else if (orden.kyc_docs_subidos >= 4) {
+    } else if (orden.kyc_docs_subidos >= 3) {
       paso = 2;
       pasoTexto = 'Firma del contrato';
     } else if (orden.kyc_docs_subidos >= 1) {

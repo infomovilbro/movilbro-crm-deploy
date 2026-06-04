@@ -143,17 +143,14 @@ canvas.signature-pad { width: 100%; height: 180px; border: 2px solid #dee2e6; bo
       <p class="text-muted small mb-3">Necesitamos tu DNI/NIE para cumplir con la normativa de verificación de identidad (KYC). Tus datos están seguros.</p>
 
       <div class="row g-2">
-        <!-- PHOTO 1: Rostro + DNI anverso (front camera) -->
+        <!-- PHOTO 1: DNI ANVERSO (rear camera) -->
         <div class="col-md-6" id="photo1Section">
-          <label class="form-label fw-semibold small">1. Rostro + DNI anverso</label>
+          <label class="form-label fw-semibold small">1. DNI anverso</label>
           <div id="photo1Camera" class="camera-box camera-box-grid mb-1">
             <video id="p1Video" autoplay playsinline muted style="display:none;"></video>
             <div class="placeholder" id="p1Placeholder">
               <i class="bi bi-camera"></i>
               <p class="mt-1">Activar cámara</p>
-            </div>
-            <div class="camera-overlay" id="p1Overlay">
-              <canvas id="p1GuideCanvas"></canvas>
             </div>
           </div>
           <div id="p1Preview" style="display:none;text-align:center;margin-bottom:4px;position:relative;">
@@ -164,23 +161,20 @@ canvas.signature-pad { width: 100%; height: 180px; border: 2px solid #dee2e6; bo
           <div class="capture-actions">
             <button class="btn btn-outline-primary btn-sm" onclick="startCamera(1)" id="p1StartBtn"><i class="bi bi-camera"></i> Activar</button>
             <button class="btn btn-primary btn-sm" onclick="capturePhoto(1)" id="p1CaptureBtn" style="display:none;"><i class="bi bi-camera-fill"></i> Hacer foto</button>
-            <button class="btn btn-success btn-sm" onclick="uploadDoc('obverseFace')" id="p1UploadBtn" style="display:none;"><i class="bi bi-check-lg"></i> Usar</button>
+            <button class="btn btn-success btn-sm" onclick="uploadDoc('obverseOnly',1)" id="p1UploadBtn" style="display:none;"><i class="bi bi-check-lg"></i> Usar</button>
             <button class="btn btn-outline-secondary btn-sm" onclick="retryPhoto(1)" id="p1RetryBtn" style="display:none;"><i class="bi bi-arrow-counterclockwise"></i> Repetir</button>
           </div>
           <div id="p1Status" class="mt-1"></div>
         </div>
 
-        <!-- PHOTO 2: Rostro + DNI reverso (front camera) -->
+        <!-- PHOTO 2: DNI REVERSO (rear camera) -->
         <div class="col-md-6" id="photo2Section">
-          <label class="form-label fw-semibold small">2. Rostro + DNI reverso</label>
+          <label class="form-label fw-semibold small">2. DNI reverso</label>
           <div id="photo2Camera" class="camera-box camera-box-grid mb-1">
             <video id="p2Video" autoplay playsinline muted style="display:none;"></video>
             <div class="placeholder" id="p2Placeholder">
               <i class="bi bi-camera"></i>
               <p class="mt-1">Activar cámara</p>
-            </div>
-            <div class="camera-overlay" id="p2Overlay">
-              <canvas id="p2GuideCanvas"></canvas>
             </div>
           </div>
           <div id="p2Preview" style="display:none;text-align:center;margin-bottom:4px;position:relative;">
@@ -191,23 +185,20 @@ canvas.signature-pad { width: 100%; height: 180px; border: 2px solid #dee2e6; bo
           <div class="capture-actions">
             <button class="btn btn-outline-primary btn-sm" onclick="startCamera(2)" id="p2StartBtn"><i class="bi bi-camera"></i> Activar</button>
             <button class="btn btn-primary btn-sm" onclick="capturePhoto(2)" id="p2CaptureBtn" style="display:none;"><i class="bi bi-camera-fill"></i> Hacer foto</button>
-            <button class="btn btn-success btn-sm" onclick="uploadDoc('reverseFace')" id="p2UploadBtn" style="display:none;"><i class="bi bi-check-lg"></i> Usar</button>
+            <button class="btn btn-success btn-sm" onclick="uploadDoc('reverseOnly',2)" id="p2UploadBtn" style="display:none;"><i class="bi bi-check-lg"></i> Usar</button>
             <button class="btn btn-outline-secondary btn-sm" onclick="retryPhoto(2)" id="p2RetryBtn" style="display:none;"><i class="bi bi-arrow-counterclockwise"></i> Repetir</button>
           </div>
           <div id="p2Status" class="mt-1"></div>
         </div>
 
-        <!-- PHOTO 3: Solo DNI anverso (rear camera) -->
+        <!-- PHOTO 3: ROSTRO COGIENDO DNI (front camera) -->
         <div class="col-md-6" id="photo3Section">
-          <label class="form-label fw-semibold small">3. Solo DNI anverso</label>
+          <label class="form-label fw-semibold small">3. Rostro cogiendo DNI</label>
           <div id="photo3Camera" class="camera-box camera-box-grid mb-1">
             <video id="p3Video" autoplay playsinline muted style="display:none;"></video>
             <div class="placeholder" id="p3Placeholder">
               <i class="bi bi-camera"></i>
               <p class="mt-1">Activar cámara</p>
-            </div>
-            <div class="camera-overlay" id="p3Overlay">
-              <canvas id="p3GuideCanvas"></canvas>
             </div>
           </div>
           <div id="p3Preview" style="display:none;text-align:center;margin-bottom:4px;position:relative;">
@@ -218,41 +209,14 @@ canvas.signature-pad { width: 100%; height: 180px; border: 2px solid #dee2e6; bo
           <div class="capture-actions">
             <button class="btn btn-outline-primary btn-sm" onclick="startCamera(3)" id="p3StartBtn"><i class="bi bi-camera"></i> Activar</button>
             <button class="btn btn-primary btn-sm" onclick="capturePhoto(3)" id="p3CaptureBtn" style="display:none;"><i class="bi bi-camera-fill"></i> Hacer foto</button>
-            <button class="btn btn-success btn-sm" onclick="uploadDoc('obverseOnly')" id="p3UploadBtn" style="display:none;"><i class="bi bi-check-lg"></i> Usar</button>
+            <button class="btn btn-success btn-sm" onclick="uploadDoc('obverseFace',3)" id="p3UploadBtn" style="display:none;"><i class="bi bi-check-lg"></i> Usar</button>
             <button class="btn btn-outline-secondary btn-sm" onclick="retryPhoto(3)" id="p3RetryBtn" style="display:none;"><i class="bi bi-arrow-counterclockwise"></i> Repetir</button>
           </div>
           <div id="p3Status" class="mt-1"></div>
         </div>
-
-        <!-- PHOTO 4: Solo DNI reverso (rear camera) -->
-        <div class="col-md-6" id="photo4Section">
-          <label class="form-label fw-semibold small">4. Solo DNI reverso</label>
-          <div id="photo4Camera" class="camera-box camera-box-grid mb-1">
-            <video id="p4Video" autoplay playsinline muted style="display:none;"></video>
-            <div class="placeholder" id="p4Placeholder">
-              <i class="bi bi-camera"></i>
-              <p class="mt-1">Activar cámara</p>
-            </div>
-            <div class="camera-overlay" id="p4Overlay">
-              <canvas id="p4GuideCanvas"></canvas>
-            </div>
-          </div>
-          <div id="p4Preview" style="display:none;text-align:center;margin-bottom:4px;position:relative;">
-            <img id="p4PreviewImg" class="preview-img" style="max-height:160px;">
-            <div id="p4Quality" class="quality-badge" style="display:none;"></div>
-            <div id="p4QualityError" class="quality-error"></div>
-          </div>
-          <div class="capture-actions">
-            <button class="btn btn-outline-primary btn-sm" onclick="startCamera(4)" id="p4StartBtn"><i class="bi bi-camera"></i> Activar</button>
-            <button class="btn btn-primary btn-sm" onclick="capturePhoto(4)" id="p4CaptureBtn" style="display:none;"><i class="bi bi-camera-fill"></i> Hacer foto</button>
-            <button class="btn btn-success btn-sm" onclick="uploadDoc('reverseOnly')" id="p4UploadBtn" style="display:none;"><i class="bi bi-check-lg"></i> Usar</button>
-            <button class="btn btn-outline-secondary btn-sm" onclick="retryPhoto(4)" id="p4RetryBtn" style="display:none;"><i class="bi bi-arrow-counterclockwise"></i> Repetir</button>
-          </div>
-          <div id="p4Status" class="mt-1"></div>
-        </div>
       </div>
 
-      <!-- Manual upload below all 4 photos -->
+      <!-- Manual upload below photos -->
       <div class="mt-4 pt-3 border-top">
         <h6 class="mb-2"><i class="bi bi-upload"></i> Subir DNI manualmente</h6>
         <p class="text-muted small mb-2">Si no puedes usar la cámara, selecciona las fotos del DNI directamente desde tu dispositivo.</p>
@@ -310,10 +274,10 @@ canvas.signature-pad { width: 100%; height: 180px; border: 2px solid #dee2e6; bo
 
 <script>
 const TOKEN = '<%= token %>';
-const TOTAL_PHOTOS = 4;
-let streams = [null, null, null, null, null];
-let captured = [null, null, null, null, null];
-let uploaded = [false, false, false, false, false];
+const TOTAL_PHOTOS = 3;
+let streams = [null, null, null, null];
+let captured = [null, null, null, null];
+let uploaded = [false, false, false, false];
 let manualFiles = [];
 
 function drawGuideOverlay(canvasId) {
@@ -339,7 +303,7 @@ window.addEventListener('resize', function() {
 });
 
 async function startCamera(idx) {
-  const facingMode = (idx <= 2) ? 'user' : 'environment';
+  const facingMode = (idx === 3) ? 'user' : 'environment';
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
@@ -546,10 +510,7 @@ function dataURLtoBlob(dataUrl) {
   return new Blob([ab], { type: mime });
 }
 
-const TIPO_MAP = { 'obverseFace': 1, 'reverseFace': 2, 'obverseOnly': 3, 'reverseOnly': 4 };
-
-async function uploadDoc(tipo) {
-  const idx = TIPO_MAP[tipo];
+async function uploadDoc(tipo, idx) {
   if (!idx) return;
   const dataUrl = captured[idx];
   if (!dataUrl) return;
@@ -567,7 +528,7 @@ async function uploadDoc(tipo) {
       uploaded[idx] = true;
       document.getElementById('p' + idx + 'UploadBtn').style.display = 'none';
       document.getElementById('p' + idx + 'RetryBtn').style.display = 'none';
-      if (uploaded[1] && uploaded[2] && uploaded[3] && uploaded[4]) {
+      if (uploaded[1] && uploaded[2] && uploaded[3]) {
         setTimeout(function() { goToStep2(); }, 800);
       }
     } else {
