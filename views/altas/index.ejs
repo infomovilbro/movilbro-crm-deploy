@@ -147,7 +147,7 @@
               <div class="row g-3 mb-3">
                 <div class="col-md-6">
                   <label class="form-label">Tipo de contratación</label>
-                  <select id="wTipoContratacion" class="form-select" onchange="toggleTipoContratacion()">
+                  <select id="wTipoContratacion" class="form-select">
                     <option value="NUEVA_ALTA">Nueva Alta (nuevo número)</option>
                     <option value="PORTABILIDAD">Portabilidad (mantener mi número)</option>
                     <option value="CAMBIO_PRODUCTO">Cambio de Producto</option>
@@ -216,54 +216,11 @@
             </form>
           </div>
 
-          <!-- STEP 3: PORTABILIDAD / CONFIGURACIÓN ADICIONAL -->
+          <!-- STEP 3: CONFIGURACIÓN DE LÍNEAS -->
           <div id="wizardStep3" style="display:none;">
-            <h5 class="mb-3"><i class="bi bi-gear"></i> Configuración adicional</h5>
+            <h5 class="mb-3"><i class="bi bi-gear"></i> Configuración de líneas</h5>
             <form id="formStep3">
-              <div id="portabilidadConfig" style="display:none;">
-                <div class="row g-3">
-                  <div class="col-md-6">
-                    <label class="form-label">Número a portar *</label>
-                    <input type="text" id="wLineaPortar" class="form-control" placeholder="612345678" oninput="validarPaso3()">
-                  </div>
-                  <div class="col-md-6">
-                    <label class="form-label">Operador actual (donante) *</label>
-                    <select id="wDonante" class="form-select" onchange="validarPaso3()">
-                      <option value="">Seleccionar operador...</option>
-                      <% if (donantes && donantes.length > 0) { %>
-                        <% donantes.forEach(function(d) { %>
-                        <option value="<%= d.Code || d.code || d.id %>"><%= d.Name || d.name || d.Code || d.code %></option>
-                        <% }); %>
-                      <% } else { %>
-                        <option value="1">Orange</option>
-                        <option value="2">Movistar</option>
-                        <option value="3">Vodafone</option>
-                        <option value="4">Yoigo</option>
-                        <option value="5">MásMóvil</option>
-                        <option value="6">Pepephone</option>
-                        <option value="7">Lowi</option>
-                        <option value="8">Digi</option>
-                      <% } %>
-                    </select>
-                  </div>
-                </div>
-              </div>
-              <div id="nuevaAltaConfig">
-                <div class="row g-3">
-                  <div class="col-md-6">
-                    <label class="form-label">Tipo de SIM</label>
-                    <select id="wSimType" class="form-select">
-                      <option value="fisica">SIM física</option>
-                      <option value="esim">eSIM</option>
-                    </select>
-                  </div>
-                  <div class="col-md-6" id="wIccGroup" style="display:none;">
-                    <label class="form-label">ICC (código de la SIM)</label>
-                    <input type="text" id="wIcc" class="form-control" placeholder="8934... (opcional)">
-                    <small class="text-muted">Si no se indica, quedará pendiente de envío</small>
-                  </div>
-                </div>
-              </div>
+              <div id="lineasConfig" class="mb-3"></div>
               <div class="mt-4 d-flex justify-content-between">
                 <button type="button" class="btn btn-outline-secondary btn-lg btn-wizard-prev" onclick="goWizardStep2()"><i class="bi bi-arrow-left"></i> Volver</button>
                 <button type="button" class="btn btn-primary btn-lg btn-wizard-next" id="btnStep3Next" onclick="goWizardStep4()"><i class="bi bi-arrow-right"></i> Siguiente: Resumen</button>
@@ -590,15 +547,68 @@ function validarPaso2() {
 }
 
 function validarPaso3() {
-  var tipo = document.getElementById('wTipoContratacion').value;
-  var btn = document.getElementById('btnStep3Next');
-  if (tipo === 'PORTABILIDAD') {
-    var linea = document.getElementById('wLineaPortar').value.trim();
-    var donante = document.getElementById('wDonante').value;
-    btn.disabled = !(linea && donante);
-  } else {
-    btn.disabled = false;
-  }
+  var allValid = true;
+  document.querySelectorAll('.linea-tipo').forEach(function(sel) {
+    var idx = sel.dataset.linea;
+    if (sel.value === 'PORTABILIDAD') {
+      var num = document.querySelector('.linea-porta-num[data-linea="' + idx + '"]');
+      var don = document.querySelector('.linea-donante[data-linea="' + idx + '"]');
+      if (!num || !num.value.trim() || !don || !don.value) allValid = false;
+    }
+  });
+  document.getElementById('btnStep3Next').disabled = !allValid;
+}
+
+function goWizardStep4() {
+  var nombre = document.getElementById('wNombre').value.trim();
+  var apellidos = document.getElementById('wApellidos').value.trim();
+  var dni = document.getElementById('wDni').value.trim();
+  var telefono = document.getElementById('wTelefono').value.trim();
+  var email = document.getElementById('wEmail').value.trim();
+  var direccion = document.getElementById('wDireccion').value.trim();
+  var ciudad = document.getElementById('wCiudad').value.trim();
+  var cp = document.getElementById('wCp').value.trim();
+  var customerType = document.getElementById('wCustomerType').value;
+  var metodoPagoEl = document.querySelector('input[name="wMetodoPago"]:checked');
+  var metodoPago = metodoPagoEl ? metodoPagoEl.value : '';
+  var iban = document.getElementById('wIban').value.trim();
+
+  // Collect line data from dynamic forms
+  lineasData = [];
+  document.querySelectorAll('.linea-tipo').forEach(function(sel) {
+    var idx = sel.dataset.linea;
+    var tipo = sel.value;
+    var numPorta = tipo === 'PORTABILIDAD' ? (document.querySelector('.linea-porta-num[data-linea="' + idx + '"]')?.value || '') : '';
+    var donante = tipo === 'PORTABILIDAD' ? (document.querySelector('.linea-donante[data-linea="' + idx + '"]')?.value || '') : '';
+    var sim = document.querySelector('.linea-sim[data-linea="' + idx + '"]')?.value || 'fisica';
+    var icc = document.querySelector('.linea-icc[data-linea="' + idx + '"]')?.value || '';
+    lineasData.push({ tipo: tipo, numero: numPorta, donante: donante, sim: sim, icc: icc });
+  });
+
+  document.getElementById('resumenCliente').innerHTML =
+    '<p><strong>' + nombre + ' ' + apellidos + '</strong><br>' +
+    'DNI: ' + dni + '<br>' +
+    'Tel: ' + telefono + '<br>' +
+    (email ? 'Email: ' + email + '<br>' : '') +
+    (direccion ? direccion + ', ' + ciudad + ' ' + cp + '<br>' : '') +
+    'Tipo: ' + customerType + '</p>' +
+    '<p><strong>Método de pago:</strong> ' + (metodoPago ? ({
+      'IBAN': 'IBAN (Domiciliación)',
+      'TARJETA': 'Tarjeta',
+      'NINGUNO': 'Ninguno (Pagaré después)'
+    })[metodoPago] || metodoPago : 'No seleccionado') + (metodoPago === 'IBAN' && iban ? '<br>IBAN: ' + iban : '') + '</p>';
+
+  var prodText = cart.map(function(c) { return c.name + ' (' + c.price.toFixed(2) + '€)'; }).join(', ');
+  var lineasResumen = lineasData.map(function(l, i) {
+    return '<br><small>Línea ' + (i+1) + ': ' + (l.tipo === 'PORTABILIDAD' ? 'Portar ' + l.numero : 'Nueva línea') + (l.icc ? ' · ICC: ' + l.icc : '') + '</small>';
+  }).join('');
+  document.getElementById('resumenProducto').innerHTML =
+    '<p><strong>Productos:</strong> ' + prodText + '<br>' +
+    '<strong>Total:</strong> ' + cart.reduce(function(s, c) { return s + c.price; }, 0).toFixed(2) + '€' +
+    (lineasData.length > 0 ? lineasResumen : '') +
+    '</p>';
+
+  document.getElementById('checkPortaRow').style.display = 'none';
 }
 
 function goWizardStep1() {
@@ -615,6 +625,8 @@ function goWizardStep1() {
 var cart = [];
 var allProducts = <%- JSON.stringify(products || []) %>;
 var allFamilias = <%- JSON.stringify(familias || []) %>;
+var donantesList = <%- JSON.stringify(donantes || []) %>;
+var lineasData = [];
 
 function goWizardStep2() {
   var nombre = document.getElementById('wNombre').value.trim();
@@ -720,61 +732,77 @@ function clearCart() {
 function goWizardStep3() {
   if (cart.length === 0) { alert('Añade al menos un producto al carrito'); return; }
 
+  // Generate line forms for each product in cart
+  var container = document.getElementById('lineasConfig');
+  var html = '';
+
+  cart.forEach(function(prod, idx) {
+    var numLineas = 1;
+    // Parse product name for bundled lines (e.g., "2x30GB" → 2 lines)
+    var match = prod.name.match(/(\d+)x\d+/i);
+    if (match) numLineas = parseInt(match[1]);
+
+    var isFiber = allProducts.some(function(p) { return (p.id === prod.id || p.productId === prod.id) && p.family === 'Fiber'; });
+    if (isFiber) numLineas = Math.max(numLineas, 1);
+
+    for (var l = 0; l < numLineas; l++) {
+      var lineaIdx = idx + '-' + l;
+      var label = (numLineas > 1) ? 'Línea ' + (l + 1) + ' de ' + prod.name : prod.name;
+      html += '<div class="card mb-2"><div class="card-header py-1"><strong>' + label + '</strong></div><div class="card-body py-2"><div class="row g-2">';
+      // Portability / New line type
+      html += '<div class="col-md-3"><label class="form-label small">Tipo</label><select class="form-select form-select-sm linea-tipo" data-linea="' + lineaIdx + '" onchange="toggleLineaTipo(\'' + lineaIdx + '\')">';
+      html += '<option value="NUEVA_ALTA">Nueva línea</option><option value="PORTABILIDAD">Portabilidad</option></select></div>';
+      // Phone number (for portability)
+      html += '<div class="col-md-3 linea-porta-group" id="lnum-' + lineaIdx + '" style="display:none;"><label class="form-label small">Número a portar</label><input type="text" class="form-control form-control-sm linea-porta-num" data-linea="' + lineaIdx + '" placeholder="612345678"></div>';
+      // Donor operator (for portability)
+      html += '<div class="col-md-3 linea-porta-group" id="ldon-' + lineaIdx + '" style="display:none;"><label class="form-label small">Operador actual</label><select class="form-select form-select-sm linea-donante" data-linea="' + lineaIdx + '"><option value="">Seleccionar...</option>';
+      donantesList.forEach(function(d) { html += '<option value="' + (d.Code || d.code || d.id) + '">' + (d.Name || d.name || d.Code || d.code) + '</option>'; });
+      html += '</select></div>';
+      // SIM type
+      html += '<div class="col-md-3"><label class="form-label small">Tipo SIM</label><select class="form-select form-select-sm linea-sim" data-linea="' + lineaIdx + '" onchange="toggleLineaIcc(\'' + lineaIdx + '\')">';
+      html += '<option value="fisica">SIM física</option><option value="esim">eSIM</option></select></div>';
+      // ICC
+      html += '<div class="col-md-3 linea-icc-group" id="licc-' + lineaIdx + '"><label class="form-label small">ICC (código SIM)</label><input type="text" class="form-control form-control-sm linea-icc" data-linea="' + lineaIdx + '" placeholder="8934..."></div>';
+      html += '</div></div></div>';
+    }
+  });
+
+  container.innerHTML = html;
+  validarPaso3();
+
   document.getElementById('wizardStep1').style.display = 'none';
   document.getElementById('wizardStep2').style.display = 'none';
   document.getElementById('wizardStep3').style.display = 'block';
   document.getElementById('wizardStep4').style.display = 'none';
   actualizarProgressBar(3);
   WIZARD.step = 3;
+}
+
+function toggleLineaTipo(lineaIdx) {
+  var tipo = document.querySelector('.linea-tipo[data-linea="' + lineaIdx + '"]').value;
+  document.getElementById('lnum-' + lineaIdx).style.display = tipo === 'PORTABILIDAD' ? '' : 'none';
+  document.getElementById('ldon-' + lineaIdx).style.display = tipo === 'PORTABILIDAD' ? '' : 'none';
   validarPaso3();
 }
 
-function goWizardStep4() {
-  var nombre = document.getElementById('wNombre').value.trim();
-  var apellidos = document.getElementById('wApellidos').value.trim();
-  var dni = document.getElementById('wDni').value.trim();
-  var telefono = document.getElementById('wTelefono').value.trim();
-  var email = document.getElementById('wEmail').value.trim();
-  var direccion = document.getElementById('wDireccion').value.trim();
-  var ciudad = document.getElementById('wCiudad').value.trim();
-  var cp = document.getElementById('wCp').value.trim();
-  var customerType = document.getElementById('wCustomerType').value;
-  var metodoPagoEl = document.querySelector('input[name="wMetodoPago"]:checked');
-  var metodoPago = metodoPagoEl ? metodoPagoEl.value : '';
-  var iban = document.getElementById('wIban').value.trim();
-  var tipoCont = document.getElementById('wTipoContratacion').value;
-  var lineaPortar = document.getElementById('wLineaPortar').value.trim();
-  var donante = document.getElementById('wDonante');
-  var donanteText = donante.options[donante.selectedIndex] ? donante.options[donante.selectedIndex].text : '';
+function toggleLineaIcc(lineaIdx) {
+  var sim = document.querySelector('.linea-sim[data-linea="' + lineaIdx + '"]').value;
+  document.getElementById('licc-' + lineaIdx).style.display = sim === 'fisica' ? '' : 'none';
+}
 
-  document.getElementById('resumenCliente').innerHTML =
-    '<p><strong>' + nombre + ' ' + apellidos + '</strong><br>' +
-    'DNI: ' + dni + '<br>' +
-    'Tel: ' + telefono + '<br>' +
-    (email ? 'Email: ' + email + '<br>' : '') +
-    (direccion ? direccion + ', ' + ciudad + ' ' + cp + '<br>' : '') +
-    'Tipo: ' + customerType + '</p>' +
-    '<p><strong>Método de pago:</strong> ' + (metodoPago ? ({
-      'IBAN': 'IBAN (Domiciliación)',
-      'TARJETA': 'Tarjeta',
-      'NINGUNO': 'Ninguno (Pagaré después)'
-    })[metodoPago] || metodoPago : 'No seleccionado') + (metodoPago === 'IBAN' && iban ? '<br>IBAN: ' + iban : '') + '</p>';
-
-  var prodText = cart.map(function(c) { return c.name + ' (' + c.price.toFixed(2) + '€)'; }).join(', ');
-  document.getElementById('resumenProducto').innerHTML =
-    '<p><strong>Productos:</strong> ' + prodText + '<br>' +
-    '<strong>Total:</strong> ' + cart.reduce(function(s, c) { return s + c.price; }, 0).toFixed(2) + '€<br>' +
-    '<strong>Tipo:</strong> ' + (tipoCont === 'PORTABILIDAD' ? 'Portabilidad' : tipoCont === 'NUEVA_ALTA' ? 'Nueva Alta' : tipoCont) +
-    (tipoCont === 'PORTABILIDAD' && lineaPortar ? '<br><strong>Línea a portar:</strong> ' + lineaPortar : '') +
-    (tipoCont === 'PORTABILIDAD' && donanteText ? '<br><strong>Operador donante:</strong> ' + donanteText : '') +
-    '</p>';
-
-  var portaRow = document.getElementById('checkPortaRow');
-  if (tipoCont === 'PORTABILIDAD') {
-    portaRow.style.display = '';
-  } else {
-    portaRow.style.display = 'none';
-  }
+function validarPaso3() {
+  var allValid = true;
+  // Each portability line must have phone number
+  document.querySelectorAll('.linea-tipo').forEach(function(sel) {
+    var idx = sel.dataset.linea;
+    if (sel.value === 'PORTABILIDAD') {
+      var num = document.querySelector('.linea-porta-num[data-linea="' + idx + '"]');
+      var don = document.querySelector('.linea-donante[data-linea="' + idx + '"]');
+      if (!num || !num.value.trim() || !don || !don.value) allValid = false;
+    }
+  });
+  document.getElementById('btnStep3Next').disabled = !allValid;
+}
 
   document.getElementById('wizardStep1').style.display = 'none';
   document.getElementById('wizardStep2').style.display = 'none';
@@ -822,13 +850,6 @@ function validarDNI(input) {
   }
 }
 
-function toggleTipoContratacion() {
-  var tipo = document.getElementById('wTipoContratacion').value;
-  document.getElementById('portabilidadConfig').style.display = tipo === 'PORTABILIDAD' ? '' : 'none';
-  document.getElementById('nuevaAltaConfig').style.display = tipo === 'NUEVA_ALTA' ? '' : 'none';
-  validarPaso3();
-}
-
 // Coverage check
 function checkCoverage() {
   var dir = document.getElementById('wCoverageDir').value.trim();
@@ -859,11 +880,6 @@ function checkCoverage() {
       btn.innerHTML = '<i class="bi bi-search"></i> Verificar cobertura';
     });
 }
-
-// Update sim type switch
-document.getElementById('wSimType').addEventListener('change', function() {
-  document.getElementById('wIccGroup').style.display = this.value === 'fisica' ? '' : 'none';
-});
 
 // Contract preview modal
 function verContrato() {
@@ -911,8 +927,8 @@ async function crearClienteAvanzado() {
     iban: document.getElementById('wIban').value.trim(),
     productos: JSON.stringify(cart),
     tipo_contratacion: document.getElementById('wTipoContratacion').value,
-    donante_id: document.getElementById('wDonante').value,
-    linea_portabilidad: document.getElementById('wLineaPortar').value.trim(),
+    // Collect all lines data
+    lineas: JSON.stringify(lineasData),
     cobertura_id: ''
   };
 
