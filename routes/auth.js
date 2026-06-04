@@ -24,7 +24,26 @@ const solicitarLimiter = rateLimit({
 });
 
 async function sendEmailViaMailjet(toEmail, toName, subject, html) {
-  // Try Mailjet first
+  // Try Gmail first (most reliable)
+  try {
+    const { db } = require('../database');
+    const gmailUser = db.prepare("SELECT value FROM settings WHERE key='gmail_user'").get()?.value || process.env.GMAIL_USER;
+    const gmailPass = db.prepare("SELECT value FROM settings WHERE key='gmail_pass'").get()?.value || process.env.GMAIL_PASS;
+    if (gmailUser && gmailPass) {
+      const nodemailer = require('nodemailer');
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: { user: gmailUser, pass: gmailPass }
+      });
+      await transporter.sendMail({
+        from: gmailUser, to: toEmail, subject: subject, html: html
+      });
+      console.log('[Email] Enviado correctamente a', toEmail, 'via Gmail');
+      return true;
+    }
+  } catch(e) { console.error('[Email] Gmail error:', e.message); }
+
+  // Fallback: Mailjet
   const apiKey = process.env.MAILJET_API_KEY;
   const secretKey = process.env.MAILJET_SECRET_KEY;
   if (apiKey && secretKey) {
@@ -40,12 +59,14 @@ async function sendEmailViaMailjet(toEmail, toName, subject, html) {
         auth: { username: apiKey, password: secretKey },
         timeout: 15000
       });
+      console.log('[Email] Enviado correctamente a', toEmail, 'via Mailjet');
       return true;
     } catch (e) {
-      console.error('Mailjet error:', e.response?.data || e.message);
+      console.error('[Email] Mailjet error:', e.response?.data || e.message);
     }
   }
-  // Fallback: try nodemailer with DB settings
+
+  // Fallback 2: SMTP from DB
   try {
     const { db } = require('../database');
     const smtpHost = db.prepare("SELECT value FROM settings WHERE key='smtp_host'").get()?.value;
@@ -62,26 +83,12 @@ async function sendEmailViaMailjet(toEmail, toName, subject, html) {
         from: process.env.SMTP_FROM || smtpUser,
         to: toEmail, subject: subject, html: html
       });
+      console.log('[Email] Enviado correctamente a', toEmail, 'via SMTP');
       return true;
     }
-  } catch(e) { console.error('SMTP error:', e.message); }
-  // Fallback 2: Gmail app password from DB
-  try {
-    const { db } = require('../database');
-    const gmailUser = db.prepare("SELECT value FROM settings WHERE key='gmail_user'").get()?.value || process.env.GMAIL_USER;
-    const gmailPass = db.prepare("SELECT value FROM settings WHERE key='gmail_pass'").get()?.value || process.env.GMAIL_PASS;
-    if (gmailUser && gmailPass) {
-      const nodemailer = require('nodemailer');
-      const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: { user: gmailUser, pass: gmailPass }
-      });
-      await transporter.sendMail({
-        from: gmailUser, to: toEmail, subject: subject, html: html
-      });
-      return true;
-    }
-  } catch(e) { console.error('Gmail fallback error:', e.message); }
+  } catch(e) { console.error('[Email] SMTP error:', e.message); }
+
+  console.error('[Email] No se pudo enviar email a', toEmail, '- ningún método funcionó');
   return false;
 }
 
