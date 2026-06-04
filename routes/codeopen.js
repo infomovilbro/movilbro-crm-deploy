@@ -544,6 +544,41 @@ function checkMail() {
 
 startIMAPPolling();
 
+// ---- PROCESS PENDING WA MESSAGES (without proposed_response) ----
+var processingMessages = false;
+
+async function processPendingMessages() {
+  if (processingMessages) return;
+  processingMessages = true;
+  try {
+    var unprocessed = db.prepare("SELECT * FROM pending_messages WHERE status='pending' AND (proposed_response IS NULL OR proposed_response='') ORDER BY created_at ASC LIMIT 3").all();
+    for (var row of unprocessed) {
+      try {
+        console.log('[CodeOpen] Procesando mensaje #' + row.id, row.source, 'de', row.from_name);
+        var crmCtx = getCRMContext();
+        var fullText = row.body || row.subject || '';
+        var ctx = 'Contexto CRM: ' + JSON.stringify(crmCtx) + '\n\nMensaje de ' + row.from_name + ': ' + fullText;
+        var catDef = row.source === 'whatsapp' || row.category === 'whatsapp' ? AGENT_CATEGORIES.whatsapp : AGENT_CATEGORIES.email;
+        var results = {};
+        for (var a of catDef.agents.slice(0, 4)) { results[a.id] = await callLLM(a.prompt, ctx, 0.7); }
+        var synthesisInput = catDef.agents.slice(0, 4).map(function(a) { return '## ' + a.name + ':\n' + (results[a.id] || ''); }).join('\n\n') + '\n\nSintetiza todo en una respuesta final lista para enviar.';
+        var finalResponse = await callLLM(catDef.agents[4].prompt, synthesisInput, 0.8);
+        db.prepare("UPDATE pending_messages SET proposed_response=? WHERE id=?").run(finalResponse || '', row.id);
+        console.log('[CodeOpen] Mensaje #' + row.id + ' procesado con IA');
+      } catch(e) {
+        console.error('[CodeOpen] Error procesando #' + row.id + ':', e.message);
+        db.prepare("UPDATE pending_messages SET proposed_response=? WHERE id=?").run('Error al analizar: ' + e.message, row.id);
+      }
+    }
+  } finally {
+    processingMessages = false;
+  }
+}
+
+// Process every 30 seconds
+setInterval(processPendingMessages, 30000);
+setTimeout(processPendingMessages, 5000);
+
 // ---- PENDING APPROVALS ----
 router.get('/pending', (req, res) => {
   try {
