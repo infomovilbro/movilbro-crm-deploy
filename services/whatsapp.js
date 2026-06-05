@@ -1,5 +1,4 @@
-const { makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
-const { Boom } = require('@hapi/boom');
+const { makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
 const qrcode = require('qrcode');
 const path = require('path');
 const fs = require('fs');
@@ -13,6 +12,7 @@ var _status = 'disconnected';
 var _chats = [];
 var _connectionAttempts = 0;
 var _started = false;
+var _watchdog = null;
 
 function log() {
   var args = ['[WhatsApp]'].concat(Array.prototype.slice.call(arguments));
@@ -23,28 +23,41 @@ function ensureDir() {
   try { if (!fs.existsSync(AUTH_DIR)) fs.mkdirSync(AUTH_DIR, { recursive: true }); } catch(e) {}
 }
 
+function startWatchdog() {
+  if (_watchdog) clearTimeout(_watchdog);
+  _watchdog = setTimeout(function() {
+    if (_status === 'connecting') {
+      log('⚠️ Watchdog: conexión atascada 35s, forzando reinicio...');
+      try { if (_sock?.ws) _sock.ws.close(); } catch(e) {}
+      _sock = null;
+      _status = 'disconnected';
+      _started = false;
+      setTimeout(start, 1000);
+    }
+  }, 35000);
+}
+
+function clearWatchdog() {
+  if (_watchdog) { clearTimeout(_watchdog); _watchdog = null; }
+}
+
 async function start() {
   if (_started) return;
   _started = true;
   ensureDir();
   _status = 'connecting';
   _connectionAttempts = 0;
-  log('[1/5] Iniciando conexión WhatsApp...');
+  log('[1/4] Iniciando conexión WhatsApp...');
 
   try {
-    log('[2/5] Obteniendo última versión de Baileys...');
-    var { version } = await fetchLatestBaileysVersion();
-    log('  Versión:', version.join('.'));
-
-    log('[3/5] Cargando estado de autenticación...');
+    log('[2/4] Cargando estado de autenticación...');
     var { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
 
     var isRegistered = !!(state.creds && state.creds.me && state.creds.me.id);
     log('  Registrado:', isRegistered ? 'Sí (conectando directo)' : 'No (mostrando QR)');
 
-    log('[4/5] Creando socket WhatsApp...');
+    log('[3/4] Creando socket WhatsApp...');
     _sock = makeWASocket({
-      version,
       auth: state,
       printQRInTerminal: false,
       browser: ['Windows', 'Edge', '10.0.22631'],
@@ -53,7 +66,9 @@ async function start() {
     });
     log('  Socket creado');
 
-    log('[5/5] Registrando manejadores de eventos...');
+    startWatchdog();
+
+    log('[4/4] Registrando manejadores de eventos...');
 
     _sock.ev.on('creds.update', saveCreds);
 
@@ -78,6 +93,7 @@ async function start() {
       if (connection === 'open') {
         _status = 'connected';
         _connectionAttempts = 0;
+        clearWatchdog();
         log('  ✅ WhatsApp CONECTADO');
         if (_qrCallback) _qrCallback({ type: 'status', data: 'connected' });
       }
@@ -175,6 +191,7 @@ async function start() {
     if (e.stack) log('  Stack:', e.stack.split('\n').slice(0, 3).join('\n  '));
     _status = 'error';
     _started = false;
+    clearWatchdog();
     setTimeout(start, 15000);
   }
 }
