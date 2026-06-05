@@ -1,4 +1,5 @@
 const { makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
+const { Boom } = require('@hapi/boom');
 const qrcode = require('qrcode');
 const path = require('path');
 const fs = require('fs');
@@ -7,104 +8,113 @@ const { db } = require('../database');
 var AUTH_DIR = path.join(__dirname, '..', '.whatsapp-auth');
 var _sock = null;
 var _qrCallback = null;
+var _lastQR = null;
 var _status = 'disconnected';
 var _chats = [];
 var _connectionAttempts = 0;
+var _started = false;
+
+function log() {
+  var args = ['[WhatsApp]'].concat(Array.prototype.slice.call(arguments));
+  console.log.apply(console, args);
+}
 
 function ensureDir() {
   try { if (!fs.existsSync(AUTH_DIR)) fs.mkdirSync(AUTH_DIR, { recursive: true }); } catch(e) {}
 }
 
 async function start() {
+  if (_started) return;
+  _started = true;
   ensureDir();
   _status = 'connecting';
+  _connectionAttempts = 0;
+  log('[1/5] Iniciando conexión WhatsApp...');
+
   try {
+    log('[2/5] Obteniendo última versión de Baileys...');
     var { version } = await fetchLatestBaileysVersion();
+    log('  Versión:', version.join('.'));
+
+    log('[3/5] Cargando estado de autenticación...');
     var { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
 
+    var isRegistered = !!(state.creds && state.creds.me && state.creds.me.id);
+    log('  Registrado:', isRegistered ? 'Sí (conectando directo)' : 'No (mostrando QR)');
+
+    log('[4/5] Creando socket WhatsApp (Edge)...');
     _sock = makeWASocket({
       version,
       auth: state,
       printQRInTerminal: false,
-      browser: ['Movilbro CRM', 'Chrome', '1.0.0'],
-      syncFullHistory: true,
+      browser: ['Edge', 'Movilbro CRM', '1.0.0'],
       markOnlineOnConnect: false,
-      shouldSyncHistoryMessage: function() { return true; }
+      syncFullHistory: true,
+      shouldSyncHistoryMessage: function() { return true; },
+      emitOwnEvents: true,
     });
+    log('  Socket creado');
 
+    log('[5/5] Registrando manejadores de eventos...');
+
+    // Guardar credenciales cuando se actualicen
     _sock.ev.on('creds.update', saveCreds);
 
-    // Use ev.process() to catch ALL events including buffered ones
-    _sock.ev.process(function(events) {
-      // messaging-history.set contains ALL chats from sync
-      if (events['messaging-history.set'] && events['messaging-history.set'].chats) {
-        var history = events['messaging-history.set'];
-        _chats = (history.chats || []).map(function(c) {
-          var jid = c.id || '';
-          return {
-            jid: jid,
-            name: c.name || c.subject || jid.split('@')[0] || 'Unknown',
-            unreadCount: c.unreadCount || c.unread || 0,
-            lastMessage: c.lastMessage?.message?.conversation || c.lastMessage?.message?.extendedTextMessage?.text || ''
-          };
-        });
-        console.log('[WhatsApp] Chats cargados del historial: ' + _chats.length);
-      }
-
-      // chats.upsert adds/updates individual chats
-      if (events['chats.upsert']) {
-        var upserted = events['chats.upsert'];
-        upserted.forEach(function(c) {
-          var jid = c.id || '';
-          var existing = _chats.findIndex(function(x) { return x.jid === jid; });
-          var chatObj = {
-            jid: jid,
-            name: c.name || c.subject || jid.split('@')[0] || 'Unknown',
-            unreadCount: c.unreadCount || c.unread || 0,
-            lastMessage: c.lastMessage?.message?.conversation || c.lastMessage?.message?.extendedTextMessage?.text || ''
-          };
-          if (existing > -1) _chats[existing] = chatObj;
-          else _chats.push(chatObj);
-        });
-        console.log('[WhatsApp] Chats upsert: ' + _chats.length);
-      }
-
-      // chats.update updates existing chats
-      if (events['chats.update']) {
-        events['chats.update'].forEach(function(u) {
-          var idx = _chats.findIndex(function(c) { return c.jid === u.id; });
-          if (idx > -1) {
-            if (u.name) _chats[idx].name = u.name;
-            if (u.unreadCount !== undefined) _chats[idx].unreadCount = u.unreadCount;
-          }
-        });
-      }
-    });
-
+    // Conexión: QR, estado, reconexión
     _sock.ev.on('connection.update', function(update) {
-      var { connection, lastDisconnect, qr } = update;
-      if (qr && _qrCallback) {
-        qrcode.toDataURL(qr, { width: 300, margin: 2 }, function(err, url) {
-          if (!err && _qrCallback) _qrCallback({ type: 'qr', data: url });
-        });
+      var { qr, connection, lastDisconnect, isNewLogin } = update;
+
+      if (qr) {
+        _lastQR = qr;
+        log('  📱 QR generado, esperando escaneo...');
+        if (_qrCallback) {
+          qrcode.toDataURL(qr, { width: 300, margin: 2 }, function(err, url) {
+            if (!err && _qrCallback) _qrCallback({ type: 'qr', data: url });
+          });
+        }
       }
+
+      if (isNewLogin) {
+        log('  ✅ Nuevo login exitoso');
+        _lastQR = null;
+      }
+
       if (connection === 'open') {
         _status = 'connected';
         _connectionAttempts = 0;
+        log('  ✅ WhatsApp CONECTADO');
         if (_qrCallback) _qrCallback({ type: 'status', data: 'connected' });
       }
+
       if (connection === 'close') {
         var reason = lastDisconnect?.error?.output?.statusCode || 0;
+        var isLoggedOut = reason === DisconnectReason.loggedOut;
         _status = 'disconnected';
         _sock = null;
+        _lastQR = null;
+        log('  ❌ Desconectado' + (isLoggedOut ? ' (sesión cerrada)' : ''));
         if (_qrCallback) _qrCallback({ type: 'status', data: 'disconnected' });
-        if (reason !== DisconnectReason.loggedOut) {
+        if (!isLoggedOut) {
           _connectionAttempts++;
-          setTimeout(start, Math.min(5000 * _connectionAttempts, 30000));
+          var delay = Math.min(5000 * _connectionAttempts, 60000);
+          log('  🔄 Reintentando en ' + Math.round(delay/1000) + 's (intento #' + _connectionAttempts + ')');
+          _started = false;
+          setTimeout(start, delay);
+        } else {
+          log('  🚪 Sesión cerrada, limpiando auth...');
+          try {
+            var authFiles = fs.readdirSync(AUTH_DIR);
+            authFiles.forEach(function(f) {
+              try { fs.unlinkSync(path.join(AUTH_DIR, f)); } catch(e) {}
+            });
+          } catch(e) {}
+          _started = false;
+          setTimeout(start, 5000);
         }
       }
     });
 
+    // Mensajes entrantes
     _sock.ev.on('messages.upsert', async function(m) {
       if (!m.messages || m.messages.length === 0) return;
       for (var msg of m.messages) {
@@ -116,18 +126,63 @@ async function start() {
               var exists = db.prepare('SELECT id FROM pending_messages WHERE source=? AND from_address=? AND body=? AND created_at > datetime("now","-1 minute")').get('whatsapp', sender, text);
               if (!exists) {
                 db.prepare('INSERT INTO pending_messages (source, from_name, from_address, subject, body, status, category, created_at) VALUES (?,?,?,?,?,?,?,datetime("now","localtime"))').run('whatsapp', sender, sender, text.substring(0,80), text, 'pending', 'whatsapp');
-                console.log('[WhatsApp] Mensaje de ' + sender + ': ' + text.substring(0, 80));
+                log('  💬 Mensaje de', sender + ':', text.substring(0, 80));
               }
             }
           }
-        } catch(e) { console.error('[WhatsApp] msg error:', e.message); }
+        } catch(e) { log('  Error msg:', e.message); }
       }
     });
 
-    console.log('[WhatsApp] Iniciado');
+    // Chats del historial (messaging-history.set)
+    _sock.ev.on('messaging-history.set', function(history) {
+      if (history && history.chats) {
+        _chats = (history.chats || []).map(function(c) {
+          var jid = c.id || '';
+          return {
+            jid: jid,
+            name: c.name || c.subject || jid.split('@')[0] || 'Unknown',
+            unreadCount: c.unreadCount || c.unread || 0,
+            lastMessage: c.lastMessage?.message?.conversation || c.lastMessage?.message?.extendedTextMessage?.text || ''
+          };
+        });
+        log('  📋 Historial cargado: ' + _chats.length + ' chats');
+      }
+    });
+
+    // Chats nuevos/actualizados
+    _sock.ev.on('chats.upsert', function(upserted) {
+      upserted.forEach(function(c) {
+        var jid = c.id || '';
+        var existing = _chats.findIndex(function(x) { return x.jid === jid; });
+        var chatObj = {
+          jid: jid,
+          name: c.name || c.subject || jid.split('@')[0] || 'Unknown',
+          unreadCount: c.unreadCount || c.unread || 0,
+          lastMessage: c.lastMessage?.message?.conversation || c.lastMessage?.message?.extendedTextMessage?.text || ''
+        };
+        if (existing > -1) _chats[existing] = chatObj;
+        else _chats.push(chatObj);
+      });
+      log('  🔄 Chats actualizados: ' + _chats.length + ' total');
+    });
+
+    _sock.ev.on('chats.update', function(updates) {
+      updates.forEach(function(u) {
+        var idx = _chats.findIndex(function(c) { return c.jid === u.id; });
+        if (idx > -1) {
+          if (u.name) _chats[idx].name = u.name;
+          if (u.unreadCount !== undefined) _chats[idx].unreadCount = u.unreadCount;
+        }
+      });
+    });
+
+    log('✅ WhatsApp service iniciado correctamente');
   } catch(e) {
-    console.error('[WhatsApp] Error start:', e.message);
+    log('❌ Error al iniciar:', e.message);
+    if (e.stack) log('  Stack:', e.stack.split('\n').slice(0, 3).join('\n  '));
     _status = 'error';
+    _started = false;
     setTimeout(start, 15000);
   }
 }
@@ -136,8 +191,20 @@ function getQR(callback) {
   _qrCallback = callback;
   if (_status === 'connected') {
     callback({ type: 'status', data: 'connected' });
-  } else if (_sock) {
-    try { _sock?.ev?.emit('connection.update', {}); } catch(e) {}
+    return;
+  }
+  if (_lastQR) {
+    qrcode.toDataURL(_lastQR, { width: 300, margin: 2 }, function(err, url) {
+      if (!err && _qrCallback) _qrCallback({ type: 'qr', data: url });
+    });
+  }
+  if (!_sock) {
+    if (_started) {
+      log('Esperando conexión...');
+    } else {
+      log('Iniciando conexión...');
+      start();
+    }
   }
 }
 
@@ -163,13 +230,13 @@ async function getMessages(jid, limit) {
       };
     });
   } catch(e) {
-    console.error('[WhatsApp] getMessages error:', e.message);
+    log('getMessages error:', e.message);
     return [];
   }
 }
 
 function getChats() { return _chats; }
-function getStats() { return { status: _status, chatCount: _chats.length }; }
+function getStats() { return { status: _status, chatCount: _chats.length, started: _started }; }
 
 setTimeout(start, 1000);
 

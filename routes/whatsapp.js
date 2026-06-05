@@ -10,56 +10,55 @@ router.get('/', requireAuth, (req, res) => {
   res.render('whatsapp', { title: 'WhatsApp', clientes: clientes || [], phone });
 });
 
-// Public diagnostic endpoint (no auth required)
 router.get('/diag', (req, res) => {
   var stats = waService.getStats ? waService.getStats() : { status: waService.getStatus(), chatCount: waService.getChats().length };
   res.json(stats);
 });
 
-// Get connection status
 router.get('/status', requireAuth, (req, res) => {
   res.json({ status: waService.getStatus() });
 });
 
-// SSE for QR code and status
+// SSE stream for QR + status
 router.get('/qr-stream', requireAuth, (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
   res.flushHeaders();
 
-  var sentStatus = false;
+  var callbackActive = true;
+  var currentStatus = waService.getStatus();
+
+  // Send current status immediately
+  res.write('data: ' + JSON.stringify({ type: 'status', data: currentStatus }) + '\n\n');
+
   waService.getQR(function(data) {
-    if (data.type === 'qr') {
-      res.write('data: ' + JSON.stringify({ type: 'qr', data: data.data }) + '\n\n');
-    } else if (data.type === 'status') {
-      res.write('data: ' + JSON.stringify({ type: 'status', data: data.data }) + '\n\n');
-      sentStatus = true;
-    }
+    if (!callbackActive) return;
+    res.write('data: ' + JSON.stringify(data) + '\n\n');
   });
 
-  // Send current status if already connected
-  var currentStatus = waService.getStatus();
-  if (currentStatus === 'connected' && !sentStatus) {
-    res.write('data: ' + JSON.stringify({ type: 'status', data: 'connected' }) + '\n\n');
-  }
-
   var interval = setInterval(function() {
+    if (!callbackActive) { clearInterval(interval); return; }
     res.write('data: ' + JSON.stringify({ type: 'ping' }) + '\n\n');
-  }, 10000);
+    // Re-check status periodically
+    var s = waService.getStatus();
+    if (s !== currentStatus) {
+      currentStatus = s;
+      res.write('data: ' + JSON.stringify({ type: 'status', data: s }) + '\n\n');
+    }
+  }, 5000);
 
   req.on('close', function() {
+    callbackActive = false;
     clearInterval(interval);
     waService.removeQRCallback();
   });
 });
 
-// Get chats
 router.get('/chats', requireAuth, (req, res) => {
   res.json({ chats: waService.getChats(), status: waService.getStatus() });
 });
 
-// Get messages for a chat
 router.get('/messages', requireAuth, async (req, res) => {
   try {
     var jid = req.query.jid;
@@ -71,7 +70,6 @@ router.get('/messages', requireAuth, async (req, res) => {
   }
 });
 
-// Send message
 router.post('/send', requireAuth, express.json(), async (req, res) => {
   try {
     var { jid, text } = req.body;
@@ -83,7 +81,6 @@ router.post('/send', requireAuth, express.json(), async (req, res) => {
   }
 });
 
-// Reconnect
 router.post('/reconnect', requireAuth, (req, res) => {
   res.json({ ok: true, message: 'Reconectando...' });
 });
