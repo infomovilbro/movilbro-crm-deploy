@@ -10,6 +10,7 @@ var _qrCallback = null;
 var _status = 'disconnected';
 var _chats = [];
 var _connectionAttempts = 0;
+var _lastEvents = [];
 
 function ensureDir() {
   try { if (!fs.existsSync(AUTH_DIR)) fs.mkdirSync(AUTH_DIR, { recursive: true }); } catch(e) {}
@@ -79,10 +80,14 @@ async function start() {
         else { _chats.push(chatObj); }
       });
       console.log('[WhatsApp] Chats actualizados: ' + _chats.length);
+      _lastEvents.unshift({ event: 'chats.upsert', count: chats.length, time: Date.now() });
+      if (_lastEvents.length > 20) _lastEvents.pop();
     });
 
     // messaging-history.set = ALL chats from history sync (key for initial load)
     _sock.ev.on('messaging-history.set', function(history) {
+      _lastEvents.unshift({ event: 'messaging-history.set', hasChats: !!(history && history.chats), time: Date.now() });
+      if (_lastEvents.length > 20) _lastEvents.pop();
       if (!history || !history.chats || !Array.isArray(history.chats)) return;
       console.log('[WhatsApp] History sync: ' + history.chats.length + ' chats');
       _chats = history.chats.map(function(c) {
@@ -192,7 +197,8 @@ async function getMessages(jid, limit) {
 }
 
 function getChats() { return _chats; }
+function getStats() { return { status: _status, chatCount: _chats.length, lastEvents: _lastEvents.slice(0, 10) }; }
 
 setTimeout(start, 1000);
 
-module.exports = { start, getQR, removeQRCallback, getStatus, sendMessage, getMessages, getChats };
+module.exports = { start, getQR, removeQRCallback, getStatus, sendMessage, getMessages, getChats, getStats };

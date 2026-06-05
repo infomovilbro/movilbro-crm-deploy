@@ -12,14 +12,8 @@ router.get('/', requireAuth, (req, res) => {
 
 // Public diagnostic endpoint (no auth required)
 router.get('/diag', (req, res) => {
-  var status = waService.getStatus();
-  var chats = waService.getChats();
-  res.json({
-    status: status,
-    chatCount: chats.length,
-    chats: chats.slice(0, 5).map(function(c) { return { jid: c.jid, name: c.name, unread: c.unreadCount }; }),
-    timestamp: new Date().toISOString()
-  });
+  var stats = waService.getStats ? waService.getStats() : { status: waService.getStatus(), chatCount: waService.getChats().length };
+  res.json(stats);
 });
 
 // Get connection status
