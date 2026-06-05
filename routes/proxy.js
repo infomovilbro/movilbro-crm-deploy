@@ -83,8 +83,8 @@ router.all('/:target(*)', requireAuth, (req, res) => {
       proxyRes.on('data', function(chunk) { chunks.push(chunk); });
       proxyRes.on('end', function() {
         var body = Buffer.concat(chunks).toString('utf8');
-        // Inject base tag so all assets load through our proxy
-        body = body.replace('<head>', '<head><base href="/proxy/web.whatsapp.com/">');
+        // Inject base tag so all assets load from the real web.whatsapp.com
+        body = body.replace('<head>', '<head><base href="https://web.whatsapp.com/">');
         // Patch frame-busting JS
         body = body.replace(/top\s*!==\s*self/g, 'false');
         body = body.replace(/self\s*!==\s*top/g, 'false');
