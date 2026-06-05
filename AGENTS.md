@@ -6,6 +6,8 @@
 - **🤫 No preguntar, actuar** — Push, deploy, decisiones: hacer sin consultar. Deploy solo al final de una sesión completa, no cada micro-cambio.
 - **🧪 Probar antes de desplegar** — Cualquier código que escribo, lo pruebo con `node -e` primero. No asumo que funciona. Si uso una API externa, verifico sus métodos con un test rápido antes de integrarlo.
 - **🌐 Verificar en navegador** — Después del deploy, comprobar en la web real que funciona antes de decir que está listo.
+- **🔍 Leer DOCUMENTACIÓN OFICIAL antes de integrar** — No solo el código fuente. Leer docs, guías de migración, ejemplos oficiales. NO asumir. Si hay breaking changes (ej: baileys v7 es ESM, eventos bufferizados), leer la guía de migración completa antes de escribir una línea.
+- **📖 Investigar primero, codificar después** — Ante cualquier problema con una API/lib: buscar en docs oficiales, issues de GitHub, ejemplos. No hacer deploy-tras-deploy esperando que algo funcione. Un ciclo de investigación completa ahorra 15 deploys.
 - **🪟 Sin ventanas nuevas** — Todo en la misma página, nada de `target="_blank"` ni `window.open`.
 - **📦 Menos es más** — No meter librerías pesadas para cosas simples. Soluciones simples y cómodas.
 - **🔄 No releer** — Cuando un proceso termina, no se relee a menos que el admin lo pida.
@@ -44,6 +46,21 @@
 - [x] Formularios sin `name` + sin `onchange` → autofill del navegador no dispara validación → poner `name` y `onchange` además de `oninput`
 - [x] No tener acceso a Render dashboard → pedir contraseña o URL de deploy hook al principio; no esperar a necesitarla
 - [x] Repetir el mismo error de escapado PowerShell 4+ veces → usar SIEMPRE archivo .js, nunca -e
+
+## Caso WhatsApp Baileys V4 — Lección Aprendida (2026-06-05)
+**Error:** 15+ deploys arreglando WhatsApp. El problema real NO era `ev.process()` vs `.on()`.
+- `messaging-history.set` SOLO se dispara en el primer pairing al vincular dispositivo
+- En reconexiones con sesión guardada, WhatsApp NO reenvía el historial
+- `chats.upsert` solo trae chats NUEVOS
+- Los chats hay que persistirlos localmente (JSON/DB) porque la fuente remota no los reenvía
+
+**Cómo se arregló:**
+1. Leer la documentación OFICIAL de baileys (baileys.wiki/docs/socket/history-sync)
+2. Entender que `messaging-history.set` es evento de UNA VEZ, no de cada reconexión
+3. Solución: persistir `_chats` en `JSON.parse/fs.writeFileSync` en cada cambio, cargar al reconectar
+4. Registrar `ev.process()` o `.on()` es indiferente — ambos funcionan si se registran antes de que lleguen los eventos
+
+**Regla nueva: Investigar la documentación oficial PRIMERO. NO hacer deploys como método de debugging.**
 
 ## Caso WhatsApp Baileys — Lección Aprendida
 **Error:** Asumí que `sock.chats.all()` existía sin verificarlo. Luego asumí que `messaging-history.set` se disparaba sin leer cómo funciona realmente baileys. Perdí horas probando cosas al azar.
