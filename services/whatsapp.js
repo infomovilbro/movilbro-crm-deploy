@@ -123,9 +123,11 @@ async function start() {
     _sock = makeWASocket({
       auth: state,
       printQRInTerminal: false,
-      browser: ['Windows', 'Edge', '10.0.22631'],
+      browser: ['Edge', 'Movilbro CRM', '1.0.0'],
       markOnlineOnConnect: false,
+      syncFullHistory: true,
       shouldSyncHistoryMessage: function() { return true; },
+      emitOwnEvents: true,
     });
     log('  Socket creado');
 
