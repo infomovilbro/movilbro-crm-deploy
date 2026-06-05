@@ -47,6 +47,30 @@
 - [x] No tener acceso a Render dashboard → pedir contraseña o URL de deploy hook al principio; no esperar a necesitarla
 - [x] Repetir el mismo error de escapado PowerShell 4+ veces → usar SIEMPRE archivo .js, nunca -e
 
+## Sesión 2026-06-05 — WhatsApp Overlay + Vigilante + Deploy
+
+### Hecho
+- Eliminado Baileys por completo. WhatsApp ahora es web.whatsapp.com real en iframe via proxy
+- Proxy inyecta `<base href="https://web.whatsapp.com/">`, parchea anti-frame-busting, elimina XFO/CSP
+- CSP del helmet actualizado para permitir `static.whatsapp.net`, `web.whatsapp.com`, `data:`, `blob:`
+- `X-Frame-Options` cambiado de `DENY` a `SAMEORIGIN`
+- Overlay persistente de WhatsApp en layout.ejs (siempre montado, no se desconecta al navegar)
+- Botón "Analizar" para enviar mensajes manualmente a CodeOpen
+- Vigilante automático que escanea el iframe cada 3s y detecta mensajes entrantes
+- Toda la lógica en layout.ejs (sin servidor, sin Baileys)
+
+### Lección: Usar el navegador del usuario con CDP
+- **NO** perder tiempo con deploy hooks que fallan silenciosamente
+- **SI** el usuario tiene el CRM abierto en Edge, levantar Edge con CDP (`--remote-debugging-port=9222`)
+- Usar `chromium.connectOverCDP('http://localhost:9222')` para controlar su navegador
+- Hacer deploy desde el dashboard manualmente con un click, no con APIs
+- Si el deploy hook no funciona, abrir Render dashboard en el Edge del usuario y hacer click
+
+### Lección: Verificar siempre en el navegador real
+- No asumir que el código funciona por tests locales headless
+- WhatsApp cambia su DOM constantemente — los selectores del vigilante pueden obsoletarse
+- Probar siempre con el navegador real del usuario que tiene la sesión activa
+
 ## Caso WhatsApp Baileys V4 — Lección Aprendida (2026-06-05)
 **Error:** 15+ deploys arreglando WhatsApp. El problema real NO era `ev.process()` vs `.on()`.
 - `messaging-history.set` SOLO se dispara en el primer pairing al vincular dispositivo
