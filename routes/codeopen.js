@@ -69,7 +69,7 @@ async function callLLM(systemPrompt, userMessage, temperature) {
     } catch(e) {
       var isRateLimit = e.response?.status === 429 || (e.message && e.message.indexOf('429') > -1);
       if (isRateLimit && attempt < maxRetries) {
-        var delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
+        var delay = Math.pow(4, attempt) * 1000 + Math.random() * 2000;
         console.log('[CodeOpen] Rate limit 429, reintento ' + attempt + '/' + maxRetries + ' en ' + Math.round(delay/1000) + 's');
         await new Promise(function(r) { setTimeout(r, delay); });
       } else {
@@ -315,22 +315,14 @@ router.post('/webhook/whatsapp', async (req, res) => {
   var from = req.body.from || req.body.remitente || 'desconocido';
   var message = req.body.message || req.body.mensaje || req.body.text || '';
   if (!message) return res.status(400).json({ error: 'Mensaje requerido' });
-  try {
-    var crmCtx = getCRMContext();
-    var ctx = 'Contexto CRM: ' + JSON.stringify(crmCtx) + '\n\nMensaje WhatsApp de ' + from + ': ' + message;
-    var catDef = AGENT_CATEGORIES.whatsapp;
-    var agentList = catDef.agents;
-    var results = {};
-    for (var a of agentList.slice(0, 4)) {
-      results[a.id] = await callLLM(a.prompt, ctx, 0.7);
-    }
-    var synthesisInput = agentList.slice(0, 4).map(function(a) { return '## ' + a.name + ':\n' + (results[a.id] || ''); }).join('\n\n') + '\n\nSintetiza todo en una respuesta final lista para enviar.';
-    var finalResponse = await callLLM(agentList[4].prompt, synthesisInput, 0.8);
-    var id = db.prepare("INSERT INTO pending_messages (source, from_name, from_address, body, proposed_response, status, category) VALUES (?,?,?,?,?, 'pending', 'whatsapp')").run('whatsapp', from, from, message, finalResponse || 'Error al generar respuesta');
-    whatsappMessages.push({ id: id.lastInsertRowid, from, message, response: finalResponse, status: 'pending' });
-    console.log('[WhatsApp] Mensaje de', from, '→ pendiente #' + id.lastInsertRowid);
-    res.json({ ok: true, pending_id: id.lastInsertRowid, message: 'Mensaje recibido, respuesta propuesta pendiente de aprobación' });
-  } catch(e) { console.error('[WhatsApp Webhook] Error:', e.message); res.status(500).json({ error: e.message }); }
+  
+  // Insert pending immediately so user sees it, then process AI in background
+  var id = db.prepare("INSERT INTO pending_messages (source, from_name, from_address, body, proposed_response, status, category) VALUES (?,?,?,?,?,'pending','whatsapp')").run('whatsapp', from, from, message, 'Analizando con IA...');
+  whatsappMessages.push({ id: id.lastInsertRowid, from, message, status: 'pending' });
+  console.log('[WhatsApp] Mensaje de', from, '→ pendiente #' + id.lastInsertRowid, '→ analizando IA en background');
+  
+  // Respond immediately, IA se procesa en background cada 30s
+  res.json({ ok: true, pending_id: id.lastInsertRowid, message: 'Mensaje recibido, analizando con IA...' });
 });
 
 router.post('/webhook/whatsapp/test', async (req, res) => {
@@ -558,7 +550,7 @@ async function processPendingMessages() {
   if (processingMessages) return;
   processingMessages = true;
   try {
-    var unprocessed = db.prepare("SELECT * FROM pending_messages WHERE status='pending' AND (proposed_response IS NULL OR proposed_response='') ORDER BY created_at ASC LIMIT 3").all();
+    var unprocessed = db.prepare("SELECT * FROM pending_messages WHERE status='pending' AND (proposed_response IS NULL OR proposed_response='' OR proposed_response='Analizando con IA...') ORDER BY created_at ASC LIMIT 1").all();
     for (var row of unprocessed) {
       try {
         console.log('[CodeOpen] Procesando mensaje #' + row.id, row.source, 'de', row.from_name);
@@ -567,8 +559,13 @@ async function processPendingMessages() {
         var ctx = 'Contexto CRM: ' + JSON.stringify(crmCtx) + '\n\nMensaje de ' + row.from_name + ': ' + fullText;
         var catDef = row.source === 'whatsapp' || row.category === 'whatsapp' ? AGENT_CATEGORIES.whatsapp : AGENT_CATEGORIES.email;
         var results = {};
-        for (var a of catDef.agents.slice(0, 4)) { results[a.id] = await callLLM(a.prompt, ctx, 0.7); }
+        var agentList = catDef.agents.slice(0, 4);
+        for (var i = 0; i < agentList.length; i++) {
+          if (i > 0) await new Promise(function(r) { setTimeout(r, 3000); }); // 3s entre agentes para evitar 429
+          results[agentList[i].id] = await callLLM(agentList[i].prompt, ctx, 0.7);
+        }
         var synthesisInput = catDef.agents.slice(0, 4).map(function(a) { return '## ' + a.name + ':\n' + (results[a.id] || ''); }).join('\n\n') + '\n\nSintetiza todo en una respuesta final lista para enviar.';
+        await new Promise(function(r) { setTimeout(r, 3000); }); // 3s antes de sintetizar
         var finalResponse = await callLLM(catDef.agents[4].prompt, synthesisInput, 0.8);
         db.prepare("UPDATE pending_messages SET proposed_response=? WHERE id=?").run(finalResponse || '', row.id);
         console.log('[CodeOpen] Mensaje #' + row.id + ' procesado con IA');
@@ -582,8 +579,8 @@ async function processPendingMessages() {
   }
 }
 
-// Process every 30 seconds
-setInterval(processPendingMessages, 30000);
+// Process every 20 seconds (1 mensaje a la vez para evitar rate limit)
+setInterval(processPendingMessages, 20000);
 setTimeout(processPendingMessages, 5000);
 
 // ---- PENDING APPROVALS ----
