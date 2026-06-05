@@ -2149,14 +2149,8 @@ function iniciarVigilanteWA() {
   }, 3000); // Cada 3 segundos
 }
 
-// Iniciar vigilante cuando se abre el overlay
-var waObserverOrig = toggleWAOverlay;
-toggleWAOverlay = function() {
-  waObserverOrig();
-  if (waOverlayVisible) {
-    setTimeout(iniciarVigilanteWA, 2000);
-  }
-};
+// Iniciar vigilante siempre, aunque el overlay esté cerrado
+setTimeout(iniciarVigilanteWA, 5000);
 
 // Close on Escape
 document.addEventListener('keydown', function(e) {
