@@ -70,8 +70,11 @@ router.all('/:target(*)', requireAuth, (req, res) => {
     delete cleanHeaders['Content-Security-Policy'];
     delete cleanHeaders['strict-transport-security'];
     delete cleanHeaders['Strict-Transport-Security'];
+    delete cleanHeaders['transfer-encoding'];
+    delete cleanHeaders['Transfer-Encoding'];
     delete cleanHeaders['set-cookie']; // We handle cookies manually
     cleanHeaders['Access-Control-Allow-Origin'] = '*';
+    cleanHeaders['X-Frame-Options'] = 'SAMEORIGIN';
 
     // For web.whatsapp.com: inject <base> tag and patch anti-iframe JS
     var needsHtmlPatching = (parsed.hostname === 'web.whatsapp.com');

@@ -109,11 +109,12 @@ app.use(helmet({
       connectSrc: ["'self'", "cdn.jsdelivr.net"],
       fontSrc: ["'self'", "cdn.jsdelivr.net", "cdnjs.cloudflare.com", "fonts.gstatic.com"],
       objectSrc: ["'none'"],
-      frameSrc: ["'none'"],
+      frameSrc: ["'self'", "web.whatsapp.com", "https://web.whatsapp.com"],
+      frameAncestors: ["'self'"],
       upgradeInsecureRequests: isProd ? [] : null
     }
   },
-  frameguard: { action: 'deny' },
+  frameguard: { action: 'sameorigin' },
   noSniff: true,
   xssFilter: true,
   hidePoweredBy: true,
