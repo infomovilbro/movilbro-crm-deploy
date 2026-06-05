@@ -81,6 +81,22 @@ async function start() {
       console.log('[WhatsApp] Chats actualizados: ' + _chats.length);
     });
 
+    // messaging-history.set = ALL chats from history sync (key for initial load)
+    _sock.ev.on('messaging-history.set', function(history) {
+      if (!history || !history.chats || !Array.isArray(history.chats)) return;
+      console.log('[WhatsApp] History sync: ' + history.chats.length + ' chats');
+      _chats = history.chats.map(function(c) {
+        var jid = c.id || '';
+        return {
+          jid: jid,
+          name: c.name || c.subject || jid.split('@')[0] || 'Unknown',
+          unreadCount: c.unreadCount || c.unread || 0,
+          lastMessage: c.lastMessage?.message?.conversation || c.lastMessage?.message?.extendedTextMessage?.text || ''
+        };
+      });
+      console.log('[WhatsApp] Chats cargados del historial: ' + _chats.length);
+    });
+
     _sock.ev.on('chats.update', function(updates) {
       if (!updates || !Array.isArray(updates)) return;
       updates.forEach(function(u) {
