@@ -1,21 +1,40 @@
-<section style="height:calc(100vh - 120px);padding:0;margin:0;display:flex;flex-direction:column;">
+<!-- Redirige a web.whatsapp.com real -->
+<section style="padding:0;margin:0;display:flex;flex-direction:column;height:calc(100vh - 60px);">
   <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#075e54;color:#fff;flex-shrink:0;border-radius:8px 8px 0 0;">
     <i class="bi bi-whatsapp" style="font-size:1.3rem;"></i>
     <span style="font-weight:600;font-size:0.9rem;">WhatsApp Web</span>
-    <span style="font-size:0.75rem;opacity:0.7;margin-left:auto;">web.whatsapp.com</span>
+    <a href="/" style="margin-left:auto;color:rgba(255,255,255,0.8);text-decoration:none;font-size:0.8rem;display:flex;align-items:center;gap:4px;">
+      <i class="bi bi-arrow-left"></i> Volver al CRM
+    </a>
   </div>
-  <div style="flex:1;border:1px solid #ddd;border-top:0;border-radius:0 0 8px 8px;overflow:hidden;background:#fff;">
-    <iframe id="waIframe" src="/whatsapp/content/" style="width:100%;height:100%;border:0;" allow="camera;microphone" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
+  <div id="waContainer" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f0f2f5;text-align:center;padding:20px;">
+    <i class="bi bi-whatsapp" style="font-size:4rem;color:#25D366;margin-bottom:16px;"></i>
+    <h4 style="font-weight:300;margin-bottom:8px;">Abre WhatsApp Web</h4>
+    <p style="color:#667781;max-width:400px;margin-bottom:20px;">
+      La p&aacute;gina se abrir&aacute; autom&aacute;ticamente. Escanea el QR con tu m&oacute;vil:
+      <br><strong>WhatsApp → Ajustes → Dispositivos vinculados → Vincular un dispositivo</strong>
+    </p>
+    <div id="countdown" style="font-size:2rem;color:#25D366;font-weight:700;margin-bottom:16px;">3</div>
+    <button onclick="window.location.href='https://web.whatsapp.com'" class="btn btn-success btn-lg">
+      <i class="bi bi-whatsapp"></i> Abrir WhatsApp Web ahora
+    </button>
   </div>
 </section>
 <script>
 (function() {
-  var iframe = document.getElementById('waIframe');
-  // Reload iframe if it fails to load (common with WhatsApp blocking)
-  iframe.onerror = function() {
-    setTimeout(function() {
-      iframe.src = '/whatsapp/content/?t=' + Date.now();
-    }, 3000);
-  };
+  // Guardar que venimos del CRM para mostrar barra de volver
+  try { localStorage.setItem('crm_return', '/'); } catch(e) {}
+  // Redirigir tras cuenta atras
+  var segundos = 3;
+  var cd = document.getElementById('countdown');
+  var timer = setInterval(function() {
+    segundos--;
+    if (segundos <= 0) {
+      clearInterval(timer);
+      window.location.href = 'https://web.whatsapp.com';
+    } else {
+      cd.textContent = segundos;
+    }
+  }, 1000);
 })();
 </script>
