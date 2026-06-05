@@ -286,29 +286,28 @@ function forceReconnect() {
   setTimeout(start, 500);
 }
 
-function resetAuth() {
-  log('🧹 Limpiando autenticación WhatsApp...');
+async function resetAuth() {
+  log('🧹 Limpiando autenticación WhatsApp (logout)...');
   clearWatchdog();
-  try { if (_sock?.ws) _sock.ws.close(); } catch(e) { log('  Error cerrando socket:', e.message); }
-  _sock = null;
-  _status = 'disconnected';
-  _started = false;
   _chats = [];
-  try { if (fs.existsSync(CHATS_PATH)) { fs.unlinkSync(CHATS_PATH); log('  Chats.json borrado'); } } catch(e) { log('  Error borrando chats:', e.message); }
-  var deletedCount = 0;
-  try {
-    if (fs.existsSync(AUTH_DIR)) {
-      var files = fs.readdirSync(AUTH_DIR);
-      files.forEach(function(f) {
-        try { fs.unlinkSync(path.join(AUTH_DIR, f)); deletedCount++; } catch(e) { log('  Error borrando', f, ':', e.message); }
-      });
-      log('  Archivos auth borrados:', deletedCount);
-    } else {
-      log('  Directorio auth no existe');
-    }
-  } catch(e) { log('  Error limpiando auth:', e.message); }
-  log('  Auth limpiado, próximo inicio mostrará QR fresco');
-  setTimeout(start, 1000);
+  try { if (fs.existsSync(CHATS_PATH)) fs.unlinkSync(CHATS_PATH); } catch(e) {}
+  // Usar logout() de baileys que envía remove-companion-device a WhatsApp
+  if (_sock && typeof _sock.logout === 'function') {
+    try { await _sock.logout(); log('  Logout enviado a WhatsApp'); } catch(e) { log('  Error logout:', e.message); }
+  } else {
+    // Fallback: cerrar socket y limpiar auth manual
+    try { if (_sock?.ws) _sock.ws.close(); } catch(e) {}
+    _sock = null;
+    _status = 'disconnected';
+    _started = false;
+    try {
+      if (fs.existsSync(AUTH_DIR)) {
+        fs.readdirSync(AUTH_DIR).forEach(function(f) { try { fs.unlinkSync(path.join(AUTH_DIR, f)); } catch(e) {} });
+      }
+    } catch(e) {}
+    setTimeout(start, 1000);
+  }
+  // logout() dispara connection.update con loggedOut, que maneja la limpieza y reinicio
 }
 
 setTimeout(start, 1000);
