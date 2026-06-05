@@ -5,6 +5,7 @@
 - **📊 Mostrar barra de progreso** — Cada paso con `[1/N]`, no trabajar en silencio.
 - **🤫 No preguntar, actuar** — Push, deploy, decisiones: hacer sin consultar. Deploy solo al final de una sesión completa, no cada micro-cambio.
 - **🧪 Probar antes de desplegar** — Cualquier código que escribo, lo pruebo con `node -e` primero. No asumo que funciona. Si uso una API externa, verifico sus métodos con un test rápido antes de integrarlo.
+- **🌐 Verificar en navegador** — Después del deploy, comprobar en la web real que funciona antes de decir que está listo.
 - **🪟 Sin ventanas nuevas** — Todo en la misma página, nada de `target="_blank"` ni `window.open`.
 - **📦 Menos es más** — No meter librerías pesadas para cosas simples. Soluciones simples y cómodas.
 - **🔄 No releer** — Cuando un proceso termina, no se relee a menos que el admin lo pida.
