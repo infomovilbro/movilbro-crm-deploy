@@ -68,10 +68,38 @@ router.all('/:target(*)', requireAuth, (req, res) => {
     delete cleanHeaders['X-Frame-Options'];
     delete cleanHeaders['content-security-policy'];
     delete cleanHeaders['Content-Security-Policy'];
+    delete cleanHeaders['strict-transport-security'];
+    delete cleanHeaders['Strict-Transport-Security'];
     delete cleanHeaders['set-cookie']; // We handle cookies manually
+    cleanHeaders['Access-Control-Allow-Origin'] = '*';
 
-    res.writeHead(proxyRes.statusCode, cleanHeaders);
-    proxyRes.pipe(res);
+    // For web.whatsapp.com: inject <base> tag and patch anti-iframe JS
+    var needsHtmlPatching = (parsed.hostname === 'web.whatsapp.com');
+    if (needsHtmlPatching && proxyRes.headers['content-type'] && proxyRes.headers['content-type'].includes('text/html')) {
+      var chunks = [];
+      proxyRes.on('data', function(chunk) { chunks.push(chunk); });
+      proxyRes.on('end', function() {
+        var body = Buffer.concat(chunks).toString('utf8');
+        // Inject base tag so all assets load through our proxy
+        body = body.replace('<head>', '<head><base href="/proxy/web.whatsapp.com/">');
+        // Patch frame-busting JS
+        body = body.replace(/top\s*!==\s*self/g, 'false');
+        body = body.replace(/self\s*!==\s*top/g, 'false');
+        body = body.replace(/top\.location/g, 'self.location');
+        body = body.replace(/\.top\.location/g, '.self.location');
+        body = body.replace(/parent\.location/g, 'self.location');
+        body = body.replace(/window\.top/g, 'window.self');
+        // Patch feature detection that blocks non-whatsapp origins
+        body = body.replace(/if\s*\(!\s*isWhatsApp\b/g, 'if (false');
+        body = body.replace(/isWAError/g, 'false');
+        cleanHeaders['content-length'] = Buffer.byteLength(body, 'utf8');
+        res.writeHead(proxyRes.statusCode, cleanHeaders);
+        res.end(body);
+      });
+    } else {
+      res.writeHead(proxyRes.statusCode, cleanHeaders);
+      proxyRes.pipe(res);
+    }
   });
 
   proxyReq.on('error', (e) => {
