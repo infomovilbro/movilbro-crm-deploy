@@ -2093,6 +2093,9 @@ var waInterval = null;
 function iniciarVigilanteWA() {
   if (waInterval) return;
   console.log('[WA] Vigilante iniciado');
+  var ultimoSnapshot = '';
+  var ignorarTextos = ['WhatsApp', 'Escribe', 'escribe', 'Buscar', 'buscar', 'Ajustes', 'Menú', 'Archivados', 'Favoritos', 'Todos', 'Grupos', 'Nuevo grupo', 'Nueva lista', 'Perfil', 'Estado', 'Cerrar sesión', 'Cargando', 'anclado', 'Escribir mensaje', 'seleccionar', 'Chat'];
+  
   waInterval = setInterval(function() {
     try {
       var frame = document.getElementById('waPersistentFrame');
@@ -2100,53 +2103,76 @@ function iniciarVigilanteWA() {
       var doc = frame.contentDocument || frame.contentWindow?.document;
       if (!doc || !doc.body || doc.body.innerHTML.length < 1000) return;
       
-      // Buscar mensajes entrantes en el DOM de WhatsApp
-      var allElements = doc.querySelectorAll('[data-pre-plain-text], div[class*="message-in"], div[class*="message-out"], span[dir="ltr"], div[class*="copyable-text"], div[class*="selectable-text"]');
+      // Tomar snapshot del texto visible actual
+      var snapshot = doc.body.innerText || doc.body.textContent || '';
+      if (snapshot === ultimoSnapshot) return; // No hay cambios
       
-      allElements.forEach(function(el) {
-        var text = (el.textContent || '').trim();
-        if (!text || text.length < 2) return;
-        
-        // Generar hash simple del texto para evitar duplicados
-        var hash = text.length + ':' + text.substring(0, Math.min(text.length, 50));
-        if (waVisto[hash]) return;
-        waVisto[hash] = Date.now();
-        
-        // Limpiar hash viejos cada hora
-        var ahora = Date.now();
-        var keys = Object.keys(waVisto);
-        if (keys.length > 500) {
-          keys.forEach(function(k) {
-            if (ahora - waVisto[k] > 3600000) delete waVisto[k];
-          });
+      var snapshotAnterior = ultimoSnapshot;
+      ultimoSnapshot = snapshot;
+      
+      // Si es el primer snapshot, solo guardar
+      if (!snapshotAnterior) {
+        console.log('[WA] Snapshot inicial (' + snapshot.length + ' chars)');
+        return;
+      }
+      
+      // Detectar nuevo texto: lo que está en snapshot pero no en snapshotAnterior
+      // Buscar líneas nuevas (separadas por salto de línea)
+      var lineasAnteriores = snapshotAnterior.split('\n');
+      var lineasActuales = snapshot.split('\n');
+      
+      var nuevasLineas = [];
+      lineasActuales.forEach(function(linea) {
+        linea = linea.trim();
+        if (!linea || linea.length < 3) return;
+        // Ignorar si ya estaba antes
+        if (lineasAnteriores.indexOf(linea) >= 0) return;
+        // Ignorar textos de interfaz
+        for (var i = 0; i < ignorarTextos.length; i++) {
+          if (linea.includes(ignorarTextos[i])) return;
         }
+        // Ignorar números de teléfono solos o fechas
+        if (/^[\d\s:+()-.]+$/.test(linea)) return;
+        if (/^\d{1,2}:\d{2}$/.test(linea)) return; // Hora
+        if (/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(linea)) return; // Fecha
+        // Ignorar si ya lo vimos hace poco (hash)
+        var hash = linea.substring(0, 60);
+        if (waVisto[hash]) return;
+        nuevasLineas.push(linea);
+      });
+      
+      if (nuevasLineas.length === 0) return;
+      
+      // Limpiar hash viejos
+      var ahora = Date.now();
+      var keys = Object.keys(waVisto);
+      if (keys.length > 1000) {
+        keys.forEach(function(k) {
+          if (ahora - waVisto[k] > 3600000) delete waVisto[k];
+        });
+      }
+      
+      // Procesar cada nueva línea como posible mensaje
+      nuevasLineas.forEach(function(texto) {
+        waVisto[texto.substring(0, 60)] = Date.now();
+        console.log('[WA] Nuevo texto detectado:', texto.substring(0, 80));
         
-        // Ignorar textos muy cortos o que parezcan interfaz
-        if (text.length < 3 || text.includes('Escribe') || text.includes('WhatsApp') || text === '') return;
-        
-        console.log('[WA] Posible mensaje:', text.substring(0, 80));
-        
-        // Enviar a CodeOpen para análisis
         fetch('/codeopen/webhook/whatsapp', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ from: 'WhatsApp Auto', message: text })
+          body: JSON.stringify({ from: 'WhatsApp Auto', message: texto })
         }).then(function(r) { return r.json(); }).then(function(d) {
           if (d.ok) {
             console.log('[WA] Enviado a CodeOpen #' + d.pending_id);
-            // Mostrar notificación visual breve
             var dot = document.getElementById('waLiveDot');
-            if (dot) {
-              dot.style.background = '#f59e0b';
-              setTimeout(function() { dot.style.background = '#4ade80'; }, 3000);
-            }
+            if (dot) { dot.style.background = '#f59e0b'; setTimeout(function() { dot.style.background = '#4ade80'; }, 3000); }
           }
         }).catch(function(e) {});
       });
     } catch(e) {
-      // Error silencioso (cross-origin o iframe no listo)
+      // Error silencioso
     }
-  }, 3000); // Cada 3 segundos
+  }, 3000);
 }
 
 // Iniciar vigilante siempre, aunque el overlay esté cerrado
