@@ -39,6 +39,7 @@ const productRoutes = require('./routes/products');
 const analyticsRoutes = require('./routes/analytics');
 const historyRoutes = require('./routes/history');
 const whatsappRoutes = require('./routes/whatsapp');
+const waListener = require('./services/wa-listener'); // Listener silencioso de WhatsApp
 const billingRoutes = require('./routes/billing');
 const emailRoutes = require('./routes/email');
 const stripeRoutes = require('./routes/stripe');

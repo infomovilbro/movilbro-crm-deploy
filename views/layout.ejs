@@ -1993,13 +1993,14 @@
   <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:#075e54;color:#fff;flex-shrink:0;">
     <i class="bi bi-whatsapp" style="font-size:1.2rem;"></i>
     <span style="font-weight:600;font-size:0.85rem;">WhatsApp Web</span>
-    <span style="font-size:0.7rem;opacity:0.7;">en vivo</span>
-    <span id="waLiveDot" style="width:8px;height:8px;border-radius:50%;background:#4ade80;display:inline-block;animation:pulse 2s infinite;"></span>
-    <button onclick="enviarACodeOpen()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:6px;color:#fff;cursor:pointer;font-size:0.7rem;padding:4px 10px;white-space:nowrap;" title="Enviar mensaje seleccionado a CodeOpen para análisis">
+    <span style="font-size:0.7rem;opacity:0.7;">escuchando</span>
+    <span id="waLiveDot" style="width:8px;height:8px;border-radius:50%;background:#6b7280;display:inline-block;"></span>
+    <button onclick="enviarACodeOpen()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:6px;color:#fff;cursor:pointer;font-size:0.7rem;padding:4px 10px;white-space:nowrap;" title="Enviar mensaje a CodeOpen">
       <i class="bi bi-robot"></i> Analizar
     </button>
     <button onclick="toggleWAOverlay()" style="margin-left:auto;background:none;border:0;color:#fff;cursor:pointer;font-size:1.2rem;padding:2px 6px;">&times;</button>
   </div>
+  <div id="waListenerQR"></div>
   <div style="flex:1;overflow:hidden;">
     <iframe id="waPersistentFrame" src="/proxy/web.whatsapp.com" style="width:100%;height:100%;border:0;"></iframe>
   </div>
@@ -2086,97 +2087,38 @@ setInterval(function() {
   }
 }, 10000);
 
-// ---- VIGILANTE AUTOMÁTICO DE WHATSAPP ----
-var waVisto = {};
-var waInterval = null;
-
-function iniciarVigilanteWA() {
-  if (waInterval) return;
-  console.log('[WA] Vigilante iniciado');
-  var ultimoSnapshot = '';
-  var ignorarTextos = ['WhatsApp', 'Escribe', 'escribe', 'Buscar', 'buscar', 'Ajustes', 'Menú', 'Archivados', 'Favoritos', 'Todos', 'Grupos', 'Nuevo grupo', 'Nueva lista', 'Perfil', 'Estado', 'Cerrar sesión', 'Cargando', 'anclado', 'Escribir mensaje', 'seleccionar', 'Chat'];
-  
-  waInterval = setInterval(function() {
-    try {
-      var frame = document.getElementById('waPersistentFrame');
-      if (!frame) return;
-      var doc = frame.contentDocument || frame.contentWindow?.document;
-      if (!doc || !doc.body || doc.body.innerHTML.length < 1000) return;
-      
-      // Tomar snapshot del texto visible actual
-      var snapshot = doc.body.innerText || doc.body.textContent || '';
-      if (snapshot === ultimoSnapshot) return; // No hay cambios
-      
-      var snapshotAnterior = ultimoSnapshot;
-      ultimoSnapshot = snapshot;
-      
-      // Si es el primer snapshot, solo guardar
-      if (!snapshotAnterior) {
-        console.log('[WA] Snapshot inicial (' + snapshot.length + ' chars)');
-        return;
-      }
-      
-      // Detectar nuevo texto: lo que está en snapshot pero no en snapshotAnterior
-      // Buscar líneas nuevas (separadas por salto de línea)
-      var lineasAnteriores = snapshotAnterior.split('\n');
-      var lineasActuales = snapshot.split('\n');
-      
-      var nuevasLineas = [];
-      lineasActuales.forEach(function(linea) {
-        linea = linea.trim();
-        if (!linea || linea.length < 3) return;
-        // Ignorar si ya estaba antes
-        if (lineasAnteriores.indexOf(linea) >= 0) return;
-        // Ignorar textos de interfaz
-        for (var i = 0; i < ignorarTextos.length; i++) {
-          if (linea.includes(ignorarTextos[i])) return;
-        }
-        // Ignorar números de teléfono solos o fechas
-        if (/^[\d\s:+()-.]+$/.test(linea)) return;
-        if (/^\d{1,2}:\d{2}$/.test(linea)) return; // Hora
-        if (/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(linea)) return; // Fecha
-        // Ignorar si ya lo vimos hace poco (hash)
-        var hash = linea.substring(0, 60);
-        if (waVisto[hash]) return;
-        nuevasLineas.push(linea);
-      });
-      
-      if (nuevasLineas.length === 0) return;
-      
-      // Limpiar hash viejos
-      var ahora = Date.now();
-      var keys = Object.keys(waVisto);
-      if (keys.length > 1000) {
-        keys.forEach(function(k) {
-          if (ahora - waVisto[k] > 3600000) delete waVisto[k];
-        });
-      }
-      
-      // Procesar cada nueva línea como posible mensaje
-      nuevasLineas.forEach(function(texto) {
-        waVisto[texto.substring(0, 60)] = Date.now();
-        console.log('[WA] Nuevo texto detectado:', texto.substring(0, 80));
-        
-        fetch('/codeopen/webhook/whatsapp', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ from: 'WhatsApp Auto', message: texto })
-        }).then(function(r) { return r.json(); }).then(function(d) {
-          if (d.ok) {
-            console.log('[WA] Enviado a CodeOpen #' + d.pending_id);
-            var dot = document.getElementById('waLiveDot');
-            if (dot) { dot.style.background = '#f59e0b'; setTimeout(function() { dot.style.background = '#4ade80'; }, 3000); }
+// ---- ESTADO DEL LISTENER BAILEYS (escuchador silencioso) ----
+function checkListenerStatus() {
+  fetch('/whatsapp/listener-status')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      var dot = document.getElementById('waLiveDot');
+      if (!dot) return;
+      if (d.status === 'connected') {
+        dot.style.background = '#4ade80';
+      } else if (d.status === 'awaiting_qr') {
+        dot.style.background = '#f59e0b';
+        // Show QR if available
+        fetch('/whatsapp/listener-qr').then(function(r) { return r.json(); }).then(function(qd) {
+          if (qd.qr) {
+            var container = document.getElementById('waListenerQR');
+            if (container) {
+              container.innerHTML = '<div style="padding:8px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.2);">' +
+                '<div style="font-size:0.7rem;opacity:0.8;margin-bottom:4px;">Vincula el escuchador:</div>' +
+                '<img src="' + qd.qr + '" style="width:150px;height:150px;border:3px solid #25D366;border-radius:6px;">' +
+                '</div>';
+            }
           }
-        }).catch(function(e) {});
-      });
-    } catch(e) {
-      // Error silencioso
-    }
-  }, 3000);
+        });
+      } else {
+        dot.style.background = '#6b7280';
+      }
+    }).catch(function() {});
 }
 
-// Iniciar vigilante siempre, aunque el overlay esté cerrado
-setTimeout(iniciarVigilanteWA, 5000);
+// Check listener status every 5 seconds
+setInterval(checkListenerStatus, 5000);
+setTimeout(checkListenerStatus, 1000);
 
 // Close on Escape
 document.addEventListener('keydown', function(e) {
