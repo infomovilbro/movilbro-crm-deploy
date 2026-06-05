@@ -70,6 +70,47 @@ async function start() {
 
     log('[4/4] Registrando manejadores de eventos...');
 
+    // PRIMERO: ev.process() para eventos bufferizados (chats, historia)
+    _sock.ev.process(function(events) {
+      if (events['messaging-history.set'] && events['messaging-history.set'].chats) {
+        var history = events['messaging-history.set'];
+        _chats = (history.chats || []).map(function(c) {
+          var jid = c.id || '';
+          return {
+            jid: jid,
+            name: c.name || c.subject || jid.split('@')[0] || 'Unknown',
+            unreadCount: c.unreadCount || c.unread || 0,
+            lastMessage: c.lastMessage?.message?.conversation || c.lastMessage?.message?.extendedTextMessage?.text || ''
+          };
+        });
+        log('  📋 Historial cargado: ' + _chats.length + ' chats');
+      }
+
+      if (events['chats.upsert']) {
+        events['chats.upsert'].forEach(function(c) {
+          var jid = c.id || '';
+          var idx = _chats.findIndex(function(x) { return x.jid === jid; });
+          var obj = {
+            jid: jid,
+            name: c.name || c.subject || jid.split('@')[0] || 'Unknown',
+            unreadCount: c.unreadCount || c.unread || 0,
+            lastMessage: c.lastMessage?.message?.conversation || c.lastMessage?.message?.extendedTextMessage?.text || ''
+          };
+          if (idx > -1) _chats[idx] = obj; else _chats.push(obj);
+        });
+      }
+
+      if (events['chats.update']) {
+        events['chats.update'].forEach(function(u) {
+          var idx = _chats.findIndex(function(c) { return c.jid === u.id; });
+          if (idx > -1) {
+            if (u.name) _chats[idx].name = u.name;
+            if (u.unreadCount !== undefined) _chats[idx].unreadCount = u.unreadCount;
+          }
+        });
+      }
+    });
+
     _sock.ev.on('creds.update', saveCreds);
 
     _sock.ev.on('connection.update', function(update) {
@@ -140,48 +181,6 @@ async function start() {
             }
           }
         } catch(e) { log('  Error msg:', e.message); }
-      }
-    });
-
-    // ev.process() captura eventos bufferizados (messaging-history.set, chats.*)
-    _sock.ev.process(function(events) {
-      if (events['messaging-history.set'] && events['messaging-history.set'].chats) {
-        var history = events['messaging-history.set'];
-        _chats = (history.chats || []).map(function(c) {
-          var jid = c.id || '';
-          return {
-            jid: jid,
-            name: c.name || c.subject || jid.split('@')[0] || 'Unknown',
-            unreadCount: c.unreadCount || c.unread || 0,
-            lastMessage: c.lastMessage?.message?.conversation || c.lastMessage?.message?.extendedTextMessage?.text || ''
-          };
-        });
-        log('  📋 Historial cargado vía process: ' + _chats.length + ' chats');
-      }
-
-      if (events['chats.upsert']) {
-        events['chats.upsert'].forEach(function(c) {
-          var jid = c.id || '';
-          var existing = _chats.findIndex(function(x) { return x.jid === jid; });
-          var chatObj = {
-            jid: jid,
-            name: c.name || c.subject || jid.split('@')[0] || 'Unknown',
-            unreadCount: c.unreadCount || c.unread || 0,
-            lastMessage: c.lastMessage?.message?.conversation || c.lastMessage?.message?.extendedTextMessage?.text || ''
-          };
-          if (existing > -1) _chats[existing] = chatObj;
-          else _chats.push(chatObj);
-        });
-      }
-
-      if (events['chats.update']) {
-        events['chats.update'].forEach(function(u) {
-          var idx = _chats.findIndex(function(c) { return c.jid === u.id; });
-          if (idx > -1) {
-            if (u.name) _chats[idx].name = u.name;
-            if (u.unreadCount !== undefined) _chats[idx].unreadCount = u.unreadCount;
-          }
-        });
       }
     });
 
