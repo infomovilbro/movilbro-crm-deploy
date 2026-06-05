@@ -5,6 +5,7 @@ const fs = require('fs');
 const { db } = require('../database');
 
 var AUTH_DIR = path.join(__dirname, '..', '.whatsapp-auth');
+var CHATS_PATH = path.join(__dirname, '..', '.whatsapp-chats.json');
 var _sock = null;
 var _qrCallback = null;
 var _lastQR = null;
@@ -41,6 +42,67 @@ function clearWatchdog() {
   if (_watchdog) { clearTimeout(_watchdog); _watchdog = null; }
 }
 
+function saveChats() {
+  try { fs.writeFileSync(CHATS_PATH, JSON.stringify(_chats), 'utf8'); } catch(e) {}
+}
+
+function loadChats() {
+  try {
+    if (fs.existsSync(CHATS_PATH)) {
+      var data = fs.readFileSync(CHATS_PATH, 'utf8');
+      _chats = JSON.parse(data) || [];
+      log('  📋 Chats cargados de archivo: ' + _chats.length);
+    }
+  } catch(e) { log('  Error cargando chats:', e.message); }
+}
+
+function updateChatsFromEvents(events) {
+  var changed = false;
+
+  if (events['messaging-history.set'] && events['messaging-history.set'].chats) {
+    var history = events['messaging-history.set'];
+    _chats = (history.chats || []).map(function(c) {
+      var jid = c.id || '';
+      return {
+        jid: jid,
+        name: c.name || c.subject || jid.split('@')[0] || 'Unknown',
+        unreadCount: c.unreadCount || c.unread || 0,
+        lastMessage: c.lastMessage?.message?.conversation || c.lastMessage?.message?.extendedTextMessage?.text || ''
+      };
+    });
+    log('  📋 Historial: ' + _chats.length + ' chats');
+    changed = true;
+  }
+
+  if (events['chats.upsert']) {
+    events['chats.upsert'].forEach(function(c) {
+      var jid = c.id || '';
+      var idx = _chats.findIndex(function(x) { return x.jid === jid; });
+      var obj = {
+        jid: jid,
+        name: c.name || c.subject || jid.split('@')[0] || 'Unknown',
+        unreadCount: c.unreadCount || c.unread || 0,
+        lastMessage: c.lastMessage?.message?.conversation || c.lastMessage?.message?.extendedTextMessage?.text || ''
+      };
+      if (idx > -1) _chats[idx] = obj; else _chats.push(obj);
+    });
+    changed = true;
+  }
+
+  if (events['chats.update']) {
+    events['chats.update'].forEach(function(u) {
+      var idx = _chats.findIndex(function(c) { return c.jid === u.id; });
+      if (idx > -1) {
+        if (u.name) _chats[idx].name = u.name;
+        if (u.unreadCount !== undefined) _chats[idx].unreadCount = u.unreadCount;
+      }
+    });
+    changed = true;
+  }
+
+  if (changed) saveChats();
+}
+
 async function start() {
   if (_started) return;
   _started = true;
@@ -55,8 +117,9 @@ async function start() {
 
     var isRegistered = !!(state.creds && state.creds.me && state.creds.me.id);
     log('  Registrado:', isRegistered ? 'Sí (conectando directo)' : 'No (mostrando QR)');
+    if (isRegistered) loadChats();
 
-    log('[3/4] Creando socket WhatsApp...');
+    log('[3/4] Creando socket...');
     _sock = makeWASocket({
       auth: state,
       printQRInTerminal: false,
@@ -68,49 +131,9 @@ async function start() {
 
     startWatchdog();
 
-    log('[4/4] Registrando manejadores de eventos...');
+    log('[4/4] Registrando manejadores...');
 
-    // PRIMERO: ev.process() para eventos bufferizados (chats, historia)
-    _sock.ev.process(function(events) {
-      if (events['messaging-history.set'] && events['messaging-history.set'].chats) {
-        var history = events['messaging-history.set'];
-        _chats = (history.chats || []).map(function(c) {
-          var jid = c.id || '';
-          return {
-            jid: jid,
-            name: c.name || c.subject || jid.split('@')[0] || 'Unknown',
-            unreadCount: c.unreadCount || c.unread || 0,
-            lastMessage: c.lastMessage?.message?.conversation || c.lastMessage?.message?.extendedTextMessage?.text || ''
-          };
-        });
-        log('  📋 Historial cargado: ' + _chats.length + ' chats');
-      }
-
-      if (events['chats.upsert']) {
-        events['chats.upsert'].forEach(function(c) {
-          var jid = c.id || '';
-          var idx = _chats.findIndex(function(x) { return x.jid === jid; });
-          var obj = {
-            jid: jid,
-            name: c.name || c.subject || jid.split('@')[0] || 'Unknown',
-            unreadCount: c.unreadCount || c.unread || 0,
-            lastMessage: c.lastMessage?.message?.conversation || c.lastMessage?.message?.extendedTextMessage?.text || ''
-          };
-          if (idx > -1) _chats[idx] = obj; else _chats.push(obj);
-        });
-      }
-
-      if (events['chats.update']) {
-        events['chats.update'].forEach(function(u) {
-          var idx = _chats.findIndex(function(c) { return c.jid === u.id; });
-          if (idx > -1) {
-            if (u.name) _chats[idx].name = u.name;
-            if (u.unreadCount !== undefined) _chats[idx].unreadCount = u.unreadCount;
-          }
-        });
-      }
-    });
-
+    _sock.ev.process(function(events) { updateChatsFromEvents(events); });
     _sock.ev.on('creds.update', saveCreds);
 
     _sock.ev.on('connection.update', function(update) {
@@ -136,6 +159,7 @@ async function start() {
         _connectionAttempts = 0;
         clearWatchdog();
         log('  ✅ WhatsApp CONECTADO');
+        if (_chats.length === 0) loadChats();
         if (_qrCallback) _qrCallback({ type: 'status', data: 'connected' });
       }
 
@@ -159,6 +183,7 @@ async function start() {
             var authFiles = fs.readdirSync(AUTH_DIR);
             authFiles.forEach(function(f) { try { fs.unlinkSync(path.join(AUTH_DIR, f)); } catch(e) {} });
           } catch(e) {}
+          try { if (fs.existsSync(CHATS_PATH)) fs.unlinkSync(CHATS_PATH); } catch(e) {}
           _started = false;
           setTimeout(start, 5000);
         }
@@ -228,15 +253,17 @@ async function getMessages(jid, limit) {
   if (!_sock) return [];
   limit = limit || 50;
   try {
-    var msgs = typeof _sock.loadMessages === 'function' ? (await _sock.loadMessages(jid, limit) || []) : [];
-    return (msgs || []).map(function(m) {
-      return {
-        id: m.key?.id,
-        fromMe: m.key?.fromMe || false,
-        text: m.message?.conversation || m.message?.extendedTextMessage?.text || '',
-        timestamp: m.messageTimestamp
-      };
-    });
+    if (_store && typeof _store.loadMessages === 'function') {
+      return (await _store.loadMessages(jid, limit) || []).map(function(m) {
+        return {
+          id: m.key?.id,
+          fromMe: m.key?.fromMe || false,
+          text: m.message?.conversation || m.message?.extendedTextMessage?.text || '',
+          timestamp: m.messageTimestamp
+        };
+      });
+    }
+    return [];
   } catch(e) {
     log('getMessages error:', e.message);
     return [];
