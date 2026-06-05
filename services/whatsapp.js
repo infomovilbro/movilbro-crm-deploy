@@ -29,7 +29,8 @@ async function start() {
       printQRInTerminal: false,
       browser: ['Movilbro CRM', 'Chrome', '1.0.0'],
       syncFullHistory: true,
-      markOnlineOnConnect: false
+      markOnlineOnConnect: false,
+      shouldSyncHistoryMessage: function() { return true; }
     });
 
     _sock.ev.on('creds.update', saveCreds);
