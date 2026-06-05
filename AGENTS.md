@@ -45,6 +45,20 @@
 - [x] No tener acceso a Render dashboard → pedir contraseña o URL de deploy hook al principio; no esperar a necesitarla
 - [x] Repetir el mismo error de escapado PowerShell 4+ veces → usar SIEMPRE archivo .js, nunca -e
 
+## Caso WhatsApp Baileys — Lección Aprendida
+**Error:** Asumí que `sock.chats.all()` existía sin verificarlo. Luego asumí que `messaging-history.set` se disparaba sin leer cómo funciona realmente baileys. Perdí horas probando cosas al azar.
+
+**Cómo lo arreglé:**
+1. Leer el código fuente real en `node_modules/` (no asumir la API)
+2. Verificar la versión exacta (`7.0.0-rc13`)
+3. Listar exports disponibles
+4. Leer los `.d.ts` (TypeScript) para conocer la estructura real de eventos y payloads
+5. Leer `DEFAULT_CONNECTION_CONFIG` para conocer valores por defecto
+
+**Causa raíz:** `shouldSyncHistoryMessage` por defecto devuelve `false` para `FULL` sync. WhatsApp envía FULL sync para cuentas con muchos chats, y baileys lo ignoraba silenciosamente. Fix: `shouldSyncHistoryMessage: () => true`.
+
+**Regla nueva: Antes de escribir código que use una API externa, leer su código fuente o documentación oficial primero. No asumir.**
+
 ## Auto-Deploy Render
 - Si auto-deploy no funciona, revisar Build Filters en Settings del servicio en Render dashboard.
 - Solución temporal: Manual Deploy desde dashboard.
