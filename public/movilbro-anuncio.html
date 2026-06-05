@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Movilbro · Anuncio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;font-family:'Inter',sans-serif;background:#000;color:#fff;-webkit-user-select:none;user-select:none}
+#player{position:fixed;top:0;left:0;width:100%;height:100%;overflow:hidden;background:#000}
+
+/* === SCENES === */
+.scene{position:absolute;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 1.2s ease;pointer-events:none;padding:20px}
+.scene.active{opacity:1;pointer-events:auto;z-index:2}
+
+/* === SCENE 1: Calle === */
+#scene1{background:linear-gradient(180deg,#0f172a,#1e293b)}
+#scene1 .bg-img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;opacity:0.35}
+#scene1 .overlay{position:absolute;top:0;left:0;width:100%;height:100%;background:linear-gradient(180deg,rgba(15,23,42,0.4) 0%,rgba(15,23,42,0.7) 50%,rgba(15,23,42,0.95) 100%)}
+.bg-buildings{position:absolute;bottom:0;left:0;width:100%;height:50%;overflow:hidden}
+.building-s{position:absolute;bottom:0;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.03)}
+.bs1{left:2%;width:14%;height:280px}
+.bs2{left:18%;width:9%;height:200px}
+.bs3{left:29%;width:16%;height:340px}
+.bs4{left:48%;width:10%;height:220px}
+.bs5{left:60%;width:15%;height:310px}
+.bs6{left:78%;width:8%;height:180px}
+.bs7{left:88%;width:11%;height:250px}
+
+/* === WALKING PERSON === */
+.person{position:absolute;z-index:5;width:36px;height:70px;transition:left 0.1s}
+.p-head{width:16px;height:16px;background:#fcd8b7;border-radius:50%;margin:0 auto 1px}
+.p-torso{width:20px;height:26px;background:#3b82f6;border-radius:5px 5px 3px 3px;margin:0 auto}
+.p-legs{display:flex;justify-content:center;gap:3px;margin-top:-1px}
+.p-leg{width:6px;height:20px;background:#1e293b;border-radius:0 0 3px 3px;transform-origin:top center;animation:walkLeg 0.45s ease infinite alternate}
+.p-leg-r{animation-delay:0.225s}
+@keyframes walkLeg{0%{transform:rotate(-14deg)}100%{transform:rotate(14deg)}}
+.p-arm{position:absolute;width:5px;height:18px;background:#fcd8b7;border-radius:3px;top:20px;transform-origin:top center;animation:walkArm 0.45s ease infinite alternate}
+.p-arm-l{left:-5px;animation-delay:0.225s}
+.p-arm-r{right:-5px}
+@keyframes walkArm{0%{transform:rotate(16deg)}100%{transform:rotate(-16deg)}}
+
+/* === SCENE 2: Fachada === */
+#scene2{background:#0f172a}
+#scene2 .bg-img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;opacity:0.55}
+#scene2 .overlay{position:absolute;top:0;left:0;width:100%;height:100%;background:linear-gradient(135deg,rgba(15,23,42,0.5),rgba(15,23,42,0.2))}
+#scene2 .store-logo{position:absolute;top:10%;left:50%;transform:translateX(-50%);text-align:center;z-index:3}
+#scene2 .store-logo img{height:44px;margin-bottom:6px}
+#scene2 .store-logo h2{font-size:1.8rem;font-weight:900;letter-spacing:3px;background:linear-gradient(135deg,#14b8a6,#fbbf24);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+
+/* === SCENE 3: Interior === */
+#scene3{background:#0f172a}
+#scene3 .bg-img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;opacity:0.45}
+#scene3 .overlay{position:absolute;top:0;left:0;width:100%;height:100%;background:linear-gradient(135deg,rgba(15,23,42,0.55),rgba(15,23,42,0.35))}
+.counter-box{position:absolute;bottom:22%;left:50%;transform:translateX(-50%);z-index:3;width:300px;padding:20px 24px;background:rgba(255,255,255,0.04);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.08);border-radius:14px;display:flex;align-items:center;gap:14px}
+.counter-box .avatar{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#14b8a6,#0d9488);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;border:2px solid rgba(255,255,255,0.1)}
+.counter-box .info h4{font-size:0.95rem;font-weight:700}
+.counter-box .info p{font-size:0.75rem;opacity:0.6}
+.counter-box .info .badge{display:inline-block;margin-top:3px;background:rgba(20,184,166,0.2);color:#14b8a6;padding:1px 10px;border-radius:10px;font-size:0.65rem;font-weight:600}
+#scene3 .customer-pos{position:absolute;bottom:22%;right:38%;z-index:4}
+
+/* === SCENE 4: Oferta === */
+#scene4{background:linear-gradient(135deg,#0d9488,#0f766e,#0d9488)}
+.circle-bg{position:absolute;top:-30%;right:-20%;width:500px;height:500px;border-radius:50%;background:rgba(255,255,255,0.03)}
+.circle-bg2{position:absolute;bottom:-20%;left:-10%;width:350px;height:350px;border-radius:50%;background:rgba(255,255,255,0.02)}
+.floating-badge{display:inline-block;background:rgba(251,191,36,0.15);border:1px solid rgba(251,191,36,0.25);padding:4px 16px;border-radius:50px;font-size:0.75rem;font-weight:700;color:#fbbf24;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;animation:glow 2s ease-in-out infinite}
+@keyframes glow{0%,100%{box-shadow:0 0 0 0 rgba(251,191,36,0.1)}50%{box-shadow:0 0 20px 4px rgba(251,191,36,0.15)}}
+.offer-h1{font-size:clamp(2rem,5vw,4rem);font-weight:900;line-height:1.05;margin-bottom:6px}
+.offer-h1 .gold{color:#fbbf24}
+.offer-pric{font-size:5rem;font-weight:900;line-height:1}
+.offer-pric small{font-size:1.4rem;font-weight:600;opacity:0.8}
+.offer-tags{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:14px 0}
+.offer-tags span{background:rgba(255,255,255,0.08);padding:6px 16px;border-radius:50px;font-size:0.85rem;font-weight:500}
+.offer-btn{display:inline-block;background:#fff;color:#0d9488;padding:14px 36px;border-radius:50px;font-weight:700;font-size:1rem;text-decoration:none;margin-top:8px;animation:pulseBtn 2s ease-in-out infinite}
+@keyframes pulseBtn{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(255,255,255,0)}50%{transform:scale(1.05);box-shadow:0 0 20px 4px rgba(255,255,255,0.15)}}
+
+/* === SUBTITLES === */
+.sub-box{position:absolute;bottom:70px;left:50%;transform:translateX(-50%);z-index:10;width:88%;max-width:680px;text-align:center;pointer-events:none}
+.sub-line{font-size:clamp(0.85rem,2vw,1.05rem);font-weight:500;opacity:0;transform:translateY(12px);transition:opacity 0.4s ease,transform 0.4s ease;text-shadow:0 2px 12px rgba(0,0,0,0.5);background:rgba(0,0,0,0.45);backdrop-filter:blur(6px);padding:10px 20px;border-radius:10px;display:inline-block;max-width:100%}
+.sub-line.show{opacity:1;transform:translateY(0)}
+
+/* === PROGRESS === */
+.progress-bar{position:fixed;bottom:0;left:0;height:3px;background:linear-gradient(90deg,#14b8a6,#fbbf24);z-index:20;transition:width 0.3s linear}
+
+/* === CONTROLS === */
+.controls{position:fixed;bottom:24px;right:16px;z-index:20;display:flex;gap:6px}
+.ctrl-btn,.mute-btn{width:34px;height:34px;border-radius:50%;border:none;background:rgba(255,255,255,0.08);color:#fff;font-size:0.85rem;cursor:pointer;backdrop-filter:blur(4px);transition:background 0.2s;display:flex;align-items:center;justify-content:center}
+.ctrl-btn:hover,.mute-btn:hover{background:rgba(255,255,255,0.15)}
+.scene-tag{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:10;font-size:0.65rem;color:rgba(255,255,255,0.25);letter-spacing:3px;text-transform:uppercase;font-weight:600}
+.replay-btn{position:fixed;top:16px;right:16px;z-index:20;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.06);color:rgba(255,255,255,0.4);padding:6px 14px;border-radius:50px;font-size:0.7rem;cursor:pointer;transition:all 0.2s;backdrop-filter:blur(4px)}
+.replay-btn:hover{background:rgba(255,255,255,0.1);color:#fff}
+
+/* === FINAL FRAME === */
+#finalFrame{position:fixed;top:0;left:0;width:100%;height:100%;z-index:15;background:linear-gradient(135deg,#0d9488,#0f766e);display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px;opacity:0;transition:opacity 0.8s ease}
+#finalFrame.show{display:flex;opacity:1}
+#finalFrame img{height:44px;margin-bottom:12px}
+#finalFrame h2{font-size:1.6rem;font-weight:900;margin-bottom:4px}
+#finalFrame p{opacity:0.7;font-size:0.9rem;margin-bottom:20px}
+#finalFrame .btn{background:#fff;color:#0d9488;padding:14px 32px;border-radius:50px;font-weight:700;text-decoration:none;transition:transform 0.2s}
+#finalFrame .btn:hover{transform:scale(1.05)}
+
+@media(max-width:600px){
+  .scene-tag{display:none}
+  .replay-btn{top:10px;right:10px;padding:4px 10px;font-size:0.65rem}
+  .counter-box{width:240px;padding:14px}
+  .counter-box .avatar{width:44px;height:44px;font-size:1.2rem}
+  .offer-pric{font-size:3.5rem}
+  .sub-box{bottom:55px}
+  .controls{bottom:45px}
+}
+</style>
+</head>
+<body>
+
+<div id="player">
+
+<!-- ESCENA 1: Pablo camina por la calle -->
+<div class="scene active" id="scene1">
+  <img src="assets/calle-andalucia.jpg" alt="Calle Antequera" class="bg-img" id="streetBg">
+  <div class="overlay"></div>
+  <div class="bg-buildings">
+    <div class="building-s bs1"></div>
+    <div class="building-s bs2"></div>
+    <div class="building-s bs3"></div>
+    <div class="building-s bs4"></div>
+    <div class="building-s bs5"></div>
+    <div class="building-s bs6"></div>
+    <div class="building-s bs7"></div>
+  </div>
+  <div style="position:absolute;bottom:48%;left:50%;transform:translateX(-50%);z-index:4;text-align:center;">
+    <div style="font-size:clamp(1.6rem,4vw,2.6rem);font-weight:900;background:linear-gradient(135deg,#14b8a6,#fbbf24);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">Antequera</div>
+    <div style="font-size:0.75rem;opacity:0.3;letter-spacing:4px;text-transform:uppercase;margin-top:4px">Una mañana como otra cualquiera</div>
+  </div>
+  <div class="person" id="walker1" style="left:-50px;bottom:41%">
+    <div class="p-head"></div>
+    <div class="p-torso"></div>
+    <div class="p-arm p-arm-l"></div>
+    <div class="p-arm p-arm-r"></div>
+    <div class="p-legs"><div class="p-leg"></div><div class="p-leg p-leg-r"></div></div>
+  </div>
+</div>
+
+<!-- ESCENA 2: Llega a la tienda -->
+<div class="scene" id="scene2">
+  <img src="assets/fachada.jpeg" alt="Movilbro Antequera" class="bg-img" id="storeFront">
+  <div class="overlay"></div>
+  <div class="store-logo">
+    <img src="assets/isotipo-corto.png" alt="Movilbro" id="storeLogo">
+    <h2>MOVILBRO</h2>
+    <div style="font-size:0.75rem;opacity:0.4;letter-spacing:2px">Calle Cantareros 29 · Antequera</div>
+  </div>
+  <div class="person" id="walker2" style="left:-50px;bottom:38%">
+    <div class="p-head"></div>
+    <div class="p-torso"></div>
+    <div class="p-arm p-arm-l"></div>
+    <div class="p-arm p-arm-r"></div>
+    <div class="p-legs"><div class="p-leg"></div><div class="p-leg p-leg-r"></div></div>
+  </div>
+</div>
+
+<!-- ESCENA 3: Arturo atiende a Pablo -->
+<div class="scene" id="scene3">
+  <img src="assets/interior.jpeg" alt="Interior Movilbro" class="bg-img" id="storeInside">
+  <div class="overlay"></div>
+  <div class="counter-box" id="counterEl">
+    <div class="avatar">👨‍💼</div>
+    <div class="info">
+      <h4>Arturo Muriana León</h4>
+      <p>Te asesora sin compromiso</p>
+      <span class="badge">⭐ Experto Movilbro</span>
+    </div>
+  </div>
+  <div class="customer-pos" id="customerEl" style="display:none">
+    <div class="person" style="position:relative;bottom:auto">
+      <div class="p-head"></div>
+      <div class="p-torso" style="background:#8b5cf6"></div>
+      <div class="p-legs"><div class="p-leg"></div><div class="p-leg p-leg-r"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ESCENA 4: Ofertón -->
+<div class="scene" id="scene4">
+  <div class="circle-bg"></div>
+  <div class="circle-bg2"></div>
+  <div style="text-align:center;z-index:2;position:relative;max-width:600px">
+    <div class="floating-badge">🔥 Oferta especial</div>
+    <div class="offer-h1">Fibra 600Mb + <span class="gold">2 líneas</span> 30GB</div>
+    <div class="offer-pric">34<small>,95€</small></div>
+    <div style="font-size:0.9rem;opacity:0.65;margin-bottom:10px">/mes · todo incluido · sin permanencia</div>
+    <div class="offer-tags">
+      <span>📶 600Mb reales</span>
+      <span>📱 2 líneas</span>
+      <span>📦 GB acumulables</span>
+      <span>📞 Llamdas ilimitadas</span>
+      <span>📡 Orange+Movistar</span>
+    </div>
+    <a href="#" class="offer-btn" id="offerCta">💬 Quiero esta oferta</a>
+  </div>
+</div>
+
+<!-- SUBTÍTULOS -->
+<div class="sub-box" id="subBox"><div class="sub-line" id="subLine"></div></div>
+
+<!-- PROGRESS -->
+<div class="progress-bar" id="progressBar" style="width:0%"></div>
+
+<!-- CONTROLES -->
+<div class="controls">
+  <button class="ctrl-btn" id="reloadBtn" onclick="location.reload()" title="Reiniciar">↺</button>
+  <button class="mute-btn" id="muteBtn" onclick="toggleMute()" title="Silenciar">🔊</button>
+</div>
+<div class="scene-tag" id="sceneTag">Escena 1/4</div>
+</div>
+
+<!-- FINAL FRAME -->
+<div id="finalFrame">
+  <img src="assets/isotipo-corto.png" alt="Movilbro" id="finalLogo">
+  <h2>💚 Movilbro</h2>
+  <p>Conectamos tu mundo · Calle Cantareros 29, Antequera<br>WhatsApp 694 29 70 48</p>
+  <a href="#" class="btn" id="finalCta">💬 Quiero la oferta</a>
+</div>
+
+<script>
+// ============================================================
+// GUIÓN DEL ANUNCIO
+// ============================================================
+const script = [
+  { s:1, txt:"Antequera. Una mañana cualquiera...", dur:3000, next:3200 },
+  { s:1, txt:"Pablo está harto de pagar 70€ al mes por internet y móvil.", dur:3200, next:3400 },
+  { s:1, txt:"Ha oído hablar de Movilbro, el operador local de Antequera.", dur:3000, next:3500 },
+  { s:2, txt:"Así que decide acercarse a la tienda, en Calle Cantareros 29.", dur:3000, next:3800 },
+  { s:2, txt:"La tienda tiene buena pinta... atención personalizada, sin esperas.", dur:3200, next:3500 },
+  { s:3, txt:"Dentro le recibe Arturo Muriana, experto en fibra y móvil.", dur:3500, next:3800 },
+  { s:3, txt:'—"Necesito fibra para casa y dos líneas para mi mujer y yo"', dur:3000, next:3400 },
+  { s:3, txt:'—"Tenemos el pack perfecto" — sonríe Arturo.', dur:2800, next:3500 },
+  { s:4, txt:"🔥 Fibra 600Mb + 2 líneas 30GB acumulables por solo 34,95€/mes.", dur:4000, next:4200 },
+  { s:4, txt:"Instalación gratis. Router WiFi 6. Doble cobertura Orange+Movistar.", dur:3200, next:3500 },
+  { s:4, txt:"Sin permanencia, sin sorpresas, sin letra pequeña.", dur:2800, next:3500 },
+  { s:4, txt:"¿Y tú? Pásate por Calle Cantareros 29 o escríbenos al 694 29 70 48.", dur:4000, next:4500 },
+  { s:4, txt:"Movilbro · Conectamos tu mundo 💚", dur:3000, next:1000 }
+];
+
+let idx = 0, curScene = 1, playing = true;
+let t1, t2, walkInterval;
+const subEl = document.getElementById('subLine');
+const prog = document.getElementById('progressBar');
+const tag = document.getElementById('sceneTag');
+const mutBtn = document.getElementById('muteBtn');
+
+// Audio context
+let actx, gainNode, musicOn = true;
+
+function initMusic(){
+  if(actx) return;
+  actx = new (window.AudioContext || window.webkitAudioContext)();
+  gainNode = actx.createGain();
+  gainNode.gain.value = 0.12;
+  gainNode.connect(actx.destination);
+  const bpm = 88, beat = 60/bpm, t0 = actx.currentTime + 0.1;
+  
+  function osc(time,freq,dur,vol,type='triangle'){
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(vol, time);
+    g.gain.exponentialRampToValueAtTime(0.001, time+dur);
+    o.connect(g); g.connect(gainNode);
+    o.start(time); o.stop(time+dur);
+  }
+  function noise(time,dur,vol){
+    const buf = actx.createBuffer(1, actx.sampleRate*dur, actx.sampleRate);
+    const d = buf.getChannelData(0);
+    for(let i=0;i<d.length;i++) d[i] = (Math.random()*2-1)*Math.pow(1-i/d.length,2);
+    const src = actx.createBufferSource(), g = actx.createGain();
+    src.buffer = buf;
+    g.gain.setValueAtTime(vol, time);
+    g.gain.exponentialRampToValueAtTime(0.001, time+dur);
+    src.connect(g); g.connect(gainNode);
+    src.start(time); src.stop(time+dur);
+  }
+  
+  // Melody: simple lo-fi tune (pentatonic)
+  const mel = [262,294,330,349,392,440,494,523,494,440,392,349,330,294,262,294];
+  for(let i=0;i<64;i++){
+    const t = t0 + i*beat/2;
+    osc(t, mel[i%mel.length]*(Math.floor(i/8)%2?1:0.5), beat*0.35, 0.06);
+    if(i%4===0) noise(t, beat*0.06, 0.03);
+  }
+  // Kick
+  for(let i=0;i<32;i++){
+    const t = t0 + i*beat;
+    osc(t, 75, beat*0.45, 0.1, 'sine');
+    if(i%2===0) osc(t, 140, beat*0.25, 0.05);
+  }
+  // Hi-hat
+  for(let i=0;i<128;i++){
+    const t = t0 + i*beat/4;
+    noise(t, beat/10, 0.012 + (i%4===0?0.015:0));
+  }
+  // Bass
+  const bass = [131,131,147,147,165,165,147,147];
+  for(let i=0;i<32;i++){
+    osc(t0 + i*beat, bass[i%bass.length], beat*0.85, 0.08, 'sawtooth');
+  }
+}
+
+function toggleMute(){
+  if(!gainNode) return;
+  musicOn = !musicOn;
+  gainNode.gain.value = musicOn ? 0.12 : 0;
+  mutBtn.textContent = musicOn ? '🔊' : '🔇';
+}
+
+function setScene(n){
+  document.querySelectorAll('.scene').forEach(s=>s.classList.remove('active'));
+  document.getElementById('scene'+n).classList.add('active');
+  curScene = n;
+  tag.textContent = 'Escena '+n+'/4';
+}
+
+function setSub(t){
+  subEl.textContent = t;
+  subEl.classList.remove('show');
+  void subEl.offsetWidth;
+  subEl.classList.add('show');
+}
+
+function advance(){
+  if(idx >= script.length){ showFinal(); return; }
+  const line = script[idx];
+  if(line.s !== curScene) setScene(line.s);
+  
+  // Scene triggers
+  if(line.s===2 && idx===3) startWalk2();
+  if(line.s===3 && idx===5){ stopAll(); showCustomer(); }
+  if(line.s===4 && idx===8) hideCustomer();
+  
+  setSub(line.txt);
+  idx++;
+  const pct = (idx/script.length)*100;
+  prog.style.transition = 'width '+(line.dur/1000)+'s linear';
+  prog.style.width = pct+'%';
+  t1 = setTimeout(advance, line.next);
+}
+
+function showFinal(){
+  prog.style.width = '100%';
+  document.getElementById('finalFrame').classList.add('show');
+  const w = new URLSearchParams(window.location.search).get('w');
+  ['offerCta','finalCta'].forEach(id=>{
+    document.getElementById(id).href = w ? 'https://wa.me/'+w+'?text='+encodeURIComponent('¡Hola! Quiero el pack Fibra 600Mb + 2 líneas 30GB por 34,95€') : '#';
+  });
+}
+
+function startWalk1(){
+  const w = document.getElementById('walker1');
+  w.style.transition='none'; w.style.left='-50px'; void w.offsetWidth;
+  w.style.transition='left 5s linear'; w.style.left='48%';
+}
+function startWalk2(){
+  const w = document.getElementById('walker2');
+  w.style.transition='none'; w.style.left='-50px'; void w.offsetWidth;
+  w.style.transition='left 4s ease-in-out'; w.style.left='52%';
+}
+function stopAll(){
+  [1,2].forEach(n=>{
+    const w = document.getElementById('walker'+n);
+    if(w){ w.style.animationPlayState='paused'; }
+  });
+}
+function showCustomer(){
+  const c = document.getElementById('customerEl');
+  c.style.display='block'; c.style.opacity='0';
+  void c.offsetWidth; c.style.transition='opacity 0.6s ease'; c.style.opacity='1';
+}
+function hideCustomer(){
+  const c = document.getElementById('customerEl');
+  if(c) c.style.display='none';
+}
+
+// START
+document.addEventListener('click',()=>{
+  if(!actx) try{initMusic()}catch(e){}
+  if(actx && actx.state==='suspended') actx.resume();
+},{once:true});
+
+document.addEventListener('touchstart',()=>{
+  if(!actx) try{initMusic()}catch(e){}
+  if(actx && actx.state==='suspended') actx.resume();
+},{once:true});
+
+// Init
+setTimeout(()=>{
+  setSub(script[0].txt);
+  prog.style.transition = 'width '+(script[0].dur/1000)+'s linear';
+  prog.style.width = (1/script.length*100)+'%';
+}, 400);
+startWalk1();
+setTimeout(()=>{ idx=1; advance(); }, script[0].dur+400);
+</script>
+</body>
+</html>
