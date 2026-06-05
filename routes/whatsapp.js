@@ -10,6 +10,18 @@ router.get('/', requireAuth, (req, res) => {
   res.render('whatsapp', { title: 'WhatsApp', clientes: clientes || [], phone });
 });
 
+// Public diagnostic endpoint (no auth required)
+router.get('/diag', (req, res) => {
+  var status = waService.getStatus();
+  var chats = waService.getChats();
+  res.json({
+    status: status,
+    chatCount: chats.length,
+    chats: chats.slice(0, 5).map(function(c) { return { jid: c.jid, name: c.name, unread: c.unreadCount }; }),
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Get connection status
 router.get('/status', requireAuth, (req, res) => {
   res.json({ status: waService.getStatus() });
