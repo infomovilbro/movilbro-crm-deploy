@@ -2086,6 +2086,79 @@ setInterval(function() {
   }
 }, 10000);
 
+// ---- VIGILANTE AUTOMÁTICO DE WHATSAPP ----
+var waVisto = {};
+var waInterval = null;
+
+function iniciarVigilanteWA() {
+  if (waInterval) return;
+  console.log('[WA] Vigilante iniciado');
+  waInterval = setInterval(function() {
+    try {
+      var frame = document.getElementById('waPersistentFrame');
+      if (!frame) return;
+      var doc = frame.contentDocument || frame.contentWindow?.document;
+      if (!doc || !doc.body || doc.body.innerHTML.length < 1000) return;
+      
+      // Buscar mensajes entrantes en el DOM de WhatsApp
+      // WhatsApp renderiza mensajes en divs con data-id o en spans con texto
+      var allElements = doc.querySelectorAll('[data-id*="true"], [data-pre-plain-text], div.message-in, div[class*="message-in"], span.selectable-text, div[class*="copyable-text"]');
+      
+      allElements.forEach(function(el) {
+        var text = (el.textContent || '').trim();
+        if (!text || text.length < 2) return;
+        
+        // Generar hash simple del texto para evitar duplicados
+        var hash = text.length + ':' + text.substring(0, Math.min(text.length, 50));
+        if (waVisto[hash]) return;
+        waVisto[hash] = Date.now();
+        
+        // Limpiar hash viejos cada hora
+        var ahora = Date.now();
+        var keys = Object.keys(waVisto);
+        if (keys.length > 500) {
+          keys.forEach(function(k) {
+            if (ahora - waVisto[k] > 3600000) delete waVisto[k];
+          });
+        }
+        
+        // Ignorar textos muy cortos o que parezcan interfaz
+        if (text.length < 3 || text.includes('Escribe') || text.includes('WhatsApp') || text === '') return;
+        
+        console.log('[WA] Posible mensaje:', text.substring(0, 80));
+        
+        // Enviar a CodeOpen para análisis
+        fetch('/codeopen/webhook/whatsapp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ from: 'WhatsApp Auto', message: text })
+        }).then(function(r) { return r.json(); }).then(function(d) {
+          if (d.ok) {
+            console.log('[WA] Enviado a CodeOpen #' + d.pending_id);
+            // Mostrar notificación visual breve
+            var dot = document.getElementById('waLiveDot');
+            if (dot) {
+              dot.style.background = '#f59e0b';
+              setTimeout(function() { dot.style.background = '#4ade80'; }, 3000);
+            }
+          }
+        }).catch(function(e) {});
+      });
+    } catch(e) {
+      // Error silencioso (cross-origin o iframe no listo)
+    }
+  }, 3000); // Cada 3 segundos
+}
+
+// Iniciar vigilante cuando se abre el overlay
+var waObserverOrig = toggleWAOverlay;
+toggleWAOverlay = function() {
+  waObserverOrig();
+  if (waOverlayVisible) {
+    setTimeout(iniciarVigilanteWA, 2000);
+  }
+};
+
 // Close on Escape
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape' && waOverlayVisible) toggleWAOverlay();
