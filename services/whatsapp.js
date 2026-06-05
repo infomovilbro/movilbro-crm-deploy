@@ -10,7 +10,6 @@ var _qrCallback = null;
 var _status = 'disconnected';
 var _chats = [];
 var _connectionAttempts = 0;
-var _lastEvents = [];
 
 function ensureDir() {
   try { if (!fs.existsSync(AUTH_DIR)) fs.mkdirSync(AUTH_DIR, { recursive: true }); } catch(e) {}
@@ -20,7 +19,7 @@ async function start() {
   ensureDir();
   _status = 'connecting';
   try {
-    var { version, isLatest } = await fetchLatestBaileysVersion();
+    var { version } = await fetchLatestBaileysVersion();
     var { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
 
     _sock = makeWASocket({
@@ -35,6 +34,53 @@ async function start() {
 
     _sock.ev.on('creds.update', saveCreds);
 
+    // Use ev.process() to catch ALL events including buffered ones
+    _sock.ev.process(function(events) {
+      // messaging-history.set contains ALL chats from sync
+      if (events['messaging-history.set'] && events['messaging-history.set'].chats) {
+        var history = events['messaging-history.set'];
+        _chats = (history.chats || []).map(function(c) {
+          var jid = c.id || '';
+          return {
+            jid: jid,
+            name: c.name || c.subject || jid.split('@')[0] || 'Unknown',
+            unreadCount: c.unreadCount || c.unread || 0,
+            lastMessage: c.lastMessage?.message?.conversation || c.lastMessage?.message?.extendedTextMessage?.text || ''
+          };
+        });
+        console.log('[WhatsApp] Chats cargados del historial: ' + _chats.length);
+      }
+
+      // chats.upsert adds/updates individual chats
+      if (events['chats.upsert']) {
+        var upserted = events['chats.upsert'];
+        upserted.forEach(function(c) {
+          var jid = c.id || '';
+          var existing = _chats.findIndex(function(x) { return x.jid === jid; });
+          var chatObj = {
+            jid: jid,
+            name: c.name || c.subject || jid.split('@')[0] || 'Unknown',
+            unreadCount: c.unreadCount || c.unread || 0,
+            lastMessage: c.lastMessage?.message?.conversation || c.lastMessage?.message?.extendedTextMessage?.text || ''
+          };
+          if (existing > -1) _chats[existing] = chatObj;
+          else _chats.push(chatObj);
+        });
+        console.log('[WhatsApp] Chats upsert: ' + _chats.length);
+      }
+
+      // chats.update updates existing chats
+      if (events['chats.update']) {
+        events['chats.update'].forEach(function(u) {
+          var idx = _chats.findIndex(function(c) { return c.jid === u.id; });
+          if (idx > -1) {
+            if (u.name) _chats[idx].name = u.name;
+            if (u.unreadCount !== undefined) _chats[idx].unreadCount = u.unreadCount;
+          }
+        });
+      }
+    });
+
     _sock.ev.on('connection.update', function(update) {
       var { connection, lastDisconnect, qr } = update;
       if (qr && _qrCallback) {
@@ -46,79 +92,17 @@ async function start() {
         _status = 'connected';
         _connectionAttempts = 0;
         if (_qrCallback) _qrCallback({ type: 'status', data: 'connected' });
-        // Chats arrive via events, no need to call loadChats immediately
       }
       if (connection === 'close') {
         var reason = lastDisconnect?.error?.output?.statusCode || 0;
         _status = 'disconnected';
         _sock = null;
         if (_qrCallback) _qrCallback({ type: 'status', data: 'disconnected' });
-        // Reconnect unless logged out
         if (reason !== DisconnectReason.loggedOut) {
           _connectionAttempts++;
-          var delay = Math.min(5000 * _connectionAttempts, 30000);
-          setTimeout(start, delay);
+          setTimeout(start, Math.min(5000 * _connectionAttempts, 30000));
         }
       }
-    });
-
-    // Handle incoming chats (baileys streams them via events)
-    _sock.ev.on('chats.upsert', function(chats) {
-      if (!chats || !Array.isArray(chats)) return;
-      chats.forEach(function(c) {
-        var jid = c.id || '';
-        var existing = _chats.findIndex(function(x) { return x.jid === jid; });
-        var chatObj = {
-          jid: jid,
-          name: c.name || c.subject || jid.split('@')[0] || 'Unknown',
-          unreadCount: c.unreadCount || c.unread || 0,
-          lastMessage: ''
-        };
-        if (c.lastMessage) {
-          chatObj.lastMessage = c.lastMessage.message?.conversation || c.lastMessage.message?.extendedTextMessage?.text || '';
-        }
-        if (existing > -1) { _chats[existing] = chatObj; }
-        else { _chats.push(chatObj); }
-      });
-      console.log('[WhatsApp] Chats actualizados: ' + _chats.length);
-      _lastEvents.unshift({ event: 'chats.upsert', count: chats.length, time: Date.now() });
-      if (_lastEvents.length > 20) _lastEvents.pop();
-    });
-
-    // messaging-history.set = ALL chats from history sync (key for initial load)
-    _sock.ev.on('messaging-history.set', function(history) {
-      _lastEvents.unshift({ event: 'messaging-history.set', hasChats: !!(history && history.chats), time: Date.now() });
-      if (_lastEvents.length > 20) _lastEvents.pop();
-      if (!history || !history.chats || !Array.isArray(history.chats)) return;
-      console.log('[WhatsApp] History sync: ' + history.chats.length + ' chats');
-      _chats = history.chats.map(function(c) {
-        var jid = c.id || '';
-        return {
-          jid: jid,
-          name: c.name || c.subject || jid.split('@')[0] || 'Unknown',
-          unreadCount: c.unreadCount || c.unread || 0,
-          lastMessage: c.lastMessage?.message?.conversation || c.lastMessage?.message?.extendedTextMessage?.text || ''
-        };
-      });
-      console.log('[WhatsApp] Chats cargados del historial: ' + _chats.length);
-    });
-
-    _sock.ev.on('chats.update', function(updates) {
-      if (!updates || !Array.isArray(updates)) return;
-      updates.forEach(function(u) {
-        var idx = _chats.findIndex(function(c) { return c.jid === u.id; });
-        if (idx > -1) {
-          if (u.name) _chats[idx].name = u.name;
-          if (u.unreadCount !== undefined) _chats[idx].unreadCount = u.unreadCount;
-        }
-      });
-    });
-
-    _sock.ev.on('chats.delete', function(ids) {
-      if (!ids || !Array.isArray(ids)) return;
-      ids.forEach(function(id) {
-        _chats = _chats.filter(function(c) { return c.jid !== id; });
-      });
     });
 
     _sock.ev.on('messages.upsert', async function(m) {
@@ -148,25 +132,16 @@ async function start() {
   }
 }
 
-async function loadChats() {
-  // Chats arrive via events (chats.upsert), no manual fetch needed
-  console.log('[WhatsApp] Chats disponibles: ' + _chats.length);
-}
-
 function getQR(callback) {
   _qrCallback = callback;
   if (_status === 'connected') {
     callback({ type: 'status', data: 'connected' });
   } else if (_sock) {
-    // Force QR regeneration if not connected
     try { _sock?.ev?.emit('connection.update', {}); } catch(e) {}
   }
 }
 
-function removeQRCallback() {
-  _qrCallback = null;
-}
-
+function removeQRCallback() { _qrCallback = null; }
 function getStatus() { return _status; }
 
 async function sendMessage(jid, text) {
@@ -178,17 +153,13 @@ async function getMessages(jid, limit) {
   if (!_sock) return [];
   limit = limit || 50;
   try {
-    var msgs = [];
-    if (typeof _sock.loadMessages === 'function') {
-      msgs = await _sock.loadMessages(jid, limit) || [];
-    }
+    var msgs = typeof _sock.loadMessages === 'function' ? (await _sock.loadMessages(jid, limit) || []) : [];
     return (msgs || []).map(function(m) {
       return {
         id: m.key?.id,
         fromMe: m.key?.fromMe || false,
         text: m.message?.conversation || m.message?.extendedTextMessage?.text || '',
-        timestamp: m.messageTimestamp,
-        pushName: m.pushName || ''
+        timestamp: m.messageTimestamp
       };
     });
   } catch(e) {
@@ -198,7 +169,7 @@ async function getMessages(jid, limit) {
 }
 
 function getChats() { return _chats; }
-function getStats() { return { status: _status, chatCount: _chats.length, lastEvents: _lastEvents.slice(0, 10) }; }
+function getStats() { return { status: _status, chatCount: _chats.length }; }
 
 setTimeout(start, 1000);
 
