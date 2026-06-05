@@ -1995,6 +1995,9 @@
     <span style="font-weight:600;font-size:0.85rem;">WhatsApp Web</span>
     <span style="font-size:0.7rem;opacity:0.7;">en vivo</span>
     <span id="waLiveDot" style="width:8px;height:8px;border-radius:50%;background:#4ade80;display:inline-block;animation:pulse 2s infinite;"></span>
+    <button onclick="enviarACodeOpen()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:6px;color:#fff;cursor:pointer;font-size:0.7rem;padding:4px 10px;white-space:nowrap;" title="Enviar mensaje seleccionado a CodeOpen para análisis">
+      <i class="bi bi-robot"></i> Analizar
+    </button>
     <button onclick="toggleWAOverlay()" style="margin-left:auto;background:none;border:0;color:#fff;cursor:pointer;font-size:1.2rem;padding:2px 6px;">&times;</button>
   </div>
   <div style="flex:1;overflow:hidden;">
@@ -2028,16 +2031,50 @@ function toggleWAOverlay() {
   }
 }
 
+// Enviar mensaje de WhatsApp a CodeOpen para análisis IA
+function enviarACodeOpen() {
+  var msgTexto = prompt('Pega el mensaje que quieres analizar (o déjalo vacío para cancelar):');
+  if (!msgTexto || !msgTexto.trim()) return;
+  
+  var btn = event.target;
+  if (btn.tagName !== 'BUTTON') btn = btn.closest('button');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm" style="width:10px;height:10px;"></span>';
+  
+  fetch('/codeopen/webhook/whatsapp', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      from: 'WhatsApp Web',
+      message: msgTexto.trim()
+    })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-robot"></i> Analizar';
+    if (d.ok) {
+      alert('Mensaje enviado a CodeOpen para análisis. Ve al panel de Pendientes para aprobar o rechazar la respuesta.\n\nID Pendiente: #' + d.pending_id);
+    } else {
+      alert('Error: ' + (d.error || 'desconocido'));
+    }
+  })
+  .catch(function() {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-robot"></i> Analizar';
+    alert('Error de red');
+  });
+}
+
 // Keep-alive: periodically check if WhatsApp iframe is alive
 setInterval(function() {
   var dot = document.getElementById('waLiveDot');
   if (dot) {
-    // Try to ping the iframe
     var frame = document.getElementById('waPersistentFrame');
     if (frame) {
       try {
         var doc = frame.contentDocument || frame.contentWindow?.document;
-        if (doc && doc.body) {
+        if (doc && doc.body && doc.body.innerHTML.length > 100) {
           dot.style.background = '#4ade80';
         } else {
           dot.style.background = '#f87171';
