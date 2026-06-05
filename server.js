@@ -103,7 +103,7 @@ app.use(helmet({
     useDefaults: false,
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "cdn.jsdelivr.net", "code.jquery.com", "static.whatsapp.net", "web.whatsapp.com", "'unsafe-inline'", "'unsafe-eval'"],
+      scriptSrc: ["'self'", "cdn.jsdelivr.net", "code.jquery.com", "static.whatsapp.net", "web.whatsapp.com", "data:", "blob:", "'unsafe-inline'", "'unsafe-eval'"],
       styleSrc: ["'self'", "cdn.jsdelivr.net", "cdnjs.cloudflare.com", "fonts.googleapis.com", "static.whatsapp.net", "web.whatsapp.com", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "blob:", "static.whatsapp.net", "web.whatsapp.com", "https://*.whatsapp.net"],
       connectSrc: ["'self'", "cdn.jsdelivr.net", "web.whatsapp.com", "wss://web.whatsapp.com", "static.whatsapp.net"],
