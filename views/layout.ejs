@@ -302,7 +302,7 @@
               <li data-item-key="redes_canales" data-ui-draggable="item"><a class="<%= title === 'Canales' ? 'active' : '' %>" href="/channel"><span class="emoji-icon">🔗</span>Canales</a></li>
               <li><a class="<%= title.includes('Correo') ? 'active' : '' %>" href="/email"><span class="emoji-icon">✉️</span><%= ui.moduleName.email %></a></li>
               <li><a class="<%= title.includes('Stripe') ? 'active' : '' %>" href="/stripe"><span class="emoji-icon">💳</span><%= ui.moduleName.stripe %></a></li>
-              <li><a class="<%= title.includes('WhatsApp') ? 'active' : '' %>" href="/whatsapp"><span class="emoji-icon">💬</span><%= ui.moduleName.whatsapp %></a></li>
+              <li><a id="waNavLink" class="<%= title.includes('WhatsApp') ? 'active' : '' %>" href="#" onclick="event.preventDefault();toggleWAOverlay();"><span class="emoji-icon">💬</span><%= ui.moduleName.whatsapp %></a></li>
               <li class="nav-subheading">💡 Neon</li>
               <li data-item-key="redes_neon"><a href="/neon/neon"><span class="emoji-icon">💡</span>Neon</a></li>
               <li data-item-key="redes_regleta"><a href="/neon/regleta"><span class="emoji-icon">🔌</span>Regleta</a></li>
@@ -1983,5 +1983,77 @@
   checkSync();
 })();
 </script>
+
+<!-- WhatsApp Persistent Overlay -->
+<div id="waOverlay" style="display:none;position:fixed;top:0;right:0;width:420px;height:100vh;background:#fff;z-index:9999;box-shadow:-4px 0 24px rgba(0,0,0,0.15);flex-direction:column;animation:slideIn 0.2s ease;">
+  <style>
+    @keyframes slideIn { from { transform:translateX(100%); } to { transform:translateX(0); } }
+    @keyframes slideOut { from { transform:translateX(0); } to { transform:translateX(100%); } }
+  </style>
+  <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:#075e54;color:#fff;flex-shrink:0;">
+    <i class="bi bi-whatsapp" style="font-size:1.2rem;"></i>
+    <span style="font-weight:600;font-size:0.85rem;">WhatsApp Web</span>
+    <span style="font-size:0.7rem;opacity:0.7;">en vivo</span>
+    <span id="waLiveDot" style="width:8px;height:8px;border-radius:50%;background:#4ade80;display:inline-block;animation:pulse 2s infinite;"></span>
+    <button onclick="toggleWAOverlay()" style="margin-left:auto;background:none;border:0;color:#fff;cursor:pointer;font-size:1.2rem;padding:2px 6px;">&times;</button>
+  </div>
+  <div style="flex:1;overflow:hidden;">
+    <iframe id="waPersistentFrame" src="/proxy/web.whatsapp.com" style="width:100%;height:100%;border:0;"></iframe>
+  </div>
+</div>
+<div id="waOverlayBackdrop" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.3);z-index:9998;" onclick="toggleWAOverlay()"></div>
+
+<style>
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+</style>
+
+<script>
+var waOverlayVisible = false;
+function toggleWAOverlay() {
+  waOverlayVisible = !waOverlayVisible;
+  var overlay = document.getElementById('waOverlay');
+  var backdrop = document.getElementById('waOverlayBackdrop');
+  if (waOverlayVisible) {
+    overlay.style.display = 'flex';
+    backdrop.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+  } else {
+    overlay.style.animation = 'slideOut 0.2s ease';
+    setTimeout(function() {
+      overlay.style.display = 'none';
+      overlay.style.animation = 'slideIn 0.2s ease';
+      backdrop.style.display = 'none';
+      document.body.style.overflow = '';
+    }, 200);
+  }
+}
+
+// Keep-alive: periodically check if WhatsApp iframe is alive
+setInterval(function() {
+  var dot = document.getElementById('waLiveDot');
+  if (dot) {
+    // Try to ping the iframe
+    var frame = document.getElementById('waPersistentFrame');
+    if (frame) {
+      try {
+        var doc = frame.contentDocument || frame.contentWindow?.document;
+        if (doc && doc.body) {
+          dot.style.background = '#4ade80';
+        } else {
+          dot.style.background = '#f87171';
+        }
+      } catch(e) {
+        dot.style.background = '#fbbf24';
+      }
+    }
+  }
+}, 10000);
+
+// Close on Escape
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape' && waOverlayVisible) toggleWAOverlay();
+});
+</script>
+
 </body>
 </html>
