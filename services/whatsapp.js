@@ -57,10 +57,8 @@ async function start() {
 
     log('[5/5] Registrando manejadores de eventos...');
 
-    // Guardar credenciales cuando se actualicen
     _sock.ev.on('creds.update', saveCreds);
 
-    // Conexión: QR, estado, reconexión
     _sock.ev.on('connection.update', function(update) {
       var { qr, connection, lastDisconnect, isNewLogin } = update;
 
@@ -104,9 +102,7 @@ async function start() {
           log('  🚪 Sesión cerrada, limpiando auth...');
           try {
             var authFiles = fs.readdirSync(AUTH_DIR);
-            authFiles.forEach(function(f) {
-              try { fs.unlinkSync(path.join(AUTH_DIR, f)); } catch(e) {}
-            });
+            authFiles.forEach(function(f) { try { fs.unlinkSync(path.join(AUTH_DIR, f)); } catch(e) {} });
           } catch(e) {}
           _started = false;
           setTimeout(start, 5000);
@@ -114,7 +110,6 @@ async function start() {
       }
     });
 
-    // Mensajes entrantes
     _sock.ev.on('messages.upsert', async function(m) {
       if (!m.messages || m.messages.length === 0) return;
       for (var msg of m.messages) {
@@ -134,9 +129,10 @@ async function start() {
       }
     });
 
-    // Chats del historial (messaging-history.set)
-    _sock.ev.on('messaging-history.set', function(history) {
-      if (history && history.chats) {
+    // ev.process() captura eventos bufferizados (messaging-history.set, chats.*)
+    _sock.ev.process(function(events) {
+      if (events['messaging-history.set'] && events['messaging-history.set'].chats) {
+        var history = events['messaging-history.set'];
         _chats = (history.chats || []).map(function(c) {
           var jid = c.id || '';
           return {
@@ -146,35 +142,33 @@ async function start() {
             lastMessage: c.lastMessage?.message?.conversation || c.lastMessage?.message?.extendedTextMessage?.text || ''
           };
         });
-        log('  📋 Historial cargado: ' + _chats.length + ' chats');
+        log('  📋 Historial cargado vía process: ' + _chats.length + ' chats');
       }
-    });
 
-    // Chats nuevos/actualizados
-    _sock.ev.on('chats.upsert', function(upserted) {
-      upserted.forEach(function(c) {
-        var jid = c.id || '';
-        var existing = _chats.findIndex(function(x) { return x.jid === jid; });
-        var chatObj = {
-          jid: jid,
-          name: c.name || c.subject || jid.split('@')[0] || 'Unknown',
-          unreadCount: c.unreadCount || c.unread || 0,
-          lastMessage: c.lastMessage?.message?.conversation || c.lastMessage?.message?.extendedTextMessage?.text || ''
-        };
-        if (existing > -1) _chats[existing] = chatObj;
-        else _chats.push(chatObj);
-      });
-      log('  🔄 Chats actualizados: ' + _chats.length + ' total');
-    });
+      if (events['chats.upsert']) {
+        events['chats.upsert'].forEach(function(c) {
+          var jid = c.id || '';
+          var existing = _chats.findIndex(function(x) { return x.jid === jid; });
+          var chatObj = {
+            jid: jid,
+            name: c.name || c.subject || jid.split('@')[0] || 'Unknown',
+            unreadCount: c.unreadCount || c.unread || 0,
+            lastMessage: c.lastMessage?.message?.conversation || c.lastMessage?.message?.extendedTextMessage?.text || ''
+          };
+          if (existing > -1) _chats[existing] = chatObj;
+          else _chats.push(chatObj);
+        });
+      }
 
-    _sock.ev.on('chats.update', function(updates) {
-      updates.forEach(function(u) {
-        var idx = _chats.findIndex(function(c) { return c.jid === u.id; });
-        if (idx > -1) {
-          if (u.name) _chats[idx].name = u.name;
-          if (u.unreadCount !== undefined) _chats[idx].unreadCount = u.unreadCount;
-        }
-      });
+      if (events['chats.update']) {
+        events['chats.update'].forEach(function(u) {
+          var idx = _chats.findIndex(function(c) { return c.jid === u.id; });
+          if (idx > -1) {
+            if (u.name) _chats[idx].name = u.name;
+            if (u.unreadCount !== undefined) _chats[idx].unreadCount = u.unreadCount;
+          }
+        });
+      }
     });
 
     log('✅ WhatsApp service iniciado correctamente');
