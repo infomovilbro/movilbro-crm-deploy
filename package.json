@@ -14,7 +14,7 @@
     "@aws-sdk/client-s3": "^3.1054.0",
     "@aws-sdk/credential-providers": "^3.1054.0",
     "@sendgrid/mail": "^8.1.6",
-    "@whiskeysockets/baileys": "^7.0.0-rc13",
+
     "adm-zip": "^0.5.17",
     "archiver": "^8.0.0",
     "axios": "^1.7.0",

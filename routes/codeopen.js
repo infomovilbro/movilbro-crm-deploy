@@ -608,17 +608,10 @@ router.post('/approve/:id', async (req, res) => {
 
     var sent = false;
 
-    // Send WhatsApp
+    // WhatsApp eliminado — se usa web.whatsapp.com real
     if (row.source === 'whatsapp' || row.category === 'whatsapp') {
-      try {
-        var waService = require('../services/whatsapp');
-        if (waService.getStatus() === 'connected') {
-          var jid = row.from_address + '@s.whatsapp.net';
-          await waService.sendMessage(jid, row.proposed_response);
-          sent = true;
-          console.log('[CodeOpen] WhatsApp enviado a', row.from_address);
-        } else { console.log('[CodeOpen] WhatsApp no conectado, no se envió'); }
-      } catch(waErr) { console.error('[CodeOpen] Error WhatsApp:', waErr.message); }
+      console.log('[CodeOpen] WhatsApp pendiente #' + row.id + ' — responder desde web.whatsapp.com');
+      sent = false;
     }
 
     // Send Email

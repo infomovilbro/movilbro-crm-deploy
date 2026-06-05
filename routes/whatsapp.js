@@ -1,106 +1,82 @@
 const express = require('express');
 const { requireAuth } = require('../middleware/auth');
-const { db } = require('../database');
-const waService = require('../services/whatsapp');
+const https = require('https');
 const router = express.Router();
 
+// Página principal: muestra web.whatsapp.com real en iframe
 router.get('/', requireAuth, (req, res) => {
-  const clientes = db.prepare('SELECT id, nombre, apellidos, telefono FROM clients WHERE telefono IS NOT NULL AND telefono != \'\' ORDER BY nombre').all();
-  const phone = req.query.phone || '';
-  res.render('whatsapp', { title: 'WhatsApp', clientes: clientes || [], phone });
+  res.render('whatsapp', { title: 'WhatsApp Web' });
 });
 
-router.get('/diag', (req, res) => {
-  var stats = waService.getStats ? waService.getStats() : { status: waService.getStatus(), chatCount: waService.getChats().length };
-  res.json(stats);
-});
+// Proxy que sirve web.whatsapp.com real (quita X-Frame-Options, inyecta <base>)
+var WHATSAPP_HOST = 'web.whatsapp.com';
+var BASE_TAG = '<base href="https://web.whatsapp.com/">';
 
-router.post('/force-reconnect', (req, res) => {
-  try {
-    waService.forceReconnect();
-    res.json({ ok: true, message: 'Forzando reconexión...' });
-  } catch(e) {
-    res.json({ ok: false, error: e.message });
-  }
-});
+router.get('/content/*', requireAuth, (req, res) => {
+  var reqPath = req.params[0] || '';
+  var targetUrl = 'https://' + WHATSAPP_HOST + '/' + reqPath;
 
-router.post('/reset-auth', (req, res) => {
-  try {
-    waService.resetAuth();
-    res.json({ ok: true, message: 'Auth limpiado. Escanea el QR de nuevo para vincular.' });
-  } catch(e) {
-    res.json({ ok: false, error: e.message });
-  }
-});
-
-router.get('/status', requireAuth, (req, res) => {
-  res.json({ status: waService.getStatus() });
-});
-
-// SSE stream for QR + status
-router.get('/qr-stream', requireAuth, (req, res) => {
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  res.flushHeaders();
-
-  var callbackActive = true;
-  var currentStatus = waService.getStatus();
-
-  // Send current status immediately
-  res.write('data: ' + JSON.stringify({ type: 'status', data: currentStatus }) + '\n\n');
-
-  waService.getQR(function(data) {
-    if (!callbackActive) return;
-    res.write('data: ' + JSON.stringify(data) + '\n\n');
-  });
-
-  var interval = setInterval(function() {
-    if (!callbackActive) { clearInterval(interval); return; }
-    res.write('data: ' + JSON.stringify({ type: 'ping' }) + '\n\n');
-    // Re-check status periodically
-    var s = waService.getStatus();
-    if (s !== currentStatus) {
-      currentStatus = s;
-      res.write('data: ' + JSON.stringify({ type: 'status', data: s }) + '\n\n');
+  var options = {
+    hostname: WHATSAPP_HOST,
+    path: '/' + reqPath,
+    method: 'GET',
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+      'Accept': req.headers['accept'] || '*/*',
+      'Accept-Language': 'es-ES,es;q=0.9',
+      'Referer': 'https://' + WHATSAPP_HOST + '/',
+      'Origin': 'https://' + WHATSAPP_HOST,
+      'Host': WHATSAPP_HOST,
+      'Connection': 'keep-alive',
+      'Sec-Fetch-Dest': 'iframe',
+      'Sec-Fetch-Mode': 'navigate',
+      'Sec-Fetch-Site': 'same-origin',
+      'Upgrade-Insecure-Requests': '1'
     }
-  }, 5000);
+  };
 
-  req.on('close', function() {
-    callbackActive = false;
-    clearInterval(interval);
-    waService.removeQRCallback();
+  var proxyReq = https.request(options, function(proxyRes) {
+    var cleanHeaders = { ...proxyRes.headers };
+    delete cleanHeaders['x-frame-options'];
+    delete cleanHeaders['X-Frame-Options'];
+    delete cleanHeaders['content-security-policy'];
+    delete cleanHeaders['Content-Security-Policy'];
+    delete cleanHeaders['strict-transport-security'];
+    delete cleanHeaders['Strict-Transport-Security'];
+    cleanHeaders['Access-Control-Allow-Origin'] = '*';
+
+    var chunks = [];
+    proxyRes.on('data', function(chunk) { chunks.push(chunk); });
+    proxyRes.on('end', function() {
+      var body = Buffer.concat(chunks);
+      var contentType = proxyRes.headers['content-type'] || '';
+
+      if (contentType.includes('text/html')) {
+        var html = body.toString('utf8');
+        // Inject <base> tag right after <head> so all relative assets load from web.whatsapp.com
+        html = html.replace('<head>', '<head>' + BASE_TAG);
+        // Also try to prevent the site from detecting iframe (common technique)
+        html = html.replace(/if\s*\(top\s*!==\s*self\)/g, 'if (false)');
+        html = html.replace(/if\s*\(self\s*!==\s*top\)/g, 'if (false)');
+        html = html.replace(/top\.location/g, 'self.location');
+        body = Buffer.from(html, 'utf8');
+        cleanHeaders['content-length'] = body.length;
+      }
+
+      res.writeHead(proxyRes.statusCode, cleanHeaders);
+      res.end(body);
+    });
   });
+
+  proxyReq.on('error', function(e) {
+    if (!res.headersSent) res.status(502).send('Proxy error: ' + e.message);
+  });
+  proxyReq.end();
 });
 
-router.get('/chats', requireAuth, (req, res) => {
-  res.json({ chats: waService.getChats(), status: waService.getStatus() });
-});
-
-router.get('/messages', requireAuth, async (req, res) => {
-  try {
-    var jid = req.query.jid;
-    if (!jid) return res.status(400).json({ error: 'Falta jid' });
-    var msgs = await waService.getMessages(jid, parseInt(req.query.limit) || 50);
-    res.json({ messages: msgs });
-  } catch(e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-router.post('/send', requireAuth, express.json(), async (req, res) => {
-  try {
-    var { jid, text } = req.body;
-    if (!jid || !text) return res.status(400).json({ error: 'Falta jid o text' });
-    await waService.sendMessage(jid, text);
-    res.json({ ok: true });
-  } catch(e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-router.post('/reconnect', requireAuth, (req, res) => {
-  res.json({ ok: true, message: 'Reconectando...' });
+// For base path, redirect to content/
+router.get('/proxy-redirect', requireAuth, (req, res) => {
+  res.redirect('/whatsapp/content/');
 });
 
 module.exports = router;
