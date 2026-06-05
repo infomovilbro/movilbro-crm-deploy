@@ -42,16 +42,14 @@ async function start() {
     var isRegistered = !!(state.creds && state.creds.me && state.creds.me.id);
     log('  Registrado:', isRegistered ? 'Sí (conectando directo)' : 'No (mostrando QR)');
 
-    log('[4/5] Creando socket WhatsApp (Edge)...');
+    log('[4/5] Creando socket WhatsApp...');
     _sock = makeWASocket({
       version,
       auth: state,
       printQRInTerminal: false,
-      browser: ['Edge', 'Movilbro CRM', '1.0.0'],
+      browser: ['Windows', 'Edge', '10.0.22631'],
       markOnlineOnConnect: false,
-      syncFullHistory: true,
       shouldSyncHistoryMessage: function() { return true; },
-      emitOwnEvents: true,
     });
     log('  Socket creado');
 
