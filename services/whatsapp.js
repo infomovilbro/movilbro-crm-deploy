@@ -289,17 +289,24 @@ function forceReconnect() {
 function resetAuth() {
   log('🧹 Limpiando autenticación WhatsApp...');
   clearWatchdog();
-  try { if (_sock?.ws) _sock.ws.close(); } catch(e) {}
+  try { if (_sock?.ws) _sock.ws.close(); } catch(e) { log('  Error cerrando socket:', e.message); }
   _sock = null;
   _status = 'disconnected';
   _started = false;
   _chats = [];
-  try { if (fs.existsSync(CHATS_PATH)) fs.unlinkSync(CHATS_PATH); } catch(e) {}
+  try { if (fs.existsSync(CHATS_PATH)) { fs.unlinkSync(CHATS_PATH); log('  Chats.json borrado'); } } catch(e) { log('  Error borrando chats:', e.message); }
+  var deletedCount = 0;
   try {
     if (fs.existsSync(AUTH_DIR)) {
-      fs.readdirSync(AUTH_DIR).forEach(function(f) { try { fs.unlinkSync(path.join(AUTH_DIR, f)); } catch(e) {} });
+      var files = fs.readdirSync(AUTH_DIR);
+      files.forEach(function(f) {
+        try { fs.unlinkSync(path.join(AUTH_DIR, f)); deletedCount++; } catch(e) { log('  Error borrando', f, ':', e.message); }
+      });
+      log('  Archivos auth borrados:', deletedCount);
+    } else {
+      log('  Directorio auth no existe');
     }
-  } catch(e) {}
+  } catch(e) { log('  Error limpiando auth:', e.message); }
   log('  Auth limpiado, próximo inicio mostrará QR fresco');
   setTimeout(start, 1000);
 }
