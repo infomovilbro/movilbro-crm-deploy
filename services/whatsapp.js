@@ -286,6 +286,24 @@ function forceReconnect() {
   setTimeout(start, 500);
 }
 
+function resetAuth() {
+  log('🧹 Limpiando autenticación WhatsApp...');
+  clearWatchdog();
+  try { if (_sock?.ws) _sock.ws.close(); } catch(e) {}
+  _sock = null;
+  _status = 'disconnected';
+  _started = false;
+  _chats = [];
+  try { if (fs.existsSync(CHATS_PATH)) fs.unlinkSync(CHATS_PATH); } catch(e) {}
+  try {
+    if (fs.existsSync(AUTH_DIR)) {
+      fs.readdirSync(AUTH_DIR).forEach(function(f) { try { fs.unlinkSync(path.join(AUTH_DIR, f)); } catch(e) {} });
+    }
+  } catch(e) {}
+  log('  Auth limpiado, próximo inicio mostrará QR fresco');
+  setTimeout(start, 1000);
+}
+
 setTimeout(start, 1000);
 
-module.exports = { start, getQR, removeQRCallback, getStatus, sendMessage, getMessages, getChats, getStats, forceReconnect };
+module.exports = { start, getQR, removeQRCallback, getStatus, sendMessage, getMessages, getChats, getStats, forceReconnect, resetAuth };

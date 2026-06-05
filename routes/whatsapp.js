@@ -24,6 +24,15 @@ router.post('/force-reconnect', (req, res) => {
   }
 });
 
+router.post('/reset-auth', (req, res) => {
+  try {
+    waService.resetAuth();
+    res.json({ ok: true, message: 'Auth limpiado. Escanea el QR de nuevo para vincular.' });
+  } catch(e) {
+    res.json({ ok: false, error: e.message });
+  }
+});
+
 router.get('/status', requireAuth, (req, res) => {
   res.json({ status: waService.getStatus() });
 });
