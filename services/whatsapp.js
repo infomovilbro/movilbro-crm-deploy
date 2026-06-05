@@ -247,6 +247,17 @@ async function getMessages(jid, limit) {
 function getChats() { return _chats; }
 function getStats() { return { status: _status, chatCount: _chats.length, started: _started }; }
 
+function forceReconnect() {
+  log('🔄 Forzando reconexión...');
+  clearWatchdog();
+  try { if (_sock?.ws) _sock.ws.close(); } catch(e) {}
+  _sock = null;
+  _status = 'disconnected';
+  _started = false;
+  _connectionAttempts = 0;
+  setTimeout(start, 500);
+}
+
 setTimeout(start, 1000);
 
-module.exports = { start, getQR, removeQRCallback, getStatus, sendMessage, getMessages, getChats, getStats };
+module.exports = { start, getQR, removeQRCallback, getStatus, sendMessage, getMessages, getChats, getStats, forceReconnect };

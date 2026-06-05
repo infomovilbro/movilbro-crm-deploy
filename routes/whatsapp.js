@@ -15,6 +15,15 @@ router.get('/diag', (req, res) => {
   res.json(stats);
 });
 
+router.post('/force-reconnect', (req, res) => {
+  try {
+    waService.forceReconnect();
+    res.json({ ok: true, message: 'Forzando reconexión...' });
+  } catch(e) {
+    res.json({ ok: false, error: e.message });
+  }
+});
+
 router.get('/status', requireAuth, (req, res) => {
   res.json({ status: waService.getStatus() });
 });
