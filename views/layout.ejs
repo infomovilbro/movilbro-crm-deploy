@@ -2101,8 +2101,7 @@ function iniciarVigilanteWA() {
       if (!doc || !doc.body || doc.body.innerHTML.length < 1000) return;
       
       // Buscar mensajes entrantes en el DOM de WhatsApp
-      // WhatsApp renderiza mensajes en divs con data-id o en spans con texto
-      var allElements = doc.querySelectorAll('[data-id*="true"], [data-pre-plain-text], div.message-in, div[class*="message-in"], span.selectable-text, div[class*="copyable-text"]');
+      var allElements = doc.querySelectorAll('[data-pre-plain-text], div[class*="message-in"], div[class*="message-out"], span[dir="ltr"], div[class*="copyable-text"], div[class*="selectable-text"]');
       
       allElements.forEach(function(el) {
         var text = (el.textContent || '').trim();
