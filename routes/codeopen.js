@@ -316,6 +316,13 @@ router.post('/webhook/whatsapp', async (req, res) => {
   var message = req.body.message || req.body.mensaje || req.body.text || '';
   if (!message) return res.status(400).json({ error: 'Mensaje requerido' });
   
+  // Solo aceptar mensajes desde las 12:45 del 6 de junio de 2026 (hora española)
+  var ahora = new Date();
+  var cutoff = new Date('2026-06-06T12:45:00+02:00');
+  if (ahora < cutoff) {
+    return res.json({ ok: false, message: 'Fuera del horario de deteccion (desde 12:45)' });
+  }
+  
   // Insert pending immediately so user sees it, then process AI in background
   var id = db.prepare("INSERT INTO pending_messages (source, from_name, from_address, body, proposed_response, status, category) VALUES (?,?,?,?,?,'pending','whatsapp')").run('whatsapp', from, from, message, 'Analizando con IA...');
   whatsappMessages.push({ id: id.lastInsertRowid, from, message, status: 'pending' });
