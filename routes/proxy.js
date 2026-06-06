@@ -95,9 +95,25 @@ router.all('/:target(*)', requireAuth, (req, res) => {
         // Patch feature detection that blocks non-whatsapp origins
         body = body.replace(/if\s*\(!\s*isWhatsApp\b/g, 'if (false');
         body = body.replace(/isWAError/g, 'false');
-        // Inject message watcher script
-        var watcherScript = '<script>'+'try{var _waUltimo="";var _waObs=new MutationObserver(function(){var t=document.body&&document.body.innerText||"";if(t&&t!==_waUltimo){var v=_waUltimo;_waUltimo=t;if(v){var a=t.split("\\n"),b=v.split("\\n");a.forEach(function(l){l=l.trim();if(l.length>2&&b.indexOf(l)<0&&!/^[\\d\\s:+()\\-]+$/.test(l)&&!/^\\d{1,2}:\\d{2}$/.test(l)){try{parent.postMessage({type:"wa_msg",text:l},"*");}catch(e){}}}})}}});setTimeout(function(){if(document.body)_waObs.observe(document.body,{childList:true,subtree:true,characterData:true});},2000);}catch(e){}</'+'script>';
-        body = body.replace('</body>', watcherScript + '</body>');
+        // Inject message watcher script via postMessage
+        body = body.replace('</body>', '<script>' +
+          'window._waLastText="";' +
+          'new MutationObserver(function(){' +
+            'var t=(document.body&&document.body.innerText)||"";' +
+            'if(!t||t===window._waLastText)return;' +
+            'var old=window._waLastText;' +
+            'window._waLastText=t;' +
+            'if(!old)return;' +
+            'var na=t.split(String.fromCharCode(10,13).charAt(0));' +
+            'var ol=old.split(String.fromCharCode(10,13).charAt(0));' +
+            'na.forEach(function(l){' +
+              'l=l.trim();' +
+              'if(l.length>2&&ol.indexOf(l)<0&&!/^[\\d\\s:()\\-+]+$/.test(l)&&!/^\\d{1,2}:\\d{2}$/.test(l)){' +
+                'try{parent.postMessage({type:"wa_msg",text:l},"*")}catch(e){}' +
+              '}' +
+            '});' +
+          '}).observe(document.documentElement,{childList:true,subtree:true,characterData:true});' +
+        '</script>');
         cleanHeaders['content-length'] = Buffer.byteLength(body, 'utf8');
         res.writeHead(proxyRes.statusCode, cleanHeaders);
         res.end(body);
