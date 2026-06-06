@@ -2086,71 +2086,31 @@ setInterval(function() {
   }
 }, 10000);
 
-// ---- VIGILANTE DE TEXTO (detecta mensajes nuevos en el iframe) ----
-var waUltimoTexto = '';
+// ---- RECIBIR MENSAJES DEL IFRAME VIA postMessage ----
 var waTextosVistos = {};
-
-function waVigilar() {
-  try {
-    var frame = document.getElementById('waPersistentFrame');
-    if (!frame) return;
-    var doc = frame.contentDocument || frame.contentWindow?.document;
-    if (!doc || !doc.body) return;
+window.addEventListener('message', function(event) {
+  if (event.data && event.data.type === 'wa_msg') {
+    var texto = event.data.text;
+    if (!texto || texto.length < 2 || waTextosVistos[texto.substring(0, 50)]) return;
+    waTextosVistos[texto.substring(0, 50)] = Date.now();
     
-    var textoActual = doc.body.innerText || doc.body.textContent || '';
-    if (textoActual === waUltimoTexto) return;
-    
-    var textoAnterior = waUltimoTexto;
-    waUltimoTexto = textoActual;
-    if (!textoAnterior) return;
-    
-    // Encontrar líneas nuevas
-    var viejas = textoAnterior.split('\n');
-    var nuevas = textoActual.split('\n');
-    
-    nuevas.forEach(function(linea) {
-      linea = linea.trim();
-      if (!linea || linea.length < 2) return;
-      if (linea.length > 200) return; // Muy largo no es un mensaje
-      if (viejas.indexOf(linea) >= 0) return;
-      if (/^[\d\s:+()-]+$/.test(linea)) return;
-      if (/^\d{1,2}:\d{2}$/.test(linea)) return;
-      if (waTextosVistos[linea.substring(0, 50)]) return;
-      
-      var ignorar = ['WhatsApp', 'Escribe', 'Buscar', 'Ajustes', 'Archivados', 'Favoritos', 'Todos', 'Grupos', 
-        'Cargando', 'anclado', 'seleccionar', 'Chat', 'Nuevo', 'Perfil', 'Estado', 'Cerrar', 'Mensaje',
-        'Escribir', 'online', 'conectado', 'escribiendo', 'hoy', 'ayer', 'martes', 'miercoles', 'jueves',
-        'viernes', 'sabado', 'domingo', 'lunes', 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
-        'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-      for (var i = 0; i < ignorar.length; i++) {
-        if (linea.toLowerCase().includes(ignorar[i].toLowerCase())) return;
+    fetch('/codeopen/webhook/whatsapp', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: 'WhatsApp', message: texto })
+    }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.ok) {
+        var dot = document.getElementById('waLiveDot');
+        if (dot) { dot.style.background = '#f59e0b'; setTimeout(function() { dot.style.background = '#4ade80'; }, 3000); }
       }
-      
-      waTextosVistos[linea.substring(0, 50)] = Date.now();
-      
-      // Limpiar caché cada hora
-      var ahora = Date.now();
-      var keys = Object.keys(waTextosVistos);
-      if (keys.length > 500) {
-        keys.forEach(function(k) { if (ahora - waTextosVistos[k] > 3600000) delete waTextosVistos[k]; });
-      }
-      
-      fetch('/codeopen/webhook/whatsapp', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from: 'WhatsApp', message: linea })
-      }).then(function(r) { return r.json(); }).then(function(d) {
-        if (d.ok) {
-          var dot = document.getElementById('waLiveDot');
-          if (dot) { dot.style.background = '#f59e0b'; setTimeout(function() { dot.style.background = '#4ade80'; }, 3000); }
-        }
-      }).catch(function() {});
-    });
-  } catch(e) {}
-}
+    }).catch(function() {});
+  }
+});
 
-// Vigilar cada 2s
-setInterval(waVigilar, 2000);
-setTimeout(waVigilar, 1000);
+// Limpiar caché cada hora
+setInterval(function() {
+  var a = Date.now();
+  Object.keys(waTextosVistos).forEach(function(k) { if (a - waTextosVistos[k] > 3600000) delete waTextosVistos[k]; });
+}, 3600000);
 
 // Close on Escape
 document.addEventListener('keydown', function(e) {
