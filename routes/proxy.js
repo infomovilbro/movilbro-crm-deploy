@@ -104,9 +104,13 @@ router.all('/:target(*)', requireAuth, (req, res) => {
             '"Escribe","Buscar","Ajustes","Archivados","Favoritos","Todos","Grupos","online","escribiendo","anclado",' +
             '"seleccionar","Escribir mensaje","Activar","desactivadas","default-group","default-contact"];' +
           'function _esBasura(t){for(var i=0;i<_rx.length;i++){if(_rx[i].test(t))return true}for(var i=0;i<_ui.length;i++){if(t.indexOf(_ui[i])>=0)return true}return false};' +
+          'var _sent={};' +
           'setTimeout(function(){' +
             'var base=(document.body&&document.body.innerText)||"";' +
+            'var canSend=false;' +
+            'setTimeout(function(){canSend=true;}, 60000);' +
             'new MutationObserver(function(){' +
+              'if(!canSend)return;' +
               'var t=(document.body&&document.body.innerText)||"";' +
               'if(!t||t===base)return;' +
               'var old=base;base=t;' +
@@ -114,13 +118,14 @@ router.all('/:target(*)', requireAuth, (req, res) => {
               'var ol=old.split(String.fromCharCode(10));' +
               'na.forEach(function(l){' +
                 'l=l.trim();' +
-                'if(l.length<8||l.length>300)return;' + // Mínimo 8 caracteres para evitar fragmentos
+                'if(l.length<8||l.length>300)return;' +
                 'if(ol.indexOf(l)>=0)return;' +
                 'if(_esBasura(l))return;' +
+                'var k=l.substring(0,80);if(_sent[k])return;_sent[k]=true;' +
                 'try{parent.postMessage({type:"wa_msg",text:l},"*")}catch(e){}' +
               '});' +
             '}).observe(document.documentElement,{childList:true,subtree:true,characterData:true});' +
-          '},15000);' +
+          '},30000);' +
         '</script>');
         cleanHeaders['content-length'] = Buffer.byteLength(body, 'utf8');
         res.writeHead(proxyRes.statusCode, cleanHeaders);

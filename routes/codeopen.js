@@ -312,16 +312,31 @@ router.get('/examples/:category', (req, res) => {
 var whatsappMessages = [];
 var emailMessages = [];
 
+// Dedup: evitar textos repetidos (mensajes antiguos re-detectados)
+var seenHashes = new Set();
+setInterval(function() { seenHashes.clear(); }, 3600000); // limpiar cada hora
+
 router.post('/webhook/whatsapp', async (req, res) => {
   var from = req.body.from || req.body.remitente || 'desconocido';
   var message = req.body.message || req.body.mensaje || req.body.text || '';
   if (!message) return res.status(400).json({ error: 'Mensaje requerido' });
   
-  // Solo aceptar mensajes desde las 12:45 del 6 de junio de 2026 (hora española)
-  var ahora = new Date();
+  // Dedup por hash del texto (rechazar textos ya vistos en la última hora)
+  var hash = require('crypto').createHash('md5').update(message.trim().toLowerCase().substring(0, 100)).digest('hex');
+  if (seenHashes.has(hash)) {
+    return res.json({ ok: true, dedup: true, message: 'Duplicado ignorado' });
+  }
+  seenHashes.add(hash);
+  
+  // Solo aceptar mensajes CON timestamp posterior a las 12:45 del 6 de junio
+  // Si el vigilante no envía timestamp, se rechaza (fuerza a que el vigilante lo mande)
   var cutoff = new Date('2026-06-06T12:45:00+02:00');
-  if (ahora < cutoff) {
-    return res.json({ ok: false, message: 'Fuera del horario de deteccion (desde 12:45)' });
+  var msgDate = req.body.timestamp ? new Date(req.body.timestamp) : null;
+  if (msgDate === null || isNaN(msgDate.getTime())) {
+    return res.json({ ok: false, message: 'Mensaje sin timestamp válido, rechazado' });
+  }
+  if (msgDate < cutoff) {
+    return res.json({ ok: false, message: 'Mensaje anterior a las 12:45, rechazado' });
   }
   
   // Insert pending immediately so user sees it, then process AI in background
@@ -329,7 +344,6 @@ router.post('/webhook/whatsapp', async (req, res) => {
   whatsappMessages.push({ id: id.lastInsertRowid, from, message, status: 'pending' });
   console.log('[WhatsApp] Mensaje de', from, '→ pendiente #' + id.lastInsertRowid, '→ analizando IA en background');
   
-  // Respond immediately, IA se procesa en background cada 30s
   res.json({ ok: true, pending_id: id.lastInsertRowid, message: 'Mensaje recibido, analizando con IA...' });
 });
 

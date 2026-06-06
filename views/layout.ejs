@@ -2046,7 +2046,8 @@ function enviarACodeOpen() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       from: 'WhatsApp Web',
-      message: msgTexto.trim()
+      message: msgTexto.trim(),
+      timestamp: new Date().toISOString()
     })
   })
   .then(function(r) { return r.json(); })
@@ -2096,7 +2097,7 @@ window.addEventListener('message', function(event) {
     
     fetch('/codeopen/webhook/whatsapp', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: 'WhatsApp', message: texto })
+      body: JSON.stringify({ from: 'WhatsApp', message: texto, timestamp: new Date().toISOString() })
     }).then(function(r) { return r.json(); }).then(function(d) {
       if (d.ok) {
         var dot = document.getElementById('waLiveDot');
