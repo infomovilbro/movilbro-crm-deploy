@@ -1993,15 +1993,13 @@
   <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:#075e54;color:#fff;flex-shrink:0;">
     <i class="bi bi-whatsapp" style="font-size:1.2rem;"></i>
     <span style="font-weight:600;font-size:0.85rem;">WhatsApp Web</span>
-    <span style="font-size:0.7rem;opacity:0.7;">escuchando</span>
-    <span id="waLiveDot" style="width:8px;height:8px;border-radius:50%;background:#6b7280;display:inline-block;"></span>
+    <span style="font-size:0.7rem;opacity:0.7;">vigilando</span>
+    <span id="waLiveDot" style="width:8px;height:8px;border-radius:50%;background:#4ade80;display:inline-block;"></span>
     <button onclick="enviarACodeOpen()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:6px;color:#fff;cursor:pointer;font-size:0.7rem;padding:4px 10px;white-space:nowrap;" title="Enviar mensaje a CodeOpen">
       <i class="bi bi-robot"></i> Analizar
     </button>
-    <button onclick="if(confirm('¿Re-vincular escuchador?'))resetListener()" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:4px;color:#fff;cursor:pointer;font-size:0.6rem;padding:2px 6px;" title="Re-vincular escuchador de mensajes">⟳</button>
     <button onclick="toggleWAOverlay()" style="margin-left:auto;background:none;border:0;color:#fff;cursor:pointer;font-size:1.2rem;padding:2px 6px;">&times;</button>
   </div>
-  <div id="waListenerQR"></div>
   <div style="flex:1;overflow:hidden;">
     <iframe id="waPersistentFrame" src="/proxy/web.whatsapp.com" style="width:100%;height:100%;border:0;"></iframe>
   </div>
@@ -2088,50 +2086,71 @@ setInterval(function() {
   }
 }, 10000);
 
-// ---- ESTADO DEL LISTENER BAILEYS (escuchador silencioso) ----
-function checkListenerStatus() {
-  fetch('/whatsapp/listener-status')
-    .then(function(r) { return r.json(); })
-    .then(function(d) {
-      var dot = document.getElementById('waLiveDot');
-      if (!dot) return;
-      if (d.status === 'connected') {
-        dot.style.background = '#4ade80';
-      } else if (d.status === 'awaiting_qr') {
-        dot.style.background = '#f59e0b';
-      } else {
-        dot.style.background = '#6b7280';
+// ---- VIGILANTE DE TEXTO (detecta mensajes nuevos en el iframe) ----
+var waUltimoTexto = '';
+var waTextosVistos = {};
+
+function waVigilar() {
+  try {
+    var frame = document.getElementById('waPersistentFrame');
+    if (!frame) return;
+    var doc = frame.contentDocument || frame.contentWindow?.document;
+    if (!doc || !doc.body) return;
+    
+    var textoActual = doc.body.innerText || doc.body.textContent || '';
+    if (textoActual === waUltimoTexto) return;
+    
+    var textoAnterior = waUltimoTexto;
+    waUltimoTexto = textoActual;
+    if (!textoAnterior) return;
+    
+    // Encontrar líneas nuevas
+    var viejas = textoAnterior.split('\n');
+    var nuevas = textoActual.split('\n');
+    
+    nuevas.forEach(function(linea) {
+      linea = linea.trim();
+      if (!linea || linea.length < 5) return;
+      if (linea.length > 200) return; // Muy largo no es un mensaje
+      if (viejas.indexOf(linea) >= 0) return;
+      if (/^[\d\s:+()-]+$/.test(linea)) return;
+      if (/^\d{1,2}:\d{2}$/.test(linea)) return;
+      if (waTextosVistos[linea.substring(0, 50)]) return;
+      
+      var ignorar = ['WhatsApp', 'Escribe', 'Buscar', 'Ajustes', 'Archivados', 'Favoritos', 'Todos', 'Grupos', 
+        'Cargando', 'anclado', 'seleccionar', 'Chat', 'Nuevo', 'Perfil', 'Estado', 'Cerrar', 'Mensaje',
+        'Escribir', 'online', 'conectado', 'escribiendo', 'hoy', 'ayer', 'martes', 'miercoles', 'jueves',
+        'viernes', 'sabado', 'domingo', 'lunes', 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+        'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+      for (var i = 0; i < ignorar.length; i++) {
+        if (linea.toLowerCase().includes(ignorar[i].toLowerCase())) return;
       }
-      // Show QR if available (in any state)
-      fetch('/whatsapp/listener-qr').then(function(r) { return r.json(); }).then(function(qd) {
-        if (qd.qr) {
-          dot.style.background = '#f59e0b';
-          var container = document.getElementById('waListenerQR');
-          if (container) {
-            container.innerHTML = '<div style="padding:12px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.05);">' +
-              '<div style="font-size:0.7rem;opacity:0.8;margin-bottom:6px;">Escanea este QR con tu m\u00f3vil:</div>' +
-              '<div style="font-size:0.65rem;opacity:0.6;margin-bottom:8px;">WhatsApp → Ajustes → Dispositivos vinculados → Vincular</div>' +
-              '<img src="' + qd.qr + '" style="width:160px;height:160px;border:3px solid #25D366;border-radius:8px;">' +
-              '<div style="margin-top:8px;"><button onclick="resetListener()" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:6px;color:#fff;cursor:pointer;font-size:0.7rem;padding:4px 12px;">Reintentar QR</button></div></div>';
-          }
-        } else if (d.status === 'connected') {
-          var container = document.getElementById('waListenerQR');
-          if (container) container.innerHTML = '';
+      
+      waTextosVistos[linea.substring(0, 50)] = Date.now();
+      
+      // Limpiar caché cada hora
+      var ahora = Date.now();
+      var keys = Object.keys(waTextosVistos);
+      if (keys.length > 500) {
+        keys.forEach(function(k) { if (ahora - waTextosVistos[k] > 3600000) delete waTextosVistos[k]; });
+      }
+      
+      fetch('/codeopen/webhook/whatsapp', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from: 'WhatsApp', message: linea })
+      }).then(function(r) { return r.json(); }).then(function(d) {
+        if (d.ok) {
+          var dot = document.getElementById('waLiveDot');
+          if (dot) { dot.style.background = '#f59e0b'; setTimeout(function() { dot.style.background = '#4ade80'; }, 3000); }
         }
-      });
-    }).catch(function() {});
+      }).catch(function() {});
+    });
+  } catch(e) {}
 }
 
-function resetListener() {
-  fetch('/whatsapp/listener-reset', { method: 'POST' }).then(function() {
-    var container = document.getElementById('waListenerQR');
-    if (container) container.innerHTML = '<div style="padding:12px;text-align:center;color:rgba(255,255,255,0.7);font-size:0.8rem;">Reiniciando escuchador...</div>';
-  });
-}
-
-// Check listener status every 5 seconds
-setInterval(checkListenerStatus, 5000);
-setTimeout(checkListenerStatus, 1000);
+// Vigilar cada 3s
+setInterval(waVigilar, 3000);
+setTimeout(waVigilar, 3000);
 
 // Close on Escape
 document.addEventListener('keydown', function(e) {
