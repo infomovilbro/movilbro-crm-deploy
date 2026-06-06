@@ -2098,22 +2098,34 @@ function checkListenerStatus() {
         dot.style.background = '#4ade80';
       } else if (d.status === 'awaiting_qr') {
         dot.style.background = '#f59e0b';
-        // Show QR if available
-        fetch('/whatsapp/listener-qr').then(function(r) { return r.json(); }).then(function(qd) {
-          if (qd.qr) {
-            var container = document.getElementById('waListenerQR');
-            if (container) {
-              container.innerHTML = '<div style="padding:8px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.2);">' +
-                '<div style="font-size:0.7rem;opacity:0.8;margin-bottom:4px;">Vincula el escuchador:</div>' +
-                '<img src="' + qd.qr + '" style="width:150px;height:150px;border:3px solid #25D366;border-radius:6px;">' +
-                '</div>';
-            }
-          }
-        });
       } else {
         dot.style.background = '#6b7280';
       }
+      // Show QR if available (in any state)
+      fetch('/whatsapp/listener-qr').then(function(r) { return r.json(); }).then(function(qd) {
+        if (qd.qr) {
+          dot.style.background = '#f59e0b';
+          var container = document.getElementById('waListenerQR');
+          if (container) {
+            container.innerHTML = '<div style="padding:12px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.05);">' +
+              '<div style="font-size:0.7rem;opacity:0.8;margin-bottom:6px;">Escanea este QR con tu m\u00f3vil:</div>' +
+              '<div style="font-size:0.65rem;opacity:0.6;margin-bottom:8px;">WhatsApp → Ajustes → Dispositivos vinculados → Vincular</div>' +
+              '<img src="' + qd.qr + '" style="width:160px;height:160px;border:3px solid #25D366;border-radius:8px;">' +
+              '<div style="margin-top:8px;"><button onclick="resetListener()" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:6px;color:#fff;cursor:pointer;font-size:0.7rem;padding:4px 12px;">Reintentar QR</button></div></div>';
+          }
+        } else if (d.status === 'connected') {
+          var container = document.getElementById('waListenerQR');
+          if (container) container.innerHTML = '';
+        }
+      });
     }).catch(function() {});
+}
+
+function resetListener() {
+  fetch('/whatsapp/listener-reset', { method: 'POST' }).then(function() {
+    var container = document.getElementById('waListenerQR');
+    if (container) container.innerHTML = '<div style="padding:12px;text-align:center;color:rgba(255,255,255,0.7);font-size:0.8rem;">Reiniciando escuchador...</div>';
+  });
 }
 
 // Check listener status every 5 seconds

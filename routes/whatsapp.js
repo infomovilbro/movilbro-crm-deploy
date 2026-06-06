@@ -18,4 +18,9 @@ router.get('/listener-qr', requireAuth, (req, res) => {
   else res.json({ qr: null, status: waListener.getStatus() });
 });
 
+router.post('/listener-reset', requireAuth, (req, res) => {
+  waListener.reset();
+  res.json({ ok: true, message: 'Listener reiniciado. Escanea el QR para vincular.' });
+});
+
 module.exports = router;

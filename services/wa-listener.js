@@ -101,6 +101,20 @@ function getStatus() { return _status; }
 function getQR() { return _qrBuffer; }
 function onQR(cb) { _qrCallbacks.push(cb); return function() { _qrCallbacks = _qrCallbacks.filter(function(c) { return c !== cb; }); }; }
 
+function reset() {
+  if (_sock && typeof _sock.logout === 'function') { try { _sock.logout(); } catch(e) {} }
+  _sock = null;
+  _status = 'disconnected';
+  _qrBuffer = null;
+  STARTING = false;
+  try {
+    if (fs.existsSync(AUTH_DIR)) {
+      fs.readdirSync(AUTH_DIR).forEach(function(f) { try { fs.unlinkSync(path.join(AUTH_DIR, f)); } catch(e) {} });
+    }
+  } catch(e) {}
+  setTimeout(start, 1000);
+}
+
 setTimeout(start, 1000);
 
-module.exports = { start, getStatus, getQR, onQR };
+module.exports = { start, getStatus, getQR, onQR, reset };
