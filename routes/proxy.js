@@ -95,26 +95,32 @@ router.all('/:target(*)', requireAuth, (req, res) => {
         // Patch feature detection that blocks non-whatsapp origins
         body = body.replace(/if\s*\(!\s*isWhatsApp\b/g, 'if (false');
         body = body.replace(/isWAError/g, 'false');
-        // Inject message watcher script via postMessage (solo mensajes nuevos DESPUES de cargar)
+        // Inject message watcher (solo mensajes reales, no basura UI)
         body = body.replace('</body>', '<script>' +
+          'var _ui=["Cargando","default-","ic-","wds-","wa-","icon","filter","svg","refresh","new-chat","more-verti",' +
+            '"ic-","ri-","bi-","chat-filled","status","communities","channel","search","menu","Meta AI","reenv\u00eda",' +
+            '"Descubre","Abre WhatsApp","Escribe","Buscar","Ajustes","Archivados","Favoritos","Todos","Grupos",' +
+            '"online","escribiendo","anclado","seleccionar","Escribir mensaje"];' +
+          'function _esBasura(t){for(var i=0;i<_ui.length;i++){if(t.indexOf(_ui[i])>=0)return true}return false};' +
           'setTimeout(function(){' +
-            'var baseline=(document.body&&document.body.innerText)||"";' +
-            'var _ob=new MutationObserver(function(){' +
+            'var base=(document.body&&document.body.innerText)||"";' +
+            'new MutationObserver(function(){' +
               'var t=(document.body&&document.body.innerText)||"";' +
-              'if(!t||t===baseline)return;' +
-              'var old=baseline;' +
-              'baseline=t;' +
+              'if(!t||t===base)return;' +
+              'var old=base;base=t;' +
               'var na=t.split(String.fromCharCode(10));' +
               'var ol=old.split(String.fromCharCode(10));' +
               'na.forEach(function(l){' +
                 'l=l.trim();' +
-                'if(l.length>2&&ol.indexOf(l)<0&&!/^[\\d\\s:()\\-+]+$/.test(l)){' +
-                  'try{parent.postMessage({type:"wa_msg",text:l},"*")}catch(e){}' +
-                '}' +
+                'if(l.length<5||l.length>200)return;' +
+                'if(ol.indexOf(l)>=0)return;' +
+                'if(/^[\\d\\s:()\\-+]+$/.test(l))return;' +
+                'if(/^(lunes|martes|mi\u00e9rcoles|jueves|viernes|s\u00e1bado|domingo|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre|ayer|hoy)/i.test(l))return;' +
+                'if(_esBasura(l))return;' +
+                'try{parent.postMessage({type:"wa_msg",text:l},"*")}catch(e){}' +
               '});' +
-            '});' +
-            '_ob.observe(document.documentElement,{childList:true,subtree:true,characterData:true});' +
-          '},10000);' +
+            '}).observe(document.documentElement,{childList:true,subtree:true,characterData:true});' +
+          '},15000);' +
         '</script>');
         cleanHeaders['content-length'] = Buffer.byteLength(body, 'utf8');
         res.writeHead(proxyRes.statusCode, cleanHeaders);
