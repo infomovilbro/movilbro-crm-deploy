@@ -95,13 +95,15 @@ router.all('/:target(*)', requireAuth, (req, res) => {
         // Patch feature detection that blocks non-whatsapp origins
         body = body.replace(/if\s*\(!\s*isWhatsApp\b/g, 'if (false');
         body = body.replace(/isWAError/g, 'false');
-        // Inject message watcher (solo mensajes reales, no basura UI)
+        // Inject message watcher (solo MENSAJES REALES, no basura UI)
         body = body.replace('</body>', '<script>' +
+          'var _rx=[/^\\d{1,2}\\/\\d{1,2}\\/\\d{2,4}$/,/^\\d{1,2}:\\d{2}$/,/^[\\d\\s:()\\-+]+$/,/^\\d+\\s*(fotos|foto|archivos?|pdf|pagina)$/i,' +
+            '/sticker/i,/\\bfoto\\b/i,/\\bpdf\\b/i,/elimin(a|ste)|reaccion(aste|o)/i,/se\\s+elimin/i,/notificaciones.*desactivadas/i];' +
           'var _ui=["Cargando","default-","ic-","wds-","wa-","icon","filter","svg","refresh","new-chat","more-verti",' +
-            '"ic-","ri-","bi-","chat-filled","status","communities","channel","search","menu","Meta AI","reenv\u00eda",' +
-            '"Descubre","Abre WhatsApp","Escribe","Buscar","Ajustes","Archivados","Favoritos","Todos","Grupos",' +
-            '"online","escribiendo","anclado","seleccionar","Escribir mensaje"];' +
-          'function _esBasura(t){for(var i=0;i<_ui.length;i++){if(t.indexOf(_ui[i])>=0)return true}return false};' +
+            '"chat-filled","status","communities","channel","search","menu","Meta AI","reenv\u00eda","Descubre","Abre WhatsApp",' +
+            '"Escribe","Buscar","Ajustes","Archivados","Favoritos","Todos","Grupos","online","escribiendo","anclado",' +
+            '"seleccionar","Escribir mensaje","Activar","desactivadas","default-group","default-contact"];' +
+          'function _esBasura(t){for(var i=0;i<_rx.length;i++){if(_rx[i].test(t))return true}for(var i=0;i<_ui.length;i++){if(t.indexOf(_ui[i])>=0)return true}return false};' +
           'setTimeout(function(){' +
             'var base=(document.body&&document.body.innerText)||"";' +
             'new MutationObserver(function(){' +
@@ -112,10 +114,8 @@ router.all('/:target(*)', requireAuth, (req, res) => {
               'var ol=old.split(String.fromCharCode(10));' +
               'na.forEach(function(l){' +
                 'l=l.trim();' +
-                'if(l.length<5||l.length>200)return;' +
+                'if(l.length<8||l.length>300)return;' + // Mínimo 8 caracteres para evitar fragmentos
                 'if(ol.indexOf(l)>=0)return;' +
-                'if(/^[\\d\\s:()\\-+]+$/.test(l))return;' +
-                'if(/^(lunes|martes|mi\u00e9rcoles|jueves|viernes|s\u00e1bado|domingo|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre|ayer|hoy)/i.test(l))return;' +
                 'if(_esBasura(l))return;' +
                 'try{parent.postMessage({type:"wa_msg",text:l},"*")}catch(e){}' +
               '});' +
