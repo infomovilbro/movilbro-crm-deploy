@@ -2110,7 +2110,7 @@ function waVigilar() {
     
     nuevas.forEach(function(linea) {
       linea = linea.trim();
-      if (!linea || linea.length < 5) return;
+      if (!linea || linea.length < 2) return;
       if (linea.length > 200) return; // Muy largo no es un mensaje
       if (viejas.indexOf(linea) >= 0) return;
       if (/^[\d\s:+()-]+$/.test(linea)) return;
@@ -2148,9 +2148,9 @@ function waVigilar() {
   } catch(e) {}
 }
 
-// Vigilar cada 3s
-setInterval(waVigilar, 3000);
-setTimeout(waVigilar, 3000);
+// Vigilar cada 2s
+setInterval(waVigilar, 2000);
+setTimeout(waVigilar, 1000);
 
 // Close on Escape
 document.addEventListener('keydown', function(e) {
