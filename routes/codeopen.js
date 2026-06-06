@@ -69,11 +69,12 @@ async function callLLM(systemPrompt, userMessage, temperature) {
     } catch(e) {
       var isRateLimit = e.response?.status === 429 || (e.message && e.message.indexOf('429') > -1);
       if (isRateLimit && attempt < maxRetries) {
-        var delay = Math.pow(4, attempt) * 1000 + Math.random() * 2000;
+        var delay = Math.pow(8, attempt) * 1000 + Math.random() * 5000;
         console.log('[CodeOpen] Rate limit 429, reintento ' + attempt + '/' + maxRetries + ' en ' + Math.round(delay/1000) + 's');
         await new Promise(function(r) { setTimeout(r, delay); });
       } else {
         console.error('[CodeOpen] LLM error:', e.message);
+        if (isRateLimit) return 'La IA está sobrecargada. Reintentaré en unos segundos.';
         return 'Error: ' + e.message;
       }
     }
