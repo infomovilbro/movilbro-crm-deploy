@@ -56,14 +56,14 @@ function getCRMContext() {
 
 async function callLLM(systemPrompt, userMessage, temperature) {
   if (!OPENCODE_API_KEY) return 'Error: OPENCODE_API_KEY no configurada';
-  var maxRetries = 3;
+  var maxRetries = 2;
   for (var attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       const r = await axios.post('https://opencode.ai/zen/v1/chat/completions', {
         model: 'deepseek-v4-flash-free',
         messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }],
         temperature: temperature || 0.7, max_tokens: 4096
-      }, { timeout: 120000, headers: { 'Authorization': 'Bearer ' + OPENCODE_API_KEY, 'Content-Type': 'application/json' } });
+      }, { timeout: 25000, headers: { 'Authorization': 'Bearer ' + OPENCODE_API_KEY, 'Content-Type': 'application/json' } });
       var text = r?.data?.choices?.[0]?.message?.content;
       return (text || '').trim() || 'Error: Respuesta vacía';
     } catch(e) {
@@ -171,7 +171,7 @@ router.post('/', async (req, res) => {
     db.prepare("INSERT INTO chat_history (session_id, role, content) VALUES (?, 'user', ?)").run(sessionId, msg);
     const response = await axios.post('https://opencode.ai/zen/v1/chat/completions', {
       model: 'deepseek-v4-flash-free', messages, temperature: 0.5, max_tokens: 4096
-    }, { headers: { 'Authorization': 'Bearer ' + OPENCODE_API_KEY, 'Content-Type': 'application/json' }, timeout: 60000 });
+    }, { headers: { 'Authorization': 'Bearer ' + OPENCODE_API_KEY, 'Content-Type': 'application/json' }, timeout: 25000 });
     const reply = response?.data?.choices?.[0]?.message?.content || '';
     if (reply) db.prepare("INSERT INTO chat_history (session_id, role, content) VALUES (?, 'assistant', ?)").run(sessionId, reply);
     res.json({ response: reply || 'No obtuve respuesta.' });
