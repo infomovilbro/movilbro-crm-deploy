@@ -484,6 +484,63 @@ app.post('/isp/re-sync', async function(req, res) {
 });
 
 const server = http.createServer(app);
+const tls = require('tls');
+
+// WebSocket proxy para WhatsApp
+server.on('upgrade', function(req, socket, head) {
+  if (!req.url.startsWith('/proxy-ws')) return;
+  
+  var parts = req.url.split('/');
+  var targetPort = parseInt(parts[2]) || 443;  // /proxy-ws/443/ws/chat?ED=...
+  var targetPath = '/' + parts.slice(3).join('/');
+  var qIdx = targetPath.indexOf('?');
+  if (qIdx < 0) targetPath += (req.url.indexOf('?') >= 0 ? req.url.substring(req.url.indexOf('?')) : '');
+  
+  var targetHost = 'web.whatsapp.com';
+  var tlsSocket = tls.connect(targetPort, targetHost, function() {
+    var key = req.headers['sec-websocket-key'] || '';
+    var ver = req.headers['sec-websocket-version'] || '13';
+    var ext = req.headers['sec-websocket-extensions'] || '';
+    var proto = req.headers['sec-websocket-protocol'] || '';
+    
+    var upgradeReq = [
+      'GET ' + targetPath + ' HTTP/1.1',
+      'Host: ' + targetHost,
+      'Upgrade: websocket',
+      'Connection: Upgrade',
+      'Origin: https://' + targetHost,
+      'Sec-WebSocket-Key: ' + key,
+      'Sec-WebSocket-Version: ' + ver
+    ];
+    if (ext) upgradeReq.push('Sec-WebSocket-Extensions: ' + ext);
+    if (proto) upgradeReq.push('Sec-WebSocket-Protocol: ' + proto);
+    upgradeReq.push('', '');
+    
+    tlsSocket.write(upgradeReq.join('\r\n'));
+    
+    var responded = false;
+    tlsSocket.once('data', function(data) {
+      var resp = data.toString('utf8');
+      if (resp.indexOf('101 Switching Protocols') >= 0 || resp.indexOf('101 WebSocket') >= 0) {
+        responded = true;
+        socket.write(data);
+        socket.pipe(tlsSocket);
+        tlsSocket.pipe(socket);
+      } else {
+        socket.destroy();
+        tlsSocket.destroy();
+      }
+    });
+    
+    setTimeout(function() {
+      if (!responded) { socket.destroy(); tlsSocket.destroy(); }
+    }, 15000);
+  });
+  
+  tlsSocket.on('error', function() { try { socket.destroy(); } catch(e) {} });
+  socket.on('error', function() { try { tlsSocket.destroy(); } catch(e) {} });
+});
+
 const wss = new WebSocket.Server({ server, path: '/camera-ws' });
 var cameraClients = [];
 var lastCameraFrame = null;

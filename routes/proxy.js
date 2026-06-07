@@ -83,8 +83,8 @@ router.all('/:target(*)', requireAuth, (req, res) => {
       proxyRes.on('data', function(chunk) { chunks.push(chunk); });
       proxyRes.on('end', function() {
         var body = Buffer.concat(chunks).toString('utf8');
-        // Inject base tag so all assets load from the real web.whatsapp.com
-        body = body.replace('<head>', '<head><base href="/proxy/web.whatsapp.com/">');
+        // Inject base tag + WebSocket patch so assets + WS go through proxy
+        body = body.replace('<head>', '<head><base href="/proxy/web.whatsapp.com/"><script>var OW=window.WebSocket;window.WebSocket=function(u,p){if(typeof u==="string"&&u.indexOf("web.whatsapp.com")>=0){u=u.replace("wss://web.whatsapp.com:5222","wss://"+location.host+"/proxy-ws/5222");u=u.replace("wss://web.whatsapp.com","wss://"+location.host+"/proxy-ws/443")}return new OW(u,p)};window.WebSocket.prototype=OW.prototype;</script>');
         // Patch frame-busting JS
         body = body.replace(/top\s*!==\s*self/g, 'false');
         body = body.replace(/self\s*!==\s*top/g, 'false');
