@@ -513,12 +513,13 @@ server.on('upgrade', function(req, socket, head) {
     var ext = req.headers['sec-websocket-extensions'] || '';
     var proto = req.headers['sec-websocket-protocol'] || '';
     
+    var origin = req.headers['origin'] || 'https://' + targetHost;
     var upgradeReq = [
       'GET ' + targetPath + ' HTTP/1.1',
       'Host: ' + targetHost,
       'Upgrade: websocket',
       'Connection: Upgrade',
-      'Origin: https://' + targetHost,
+      'Origin: ' + origin,
       'Sec-WebSocket-Key: ' + key,
       'Sec-WebSocket-Version: ' + ver
     ];
