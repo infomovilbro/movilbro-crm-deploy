@@ -480,10 +480,10 @@ body { background:var(--bg-main); color:var(--text); }
       });
       // Bind approve/reject
       pendingList.querySelectorAll('.pending-approve').forEach(function(b) {
-        b.addEventListener('click', function() { handlePending(this.dataset.id, 'approve'); });
+        b.addEventListener('click', function(e) { e.stopPropagation(); handlePending(this.dataset.id, 'approve'); });
       });
       pendingList.querySelectorAll('.pending-reject').forEach(function(b) {
-        b.addEventListener('click', function() { handlePending(this.dataset.id, 'reject'); });
+        b.addEventListener('click', function(e) { e.stopPropagation(); handlePending(this.dataset.id, 'reject'); });
       });
     }).catch(function() {
       pendingList.innerHTML = '<div style="text-align:center;padding:30px;color:var(--error);">Error al cargar pendientes</div>';
