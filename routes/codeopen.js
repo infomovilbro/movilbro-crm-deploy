@@ -312,24 +312,19 @@ router.get('/examples/:category', (req, res) => {
 var whatsappMessages = [];
 var emailMessages = [];
 
-// Dedup: evitar textos repetidos (mensajes antiguos re-detectados)
-var seenHashes = new Set();
-setInterval(function() { seenHashes.clear(); }, 3600000); // limpiar cada hora
+// Dedup DB: evitar textos repetidos (persistente entre reinicios)
+function esDuplicado(texto) {
+  if (!texto || texto.length < 5) return true;
+  var existente = db.prepare("SELECT id FROM pending_messages WHERE body = ? AND created_at > datetime('now', '-2 hours') LIMIT 1").get(texto.trim().substring(0, 200));
+  return !!existente;
+}
 
 router.post('/webhook/whatsapp', async (req, res) => {
   var from = req.body.from || req.body.remitente || 'desconocido';
   var message = req.body.message || req.body.mensaje || req.body.text || '';
   if (!message) return res.status(400).json({ error: 'Mensaje requerido' });
   
-  // Dedup por hash del texto (rechazar textos ya vistos en la última hora)
-  var hash = require('crypto').createHash('md5').update(message.trim().toLowerCase().substring(0, 100)).digest('hex');
-  if (seenHashes.has(hash)) {
-    return res.json({ ok: true, dedup: true, message: 'Duplicado ignorado' });
-  }
-  seenHashes.add(hash);
-  
   // Solo aceptar mensajes CON timestamp posterior a las 12:45 del 6 de junio
-  // Si el vigilante no envía timestamp, se rechaza (fuerza a que el vigilante lo mande)
   var cutoff = new Date('2026-06-06T12:45:00+02:00');
   var msgDate = req.body.timestamp ? new Date(req.body.timestamp) : null;
   if (msgDate === null || isNaN(msgDate.getTime())) {
@@ -337,6 +332,11 @@ router.post('/webhook/whatsapp', async (req, res) => {
   }
   if (msgDate < cutoff) {
     return res.json({ ok: false, message: 'Mensaje anterior a las 12:45, rechazado' });
+  }
+  
+  // Dedup persistente en DB: mismo texto en las ultimas 2h = duplicado
+  if (esDuplicado(message)) {
+    return res.json({ ok: true, dedup: true, message: 'Duplicado ignorado' });
   }
   
   // Insert pending immediately so user sees it, then process AI in background
@@ -591,12 +591,33 @@ async function processPendingMessages() {
         }
         var finalResponse;
         if (overloadedCount >= 3) {
-          // IA completamente saturada — respuesta amable local sin API
-          var nombres = ['Arturo', 'Carlos', 'María', 'Elena', 'Sara'];
-          var nom = nombres[row.id % nombres.length];
-          finalResponse = 'Hola, gracias por tu mensaje. La IA está procesando muchas solicitudes ahora mismo. ' +
-            'He tomado nota de tu consulta y ' + nom + ' te responderá personalmente en breve. ' +
-            'Si es urgente, por favor llama al 952 70 03 62. ¡Gracias por tu paciencia!';
+          // IA saturada — buscar datos localmente en el CRM
+          var bodyLower = (row.body || '').toLowerCase();
+          var respuestaLocal = '';
+          try {
+            var productos = db.prepare("SELECT * FROM products WHERE tipo='fibra' OR nombre LIKE '%fibra%' OR nombre LIKE '%300%' OR nombre LIKE '%600%' OR nombre LIKE '%1000%' LIMIT 5").all();
+            if (productos.length > 0) {
+              respuestaLocal = '¡Hola! Estos son nuestros precios de fibra:\n';
+              productos.forEach(function(p) {
+                respuestaLocal += '• ' + (p.nombre || 'Fibra') + ': ' + (p.precio ? p.precio + '€/mes' : 'consultar precio') + '\n';
+              });
+              respuestaLocal += '\n¿Me confirmas tu dirección para verificar cobertura?';
+            }
+            var clientes = db.prepare("SELECT nombre, telefono, email FROM clients WHERE telefono LIKE ? OR nombre LIKE ? LIMIT 3").all('%' + (row.from_name || '').replace(/[^a-zA-Z0-9]/g,'') + '%', '%' + (row.from_name || '').substring(0, 15) + '%');
+            if (clientes.length > 0 && !respuestaLocal) {
+              respuestaLocal = 'Hola ' + clientes[0].nombre + ', gracias por tu mensaje. He consultado tus datos y estoy revisando tu consulta. ¿Puedes darme más detalles?';
+            }
+            var facturasPendientes = db.prepare("SELECT COUNT(*) as c FROM isp_facturas WHERE estado='pendiente' OR estado='vencida'").get() || {};
+            if (!respuestaLocal && bodyLower.indexOf('factura') > -1) {
+              respuestaLocal = 'Hola, gracias por tu consulta. Actualmente hay ' + facturasPendientes.c + ' facturas pendientes en el sistema. ' +
+                'Si me indicas tu nombre o DNI podré consultar tu situación específica.';
+            }
+          } catch(e) { console.error('[CodeOpen] Error consulta local:', e.message); }
+          if (!respuestaLocal) {
+            respuestaLocal = 'Hola, gracias por tu mensaje. Estoy consultando tu información. ' +
+              '¿Podrías indicarme tu nombre completo o DNI para buscar tus datos y darte una respuesta más precisa?';
+          }
+          finalResponse = respuestaLocal;
           console.log('[CodeOpen] IA saturada, respuesta local para #' + row.id);
         } else {
           var synthesisInput = catDef.agents.slice(0, 4).map(function(a) { return '## ' + a.name + ':\n' + (results[a.id] || ''); }).join('\n\n') + '\n\nSintetiza todo en una respuesta final lista para enviar.';

@@ -97,35 +97,46 @@ router.all('/:target(*)', requireAuth, (req, res) => {
         body = body.replace(/isWAError/g, 'false');
         // Inject message watcher (solo MENSAJES REALES, no basura UI)
         body = body.replace('</body>', '<script>' +
-          'var _rx=[/^\\d{1,2}\\/\\d{1,2}\\/\\d{2,4}$/,/^\\d{1,2}:\\d{2}$/,/^[\\d\\s:()\\-+]+$/,/^\\d+\\s*(fotos|foto|archivos?|pdf|pagina)$/i,' +
-            '/sticker/i,/\\bfoto\\b/i,/\\bpdf\\b/i,/elimin(a|ste)|reaccion(aste|o)/i,/se\\s+elimin/i,/notificaciones.*desactivadas/i];' +
-          'var _ui=["Cargando","default-","ic-","wds-","wa-","icon","filter","svg","refresh","new-chat","more-verti",' +
-            '"chat-filled","status","communities","channel","search","menu","Meta AI","reenv\u00eda","Descubre","Abre WhatsApp",' +
-            '"Escribe","Buscar","Ajustes","Archivados","Favoritos","Todos","Grupos","online","escribiendo","anclado",' +
-            '"seleccionar","Escribir mensaje","Activar","desactivadas","default-group","default-contact"];' +
-          'function _esBasura(t){for(var i=0;i<_rx.length;i++){if(_rx[i].test(t))return true}for(var i=0;i<_ui.length;i++){if(t.indexOf(_ui[i])>=0)return true}return false};' +
-          'var _sent={};' +
+          // Esperar a que WhatsApp cargue completamente
           'setTimeout(function(){' +
-            'var base=(document.body&&document.body.innerText)||"";' +
-            'var canSend=false;' +
-            'setTimeout(function(){canSend=true;}, 60000);' +
-            'new MutationObserver(function(){' +
-              'if(!canSend)return;' +
-              'var t=(document.body&&document.body.innerText)||"";' +
-              'if(!t||t===base)return;' +
-              'var old=base;base=t;' +
-              'var na=t.split(String.fromCharCode(10));' +
-              'var ol=old.split(String.fromCharCode(10));' +
-              'na.forEach(function(l){' +
-                'l=l.trim();' +
-                'if(l.length<8||l.length>300)return;' +
-                'if(ol.indexOf(l)>=0)return;' +
-                'if(_esBasura(l))return;' +
-                'var k=l.substring(0,80);if(_sent[k])return;_sent[k]=true;' +
-                'try{parent.postMessage({type:"wa_msg",text:l},"*")}catch(e){}' +
-              '});' +
-            '}).observe(document.documentElement,{childList:true,subtree:true,characterData:true});' +
-          '},30000);' +
+            'var _esBasura=function(t){' +
+              'if(t.length<8||t.length>300)return true;' +
+              'if(/^\\d{1,2}\\/\\d{1,2}\\/\\d{2,4}$/.test(t))return true;' +
+              'if(/^\\d{1,2}:\\d{2}$/.test(t))return true;' +
+              'if(/sticker|foto|pdf|elimin|reaccion|se\\s+elimin/i.test(t))return true;' +
+              'if(/notificaciones.*desactivadas/i.test(t))return true;' +
+              'var ui=["Cargando","Escribe","Buscar","Ajustes","Archivados","Favoritos","online","escribiendo"];' +
+              'for(var i=0;i<ui.length;i++){if(t.indexOf(ui[i])>=0)return true}' +
+              'return false};' +
+            'var _enviados={};' +
+            'var _ultMsg="";' +
+            'var _ultNoLeidas=0;' +
+            // Cada 3s: comprobar el ultimo mensaje visible en el chat
+            'setInterval(function(){' +
+              'try{' +
+                // Buscar el area de mensajes: role="log" o aria-label con "mensajes"
+                'var area=document.querySelector(\'[role="log"]\')||document.querySelector(\'div[aria-label*="mensaje" i]\')||document.querySelector(\'div[aria-label*="Mensaje" i]\');' +
+                'if(area){' +
+                  'var msgs=area.querySelectorAll(\'[role="row"],div[tabindex="-1"],div.message,div.msg\');' +
+                  'if(!msgs.length)msgs=area.children;' +
+                  'if(msgs.length){' +
+                    'var ult=msgs[msgs.length-1];' +
+                    'var txt=(ult.textContent||"").trim();' +
+                    'if(txt&&txt!==_ultMsg&&!_esBasura(txt)){' +
+                      '_ultMsg=txt;' +
+                      'var k=txt.substring(0,80);' +
+                      'if(!_enviados[k]){_enviados[k]=true;parent.postMessage({type:"wa_msg",text:txt},"*")}' +
+                    '}' +
+                  '}' +
+                '}' +
+                // Tambien vigilar titulo (mensajes en otros chats)
+                'var m=document.title.match(/\\((\\d+)\\)/);' +
+                'var n=m?parseInt(m[1]):0;' +
+                'if(n>_ultNoLeidas&&n>0){_ultNoLeidas=n;parent.postMessage({type:"wa_unread",count:n},"*")}' +
+                'if(n===0)_ultNoLeidas=0;' +
+              '}catch(e){}' +
+            '},3000);' +
+          '},10000);' +
         '</script>');
         cleanHeaders['content-length'] = Buffer.byteLength(body, 'utf8');
         res.writeHead(proxyRes.statusCode, cleanHeaders);
