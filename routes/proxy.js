@@ -21,20 +21,22 @@ router.all('/:target(*)', requireAuth, (req, res) => {
   const allowed = ALLOWED[parsed.hostname];
   if (!allowed) return res.status(403).send('Target not allowed');
 
-  // Build clean headers - only forward essential ones, not host/cookie from our domain
+  // Forward original browser headers but override Host to match target
   const headers = {
     'User-Agent': req.headers['user-agent'] || 'Mozilla/5.0',
     'Accept': req.headers['accept'] || '*/*',
     'Accept-Language': req.headers['accept-language'] || 'es-ES,es;q=0.9',
-    'Referer': `https://${allowed.host}/`,
-    'Origin': `https://${allowed.host}`,
-    'Host': allowed.host,
-    'Connection': 'keep-alive',
-    'Sec-Fetch-Dest': 'iframe',
-    'Sec-Fetch-Mode': 'navigate',
-    'Sec-Fetch-Site': 'same-origin',
-    'Upgrade-Insecure-Requests': '1'
+    'Host': allowed.host
   };
+  // Forward referer/origin from browser (critical for WhatsApp AJAX)
+  if (req.headers['referer']) headers['Referer'] = req.headers['referer'];
+  if (req.headers['origin']) headers['Origin'] = req.headers['origin'];
+  if (req.headers['sec-fetch-dest']) headers['Sec-Fetch-Dest'] = req.headers['sec-fetch-dest'];
+  if (req.headers['sec-fetch-mode']) headers['Sec-Fetch-Mode'] = req.headers['sec-fetch-mode'];
+  if (req.headers['sec-fetch-site']) headers['Sec-Fetch-Site'] = req.headers['sec-fetch-site'];
+  if (req.headers['x-requested-with']) headers['X-Requested-With'] = req.headers['x-requested-with'];
+  if (req.headers['content-type']) headers['Content-Type'] = req.headers['content-type'];
+  if (req.headers['accept-encoding']) headers['Accept-Encoding'] = req.headers['accept-encoding'];
 
   // Forward cookies from the original target domain if they exist in session
   if (req.session && req.session.proxyCookies && req.session.proxyCookies[parsed.hostname]) {
