@@ -4,6 +4,7 @@ const https = require('https');
 const http = require('http');
 const url = require('url');
 const router = express.Router();
+var PROXY_VERSION = 'v8-fix-html';
 
 const ALLOWED = {
   'web.whatsapp.com': { host: 'web.whatsapp.com', protocol: 'https:' },
@@ -80,7 +81,9 @@ router.all('/:target(*)', requireAuth, (req, res) => {
 
     // For web.whatsapp.com: inject <base> tag and patch anti-iframe JS
     var needsHtmlPatching = (parsed.hostname === 'web.whatsapp.com');
-    if (needsHtmlPatching && proxyRes.headers['content-type'] && proxyRes.headers['content-type'].includes('text/html')) {
+    var ct = (proxyRes.headers['content-type'] || proxyRes.headers['Content-Type'] || '');
+    console.log('[Proxy] web.whatsapp.com response:', proxyRes.statusCode, ct, 'content-length:', proxyRes.headers['content-length'], 'transfer-encoding:', proxyRes.headers['transfer-encoding']);
+    if (needsHtmlPatching && ct.includes('text/html')) {
       var chunks = [];
       proxyRes.on('data', function(chunk) { chunks.push(chunk); });
       proxyRes.on('end', function() {
