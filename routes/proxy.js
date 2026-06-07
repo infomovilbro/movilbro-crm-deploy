@@ -84,7 +84,16 @@ router.all('/:target(*)', requireAuth, (req, res) => {
       proxyRes.on('end', function() {
         var body = Buffer.concat(chunks).toString('utf8');
         // Inject base tag + WebSocket patch so assets + WS go through proxy
-        body = body.replace('<head>', '<head><base href="/proxy/web.whatsapp.com/"><script>var OW=window.WebSocket;window.WebSocket=function(u,p){if(typeof u==="string"&&u.indexOf("web.whatsapp.com")>=0){u=u.replace("wss://web.whatsapp.com:5222","wss://"+location.host+"/proxy-ws/5222");u=u.replace("wss://web.whatsapp.com","wss://"+location.host+"/proxy-ws/443")}return new OW(u,p)};window.WebSocket.prototype=OW.prototype;</script>');
+        // Patch 1: intercept WebSocket, XMLHttpRequest, fetch to proxy through CRM
+        var patches = '<script>' +
+        '/* WebSocket proxy */' +
+        'var OW=window.WebSocket;window.WebSocket=function(u,p){if(typeof u==="string"&&u.indexOf("web.whatsapp.com")>=0){u=u.replace("wss://web.whatsapp.com:5222","wss://"+location.host+"/proxy-ws/5222");u=u.replace("wss://web.whatsapp.com","wss://"+location.host+"/proxy-ws/443")}return new OW(u,p)};window.WebSocket.prototype=OW.prototype;' +
+        '/* XHR proxy */' +
+        'var _XPO=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(m,u){if(typeof u==="string"&&u.indexOf("//web.whatsapp.com")>=0){arguments[1]=u.replace(/https?:\\/\\/web\\.whatsapp\\.com\\//,"")}return _XPO.apply(this,arguments)};' +
+        '/* fetch proxy */' +
+        'var _FO=window.fetch;window.fetch=function(u,o){if(typeof u==="string"&&u.indexOf("//web.whatsapp.com")>=0){u=u.replace(/https?:\\/\\/web\\.whatsapp\\.com\\//,"")}return _FO.call(window,u,o)};' +
+        '</script>';
+        body = body.replace('<head>', '<head><base href="/proxy/web.whatsapp.com/">' + patches);
         // Patch frame-busting JS
         body = body.replace(/top\s*!==\s*self/g, 'false');
         body = body.replace(/self\s*!==\s*top/g, 'false');
@@ -153,8 +162,12 @@ router.all('/:target(*)', requireAuth, (req, res) => {
     if (!res.headersSent) res.status(502).send('Proxy error: ' + e.message);
   });
 
-  if (req.body && Object.keys(req.body).length) {
-    proxyReq.write(typeof req.body === 'string' ? req.body : JSON.stringify(req.body));
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    if (req.rawBody && req.rawBody.length) {
+      proxyReq.write(req.rawBody);
+    } else if (req.body && typeof req.body === 'object' && Object.keys(req.body).length) {
+      proxyReq.write(JSON.stringify(req.body));
+    }
   }
   proxyReq.end();
 });

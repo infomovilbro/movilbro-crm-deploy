@@ -190,6 +190,16 @@ if (isProd) {
   app.use(morgan('dev'));
 }
 
+// Raw body capture for proxy routes (before JSON parser consumes it)
+app.use('/proxy', (req, res, next) => {
+  var chunks = [];
+  req.on('data', function(c) { chunks.push(c); });
+  req.on('end', function() {
+    req.rawBody = Buffer.concat(chunks);
+    next();
+  });
+});
+
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(express.static(path.join(__dirname, 'public'), {
