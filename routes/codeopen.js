@@ -572,7 +572,7 @@ async function processPendingMessages() {
   if (processingMessages) return;
   processingMessages = true;
   try {
-    var unprocessed = db.prepare("SELECT * FROM pending_messages WHERE status='pending' AND (proposed_response IS NULL OR proposed_response='' OR proposed_response='Analizando con IA...') ORDER BY created_at ASC LIMIT 1").all();
+    var unprocessed = db.prepare("SELECT * FROM pending_messages WHERE status='pending' AND (proposed_response IS NULL OR proposed_response='' OR proposed_response='Analizando con IA...' OR proposed_response LIKE 'La IA est\u00e1 sobrecargada%') ORDER BY created_at ASC LIMIT 1").all();
     for (var row of unprocessed) {
       try {
         console.log('[CodeOpen] Procesando mensaje #' + row.id, row.source, 'de', row.from_name);
@@ -582,13 +582,27 @@ async function processPendingMessages() {
         var catDef = row.source === 'whatsapp' || row.category === 'whatsapp' ? AGENT_CATEGORIES.whatsapp : AGENT_CATEGORIES.email;
         var results = {};
         var agentList = catDef.agents.slice(0, 4);
+        var overloadedCount = 0;
         for (var i = 0; i < agentList.length; i++) {
-          if (i > 0) await new Promise(function(r) { setTimeout(r, 3000); }); // 3s entre agentes para evitar 429
-          results[agentList[i].id] = await callLLM(agentList[i].prompt, ctx, 0.7);
+          if (i > 0) await new Promise(function(r) { setTimeout(r, 3000); });
+          var res = await callLLM(agentList[i].prompt, ctx, 0.7);
+          results[agentList[i].id] = res;
+          if (res && (res.indexOf('sobrecargada') > -1 || res.indexOf('Reintentar') > -1)) overloadedCount++;
         }
-        var synthesisInput = catDef.agents.slice(0, 4).map(function(a) { return '## ' + a.name + ':\n' + (results[a.id] || ''); }).join('\n\n') + '\n\nSintetiza todo en una respuesta final lista para enviar.';
-        await new Promise(function(r) { setTimeout(r, 3000); }); // 3s antes de sintetizar
-        var finalResponse = await callLLM(catDef.agents[4].prompt, synthesisInput, 0.8);
+        var finalResponse;
+        if (overloadedCount >= 3) {
+          // IA completamente saturada — respuesta amable local sin API
+          var nombres = ['Arturo', 'Carlos', 'María', 'Elena', 'Sara'];
+          var nom = nombres[row.id % nombres.length];
+          finalResponse = 'Hola, gracias por tu mensaje. La IA está procesando muchas solicitudes ahora mismo. ' +
+            'He tomado nota de tu consulta y ' + nom + ' te responderá personalmente en breve. ' +
+            'Si es urgente, por favor llama al 952 70 03 62. ¡Gracias por tu paciencia!';
+          console.log('[CodeOpen] IA saturada, respuesta local para #' + row.id);
+        } else {
+          var synthesisInput = catDef.agents.slice(0, 4).map(function(a) { return '## ' + a.name + ':\n' + (results[a.id] || ''); }).join('\n\n') + '\n\nSintetiza todo en una respuesta final lista para enviar.';
+          await new Promise(function(r) { setTimeout(r, 3000); });
+          finalResponse = await callLLM(catDef.agents[4].prompt, synthesisInput, 0.8);
+        }
         db.prepare("UPDATE pending_messages SET proposed_response=? WHERE id=?").run(finalResponse || '', row.id);
         console.log('[CodeOpen] Mensaje #' + row.id + ' procesado con IA');
       } catch(e) {
