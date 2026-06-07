@@ -91,9 +91,9 @@ router.all('/:target(*)', requireAuth, (req, res) => {
         '/* WebSocket proxy */' +
         'var OW=window.WebSocket;window.WebSocket=function(u,p){if(typeof u==="string"&&u.indexOf("web.whatsapp.com")>=0){u=u.replace("wss://web.whatsapp.com:5222","wss://"+location.host+"/proxy-ws/5222");u=u.replace("wss://web.whatsapp.com","wss://"+location.host+"/proxy-ws/443")}return new OW(u,p)};window.WebSocket.prototype=OW.prototype;' +
         '/* XHR proxy */' +
-        'var _XPO=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(m,u){if(typeof u==="string"&&u.indexOf("//web.whatsapp.com")>=0){arguments[1]=u.replace(/https?:\\/\\/web\\.whatsapp\\.com\\//,"")}return _XPO.apply(this,arguments)};' +
+        'var _XPO=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(m,u){if(typeof u==="string"&&u.indexOf("//web.whatsapp.com")>=0){arguments[1]=u.replace(/https?:\\/\\/web\\.whatsapp\\.com\\/|^\\/\\/web\\.whatsapp\\.com\\//,"")}return _XPO.apply(this,arguments)};' +
         '/* fetch proxy */' +
-        'var _FO=window.fetch;window.fetch=function(u,o){if(typeof u==="string"&&u.indexOf("//web.whatsapp.com")>=0){u=u.replace(/https?:\\/\\/web\\.whatsapp\\.com\\//,"")}return _FO.call(window,u,o)};' +
+        'var _FO=window.fetch;window.fetch=function(u,o){if(typeof u==="string"&&u.indexOf("//web.whatsapp.com")>=0){u=u.replace(/https?:\\/\\/web\\.whatsapp\\.com\\/|^\\/\\/web\\.whatsapp\\.com\\//,"")}return _FO.call(window,u,o)};' +
         '</script>';
         body = body.replace('<head>', '<head><base href="/proxy/web.whatsapp.com/">' + patches);
         // Patch frame-busting JS
