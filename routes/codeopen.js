@@ -57,20 +57,20 @@ function getCRMContext() {
 
 async function callLLM(systemPrompt, userMessage, temperature) {
   if (!OPENCODE_API_KEY) return 'Error: OPENCODE_API_KEY no configurada';
-  var maxRetries = 2;
+  var maxRetries = 3;
   for (var attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       const r = await axios.post('https://opencode.ai/zen/v1/chat/completions', {
         model: 'deepseek-v4-flash-free',
         messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }],
         temperature: temperature || 0.7, max_tokens: 4096
-      }, { timeout: 25000, headers: { 'Authorization': 'Bearer ' + OPENCODE_API_KEY, 'Content-Type': 'application/json' } });
+      }, { timeout: 30000, headers: { 'Authorization': 'Bearer ' + OPENCODE_API_KEY, 'Content-Type': 'application/json' } });
       var text = r?.data?.choices?.[0]?.message?.content;
       return (text || '').trim() || 'Error: Respuesta vacía';
     } catch(e) {
       var isRateLimit = e.response?.status === 429 || (e.message && e.message.indexOf('429') > -1);
       if (isRateLimit && attempt < maxRetries) {
-        var delay = Math.pow(8, attempt) * 1000 + Math.random() * 5000;
+        var delay = Math.pow(10, attempt) * 1000 + Math.random() * 10000;
         console.log('[CodeOpen] Rate limit 429, reintento ' + attempt + '/' + maxRetries + ' en ' + Math.round(delay/1000) + 's');
         await new Promise(function(r) { setTimeout(r, delay); });
       } else {
@@ -642,8 +642,7 @@ async function processPendingMessages() {
           }
         } catch(e) { clienteInfo = 'Error: ' + e.message; }
         
-        var crmCtx = getCRMContext();
-        var fullText = row.body || row.subject || '';
+        var fullText = (row.body || row.subject || '').toLowerCase();
         var singlePrompt = 'Eres un administrativo de Movilbro respondiendo por WhatsApp. Usa los datos reales del cliente.\n\n' +
           'Cliente: ' + row.from_name + '\n' + 'Mensaje: ' + fullText + '\n\n' + 
           'Datos CRM: ' + clienteInfo + '\n' +
@@ -659,7 +658,23 @@ async function processPendingMessages() {
         
         var finalResponse = await callLLM(singlePrompt, '', 0.5);
         if (!finalResponse || finalResponse.startsWith('Error') || finalResponse.indexOf('sobrecargada') > -1) {
-          finalResponse = 'Hola, gracias por tu mensaje. He consultado tus datos y estoy revisando tu consulta. En breve recibirás una respuesta más detallada. ¿Hay algo más que necesites?';
+          // Fallback contextual: usa los datos reales que ya tenemos
+          var nombre = row.from_name || 'cliente';
+          var partes = [];
+          var msgLower = fullText.toLowerCase();
+          var tieneGigas = msgLower.indexOf('giga') > -1 || msgLower.indexOf('consumo') > -1 || msgLower.indexOf('megas') > -1;
+          var tieneFactura = msgLower.indexOf('factura') > -1 || msgLower.indexOf('recibo') > -1 || msgLower.indexOf('pago') > -1;
+          var tienePrecio = msgLower.indexOf('precio') > -1 || msgLower.indexOf('cuanto') > -1 || msgLower.indexOf('cuesta') > -1 || msgLower.indexOf('pack') > -1 || msgLower.indexOf('fibra') > -1;
+          if (tieneGigas && likesData) partes.push('He consultado tu consumo y los datos están disponibles.');
+          if (tieneFactura && clienteInfo.indexOf('Facturas:') > -1) {
+            var facturaMatch = clienteInfo.match(/Facturas: ([^|]+)/);
+            if (facturaMatch) partes.push('Tus facturas: ' + facturaMatch[1].trim());
+          }
+          if (tienePrecio) partes.push('Los precios varían según la promoción. Un agente te informará del pack exacto para tu zona.');
+          if (partes.length === 0) partes.push('He revisado tus datos en el sistema.');
+          var fallbackPersonalizado = 'Hola ' + nombre + ', gracias por tu mensaje. ' + partes.join(' ') + ' En breve un agente te dará más detalles. ¿Algo más en que pueda ayudarte?';
+          if (fallbackPersonalizado.length > 500) fallbackPersonalizado = fallbackPersonalizado.substring(0, 497) + '...';
+          finalResponse = fallbackPersonalizado;
         }
         db.prepare("UPDATE pending_messages SET proposed_response=? WHERE id=?").run(finalResponse || '', row.id);
         console.log('[CodeOpen] Mensaje #' + row.id + ' procesado');
@@ -892,15 +907,29 @@ router.get('/wa-conversations', function(req, res) {
       FROM pending_messages
       WHERE source IN ('baileys','whatsapp','manuel')
       GROUP BY from_address
-      ORDER BY last_msg DESC
+      ORDER BY MAX(CASE WHEN status='pending' THEN 1 ELSE 0 END) DESC, last_msg DESC
       LIMIT 50
     `).all();
+    
+    // For lastMessage preview, skip empty/analyzing texts
+    var previews = db.prepare(`
+      SELECT from_address, body, created_at FROM pending_messages
+      WHERE source IN ('baileys','whatsapp','manuel')
+        AND (body IS NOT NULL AND body != '' AND body NOT LIKE 'Analizando%' AND body NOT LIKE 'Hola%gracias por tu mensaje%')
+      ORDER BY created_at DESC
+    `).all();
+    var lastRealMsg = {};
+    previews.forEach(function(p) {
+      if (!lastRealMsg[p.from_address]) lastRealMsg[p.from_address] = p.body;
+    });
 
     var convs = rows.map(function(r) {
+      var preview = lastRealMsg[r.from_address] || r.body || '';
+      if (preview.length > 80) preview = preview.substring(0, 80) + '...';
       return {
         jid: r.from_address,
         name: r.from_name || r.from_address.split('@')[0],
-        lastMessage: r.body ? r.body.substring(0, 80) : '',
+        lastMessage: preview,
         lastTime: r.created_at,
         unread: r.unread || 0,
         msgCount: r.msg_count
