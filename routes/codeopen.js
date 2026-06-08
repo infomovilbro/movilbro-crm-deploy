@@ -812,7 +812,7 @@ router.get('/baileys-qr', async (req, res) => {
     var wa = require('../wa-baileys');
     var status = wa.getStatus();
     var qrDataUrl = wa.getQRDataURL();
-    res.json({ status: status, qr: qrDataUrl ? qrDataUrl.substring(0, 200) + '...' : null });
+    res.json({ status: status, qr: qrDataUrl ? qrDataUrl.substring(0, 200) + '...' : null, error: status.error });
   } catch(e) {
     res.json({ error: e.message });
   }
