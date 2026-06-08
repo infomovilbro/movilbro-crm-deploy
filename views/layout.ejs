@@ -1992,16 +1992,23 @@
   </style>
   <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:#075e54;color:#fff;flex-shrink:0;">
     <i class="bi bi-whatsapp" style="font-size:1.2rem;"></i>
-    <span style="font-weight:600;font-size:0.85rem;">WhatsApp Web</span>
-    <span style="font-size:0.7rem;opacity:0.7;">vigilando</span>
-    <span id="waLiveDot" style="width:8px;height:8px;border-radius:50%;background:#4ade80;display:inline-block;"></span>
-    <button onclick="enviarACodeOpen()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:6px;color:#fff;cursor:pointer;font-size:0.7rem;padding:4px 10px;white-space:nowrap;" title="Enviar mensaje a CodeOpen">
-      <i class="bi bi-robot"></i> Analizar
+    <span style="font-weight:600;font-size:0.85rem;">WhatsApp</span>
+    <span id="waBaileysStatus" style="font-size:0.7rem;opacity:0.7;">conectando...</span>
+    <span id="waLiveDot" style="width:8px;height:8px;border-radius:50%;background:#fbbf24;display:inline-block;"></span>
+    <button onclick="abrirWhatsAppWeb()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:6px;color:#fff;cursor:pointer;font-size:0.7rem;padding:4px 10px;white-space:nowrap;" title="Abrir WhatsApp Web en nueva pestaña">
+      <i class="bi bi-box-arrow-up-right"></i> Web
     </button>
     <button onclick="toggleWAOverlay()" style="margin-left:auto;background:none;border:0;color:#fff;cursor:pointer;font-size:1.2rem;padding:2px 6px;">&times;</button>
   </div>
-  <div style="flex:1;overflow:hidden;">
-    <iframe id="waPersistentFrame" src="/proxy/web.whatsapp.com" style="width:100%;height:100%;border:0;"></iframe>
+  <div id="waChatList" style="flex:1;overflow-y:auto;padding:8px;font-size:0.8rem;">
+    <div style="text-align:center;padding:30px;color:var(--text-faint);">
+      <i class="bi bi-whatsapp" style="font-size:2rem;display:block;margin-bottom:8px;opacity:0.4;"></i>
+      <div style="font-size:0.85rem;">WhatsApp conectado vía servidor</div>
+      <div style="font-size:0.7rem;margin-top:4px;">Los mensajes entrantes aparecen en CodeOpen → Pendientes</div>
+      <button onclick="abrirWhatsAppWeb()" style="margin-top:12px;padding:8px 20px;background:#25D366;color:#fff;border:0;border-radius:8px;cursor:pointer;font-size:0.8rem;font-weight:600;">
+        <i class="bi bi-box-arrow-up-right"></i> Abrir WhatsApp Web
+      </button>
+    </div>
   </div>
 </div>
 <div id="waOverlayBackdrop" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.3);z-index:9998;" onclick="toggleWAOverlay()"></div>
@@ -2067,25 +2074,35 @@ function enviarACodeOpen() {
   });
 }
 
-// Keep-alive: periodically check if WhatsApp iframe is alive
-setInterval(function() {
-  var dot = document.getElementById('waLiveDot');
-  if (dot) {
-    var frame = document.getElementById('waPersistentFrame');
-    if (frame) {
-      try {
-        var doc = frame.contentDocument || frame.contentWindow?.document;
-        if (doc && doc.body && doc.body.innerHTML.length > 100) {
-          dot.style.background = '#4ade80';
-        } else {
-          dot.style.background = '#f87171';
-        }
-      } catch(e) {
-        dot.style.background = '#fbbf24';
-      }
+// Monitorear estado de Baileys
+function pollBaileysStatus() {
+  fetch('/codeopen/baileys-qr').then(function(r) { return r.json(); }).then(function(d) {
+    var st = d.status || {};
+    var dot = document.getElementById('waLiveDot');
+    var statusText = document.getElementById('waBaileysStatus');
+    if (!dot || !statusText) return;
+    if (st.connected) {
+      dot.style.background = '#4ade80';
+      statusText.textContent = 'conectado';
+    } else if (st.hasQR) {
+      dot.style.background = '#f59e0b';
+      statusText.textContent = 'QR pendiente';
+    } else if (st.error) {
+      dot.style.background = '#ef4444';
+      statusText.textContent = 'error';
+    } else {
+      dot.style.background = '#fbbf24';
+      statusText.textContent = 'desconectado';
     }
-  }
-}, 10000);
+  }).catch(function() {});
+}
+
+function abrirWhatsAppWeb() {
+  window.open('https://web.whatsapp.com', '_blank', 'noopener,noreferrer');
+}
+
+pollBaileysStatus();
+setInterval(pollBaileysStatus, 10000);
 
 // ---- RECIBIR MENSAJES DEL IFRAME VIA postMessage ----
 var waTextosVistos = {};

@@ -12,18 +12,34 @@ var connectionState = 'idle';
 var lastError = '';
 var authDir = '/tmp/baileys-auth';
 
+var credsFilePath = path.join(__dirname, 'data', 'baileys_creds.json');
+
 function saveSession(state) {
   try {
     var data = { creds: state.creds, keys: state.keys };
+    // DB backup
     db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)").run('baileys_session', JSON.stringify(data));
+    // File backup (persiste entre reinicios del mismo deploy)
+    try {
+      var dir = path.join(__dirname, 'data');
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(credsFilePath, JSON.stringify(data));
+    } catch(e2) { lastError = 'File save: ' + e2.message; }
   } catch(e) { lastError = 'Save: ' + e.message; }
 }
 
 function loadSession() {
   try {
+    // Try file first (persiste entre reinicios)
+    if (fs.existsSync(credsFilePath)) {
+      var data = JSON.parse(fs.readFileSync(credsFilePath, 'utf-8'));
+      if (data && data.creds) return data;
+    }
+    // Fallback to DB
     var row = db.prepare("SELECT value FROM settings WHERE key = 'baileys_session'").get();
-    return row ? JSON.parse(row.value) : null;
+    if (row) return JSON.parse(row.value);
   } catch(e) { return null; }
+  return null;
 }
 
 async function initBaileys() {
@@ -81,7 +97,9 @@ async function initBaileys() {
             }
           }
         });
-        db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)").run('baileys_session', JSON.stringify({ creds: credsData, keys: keysData }));
+        var fullData = { creds: credsData, keys: keysData };
+        db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)").run('baileys_session', JSON.stringify(fullData));
+        try { fs.writeFileSync(credsFilePath, JSON.stringify(fullData)); } catch(e2) {}
       } catch(e) { lastError = 'DB save: ' + e.message; }
     };
     

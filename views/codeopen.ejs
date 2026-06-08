@@ -520,7 +520,14 @@ body { background:var(--bg-main); color:var(--text); }
         var catColor = item.category === 'whatsapp' ? '#25D366' : '#6366f1';
         card.style.cursor = 'pointer';
         card.dataset.pid = item.id;
-        card.onclick = function() { if (typeof toggleWAOverlay === 'function') toggleWAOverlay(); };
+        card.onclick = function() { 
+          var phone = (item.from_address || item.from_name || '').replace(/[^0-9]/g, '');
+          if (phone && phone.length > 5) {
+            window.open('https://web.whatsapp.com/send?phone=' + phone, '_blank', 'noopener,noreferrer');
+          } else if (typeof toggleWAOverlay === 'function') {
+            toggleWAOverlay();
+          }
+        };
         var ts = item.created_at || '';
         try { var d = new Date(ts + 'Z'); ts = d.toLocaleString('es-ES', {timeZone:'Europe/Madrid', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'}); } catch(e) {}
         var isAnalyzing = !item.proposed_response || item.proposed_response === 'Analizando con IA...' || item.proposed_response === 'Recibido de WhatsApp';
