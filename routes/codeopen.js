@@ -3,6 +3,7 @@ const axios = require('axios');
 const crypto = require('crypto');
 const router = express.Router();
 const { db } = require('../database');
+const LikesAPI = require('../likes-api');
 
 const OPENCODE_API_KEY = process.env.OPENCODE_API_KEY;
 
@@ -576,41 +577,88 @@ async function processPendingMessages() {
     for (var row of unprocessed) {
       try {
         console.log('[CodeOpen] Procesando mensaje #' + row.id, row.source, 'de', row.from_name);
-        // Buscar cliente en CRM por nombre o teléfono
+        
+        // Buscar cliente en CRM + Likes API
         var clienteInfo = '';
+        var likesData = '';
         try {
           var phoneClean = (row.from_address || row.from_name || '').replace(/[^0-9]/g, '').substring(0, 12);
           var nombreBuscar = (row.from_name || '').substring(0, 20);
-          var found = db.prepare("SELECT nombre, telefono, email, direccion FROM clients WHERE telefono LIKE ? OR nombre LIKE ? LIMIT 1").all('%' + phoneClean + '%', '%' + nombreBuscar + '%');
+          var found = db.prepare("SELECT nombre, telefono, email, direccion, fiscal_id FROM clients WHERE telefono LIKE ? OR nombre LIKE ? LIMIT 1").all('%' + phoneClean + '%', '%' + nombreBuscar + '%');
           if (found && found.length > 0) {
             var c = found[0];
             var facturas = db.prepare("SELECT concepto, importe, fecha, estado FROM isp_facturas WHERE cliente_nombre LIKE ? OR cliente_telefono LIKE ? ORDER BY fecha DESC LIMIT 3").all('%' + (c.nombre || '').substring(0, 15) + '%', '%' + phoneClean + '%');
-            clienteInfo = 'Cliente encontrado: ' + c.nombre + ', tel:' + (c.telefono || '') + ', email:' + (c.email || '') + ', dir:' + (c.direccion || '');
+            clienteInfo = 'Cliente: ' + c.nombre + ', tel:' + (c.telefono || '') + ', email:' + (c.email || '') + ', dir:' + (c.direccion || '');
             if (facturas && facturas.length > 0) {
-              clienteInfo += ' | Últimas facturas: ' + facturas.map(function(f) { return f.concepto + ' ' + f.importe + '€ (' + f.estado + ')'; }).join(', ');
+              clienteInfo += ' | Facturas: ' + facturas.map(function(f) { return f.concepto + ' ' + f.importe + '€ (' + f.estado + ')'; }).join(', ');
             }
+            // Fetch Likes Telecom data
+            var api = LikesAPI.getApiInstance();
+            var realPhone = phoneClean.length >= 9 ? phoneClean : (c.telefono || '').replace(/[^0-9]/g, '').substring(0, 12);
+            if (realPhone && realPhone.length >= 9) {
+              try {
+                var lineInfo = await api.getLineInfo(realPhone);
+                if (lineInfo) {
+                  likesData += ' | Línea: ' + (typeof lineInfo === 'string' ? lineInfo.substring(0, 200) : JSON.stringify(lineInfo).substring(0, 300));
+                }
+              } catch(e) {}
+              try {
+                var lineGB = await api.getLineGB(realPhone);
+                if (lineGB) {
+                  likesData += ' | Consumo: ' + (typeof lineGB === 'string' ? lineGB.substring(0, 200) : JSON.stringify(lineGB).substring(0, 300));
+                }
+              } catch(e) {}
+            }
+            // Get subscriptions/orders if fiscalId available
+            if (c.fiscal_id) {
+              try {
+                var subs = await api.getSubscriptions(c.fiscal_id);
+                if (subs && subs.length) {
+                  likesData += ' | Suscripciones: ' + subs.map(function(s) { return s.productName || s.name || '?'; }).join(', ');
+                }
+              } catch(e) {}
+            }
+            // Get recent payments
+            try {
+              var payments = await api.getPayments();
+              if (payments && payments.length) {
+                var recentPayments = payments.slice(-3);
+                likesData += ' | Pagos: ' + recentPayments.map(function(p) { return (p.name || p.customerName || '') + ' ' + (p.amount || p.importe || '') + '€'; }).join(', ');
+              }
+            } catch(e) {}
           } else {
-            clienteInfo = 'Cliente NO encontrado en CRM';
+            clienteInfo = 'Cliente no encontrado en CRM';
+            // Try to find by phone in Likes API directly
+            var realPhone = phoneClean.length >= 9 ? phoneClean : '';
+            if (realPhone) {
+              var api = LikesAPI.getApiInstance();
+              try {
+                var lineInfo = await api.getLineInfo(realPhone);
+                if (lineInfo) {
+                  likesData += 'Línea: ' + (typeof lineInfo === 'string' ? lineInfo.substring(0, 200) : JSON.stringify(lineInfo).substring(0, 300));
+                }
+              } catch(e) {}
+            }
           }
-        } catch(e) { clienteInfo = 'Error buscando cliente: ' + e.message; }
+        } catch(e) { clienteInfo = 'Error: ' + e.message; }
         
-        // Usar prompt único (reduce 5 llamadas a 1 → menos rate limit)
         var crmCtx = getCRMContext();
         var fullText = row.body || row.subject || '';
-        var singlePrompt = 'Eres un administrativo de Movilbro respondiendo por WhatsApp. Tus respuestas son directas, profesionales, sin datos internos ni totales del sistema.\n\n' +
+        var singlePrompt = 'Eres un administrativo de Movilbro respondiendo por WhatsApp. Usa los datos reales del cliente.\n\n' +
           'Cliente: ' + row.from_name + '\n' + 'Mensaje: ' + fullText + '\n\n' + 
-          'Datos CRM: ' + clienteInfo + '\n\n' +
+          'Datos CRM: ' + clienteInfo + '\n' +
+          'Datos Likes Telecom: ' + (likesData || 'no disponibles') + '\n\n' +
           'Instrucciones:\n' +
-          '1. Si el cliente pregunta por factura, busca su factura específica en Datos CRM (no des datos de otros clientes)\n' +
-          '2. Si pregunta precios, da precios exactos si los tienes, o di que le informará un agente\n' +
-          '3. No reveles información interna ni datos de otros clientes\n' +
-          '4. Responde ÚNICAMENTE a lo que pregunta, sin rodeos\n' +
-          '5. Máximo 400 caracteres\n' +
-          '6. Saluda cordialmente y despídete';
+          '1. Responde SÓLO a la pregunta del cliente, sin rodeos\n' +
+          '2. Si pregunta por consumo/gigas, usa los datos de Likes Telecom\n' +
+          '3. Si pregunta por factura/pago, usa los datos del CRM\n' +
+          '4. Si pregunta por precios, da precios exactos si los tienes o di que se le informará\n' +
+          '5. NO reveles datos de otros clientes ni totales del sistema\n' +
+          '6. Máximo 400 caracteres\n' +
+          '7. Saluda cordialmente y despídete';
         
         var finalResponse = await callLLM(singlePrompt, '', 0.5);
         if (!finalResponse || finalResponse.startsWith('Error') || finalResponse.indexOf('sobrecargada') > -1) {
-          // Fallback si falla la IA
           finalResponse = 'Hola, gracias por tu mensaje. He consultado tus datos y estoy revisando tu consulta. En breve recibirás una respuesta más detallada. ¿Hay algo más que necesites?';
         }
         db.prepare("UPDATE pending_messages SET proposed_response=? WHERE id=?").run(finalResponse || '', row.id);
@@ -826,6 +874,92 @@ router.get('/baileys-qr-image', async (req, res) => {
     }
   } catch(e) {
     res.status(500).send(e.message);
+  }
+});
+
+// ---- WHATSAPP CHAT VIEW (Baileys-powered) ----
+
+// Get conversations grouped by sender from pending_messages
+var conversationCache = {};
+
+router.get('/wa-conversations', function(req, res) {
+  try {
+    var rows = db.prepare(`
+      SELECT from_address, from_name, body, created_at, status, source,
+        COUNT(*) as msg_count,
+        MAX(created_at) as last_msg,
+        SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END) as unread
+      FROM pending_messages
+      WHERE source IN ('baileys','whatsapp','manuel')
+      GROUP BY from_address
+      ORDER BY last_msg DESC
+      LIMIT 50
+    `).all();
+
+    var convs = rows.map(function(r) {
+      return {
+        jid: r.from_address,
+        name: r.from_name || r.from_address.split('@')[0],
+        lastMessage: r.body ? r.body.substring(0, 80) : '',
+        lastTime: r.created_at,
+        unread: r.unread || 0,
+        msgCount: r.msg_count
+      };
+    });
+    res.json({ ok: true, conversations: convs });
+  } catch(e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Get messages for a specific conversation (jid URL-encoded)
+router.get('/wa-messages/:jid', function(req, res) {
+  try {
+    var jid = decodeURIComponent(req.params.jid);
+    var rows = db.prepare(`
+      SELECT id, from_address, from_name, body, proposed_response, status, category, created_at, responded_at
+      FROM pending_messages
+      WHERE from_address = ? AND source IN ('baileys','whatsapp','manuel')
+      ORDER BY created_at ASC
+      LIMIT 200
+    `).all(jid);
+
+    var messages = rows.map(function(r) {
+      return {
+        id: r.id,
+        from: r.from_address,
+        name: r.from_name || r.from_address.split('@')[0],
+        text: r.body || '',
+        response: r.proposed_response || '',
+        status: r.status,
+        category: r.category,
+        time: r.created_at
+      };
+    });
+    res.json({ ok: true, messages: messages });
+  } catch(e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Send a WhatsApp message via Baileys
+router.post('/wa-send', async function(req, res) {
+  try {
+    var jid = req.body.jid;
+    var text = req.body.text;
+    if (!jid || !text) return res.status(400).json({ ok: false, error: 'jid y text requeridos' });
+
+    var wa = require('../wa-baileys');
+    var result = await wa.sendMessage(jid, text);
+
+    if (result.ok) {
+      // Store sent message in DB
+      db.prepare("INSERT INTO pending_messages (source, from_name, from_address, body, proposed_response, status, category) VALUES (?,'CRM',?,?,'','sent','whatsapp')").run('baileys', jid, text);
+    }
+
+    res.json(result);
+  } catch(e) {
+    res.status(500).json({ ok: false, error: e.message });
   }
 });
 

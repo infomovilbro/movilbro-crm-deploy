@@ -1984,31 +1984,58 @@
 })();
 </script>
 
-<!-- WhatsApp Persistent Overlay -->
+<!-- WhatsApp Chat Overlay (Baileys-powered) -->
 <div id="waOverlay" style="display:none;position:fixed;top:0;right:0;width:420px;height:100vh;background:#fff;z-index:9999;box-shadow:-4px 0 24px rgba(0,0,0,0.15);flex-direction:column;animation:slideIn 0.2s ease;">
   <style>
     @keyframes slideIn { from { transform:translateX(100%); } to { transform:translateX(0); } }
     @keyframes slideOut { from { transform:translateX(0); } to { transform:translateX(100%); } }
+    .wa-conv-item { display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;border-bottom:1px solid #f0f0f0;transition:background 0.15s; }
+    .wa-conv-item:hover { background:#f0f2f5; }
+    .wa-conv-item.active { background:#e8f5e9; }
+    .wa-conv-avatar { width:42px;height:42px;border-radius:50%;background:#075e54;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.9rem;flex-shrink:0; }
+    .wa-conv-info { flex:1;min-width:0; }
+    .wa-conv-name { font-weight:600;font-size:0.85rem; }
+    .wa-conv-preview { font-size:0.75rem;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+    .wa-conv-time { font-size:0.65rem;color:#999;flex-shrink:0; }
+    .wa-conv-unread { background:#25D366;color:#fff;border-radius:50%;min-width:18px;height:18px;font-size:0.65rem;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
+    .wa-bubble { max-width:80%;padding:8px 12px;border-radius:12px;font-size:0.8rem;line-height:1.4;word-wrap:break-word; }
+    .wa-bubble-incoming { background:#f0f2f5;border-bottom-left-radius:4px; }
+    .wa-bubble-outgoing { background:#d9fdd3;border-bottom-right-radius:4px;margin-left:auto; }
+    .wa-chat-date { text-align:center;font-size:0.65rem;color:#999;padding:8px 0; }
+    .wa-back-btn { background:none;border:0;color:#fff;cursor:pointer;font-size:1rem;padding:2px 6px; }
   </style>
-  <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:#075e54;color:#fff;flex-shrink:0;">
-    <i class="bi bi-whatsapp" style="font-size:1.2rem;"></i>
-    <span style="font-weight:600;font-size:0.85rem;">WhatsApp</span>
-    <span id="waBaileysStatus" style="font-size:0.7rem;opacity:0.7;">conectando...</span>
-    <span id="waLiveDot" style="width:8px;height:8px;border-radius:50%;background:#fbbf24;display:inline-block;"></span>
-    <button onclick="abrirWhatsAppWeb()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:6px;color:#fff;cursor:pointer;font-size:0.7rem;padding:4px 10px;white-space:nowrap;" title="Abrir WhatsApp Web en nueva pestaña">
-      <i class="bi bi-box-arrow-up-right"></i> Web
+
+  <!-- Header -->
+  <div style="display:flex;align-items:center;gap:6px;padding:8px 12px;background:#075e54;color:#fff;flex-shrink:0;min-height:48px;">
+    <button id="waBackBtn" class="wa-back-btn" style="display:none;" onclick="waShowConversations()"><i class="bi bi-arrow-left"></i></button>
+    <i class="bi bi-whatsapp" style="font-size:1.1rem;"></i>
+    <span id="waHeaderTitle" style="font-weight:600;font-size:0.85rem;">WhatsApp</span>
+    <span id="waBaileysStatus" style="font-size:0.65rem;opacity:0.7;margin-left:2px;">conectando...</span>
+    <span id="waLiveDot" style="width:7px;height:7px;border-radius:50%;background:#fbbf24;display:inline-block;flex-shrink:0;"></span>
+    <button onclick="waRefreshConversations()" style="margin-left:auto;background:none;border:0;color:#fff;cursor:pointer;font-size:0.85rem;padding:2px 6px;" title="Recargar">
+      <i class="bi bi-arrow-repeat"></i>
     </button>
-    <button onclick="toggleWAOverlay()" style="margin-left:auto;background:none;border:0;color:#fff;cursor:pointer;font-size:1.2rem;padding:2px 6px;">&times;</button>
+    <button onclick="toggleWAOverlay()" style="background:none;border:0;color:#fff;cursor:pointer;font-size:1.1rem;padding:2px 6px;">&times;</button>
   </div>
-  <div id="waChatList" style="flex:1;overflow-y:auto;padding:8px;font-size:0.8rem;">
-    <div style="text-align:center;padding:30px;color:var(--text-faint);">
-      <i class="bi bi-whatsapp" style="font-size:2rem;display:block;margin-bottom:8px;opacity:0.4;"></i>
-      <div style="font-size:0.85rem;">WhatsApp conectado vía servidor</div>
-      <div style="font-size:0.7rem;margin-top:4px;">Los mensajes entrantes aparecen en CodeOpen → Pendientes</div>
-      <button onclick="abrirWhatsAppWeb()" style="margin-top:12px;padding:8px 20px;background:#25D366;color:#fff;border:0;border-radius:8px;cursor:pointer;font-size:0.8rem;font-weight:600;">
-        <i class="bi bi-box-arrow-up-right"></i> Abrir WhatsApp Web
+
+  <!-- Conversation list (default view) -->
+  <div id="waConvList" style="flex:1;overflow-y:auto;"></div>
+
+  <!-- Chat view (hidden by default) -->
+  <div id="waChatView" style="display:none;flex:1;flex-direction:column;">
+    <div id="waChatMessages" style="flex:1;overflow-y:auto;padding:10px;background:#efeae2;"></div>
+    <div style="display:flex;gap:8px;padding:8px 12px;border-top:1px solid #e0e0e0;background:#f0f2f5;flex-shrink:0;">
+      <input id="waChatInput" type="text" class="form-control form-control-sm" placeholder="Escribe un mensaje..." autocomplete="off" style="border-radius:20px;padding:6px 14px;">
+      <button id="waChatSendBtn" class="btn btn-sm" style="background:#25D366;color:#fff;border-radius:50%;width:36px;height:36px;padding:0;display:flex;align-items:center;justify-content:center;border:0;">
+        <i class="bi bi-send-fill" style="font-size:0.85rem;"></i>
       </button>
     </div>
+  </div>
+
+  <!-- Loading -->
+  <div id="waLoading" style="display:none;text-align:center;padding:30px;color:#999;font-size:0.8rem;">
+    <div class="spinner-border spinner-border-sm text-secondary" role="status"></div>
+    <div style="margin-top:6px;">Cargando...</div>
   </div>
 </div>
 <div id="waOverlayBackdrop" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.3);z-index:9998;" onclick="toggleWAOverlay()"></div>
@@ -2019,6 +2046,9 @@
 
 <script>
 var waOverlayVisible = false;
+var waCurrentJid = null;
+var waPollTimer = null;
+
 function toggleWAOverlay() {
   waOverlayVisible = !waOverlayVisible;
   var overlay = document.getElementById('waOverlay');
@@ -2027,6 +2057,7 @@ function toggleWAOverlay() {
     overlay.style.display = 'flex';
     backdrop.style.display = 'block';
     document.body.style.overflow = 'hidden';
+    waRefreshConversations();
   } else {
     overlay.style.animation = 'slideOut 0.2s ease';
     setTimeout(function() {
@@ -2038,43 +2069,127 @@ function toggleWAOverlay() {
   }
 }
 
-// Enviar mensaje de WhatsApp a CodeOpen para análisis IA
-function enviarACodeOpen() {
-  var msgTexto = prompt('Pega el mensaje que quieres analizar (o déjalo vacío para cancelar):');
-  if (!msgTexto || !msgTexto.trim()) return;
-  
-  var btn = event.target;
-  if (btn.tagName !== 'BUTTON') btn = btn.closest('button');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner-border spinner-border-sm" style="width:10px;height:10px;"></span>';
-  
-  fetch('/codeopen/webhook/whatsapp', {
+// ---- CONVERSATIONS ----
+function waRefreshConversations() {
+  var list = document.getElementById('waConvList');
+  if (!list) return;
+  list.innerHTML = '<div style="text-align:center;padding:20px;color:#999;font-size:0.75rem;"><div class="spinner-border spinner-border-sm" role="status"></div><div style="margin-top:4px;">Cargando conversaciones...</div></div>';
+  fetch('/codeopen/wa-conversations')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (!d.ok || !d.conversations || !d.conversations.length) {
+        list.innerHTML = '<div style="text-align:center;padding:40px 20px;color:#999;font-size:0.8rem;"><i class="bi bi-chat-dots" style="font-size:2rem;display:block;margin-bottom:8px;opacity:0.4;"></i>Sin conversaciones aún<br><small style="font-size:0.7rem;">Los mensajes entrantes aparecerán aquí</small></div>';
+        return;
+      }
+      list.innerHTML = d.conversations.map(function(c) {
+        var isActive = waCurrentJid === c.jid;
+        var initial = (c.name || '?').charAt(0).toUpperCase();
+        var time = c.lastTime ? new Date(c.lastTime + 'Z').toLocaleString('es-ES', { hour:'2-digit', minute:'2-digit' }) : '';
+        return '<div class="wa-conv-item' + (isActive ? ' active' : '') + '" onclick="waOpenChat(\'' + c.jid.replace(/'/g, "\\'") + '\',\'' + c.name.replace(/'/g, "\\'") + '\')">'
+          + '<div class="wa-conv-avatar">' + initial + '</div>'
+          + '<div class="wa-conv-info">'
+          + '<div class="wa-conv-name">' + escapeHtml(c.name) + '</div>'
+          + '<div class="wa-conv-preview">' + escapeHtml(c.lastMessage || '') + '</div>'
+          + '</div>'
+          + '<div style="text-align:right;flex-shrink:0;">'
+          + '<div class="wa-conv-time">' + time + '</div>'
+          + (c.unread > 0 ? '<div class="wa-conv-unread" style="margin-top:4px;">' + c.unread + '</div>' : '')
+          + '</div>'
+          + '</div>';
+      }).join('');
+    })
+    .catch(function() {
+      list.innerHTML = '<div style="text-align:center;padding:30px;color:#ef4444;font-size:0.8rem;">Error al cargar conversaciones</div>';
+    });
+}
+
+// ---- CHAT VIEW ----
+function waOpenChat(jid, name) {
+  waCurrentJid = jid;
+  document.getElementById('waConvList').style.display = 'none';
+  var chatView = document.getElementById('waChatView');
+  chatView.style.display = 'flex';
+  document.getElementById('waBackBtn').style.display = 'inline-block';
+  document.getElementById('waHeaderTitle').textContent = name;
+
+  // Remove active from others, add to this
+  document.querySelectorAll('.wa-conv-item').forEach(function(el) { el.classList.remove('active'); });
+
+  // Load messages
+  waLoadMessages(jid);
+}
+
+function waLoadMessages(jid) {
+  var container = document.getElementById('waChatMessages');
+  if (!container) return;
+  container.innerHTML = '<div style="text-align:center;padding:30px;color:#999;font-size:0.75rem;"><div class="spinner-border spinner-border-sm" role="status"></div></div>';
+
+  fetch('/codeopen/wa-messages/' + encodeURIComponent(jid))
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (!d.ok || !d.messages || !d.messages.length) {
+        container.innerHTML = '<div style="text-align:center;padding:40px;color:#999;font-size:0.75rem;">No hay mensajes en esta conversación</div>';
+        return;
+      }
+      container.innerHTML = '';
+      var lastDate = '';
+      d.messages.forEach(function(m) {
+        var msgDate = m.time ? new Date(m.time + 'Z').toLocaleDateString('es-ES', { day:'numeric', month:'long' }) : '';
+        if (msgDate && msgDate !== lastDate) {
+          lastDate = msgDate;
+          container.innerHTML += '<div class="wa-chat-date">' + msgDate + '</div>';
+        }
+        var isFromMe = m.status === 'sent' || m.status === 'read';
+        var time = m.time ? new Date(m.time + 'Z').toLocaleTimeString('es-ES', { hour:'2-digit', minute:'2-digit' }) : '';
+        container.innerHTML += '<div style="display:flex;flex-direction:column;margin-bottom:4px;">'
+          + '<div class="wa-bubble ' + (isFromMe ? 'wa-bubble-outgoing' : 'wa-bubble-incoming') + '">'
+          + escapeHtml(m.text)
+          + '<div style="font-size:0.6rem;color:#999;text-align:right;margin-top:2px;">' + time + '</div>'
+          + '</div></div>';
+      });
+      container.scrollTop = container.scrollHeight;
+    })
+    .catch(function() {
+      container.innerHTML = '<div style="text-align:center;padding:30px;color:#ef4444;font-size:0.75rem;">Error al cargar mensajes</div>';
+    });
+}
+
+function waShowConversations() {
+  waCurrentJid = null;
+  document.getElementById('waConvList').style.display = 'block';
+  document.getElementById('waChatView').style.display = 'none';
+  document.getElementById('waBackBtn').style.display = 'none';
+  document.getElementById('waHeaderTitle').textContent = 'WhatsApp';
+  waRefreshConversations();
+}
+
+// Send message
+function waSendMessage() {
+  var input = document.getElementById('waChatInput');
+  var text = input.value.trim();
+  if (!text || !waCurrentJid) return;
+  input.value = '';
+
+  var container = document.getElementById('waChatMessages');
+  var bubble = '<div style="display:flex;flex-direction:column;margin-bottom:4px;">'
+    + '<div class="wa-bubble wa-bubble-outgoing">' + escapeHtml(text)
+    + '<div style="font-size:0.6rem;color:#999;text-align:right;margin-top:2px;">' + new Date().toLocaleTimeString('es-ES', { hour:'2-digit', minute:'2-digit' }) + '</div>'
+    + '</div></div>';
+  container.innerHTML += bubble;
+  container.scrollTop = container.scrollHeight;
+
+  fetch('/codeopen/wa-send', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      from: 'WhatsApp Web',
-      message: msgTexto.trim(),
-      timestamp: new Date().toISOString()
-    })
+    body: JSON.stringify({ jid: waCurrentJid, text: text })
   })
   .then(function(r) { return r.json(); })
   .then(function(d) {
-    btn.disabled = false;
-    btn.innerHTML = '<i class="bi bi-robot"></i> Analizar';
-    if (d.ok) {
-      alert('Mensaje enviado a CodeOpen para análisis. Ve al panel de Pendientes para aprobar o rechazar la respuesta.\n\nID Pendiente: #' + d.pending_id);
-    } else {
-      alert('Error: ' + (d.error || 'desconocido'));
-    }
+    if (!d.ok) console.error('Send error:', d.error);
   })
-  .catch(function() {
-    btn.disabled = false;
-    btn.innerHTML = '<i class="bi bi-robot"></i> Analizar';
-    alert('Error de red');
-  });
+  .catch(function(e) { console.error('Send error:', e); });
 }
 
-// Monitorear estado de Baileys
 function pollBaileysStatus() {
   fetch('/codeopen/baileys-qr').then(function(r) { return r.json(); }).then(function(d) {
     var st = d.status || {};
@@ -2097,38 +2212,36 @@ function pollBaileysStatus() {
   }).catch(function() {});
 }
 
-function abrirWhatsAppWeb() {
-  window.open('https://web.whatsapp.com', '_blank', 'noopener,noreferrer');
+function escapeHtml(s) {
+  if (!s) return '';
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-pollBaileysStatus();
-setInterval(pollBaileysStatus, 10000);
+// Polling for new messages when chat is open
+function waStartPolling() {
+  if (waPollTimer) clearInterval(waPollTimer);
+  waPollTimer = setInterval(function() {
+    if (waOverlayVisible && waCurrentJid) waLoadMessages(waCurrentJid);
+    if (waOverlayVisible) pollBaileysStatus();
+  }, 5000);
+}
 
-// ---- RECIBIR MENSAJES DEL IFRAME VIA postMessage ----
-var waTextosVistos = {};
-window.addEventListener('message', function(event) {
-  if (event.data && event.data.type === 'wa_msg') {
-    var texto = event.data.text;
-    if (!texto || texto.length < 2 || waTextosVistos[texto.substring(0, 50)]) return;
-    waTextosVistos[texto.substring(0, 50)] = Date.now();
-    
-    fetch('/codeopen/webhook/whatsapp', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: 'WhatsApp', message: texto, timestamp: new Date().toISOString() })
-    }).then(function(r) { return r.json(); }).then(function(d) {
-      if (d.ok) {
-        var dot = document.getElementById('waLiveDot');
-        if (dot) { dot.style.background = '#f59e0b'; setTimeout(function() { dot.style.background = '#4ade80'; }, 3000); }
-      }
-    }).catch(function() {});
+// Init
+pollBaileysStatus();
+waStartPolling();
+
+// Send on Enter
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && waOverlayVisible && waCurrentJid) {
+    var input = document.getElementById('waChatInput');
+    if (input && document.activeElement === input) waSendMessage();
   }
 });
 
-// Limpiar caché cada hora
-setInterval(function() {
-  var a = Date.now();
-  Object.keys(waTextosVistos).forEach(function(k) { if (a - waTextosVistos[k] > 3600000) delete waTextosVistos[k]; });
-}, 3600000);
+// Send button
+document.addEventListener('click', function(e) {
+  if (e.target.closest && e.target.closest('#waChatSendBtn')) waSendMessage();
+});
 
 // Close on Escape
 document.addEventListener('keydown', function(e) {
