@@ -576,31 +576,45 @@ async function processPendingMessages() {
     for (var row of unprocessed) {
       try {
         console.log('[CodeOpen] Procesando mensaje #' + row.id, row.source, 'de', row.from_name);
+        // Buscar cliente en CRM por nombre o teléfono
+        var clienteInfo = '';
+        try {
+          var phoneClean = (row.from_address || row.from_name || '').replace(/[^0-9]/g, '').substring(0, 12);
+          var nombreBuscar = (row.from_name || '').substring(0, 20);
+          var found = db.prepare("SELECT nombre, telefono, email, direccion FROM clients WHERE telefono LIKE ? OR nombre LIKE ? LIMIT 1").all('%' + phoneClean + '%', '%' + nombreBuscar + '%');
+          if (found && found.length > 0) {
+            var c = found[0];
+            var facturas = db.prepare("SELECT concepto, importe, fecha, estado FROM isp_facturas WHERE cliente_nombre LIKE ? OR cliente_telefono LIKE ? ORDER BY fecha DESC LIMIT 3").all('%' + (c.nombre || '').substring(0, 15) + '%', '%' + phoneClean + '%');
+            clienteInfo = 'Cliente encontrado: ' + c.nombre + ', tel:' + (c.telefono || '') + ', email:' + (c.email || '') + ', dir:' + (c.direccion || '');
+            if (facturas && facturas.length > 0) {
+              clienteInfo += ' | Últimas facturas: ' + facturas.map(function(f) { return f.concepto + ' ' + f.importe + '€ (' + f.estado + ')'; }).join(', ');
+            }
+          } else {
+            clienteInfo = 'Cliente NO encontrado en CRM';
+          }
+        } catch(e) { clienteInfo = 'Error buscando cliente: ' + e.message; }
+        
+        // Usar prompt único (reduce 5 llamadas a 1 → menos rate limit)
         var crmCtx = getCRMContext();
         var fullText = row.body || row.subject || '';
-        var ctx = 'Contexto CRM: ' + JSON.stringify(crmCtx) + '\n\nMensaje de ' + row.from_name + ': ' + fullText;
-        var catDef = row.source === 'whatsapp' || row.category === 'whatsapp' ? AGENT_CATEGORIES.whatsapp : AGENT_CATEGORIES.email;
-        var results = {};
-        var agentList = catDef.agents.slice(0, 4);
-        var overloadedCount = 0;
-        for (var i = 0; i < agentList.length; i++) {
-          if (i > 0) await new Promise(function(r) { setTimeout(r, 3000); });
-          var res = await callLLM(agentList[i].prompt, ctx, 0.7);
-          results[agentList[i].id] = res;
-          if (res && (res.indexOf('sobrecargada') > -1 || res.indexOf('Reintentar') > -1)) overloadedCount++;
-        }
-        var finalResponse;
-        if (overloadedCount >= 3) {
-          // IA saturada — respuesta simple sin datos internos
-          finalResponse = 'Hola, gracias por tu mensaje. Un agente se pondrá en contacto contigo lo antes posible para atender tu consulta. ¿Hay algo más en lo que pueda ayudarte?';
-          console.log('[CodeOpen] IA saturada, respuesta genérica para #' + row.id);
-        } else {
-          var synthesisInput = catDef.agents.slice(0, 4).map(function(a) { return '## ' + a.name + ':\n' + (results[a.id] || ''); }).join('\n\n') + '\n\nSintetiza todo en una respuesta final lista para enviar.';
-          await new Promise(function(r) { setTimeout(r, 3000); });
-          finalResponse = await callLLM(catDef.agents[4].prompt, synthesisInput, 0.8);
+        var singlePrompt = 'Eres un administrativo de Movilbro respondiendo por WhatsApp. Tus respuestas son directas, profesionales, sin datos internos ni totales del sistema.\n\n' +
+          'Cliente: ' + row.from_name + '\n' + 'Mensaje: ' + fullText + '\n\n' + 
+          'Datos CRM: ' + clienteInfo + '\n\n' +
+          'Instrucciones:\n' +
+          '1. Si el cliente pregunta por factura, busca su factura específica en Datos CRM (no des datos de otros clientes)\n' +
+          '2. Si pregunta precios, da precios exactos si los tienes, o di que le informará un agente\n' +
+          '3. No reveles información interna ni datos de otros clientes\n' +
+          '4. Responde ÚNICAMENTE a lo que pregunta, sin rodeos\n' +
+          '5. Máximo 400 caracteres\n' +
+          '6. Saluda cordialmente y despídete';
+        
+        var finalResponse = await callLLM(singlePrompt, '', 0.5);
+        if (!finalResponse || finalResponse.startsWith('Error') || finalResponse.indexOf('sobrecargada') > -1) {
+          // Fallback si falla la IA
+          finalResponse = 'Hola, gracias por tu mensaje. He consultado tus datos y estoy revisando tu consulta. En breve recibirás una respuesta más detallada. ¿Hay algo más que necesites?';
         }
         db.prepare("UPDATE pending_messages SET proposed_response=? WHERE id=?").run(finalResponse || '', row.id);
-        console.log('[CodeOpen] Mensaje #' + row.id + ' procesado con IA');
+        console.log('[CodeOpen] Mensaje #' + row.id + ' procesado');
       } catch(e) {
         console.error('[CodeOpen] Error procesando #' + row.id + ':', e.message);
         db.prepare("UPDATE pending_messages SET proposed_response=? WHERE id=?").run('Error al analizar: ' + e.message, row.id);
