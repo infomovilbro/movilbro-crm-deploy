@@ -137,6 +137,7 @@ router.all('/:target(*)', requireAuth, (req, res) => {
     console.error('Proxy error:', e.message);
     if (!res.headersSent) res.status(502).json({ error: e.message });
   });
+  proxyReq.end();
 });
 
 module.exports = router;
