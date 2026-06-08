@@ -79,15 +79,34 @@ router.all('/:target(*)', requireAuth, (req, res) => {
     rejectUnauthorized: true,
     timeout: 30000
   }, (proxyRes) => {
-    // Save cookies from response into session for forwarding
+    // Forward WhatsApp cookies to browser (without domain restriction) so subsequent proxy requests carry them
     const setCookies = proxyRes.headers['set-cookie'];
+    if (setCookies) {
+      var waCookies = [];
+      setCookies.forEach(function(c) {
+        var name = c.split('=')[0];
+        if (name.startsWith('wa_')) {
+          var cleanCookie = c.split(';')[0];
+          waCookies.push(cleanCookie + '; Path=/; Secure; SameSite=Lax; HttpOnly');
+        }
+      });
+      if (waCookies.length > 0) {
+        if (!cleanHeaders['set-cookie']) cleanHeaders['set-cookie'] = [];
+        if (Array.isArray(cleanHeaders['set-cookie'])) {
+          waCookies.forEach(function(cc) { cleanHeaders['set-cookie'].push(cc); });
+        } else {
+          cleanHeaders['set-cookie'] = [cleanHeaders['set-cookie']].concat(waCookies);
+        }
+        console.log('[Proxy] Forwarded WA cookies:', waCookies.join('; ').substring(0, 100));
+      }
+    }
+    // Also keep in session for fallback
     if (setCookies && req.session) {
       if (!req.session.proxyCookies) req.session.proxyCookies = {};
       if (!req.session.proxyCookies[parsed.hostname]) req.session.proxyCookies[parsed.hostname] = '';
       setCookies.forEach(function(c) {
-        var cookieOnly = c.split(';')[0]; // Remove flags
+        var cookieOnly = c.split(';')[0];
         var name = cookieOnly.split('=')[0];
-        // Only save WhatsApp-specific cookies
         if (name.startsWith('wa_')) {
           var existing = req.session.proxyCookies[parsed.hostname];
           if (existing.indexOf(name + '=') >= 0) {
@@ -97,7 +116,6 @@ router.all('/:target(*)', requireAuth, (req, res) => {
           }
         }
       });
-      console.log('[Proxy] Saved cookies:', req.session.proxyCookies[parsed.hostname].substring(0, 100));
     }
 
     // Clean headers
