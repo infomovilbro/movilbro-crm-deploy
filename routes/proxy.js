@@ -67,6 +67,11 @@ router.all('/:target(*)', requireAuth, (req, res) => {
   if (req.headers['sec-fetch-site']) headers['Sec-Fetch-Site'] = req.headers['sec-fetch-site'];
   if (req.headers['x-requested-with']) headers['X-Requested-With'] = req.headers['x-requested-with'];
   if (req.headers['content-type']) headers['Content-Type'] = req.headers['content-type'];
+  // Forward WhatsApp cookies from browser to WhatsApp server
+  if (req.headers['cookie']) {
+    var waCookies = req.headers['cookie'].split(';').filter(function(c) { return c.trim().startsWith('wa_'); }).join(';');
+    if (waCookies) headers['Cookie'] = waCookies;
+  }
 
   const proxyReq = https.request(targetUrl, {
     method: req.method,
