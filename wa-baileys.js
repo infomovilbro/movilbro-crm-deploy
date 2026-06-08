@@ -10,7 +10,7 @@ var qrCodeData = null;
 var isConnected = false;
 var connectionState = 'idle';
 var lastError = '';
-var authDir = '/tmp/baileys-auth-' + Date.now();
+var authDir = '/tmp/baileys-auth';
 
 function saveSession(state) {
   try {
@@ -145,14 +145,18 @@ async function initBaileys() {
       if (!text) return;
       
       var from = msg.key.remoteJid || '';
-      var name = msg.pushName || 'WhatsApp';
+      var phone = from.split('@')[0] || '';
+      var name = msg.pushName || phone;
       console.log('[Baileys] Msg:', name, ':', text.substring(0, 80));
       
       try {
-        var sender = name + ' (' + (from.split('@')[0] || 'unknown') + ')';
-        db.prepare("INSERT INTO pending_messages (source, from_name, from_address, body, proposed_response, status, category) VALUES (?,?,?,?,?,'pending','whatsapp')").run('baileys', sender, from, text, 'Recibido de WhatsApp');
+        db.prepare("INSERT INTO pending_messages (source, from_name, from_address, body, proposed_response, status, category) VALUES (?,?,?,?,?,'pending','whatsapp')").run('baileys', name, from, text, 'Analizando con IA...');
       } catch(e) { lastError = 'Save msg: ' + e.message; }
     });
+    
+    // Exponer sock para sendMessage
+    module.exports.sockRef = function() { return sock; };
+    module.exports.sendMessage = sendBaileysMessage;
     
   } catch(e) {
     connectionState = 'error';
@@ -170,4 +174,14 @@ function getStatus() {
   return { connected: isConnected, state: connectionState, hasQR: !!qrCodeData, error: lastError };
 }
 
-module.exports = { initBaileys, getQRDataURL, getStatus };
+async function sendBaileysMessage(jid, text) {
+  if (!sock) return { ok: false, error: 'Baileys no iniciado' };
+  try {
+    await sock.sendMessage(jid, { text: text });
+    return { ok: true };
+  } catch(e) {
+    return { ok: false, error: e.message };
+  }
+}
+
+module.exports = { initBaileys, getQRDataURL, getStatus, sendMessage: sendBaileysMessage };

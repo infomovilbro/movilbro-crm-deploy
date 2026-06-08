@@ -572,7 +572,7 @@ async function processPendingMessages() {
   if (processingMessages) return;
   processingMessages = true;
   try {
-    var unprocessed = db.prepare("SELECT * FROM pending_messages WHERE status='pending' AND (proposed_response IS NULL OR proposed_response='' OR proposed_response='Analizando con IA...' OR proposed_response LIKE 'La IA est\u00e1 sobrecargada%') ORDER BY created_at ASC LIMIT 1").all();
+    var unprocessed = db.prepare("SELECT * FROM pending_messages WHERE status='pending' AND (proposed_response IS NULL OR proposed_response='' OR proposed_response='Analizando con IA...' OR proposed_response='Recibido de WhatsApp' OR proposed_response LIKE 'La IA est\u00e1 sobrecargada%') ORDER BY created_at ASC LIMIT 1").all();
     for (var row of unprocessed) {
       try {
         console.log('[CodeOpen] Procesando mensaje #' + row.id, row.source, 'de', row.from_name);
@@ -662,10 +662,14 @@ router.post('/approve/:id', async (req, res) => {
 
     var sent = false;
 
-    // WhatsApp eliminado — se usa web.whatsapp.com real
+    // Enviar respuesta por WhatsApp vía Baileys
     if (row.source === 'whatsapp' || row.category === 'whatsapp') {
-      console.log('[CodeOpen] WhatsApp pendiente #' + row.id + ' — responder desde web.whatsapp.com');
-      sent = false;
+      try {
+        var wa = require('../wa-baileys');
+        var result = await wa.sendMessage(row.from_address, row.proposed_response);
+        if (result.ok) { sent = true; console.log('[CodeOpen] WhatsApp respondido a', row.from_address); }
+        else { console.log('[CodeOpen] Error WhatsApp:', result.error); }
+      } catch(waErr) { console.error('[CodeOpen] Error WhatsApp:', waErr.message); }
     }
 
     // Send Email
