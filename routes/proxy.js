@@ -44,6 +44,8 @@ router.all('/:target(*)', requireAuth, (req, res) => {
   if (!target) return res.status(400).send('No target specified');
 
   let targetUrl = target.startsWith('http') ? target : 'https://' + target;
+  var qs = req.url.indexOf('?');
+  if (qs >= 0) targetUrl += req.url.substring(qs);
   const parsed = url.parse(targetUrl);
   const allowed = {
     'web.whatsapp.com': { host: 'web.whatsapp.com', protocol: 'https:' },
