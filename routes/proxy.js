@@ -79,19 +79,25 @@ router.all('/:target(*)', requireAuth, (req, res) => {
     rejectUnauthorized: true,
     timeout: 30000
   }, (proxyRes) => {
-    // Save cookies from response
+    // Save cookies from response into session for forwarding
     const setCookies = proxyRes.headers['set-cookie'];
     if (setCookies && req.session) {
       if (!req.session.proxyCookies) req.session.proxyCookies = {};
       if (!req.session.proxyCookies[parsed.hostname]) req.session.proxyCookies[parsed.hostname] = '';
       setCookies.forEach(function(c) {
-        var name = c.split('=')[0];
-        if (req.session.proxyCookies[parsed.hostname].includes(name + '=')) {
-          req.session.proxyCookies[parsed.hostname] = req.session.proxyCookies[parsed.hostname].replace(new RegExp(name + '=[^;]+;?'), c.split(';')[0] + ';');
-        } else {
-          req.session.proxyCookies[parsed.hostname] += (req.session.proxyCookies[parsed.hostname] ? ' ' : '') + c.split(';')[0];
+        var cookieOnly = c.split(';')[0]; // Remove flags
+        var name = cookieOnly.split('=')[0];
+        // Only save WhatsApp-specific cookies
+        if (name.startsWith('wa_')) {
+          var existing = req.session.proxyCookies[parsed.hostname];
+          if (existing.indexOf(name + '=') >= 0) {
+            req.session.proxyCookies[parsed.hostname] = existing.replace(new RegExp(name + '=[^;\\s]+'), cookieOnly);
+          } else {
+            req.session.proxyCookies[parsed.hostname] += (existing ? '; ' : '') + cookieOnly;
+          }
         }
       });
+      console.log('[Proxy] Saved cookies:', req.session.proxyCookies[parsed.hostname].substring(0, 100));
     }
 
     // Clean headers
