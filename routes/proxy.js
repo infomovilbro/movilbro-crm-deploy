@@ -100,7 +100,7 @@ router.all('/:target(*)', requireAuth, (req, res) => {
       var waForward = [];
       waSetCookies.forEach(function(c) {
         if (c.split('=')[0].startsWith('wa_')) {
-          waForward.push(c.split(';')[0] + '; Path=/; Secure; SameSite=Lax');
+          waForward.push(c.split(';')[0] + '; Path=/; Secure; SameSite=None');
         }
       });
       if (waForward.length > 0) {
@@ -121,6 +121,8 @@ router.all('/:target(*)', requireAuth, (req, res) => {
         if (body.trim().startsWith('<!')) {
           // Full patches: WebSocket + XHR + fetch proxy + frame-busting
           var patches = '<script>' +
+          '/* Force clean state for QR to appear */' +
+          'try{localStorage.clear();sessionStorage.clear();}catch(e){}' +
           '/* WS proxy */' +
           'var OW=window.WebSocket;window.WebSocket=function(u,p){if(typeof u==="string"&&u.indexOf("web.whatsapp.com")>=0){u=u.replace("wss://web.whatsapp.com:5222","wss://"+location.host+"/proxy-ws/5222");u=u.replace("wss://web.whatsapp.com","wss://"+location.host+"/proxy-ws/443")}return new OW(u,p)};window.WebSocket.prototype=OW.prototype;' +
           '/* XHR proxy */' +
