@@ -86,11 +86,11 @@ const AGENT_CATEGORIES = {
     name: 'WhatsApp', icon: 'ri-whatsapp-line', color: '#25D366',
     desc: 'Lee, analiza y responde mensajes de WhatsApp automáticamente',
     agents: [
-      { id: 'lector', name: 'Lector', icon: 'ri-eye-line', desc: 'Lee el mensaje y extrae remitente, intención y urgencia', prompt: 'Eres Lector, experto en análisis de mensajes WhatsApp. Extrae: quién escribe, intención principal, urgencia (alta/media/baja), y tono. Máximo 300 caracteres.' },
-      { id: 'analizador', name: 'Analizador', icon: 'ri-search-eye-line', desc: 'Busca contexto del cliente en el CRM', prompt: 'Eres Analizador CRM. Busca si el remitente existe como cliente, su historial de pagos, facturas pendientes, productos contratados. Responde con datos concretos. Máximo 400 caracteres.' },
-      { id: 'redactor', name: 'Redactor', icon: 'ri-edit-line', desc: 'Redacta una respuesta profesional', prompt: 'Eres Redactor, experto en comunicación comercial. Redacta una respuesta profesional y empática al mensaje WhatsApp. Incluye saludo, respuesta clara y despedida. Máximo 400 caracteres.' },
-      { id: 'validador', name: 'Validador', icon: 'ri-shield-check-line', desc: 'Revisa seguridad y calidad', prompt: 'Eres Validador. Revisa la respuesta propuesta: ¿es segura? ¿revela datos sensibles? ¿el tono es apropiado? ¿cumple normativa? Señala problemas. Máximo 300 caracteres.' },
-      { id: 'sintetizador', name: 'Sintetizador', icon: 'ri-mist-line', desc: 'Combina todo en una respuesta final', prompt: 'Eres Sintetizador. Toma el análisis del Lector, contexto del Analizador, borrador del Redactor y revisión del Validador. Combínalos en una respuesta final coherente, profesional y útil. Máximo 800 caracteres.' }
+      { id: 'lector', name: 'Lector', icon: 'ri-eye-line', desc: 'Lee el mensaje y extrae remitente, intención y urgencia', prompt: 'Eres Lector, experto en análisis de mensajes WhatsApp. Extrae: nombre del remitente, intención principal (contratar/baja/consulta/reclamación/información), urgencia (alta/media/baja), y tono. No menciones datos internos del CRM. Máximo 200 caracteres.' },
+      { id: 'analizador', name: 'Analizador', icon: 'ri-search-eye-line', desc: 'Busca contexto del cliente en el CRM', prompt: 'Eres Analizador CRM. Busca si el remitente existe como cliente por su nombre o teléfono. Si lo encuentras, indica solo su nombre y productos contratados (NO des precios, NO des datos de otros clientes, NO des totales de facturas pendientes del sistema). Si NO lo encuentras, dilo claramente. Máximo 250 caracteres.' },
+      { id: 'redactor', name: 'Redactor', icon: 'ri-edit-line', desc: 'Redacta una respuesta profesional', prompt: 'Eres Redactor, experto en comunicación comercial. Redacta una respuesta profesional y directa al mensaje WhatsApp. Ve al grano: responde exactamente lo que pregunta sin rodeos ni información interna. Usa saludo cordial, respuesta clara y concreta, despedida. Máximo 350 caracteres.' },
+      { id: 'validador', name: 'Validador', icon: 'ri-shield-check-line', desc: 'Revisa seguridad y calidad', prompt: 'Eres Validador. Revisa la respuesta: ¿es directa y va al grano? ¿NO revela datos internos, totales del sistema, información de otros clientes? ¿el tono es profesional? ¿respondería un administrativo real así? Señala solo problemas graves. Máximo 200 caracteres.' },
+      { id: 'sintetizador', name: 'Sintetizador', icon: 'ri-mist-line', desc: 'Combina todo en una respuesta final', prompt: 'Eres Sintetizador. Toma los análisis anteriores. Genera una respuesta final lista para enviar por WhatsApp. Debe ser directa, profesional, sin datos internos del CRM, sin menciones de otros clientes, sin totales del sistema. Responde ÚNICAMENTE a lo que el cliente preguntó. Máximo 500 caracteres.' }
     ]
   },
   email: {
@@ -591,34 +591,9 @@ async function processPendingMessages() {
         }
         var finalResponse;
         if (overloadedCount >= 3) {
-          // IA saturada — buscar datos localmente en el CRM
-          var bodyLower = (row.body || '').toLowerCase();
-          var respuestaLocal = '';
-          try {
-            var productos = db.prepare("SELECT * FROM products WHERE tipo='fibra' OR nombre LIKE '%fibra%' OR nombre LIKE '%300%' OR nombre LIKE '%600%' OR nombre LIKE '%1000%' LIMIT 5").all();
-            if (productos.length > 0) {
-              respuestaLocal = '¡Hola! Estos son nuestros precios de fibra:\n';
-              productos.forEach(function(p) {
-                respuestaLocal += '• ' + (p.nombre || 'Fibra') + ': ' + (p.precio ? p.precio + '€/mes' : 'consultar precio') + '\n';
-              });
-              respuestaLocal += '\n¿Me confirmas tu dirección para verificar cobertura?';
-            }
-            var clientes = db.prepare("SELECT nombre, telefono, email FROM clients WHERE telefono LIKE ? OR nombre LIKE ? LIMIT 3").all('%' + (row.from_name || '').replace(/[^a-zA-Z0-9]/g,'') + '%', '%' + (row.from_name || '').substring(0, 15) + '%');
-            if (clientes.length > 0 && !respuestaLocal) {
-              respuestaLocal = 'Hola ' + clientes[0].nombre + ', gracias por tu mensaje. He consultado tus datos y estoy revisando tu consulta. ¿Puedes darme más detalles?';
-            }
-            var facturasPendientes = db.prepare("SELECT COUNT(*) as c FROM isp_facturas WHERE estado='pendiente' OR estado='vencida'").get() || {};
-            if (!respuestaLocal && bodyLower.indexOf('factura') > -1) {
-              respuestaLocal = 'Hola, gracias por tu consulta. Actualmente hay ' + facturasPendientes.c + ' facturas pendientes en el sistema. ' +
-                'Si me indicas tu nombre o DNI podré consultar tu situación específica.';
-            }
-          } catch(e) { console.error('[CodeOpen] Error consulta local:', e.message); }
-          if (!respuestaLocal) {
-            respuestaLocal = 'Hola, gracias por tu mensaje. Estoy consultando tu información. ' +
-              '¿Podrías indicarme tu nombre completo o DNI para buscar tus datos y darte una respuesta más precisa?';
-          }
-          finalResponse = respuestaLocal;
-          console.log('[CodeOpen] IA saturada, respuesta local para #' + row.id);
+          // IA saturada — respuesta simple sin datos internos
+          finalResponse = 'Hola, gracias por tu mensaje. Un agente se pondrá en contacto contigo lo antes posible para atender tu consulta. ¿Hay algo más en lo que pueda ayudarte?';
+          console.log('[CodeOpen] IA saturada, respuesta genérica para #' + row.id);
         } else {
           var synthesisInput = catDef.agents.slice(0, 4).map(function(a) { return '## ' + a.name + ':\n' + (results[a.id] || ''); }).join('\n\n') + '\n\nSintetiza todo en una respuesta final lista para enviar.';
           await new Promise(function(r) { setTimeout(r, 3000); });

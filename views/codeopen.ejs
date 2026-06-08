@@ -481,14 +481,37 @@ body { background:var(--bg-main); color:var(--text); }
   closePending.addEventListener('click', closePendingPanel);
   pendingOverlay.addEventListener('click', closePendingPanel);
 
+  var pendingRefreshTimer = null;
+
   function loadPendingList() {
-    pendingList.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-faint);"><div class="spinner-border spinner-border-sm"></div> Cargando...</div>';
     fetch('/codeopen/pending').then(function(r) { return r.json(); }).then(function(d) {
       var items = d.pending || [];
+      var existingIds = {};
+      pendingList.querySelectorAll('[data-pid]').forEach(function(el) { existingIds[el.dataset.pid] = el; });
+      
       if (items.length === 0) {
-        pendingList.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-faint);"><i class="ri-inbox-line" style="font-size:2rem;display:block;margin-bottom:8px;opacity:0.4;"></i>No hay pendientes</div>';
+        if (Object.keys(existingIds).length > 0) {
+          pendingList.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-faint);"><i class="ri-inbox-line" style="font-size:2rem;display:block;margin-bottom:8px;opacity:0.4;"></i>No hay pendientes</div>';
+        }
         return;
       }
+      
+      var currentHtml = pendingList.innerHTML;
+      var needsUpdate = false;
+      
+      items.forEach(function(item) {
+        var idStr = String(item.id);
+        var existing = existingIds[idStr];
+        if (!existing) { needsUpdate = true; return; }
+        // Check if proposed_response changed
+        var respEl = existing.querySelector('.proposed-resp');
+        if (respEl && respEl.dataset.resp !== (item.proposed_response || '')) {
+          needsUpdate = true;
+        }
+      });
+      
+      if (!needsUpdate && Object.keys(existingIds).length === items.length) return;
+      
       pendingList.innerHTML = '';
       items.forEach(function(item) {
         var card = document.createElement('div');
@@ -496,14 +519,16 @@ body { background:var(--bg-main); color:var(--text); }
         var icon = item.category === 'whatsapp' ? 'ri-whatsapp-line' : 'ri-mail-line';
         var catColor = item.category === 'whatsapp' ? '#25D366' : '#6366f1';
         card.style.cursor = 'pointer';
-        card.onclick = function() { toggleWAOverlay(); };
+        card.dataset.pid = item.id;
+        card.onclick = function() { if (typeof toggleWAOverlay === 'function') toggleWAOverlay(); };
         var ts = item.created_at || '';
         try { var d = new Date(ts + 'Z'); ts = d.toLocaleString('es-ES', {timeZone:'Europe/Madrid', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'}); } catch(e) {}
+        var isAnalyzing = !item.proposed_response || item.proposed_response === 'Analizando con IA...' || item.proposed_response === 'Recibido de WhatsApp';
+        var respText = isAnalyzing ? '<span style="color:var(--text-faint);"><span class="spinner-border spinner-border-sm" style="width:10px;height:10px;"></span> Analizando con IA...</span>' : escHtml(item.proposed_response || 'Sin respuesta');
         card.innerHTML = '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><i class="' + icon + '" style="color:' + catColor + ';font-size:1rem;"></i><strong style="font-size:0.8rem;flex:1;">' + escHtml(item.from_name || 'desconocido') + '</strong><span style="font-size:0.65rem;color:var(--text-faint);">' + ts + '</span></div>' +
-          (item.subject ? '<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;"><strong>Asunto:</strong> ' + escHtml(item.subject) + '</div>' : '') +
           '<div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">' + escHtml(item.body || '').substring(0, 150) + '</div>' +
-          '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;"><div style="font-size:0.7rem;color:var(--text-faint);margin-bottom:4px;">Respuesta propuesta:</div><div style="font-size:0.75rem;color:var(--text);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">' + escHtml(item.proposed_response || 'Sin respuesta').substring(0, 200) + '</div></div>' +
-          '<div style="display:flex;gap:6px;"><button class="pending-approve" data-id="' + item.id + '" style="flex:1;padding:8px;border:0;border-radius:8px;background:var(--success);color:#fff;font-size:0.8rem;cursor:pointer;font-weight:600;">✓ Aprobar</button><button class="pending-reject" data-id="' + item.id + '" style="flex:1;padding:8px;border:0;border-radius:8px;background:var(--error);color:#fff;font-size:0.8rem;cursor:pointer;font-weight:600;">✕ Rechazar</button></div>';
+          '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;"><div style="font-size:0.7rem;color:var(--text-faint);margin-bottom:4px;">Respuesta propuesta:</div><div class="proposed-resp" data-resp="' + escHtml(item.proposed_response || '') + '" style="font-size:0.75rem;color:var(--text);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">' + respText.substring(0, 300) + '</div></div>' +
+          (!isAnalyzing ? '<div style="display:flex;gap:6px;"><button class="pending-approve" data-id="' + item.id + '" style="flex:1;padding:8px;border:0;border-radius:8px;background:var(--success);color:#fff;font-size:0.8rem;cursor:pointer;font-weight:600;">✓ Aprobar</button><button class="pending-reject" data-id="' + item.id + '" style="flex:1;padding:8px;border:0;border-radius:8px;background:var(--error);color:#fff;font-size:0.8rem;cursor:pointer;font-weight:600;">✕ Rechazar</button></div>' : '<div style="text-align:center;padding:6px;font-size:0.75rem;color:var(--text-faint);"><span class="spinner-border spinner-border-sm" style="width:10px;height:10px;"></span> Analizando...</div>');
         pendingList.appendChild(card);
       });
       // Bind approve/reject
@@ -514,9 +539,14 @@ body { background:var(--bg-main); color:var(--text); }
         b.addEventListener('click', function(e) { e.stopPropagation(); handlePending(this.dataset.id, 'reject'); });
       });
     }).catch(function() {
-      pendingList.innerHTML = '<div style="text-align:center;padding:30px;color:var(--error);">Error al cargar pendientes</div>';
+      // silent
     });
   }
+
+  // Auto-refresh pending list every 5s when panel is open
+  setInterval(function() {
+    if (pendingPanel.style.right === '0px') loadPendingList();
+  }, 5000);
 
   function handlePending(id, action) {
     fetch('/codeopen/' + action + '/' + id, { method: 'POST', credentials: 'same-origin' }).then(function(r) { return r.json(); }).then(function(d) {
