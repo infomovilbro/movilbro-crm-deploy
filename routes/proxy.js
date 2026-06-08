@@ -79,46 +79,6 @@ router.all('/:target(*)', requireAuth, (req, res) => {
     rejectUnauthorized: true,
     timeout: 30000
   }, (proxyRes) => {
-    // Forward WhatsApp cookies to browser so subsequent proxy requests carry them
-    var setCookies = proxyRes.headers['set-cookie'];
-    if (setCookies) {
-      if (typeof setCookies === 'string') setCookies = [setCookies];
-      var waCookies = [];
-      setCookies.forEach(function(c) {
-        var name = c.split('=')[0];
-        if (name.startsWith('wa_')) {
-          var cleanCookie = c.split(';')[0];
-          waCookies.push(cleanCookie + '; Path=/; Secure; SameSite=Lax');
-        }
-      });
-      if (waCookies.length > 0) {
-        if (!cleanHeaders['set-cookie']) cleanHeaders['set-cookie'] = [];
-        if (Array.isArray(cleanHeaders['set-cookie'])) {
-          waCookies.forEach(function(cc) { cleanHeaders['set-cookie'].push(cc); });
-        } else {
-          cleanHeaders['set-cookie'] = [cleanHeaders['set-cookie']].concat(waCookies);
-        }
-        console.log('[Proxy] Forwarded WA cookies:', waCookies.join('; ').substring(0, 100));
-      }
-    }
-    // Also keep in session for fallback
-    if (setCookies && req.session) {
-      if (!req.session.proxyCookies) req.session.proxyCookies = {};
-      if (!req.session.proxyCookies[parsed.hostname]) req.session.proxyCookies[parsed.hostname] = '';
-      setCookies.forEach(function(c) {
-        var cookieOnly = c.split(';')[0];
-        var name = cookieOnly.split('=')[0];
-        if (name.startsWith('wa_')) {
-          var existing = req.session.proxyCookies[parsed.hostname];
-          if (existing.indexOf(name + '=') >= 0) {
-            req.session.proxyCookies[parsed.hostname] = existing.replace(new RegExp(name + '=[^;\\s]+'), cookieOnly);
-          } else {
-            req.session.proxyCookies[parsed.hostname] += (existing ? '; ' : '') + cookieOnly;
-          }
-        }
-      });
-    }
-
     // Clean headers
     const cleanHeaders = {};
     Object.keys(proxyRes.headers).forEach(function(k) {
@@ -130,6 +90,34 @@ router.all('/:target(*)', requireAuth, (req, res) => {
     cleanHeaders['X-Frame-Options'] = 'SAMEORIGIN';
     if (parsed.hostname === 'web.whatsapp.com') {
       cleanHeaders['Access-Control-Allow-Origin'] = '*';
+    }
+
+    // Forward WhatsApp cookies to browser for subsequent requests
+    var waSetCookies = proxyRes.headers['set-cookie'];
+    if (waSetCookies) {
+      if (typeof waSetCookies === 'string') waSetCookies = [waSetCookies];
+      var waForward = [];
+      waSetCookies.forEach(function(c) {
+        if (c.split('=')[0].startsWith('wa_')) {
+          waForward.push(c.split(';')[0] + '; Path=/; Secure; SameSite=Lax');
+        }
+      });
+      if (waForward.length > 0) {
+        cleanHeaders['set-cookie'] = waForward;
+      }
+      // Also save in session for fallback
+      if (req.session) {
+        if (!req.session.proxyCookies) req.session.proxyCookies = {};
+        if (!req.session.proxyCookies['web.whatsapp.com']) req.session.proxyCookies['web.whatsapp.com'] = '';
+        waSetCookies.forEach(function(c) {
+          var p = c.split(';')[0];
+          var n = p.split('=')[0];
+          if (n.startsWith('wa_')) {
+            var e = req.session.proxyCookies['web.whatsapp.com'];
+            req.session.proxyCookies['web.whatsapp.com'] = e.indexOf(n + '=') >= 0 ? e.replace(new RegExp(n + '=[^;\\s]+'), p) : (e ? e + '; ' : '') + p;
+          }
+        });
+      }
     }
 
     // For WhatsApp: inject patches into HTML
