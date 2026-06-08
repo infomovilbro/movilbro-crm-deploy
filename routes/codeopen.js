@@ -806,4 +806,34 @@ router.get('/email-status', async (req, res) => {
   res.json(status);
 });
 
+// ---- BAILEYS WHATSAPP INTEGRATION ----
+router.get('/baileys-qr', async (req, res) => {
+  try {
+    var wa = require('../wa-baileys');
+    var status = wa.getStatus();
+    var qrDataUrl = wa.getQRDataURL();
+    res.json({ status: status, qr: qrDataUrl ? qrDataUrl.substring(0, 200) + '...' : null });
+  } catch(e) {
+    res.json({ error: e.message });
+  }
+});
+
+// Endpoint to serve the QR image
+router.get('/baileys-qr-image', async (req, res) => {
+  try {
+    var wa = require('../wa-baileys');
+    var qrDataUrl = wa.getQRDataURL();
+    if (qrDataUrl) {
+      var base64 = qrDataUrl.split(',')[1];
+      var img = Buffer.from(base64, 'base64');
+      res.writeHead(200, { 'Content-Type': 'image/png', 'Content-Length': img.length });
+      res.end(img);
+    } else {
+      res.status(404).send('QR not available');
+    }
+  } catch(e) {
+    res.status(500).send(e.message);
+  }
+});
+
 module.exports = router;
