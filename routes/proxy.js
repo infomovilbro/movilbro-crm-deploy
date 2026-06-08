@@ -53,12 +53,20 @@ router.all('/:target(*)', requireAuth, (req, res) => {
   };
   if (!allowed[parsed.hostname]) return res.status(403).send('Target not allowed');
 
-  // Minimal headers - just what's needed
+  // Forward headers from browser, override Host
   const headers = {
     'User-Agent': req.headers['user-agent'] || 'Mozilla/5.0',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'Accept': req.headers['accept'] || '*/*',
+    'Accept-Language': req.headers['accept-language'] || 'es-ES,es;q=0.9',
     'Host': allowed[parsed.hostname].host
-};
+  };
+  if (req.headers['referer']) headers['Referer'] = req.headers['referer'];
+  if (req.headers['origin']) headers['Origin'] = req.headers['origin'];
+  if (req.headers['sec-fetch-dest']) headers['Sec-Fetch-Dest'] = req.headers['sec-fetch-dest'];
+  if (req.headers['sec-fetch-mode']) headers['Sec-Fetch-Mode'] = req.headers['sec-fetch-mode'];
+  if (req.headers['sec-fetch-site']) headers['Sec-Fetch-Site'] = req.headers['sec-fetch-site'];
+  if (req.headers['x-requested-with']) headers['X-Requested-With'] = req.headers['x-requested-with'];
+  if (req.headers['content-type']) headers['Content-Type'] = req.headers['content-type'];
 
   // Forward WhatsApp cookies from session if available
   if (req.session && req.session.proxyCookies && req.session.proxyCookies[parsed.hostname]) {
@@ -110,8 +118,16 @@ router.all('/:target(*)', requireAuth, (req, res) => {
         
         // Only patch if we got valid HTML
         if (body.trim().startsWith('<!')) {
-          // Basic patches
-          body = body.replace('<head>', '<head><base href="/proxy/web.whatsapp.com/"><script>var OW=window.WebSocket;window.WebSocket=function(u,p){if(typeof u==="string"&&u.indexOf("web.whatsapp.com")>=0){u=u.replace("wss://web.whatsapp.com:5222","wss://"+location.host+"/proxy-ws/5222");u=u.replace("wss://web.whatsapp.com","wss://"+location.host+"/proxy-ws/443")}return new OW(u,p)};window.WebSocket.prototype=OW.prototype;</script>');
+          // Full patches: WebSocket + XHR + fetch proxy + frame-busting
+          var patches = '<script>' +
+          '/* WS proxy */' +
+          'var OW=window.WebSocket;window.WebSocket=function(u,p){if(typeof u==="string"&&u.indexOf("web.whatsapp.com")>=0){u=u.replace("wss://web.whatsapp.com:5222","wss://"+location.host+"/proxy-ws/5222");u=u.replace("wss://web.whatsapp.com","wss://"+location.host+"/proxy-ws/443")}return new OW(u,p)};window.WebSocket.prototype=OW.prototype;' +
+          '/* XHR proxy */' +
+          'var _XPO=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(m,u){if(typeof u==="string"&&u.indexOf("//web.whatsapp.com")>=0){arguments[1]=u.replace(/https?:\\/\\/web\\.whatsapp\\.com\\/|^\\/\\/web\\.whatsapp\\.com\\//,"")}return _XPO.apply(this,arguments)};' +
+          '/* fetch proxy */' +
+          'var _FO=window.fetch;window.fetch=function(u,o){if(typeof u==="string"&&u.indexOf("//web.whatsapp.com")>=0){u=u.replace(/https?:\\/\\/web\\.whatsapp\\.com\\/|^\\/\\/web\\.whatsapp\\.com\\//,"")}return _FO.call(window,u,o)};' +
+          '</script>';
+          body = body.replace('<head>', '<head><base href="/proxy/web.whatsapp.com/">' + patches);
           body = body.replace(/top\s*!==\s*self/g, 'false');
           body = body.replace(/self\s*!==\s*top/g, 'false');
           body = body.replace(/top\.location/g, 'self.location');
