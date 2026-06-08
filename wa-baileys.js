@@ -161,9 +161,9 @@ async function initBaileys() {
   }
 }
 
-function getQRDataURL() {
+async function getQRDataURL() {
   if (!qrCodeData) return null;
-  try { return QR.toDataURL(qrCodeData, { width: 300, margin: 2 }); } catch(e) { return null; }
+  try { return await QR.toDataURL(qrCodeData, { width: 300, margin: 2 }); } catch(e) { return null; }
 }
 
 function getStatus() {

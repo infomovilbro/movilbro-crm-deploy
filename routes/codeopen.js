@@ -811,7 +811,7 @@ router.get('/baileys-qr', async (req, res) => {
   try {
     var wa = require('../wa-baileys');
     var status = wa.getStatus();
-    var qrDataUrl = wa.getQRDataURL();
+    var qrDataUrl = await wa.getQRDataURL();
     res.json({ status: status, qr: qrDataUrl, error: status.error });
   } catch(e) {
     res.json({ error: e.message });
@@ -822,7 +822,7 @@ router.get('/baileys-qr', async (req, res) => {
 router.get('/baileys-qr-image', async (req, res) => {
   try {
     var wa = require('../wa-baileys');
-    var qrDataUrl = wa.getQRDataURL();
+    var qrDataUrl = await wa.getQRDataURL();
     if (qrDataUrl) {
       var base64 = qrDataUrl.split(',')[1];
       var img = Buffer.from(base64, 'base64');
