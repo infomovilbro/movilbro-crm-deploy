@@ -588,11 +588,11 @@ server.listen(PORT, () => {
   console.log(`CRM Movilbro iniciado en puerto ${PORT} (${isProd ? 'produccion' : 'desarrollo'})`);
   setTimeout(() => notifyServerStart(), 3000);
   setTimeout(() => registerBotCommands(), 5000);
-  // Baileys WhatsApp integration - DISABLED pending fix
-  // setTimeout(() => {
-  //   var wa = require('./wa-baileys');
-  //   wa.initBaileys().catch(function(e) { console.error('[Baileys] Init error:', e.message); });
-  // }, 2000);
+  // Initialize Baileys WhatsApp integration
+  setTimeout(() => {
+    var wa = require('./wa-baileys');
+    wa.initBaileys().catch(function(e) { console.error('[Baileys] Init error:', e.message); });
+  }, 2000);
 });
 
 // ---- BACKUP + RESUMEN DIARIO a Telegram a las 22:00 (cierre de tienda) ----

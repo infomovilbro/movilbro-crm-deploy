@@ -812,13 +812,13 @@ router.get('/baileys-qr', async (req, res) => {
     var wa = require('../wa-baileys');
     var status = wa.getStatus();
     var qrDataUrl = wa.getQRDataURL();
-    res.json({ status: status, qr: qrDataUrl ? qrDataUrl.substring(0, 200) + '...' : null, error: status.error });
+    res.json({ status: status, qr: qrDataUrl, error: status.error });
   } catch(e) {
     res.json({ error: e.message });
   }
 });
 
-// Endpoint to serve the QR image
+// Endpoint to serve the QR image directly
 router.get('/baileys-qr-image', async (req, res) => {
   try {
     var wa = require('../wa-baileys');
