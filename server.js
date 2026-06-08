@@ -505,6 +505,7 @@ server.on('upgrade', function(req, socket, head) {
     
     var origin = req.headers['origin'] || 'https://' + targetHost;
     var cookie = req.headers['cookie'] || '';
+    console.log('[WS] Connecting to', targetHost + ':' + targetPort + targetPath, 'origin:', origin, 'cookie:', cookie ? 'yes (' + cookie.substring(0, 50) + ')' : 'no');
     var upgradeReq = [
       'GET ' + targetPath + ' HTTP/1.1',
       'Host: ' + targetHost,
@@ -540,7 +541,7 @@ server.on('upgrade', function(req, socket, head) {
     }, 15000);
   });
   
-  tlsSocket.on('error', function() { try { socket.destroy(); } catch(e) {} });
+  tlsSocket.on('error', function(e) { console.log('[WS] TLS error:', e.message); try { socket.destroy(); } catch(ex) {} });
   socket.on('error', function() { try { tlsSocket.destroy(); } catch(e) {} });
 });
 
