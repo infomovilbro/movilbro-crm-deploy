@@ -1,8 +1,5 @@
-// WhatsApp Baileys v7 - pure JS WhatsApp implementation
 const { db } = require('./database');
 const QR = require('qrcode');
-const path = require('path');
-const fs = require('fs');
 
 var sock = null;
 var qrCodeData = null;
@@ -11,76 +8,40 @@ var connectionState = 'idle';
 var lastError = '';
 
 function saveSession(state) {
-  try {
-    var data = { creds: state.creds, keys: state.keys };
-    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)").run('baileys_session', JSON.stringify(data));
-  } catch(e) { lastError = 'Save: ' + e.message; }
+  try { db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)").run('baileys_session', JSON.stringify(state)); } catch(e) {}
 }
 
 function loadSession() {
-  try {
-    var row = db.prepare("SELECT value FROM settings WHERE key = 'baileys_session'").get();
-    return row ? JSON.parse(row.value) : null;
-  } catch(e) { return null; }
+  try { var r = db.prepare("SELECT value FROM settings WHERE key = 'baileys_session'").get(); return r ? JSON.parse(r.value) : null; } catch(e) { return null; }
 }
 
 async function initBaileys() {
   try {
-    var baileys = await import('@whiskeysockets/baileys');
-    var makeWASocket = baileys.default || baileys.makeWASocket;
-    var DisconnectReason = baileys.DisconnectReason;
-    var useMultiFileAuthState = baileys.useMultiFileAuthState;
+    var M = await import('@whiskeysockets/baileys');
+    var makeWASocket = M.default || M.makeWASocket;
+    var DisconnectReason = M.DisconnectReason;
+    var useMultiFileAuthState = M.useMultiFileAuthState;
     
-    // Use temp directory for auth files (persist via DB save/restore)
-    var authDir = '/tmp/baileys-auth';
-    if (!fs.existsSync(authDir)) fs.mkdirSync(authDir, { recursive: true });
-    
-    // Restore saved session to temp directory
     var saved = loadSession();
-    if (saved && saved.creds) {
+    var { state, saveState } = await useMultiFileAuthState('/tmp/baileys-' + Date.now());
+    
+    // If we have saved creds, restore them over the new state
+    if (saved && saved.creds && saved.creds.me) {
       try {
-        fs.writeFileSync(path.join(authDir, 'creds.json'), JSON.stringify(saved.creds));
-        if (saved.keys) {
-          Object.keys(saved.keys).forEach(function(k) {
-            var dir = path.join(authDir, k.replace(/:/g, '-'));
-            fs.mkdirSync(dir, { recursive: true });
-            var keysData = saved.keys[k];
-            if (typeof keysData === 'object') {
-              Object.keys(keysData).forEach(function(id) {
-                fs.writeFileSync(path.join(dir, id + '.json'), JSON.stringify(keysData[id]));
-              });
-            }
-          });
-        }
-        console.log('[Baileys] Session restored from DB');
-      } catch(e) { console.log('[Baileys] Restore error:', e.message); }
+        var fs = await import('fs');
+        // Overwrite creds.json with saved data
+        var authDir = Object.keys(state)[0] ? '/tmp/baileys-' : '/tmp/baileys-';
+        // Actually, useMultiFileAuthState returns state with creds already loaded
+        // Just use the saved state directly
+        state.creds = saved.creds;
+        state.keys = saved.keys || {};
+      } catch(e) { lastError = 'Restore: ' + e.message; }
     }
     
-    var { state, saveState } = await useMultiFileAuthState(authDir);
-    
-    // Auto-save to DB whenever Baileys saves to files
-    var origSaveState = saveState;
-    saveState = function() {
-      origSaveState();
-      try {
-        var credsData = JSON.parse(fs.readFileSync(path.join(authDir, 'creds.json'), 'utf-8'));
-        var keysData = {};
-        var items = fs.readdirSync(authDir);
-        items.forEach(function(item) {
-          if (item !== 'creds.json') {
-            var itemPath = path.join(authDir, item);
-            if (fs.statSync(itemPath).isDirectory()) {
-              var files = fs.readdirSync(itemPath);
-              keysData[item.replace(/-/g, ':')] = {};
-              files.forEach(function(f) {
-                var id = f.replace('.json', '');
-                keysData[item.replace(/-/g, ':')][id] = JSON.parse(fs.readFileSync(path.join(itemPath, f), 'utf-8'));
-              });
-            }
-          }
-        });
-        db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)").run('baileys_session', JSON.stringify({ creds: credsData, keys: keysData }));
-      } catch(e) { lastError = 'Auto-save: ' + e.message; }
+    // Override saveState to also persist in DB
+    var origSave = saveState;
+    saveState = function() { 
+      try { origSave(); var d = { creds: state.creds, keys: state.keys }; db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)").run('baileys_session', JSON.stringify(d)); } catch(e) {}
     };
     
     var pinoMod = await import('pino');
@@ -90,40 +51,34 @@ async function initBaileys() {
       auth: { state, saveState },
       logger: logger,
       printQRInTerminal: false,
-      browser: ['Movilbro CRM', 'Chrome', '149.0.0.0'],
       syncFullHistory: false,
-      shouldSyncHistoryMessage: function() { return false; }
+      shouldSyncHistoryMessage: function() { return false; },
+      browser: ['Movilbro CRM', 'Chrome', '149.0.0.0']
     });
     
-    sock.ev.on('connection.update', function(update) {
-      var { connection, lastDisconnect, qr } = update;
-      if (qr) { qrCodeData = qr; connectionState = 'qr'; isConnected = false; console.log('[Baileys] QR ready'); }
-      if (connection === 'open') { isConnected = true; connectionState = 'connected'; qrCodeData = null; saveState(); console.log('[Baileys] Conectado!'); }
-      if (connection === 'close') {
+    sock.ev.on('connection.update', function(u) {
+      if (u.qr) { qrCodeData = u.qr; connectionState = 'qr'; isConnected = false; console.log('[Baileys] QR ready'); }
+      if (u.connection === 'open') { isConnected = true; connectionState = 'connected'; qrCodeData = null; saveState(); console.log('[Baileys] Conectado!'); }
+      if (u.connection === 'close') {
         isConnected = false; connectionState = 'error';
-        var reason = lastDisconnect?.error?.output?.statusCode || lastDisconnect?.error?.message || 'unknown';
-        lastError = 'Disconnected: ' + reason;
-        console.log('[Baileys] Desconectado:', reason);
-        if (reason === 401) { db.prepare("DELETE FROM settings WHERE key = 'baileys_session'").run(); connectionState = 'idle'; }
-        else { setTimeout(initBaileys, 5000); }
+        var r = u.lastDisconnect?.error?.output?.statusCode || u.lastDisconnect?.error?.message || 'unknown';
+        lastError = 'DC: ' + r; console.log('[Baileys] Desconectado:', r);
+        if (r === 401) { db.prepare("DELETE FROM settings WHERE key = 'baileys_session'").run(); connectionState = 'idle'; }
+        else setTimeout(initBaileys, 5000);
       }
     });
     
     sock.ev.on('messages.upsert', function(m) {
       if (!m.messages || !m.messages.length) return;
       var msg = m.messages[0];
-      if (msg.key.fromMe) return;
-      if (msg.key.remoteJid === 'status@broadcast') return;
-      if (!msg.message) return;
+      if (msg.key.fromMe || !msg.message || msg.key.remoteJid === 'status@broadcast') return;
       var text = msg.message.conversation || (msg.message.extendedTextMessage && msg.message.extendedTextMessage.text) || '';
       if (!text) return;
-      var from = msg.key.remoteJid || '';
-      var name = msg.pushName || 'WhatsApp';
-      console.log('[Baileys] Msg:', name, ':', text.substring(0, 80));
+      console.log('[Baileys] Msg:', msg.pushName || '?', ':', text.substring(0, 80));
       try {
-        var sender = name + ' (' + (from.split('@')[0] || 'unknown') + ')';
-        db.prepare("INSERT INTO pending_messages (source, from_name, from_address, body, proposed_response, status, category) VALUES (?,?,?,?,?,'pending','whatsapp')").run('baileys', sender, from, text, 'Recibido de WhatsApp');
-      } catch(e) { lastError = 'Save msg: ' + e.message; }
+        var sender = (msg.pushName || 'WA') + ' (' + (msg.key.remoteJid?.split('@')[0] || '?') + ')';
+        db.prepare("INSERT INTO pending_messages (source, from_name, from_address, body, proposed_response, status, category) VALUES (?,?,?,?,?,'pending','whatsapp')").run('baileys', sender, msg.key.remoteJid, text, 'Recibido');
+      } catch(e) { lastError = 'Save: ' + e.message; }
     });
     
   } catch(e) {
@@ -142,4 +97,4 @@ function getStatus() {
   return { connected: isConnected, state: connectionState, hasQR: !!qrCodeData, error: lastError };
 }
 
-module.exports = { initBaileys, getQRDataURL, getStatus, isConnected: function() { return isConnected; } };
+module.exports = { initBaileys, getQRDataURL, getStatus };
