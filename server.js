@@ -504,6 +504,7 @@ server.on('upgrade', function(req, socket, head) {
     var proto = req.headers['sec-websocket-protocol'] || '';
     
     var origin = req.headers['origin'] || 'https://' + targetHost;
+    var cookie = req.headers['cookie'] || '';
     var upgradeReq = [
       'GET ' + targetPath + ' HTTP/1.1',
       'Host: ' + targetHost,
@@ -513,6 +514,7 @@ server.on('upgrade', function(req, socket, head) {
       'Sec-WebSocket-Key: ' + key,
       'Sec-WebSocket-Version: ' + ver
     ];
+    if (cookie) upgradeReq.push('Cookie: ' + cookie);
     if (ext) upgradeReq.push('Sec-WebSocket-Extensions: ' + ext);
     if (proto) upgradeReq.push('Sec-WebSocket-Protocol: ' + proto);
     upgradeReq.push('', '');
