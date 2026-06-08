@@ -69,7 +69,7 @@ router.all('/:target(*)', requireAuth, (req, res) => {
     method: req.method,
     headers,
     rejectUnauthorized: true,
-    timeout: 15000
+    timeout: 30000
   }, (proxyRes) => {
     // Save cookies from response
     const setCookies = proxyRes.headers['set-cookie'];
