@@ -79,15 +79,16 @@ router.all('/:target(*)', requireAuth, (req, res) => {
     rejectUnauthorized: true,
     timeout: 30000
   }, (proxyRes) => {
-    // Forward WhatsApp cookies to browser (without domain restriction) so subsequent proxy requests carry them
-    const setCookies = proxyRes.headers['set-cookie'];
+    // Forward WhatsApp cookies to browser so subsequent proxy requests carry them
+    var setCookies = proxyRes.headers['set-cookie'];
     if (setCookies) {
+      if (typeof setCookies === 'string') setCookies = [setCookies];
       var waCookies = [];
       setCookies.forEach(function(c) {
         var name = c.split('=')[0];
         if (name.startsWith('wa_')) {
           var cleanCookie = c.split(';')[0];
-          waCookies.push(cleanCookie + '; Path=/; Secure; SameSite=Lax; HttpOnly');
+          waCookies.push(cleanCookie + '; Path=/; Secure; SameSite=Lax');
         }
       });
       if (waCookies.length > 0) {
