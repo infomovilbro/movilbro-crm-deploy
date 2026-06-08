@@ -56,8 +56,10 @@ router.all('/:target(*)', requireAuth, (req, res) => {
   if (!allowed[parsed.hostname]) return res.status(403).send('Target not allowed');
 
   // Forward headers from browser, override Host
+  // Use MOBILE user-agent for WhatsApp to force QR code display (desktop version removed QR in 2026)
+  var isWA = (parsed.hostname === 'web.whatsapp.com');
   const headers = {
-    'User-Agent': req.headers['user-agent'] || 'Mozilla/5.0',
+    'User-Agent': isWA ? 'Mozilla/5.0 (Linux; Android 14; SM-S928B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.6422.165 Mobile Safari/537.36' : (req.headers['user-agent'] || 'Mozilla/5.0'),
     'Accept': req.headers['accept'] || '*/*',
     'Accept-Language': req.headers['accept-language'] || 'es-ES,es;q=0.9',
     'Host': allowed[parsed.hostname].host
