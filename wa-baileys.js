@@ -58,12 +58,12 @@ async function initBaileys() {
     }
     
     // Use Baileys' built-in auth state manager
-    var authResult = await useMultiFileAuthState(authDir);
+    var { state, saveCreds } = await useMultiFileAuthState(authDir);
     
-    // Wrap saveState to also persist to DB
-    var origSave = authResult.saveState;
-    authResult.saveState = function() {
-      try { origSave(); } catch(e) {}
+    // Wrap saveCreds to also persist to DB
+    var origSaveCreds = saveCreds;
+    var wrappedSaveCreds = async function() {
+      try { if (origSaveCreds) await origSaveCreds(); } catch(e) {}
       try {
         var credsData = JSON.parse(fs.readFileSync(path.join(authDir, 'creds.json'), 'utf-8'));
         var keysData = {};
@@ -89,13 +89,16 @@ async function initBaileys() {
     var logger = (pinoMod.default || pinoMod)({ level: 'warn' });
     
     sock = makeWASocket({
-      auth: authResult,
+      auth: state,
       logger: logger,
       printQRInTerminal: false,
       browser: ['Movilbro CRM', 'Chrome', '149.0.0.0'],
       syncFullHistory: false,
       shouldSyncHistoryMessage: function() { return false; }
     });
+    
+    // Persist creds on every update
+    sock.ev.on('creds.update', wrappedSaveCreds);
     
     sock.ev.on('connection.update', function(update) {
       var { connection, lastDisconnect, qr } = update;
@@ -111,7 +114,7 @@ async function initBaileys() {
         isConnected = true;
         connectionState = 'connected';
         qrCodeData = null;
-        authResult.saveState();
+        wrappedSaveCreds();
         console.log('[Baileys] Connected!');
       }
       
