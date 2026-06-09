@@ -141,19 +141,38 @@ async function initBaileys() {
         if (msg.key.remoteJid === 'status@broadcast') return;
         if (!msg.message) return;
         
-        var text = msg.message.conversation || (msg.message.extendedTextMessage && msg.message.extendedTextMessage.text) || '';
-        if (!text) return;
-        
         var from = msg.key.remoteJid || '';
         var phone = from.split('@')[0] || '';
         var name = msg.pushName || phone;
-        console.log('[Baileys] Msg:', name, ':', text.substring(0, 80));
         
         // Guardar quoted_data para poder reenviar con contexto
         var quotedData = null;
         try {
           quotedData = JSON.stringify({ key: msg.key, message: msg.message });
         } catch(e) {}
+        
+        // Detectar si es mensaje de audio
+        var audioMsg = msg.message.audioMessage;
+        if (audioMsg) {
+          var seconds = audioMsg.seconds || 0;
+          console.log('[Baileys] Audio de', name, ':', seconds + 's');
+          
+          // Guardar pendiente mientras se transcribe
+          var pendingBody = '🎤 Mensaje de audio (' + Math.round(seconds) + 's) — transcribiendo...';
+          try {
+            var info = db.prepare("INSERT INTO pending_messages (source, from_name, from_address, body, proposed_response, status, category, quoted_data) VALUES (?,?,?,?,?,'pending','whatsapp',?)").run('baileys', name, from, pendingBody, null, quotedData);
+            var pendingId = info.lastInsertRowid;
+            
+            // Transcribir en background
+            transcribeAudioMessage(msg, from, name, pendingId);
+          } catch(e) { lastError = 'Save audio msg: ' + e.message; }
+          return;
+        }
+        
+        var text = msg.message.conversation || (msg.message.extendedTextMessage && msg.message.extendedTextMessage.text) || '';
+        if (!text) return;
+        
+        console.log('[Baileys] Msg:', name, ':', text.substring(0, 80));
         
         try {
           db.prepare("INSERT INTO pending_messages (source, from_name, from_address, body, proposed_response, status, category, quoted_data) VALUES (?,?,?,?,?,'pending','whatsapp',?)").run('baileys', name, from, text, null, quotedData);
@@ -199,4 +218,36 @@ async function sendBaileysMessage(jid, text, options) {
   }
 }
 
-module.exports = { initBaileys, getQRDataURL, getStatus, sendMessage: sendBaileysMessage };
+async function transcribeAudioMessage(msg, from, name, pendingId) {
+  try {
+    var baileys = await import('@whiskeysockets/baileys');
+    var downloadContentFromMessage = baileys.downloadContentFromMessage;
+    
+    var audioMsg = msg.message.audioMessage;
+    if (!audioMsg) return;
+    
+    var stream = await downloadContentFromMessage(audioMsg, 'audio');
+    var chunks = [];
+    for await (var chunk of stream) { chunks.push(chunk); }
+    var audioBuffer = Buffer.concat(chunks);
+    
+    var transcription = require('./services/transcription');
+    var result = await transcription.transcribeAudio(audioBuffer, audioMsg.mimetype || 'audio/ogg');
+    
+    if (result.text) {
+      var transcriptBody = '🎤 ' + result.text;
+      db.prepare("UPDATE pending_messages SET body=?, proposed_response=null WHERE id=?").run(transcriptBody, pendingId);
+      console.log('[Baileys] Audio transcrito:', result.text.substring(0, 100));
+    } else {
+      db.prepare("UPDATE pending_messages SET body=?, proposed_response=null WHERE id=?").run('🎤 Audio no transcrito: ' + (result.error || 'error desconocido'), pendingId);
+      console.log('[Baileys] Error transcripción:', result.error);
+    }
+  } catch(e) {
+    console.error('[Baileys] Error transcribiendo audio:', e.message);
+    try {
+      db.prepare("UPDATE pending_messages SET body=?, proposed_response=null WHERE id=?").run('🎤 Error al procesar audio: ' + e.message, pendingId);
+    } catch(e2) {}
+  }
+}
+
+module.exports = { initBaileys, getQRDataURL, getStatus, sendMessage: sendBaileysMessage, transcribeAudioMessage };

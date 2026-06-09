@@ -6,6 +6,36 @@ const { db } = require('../database');
 
 const OPENCODE_API_KEY = process.env.OPENCODE_API_KEY;
 
+// Modelos disponibles
+const AVAILABLE_MODELS = {
+  'deepseek-v4-flash-free': {
+    name: 'DeepSeek V4 Flash Free',
+    provider: 'opencode',
+    apiEndpoint: 'https://opencode.ai/zen/v1/chat/completions',
+    key: OPENCODE_API_KEY,
+    description: 'Gratis, model DeepSeek V4 Flash Free',
+    type: 'text'
+  }
+};
+
+function getModelConfig(modelId) {
+  return AVAILABLE_MODELS[modelId] || AVAILABLE_MODELS['deepseek-v4-flash-free'];
+}
+
+function getUserModel() {
+  try {
+    var row = db.prepare("SELECT value FROM settings WHERE key='ai_model'").get();
+    if (row && row.value && AVAILABLE_MODELS[row.value]) return row.value;
+  } catch(e) {}
+  return 'deepseek-v4-flash-free';
+}
+
+function setUserModel(modelId) {
+  try {
+    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('ai_model', ?)").run(modelId);
+  } catch(e) {}
+}
+
 const tasks = new Map();
 const sseClients = new Map();
 const MAX_TASKS = 20;
@@ -54,16 +84,18 @@ function getCRMContext() {
   } catch (e) { return {}; }
 }
 
-async function callLLM(systemPrompt, userMessage, temperature) {
-  if (!OPENCODE_API_KEY) return 'Error: OPENCODE_API_KEY no configurada';
+async function callLLM(systemPrompt, userMessage, temperature, modelId) {
+  var modelConfig = getModelConfig(modelId || getUserModel());
+  if (!modelConfig) return 'Error: Modelo no disponible';
+  if (!modelConfig.key) return 'Error: API key para ' + modelConfig.name + ' no configurada';
   var maxRetries = 2;
   for (var attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      const r = await axios.post('https://opencode.ai/zen/v1/chat/completions', {
-        model: 'deepseek-v4-flash-free',
+      const r = await axios.post(modelConfig.apiEndpoint, {
+        model: modelId || 'deepseek-v4-flash-free',
         messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }],
         temperature: temperature || 0.7, max_tokens: 4096
-      }, { timeout: 25000, headers: { 'Authorization': 'Bearer ' + OPENCODE_API_KEY, 'Content-Type': 'application/json' } });
+      }, { timeout: 25000, headers: { 'Authorization': 'Bearer ' + modelConfig.key, 'Content-Type': 'application/json' } });
       var text = r?.data?.choices?.[0]?.message?.content;
       return (text || '').trim() || 'Error: Respuesta vacía';
     } catch(e) {
@@ -157,6 +189,8 @@ router.post('/', async (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: 'No autorizado' });
   const msg = (req.body.message || '').trim();
   if (!msg) return res.json({ response: 'Escribe un mensaje.' });
+  var modelId = req.body.model || getUserModel();
+  var modelConfig = getModelConfig(modelId);
   const sessionId = req.sessionID || String(req.session.user?.id || 'anon');
   try {
     var crmCtx = getCRMContext();
@@ -169,9 +203,9 @@ router.post('/', async (req, res) => {
     history.forEach(h => messages.push({ role: h.role, content: h.content }));
     messages.push({ role: 'user', content: msg });
     db.prepare("INSERT INTO chat_history (session_id, role, content) VALUES (?, 'user', ?)").run(sessionId, msg);
-    const response = await axios.post('https://opencode.ai/zen/v1/chat/completions', {
-      model: 'deepseek-v4-flash-free', messages, temperature: 0.5, max_tokens: 4096
-    }, { headers: { 'Authorization': 'Bearer ' + OPENCODE_API_KEY, 'Content-Type': 'application/json' }, timeout: 25000 });
+    const response = await axios.post(modelConfig.apiEndpoint, {
+      model: modelId, messages, temperature: 0.5, max_tokens: 4096
+    }, { headers: { 'Authorization': 'Bearer ' + modelConfig.key, 'Content-Type': 'application/json' }, timeout: 25000 });
     const reply = response?.data?.choices?.[0]?.message?.content || '';
     if (reply) db.prepare("INSERT INTO chat_history (session_id, role, content) VALUES (?, 'assistant', ?)").run(sessionId, reply);
     res.json({ response: reply || 'No obtuve respuesta.' });
@@ -306,6 +340,28 @@ router.get('/examples/:category', (req, res) => {
     general: ['Explica la estructura del proyecto CRM', 'Cuántos clientes hay dados de alta?', 'Cómo funciona el sistema de facturación?', 'Qué tablas usa la tienda?', 'Resumen de tecnologías usadas en el proyecto']
   };
   res.json({ examples: examples[req.params.category] || examples.general });
+});
+
+// ---- MODELOS DISPONIBLES ----
+router.get('/models', (req, res) => {
+  var models = {};
+  for (var key in AVAILABLE_MODELS) {
+    var m = AVAILABLE_MODELS[key];
+    models[key] = { id: key, name: m.name, description: m.description, type: m.type };
+  }
+  res.json({ models: models, current: getUserModel() });
+});
+
+router.get('/model/current', (req, res) => {
+  res.json({ model: getUserModel(), config: AVAILABLE_MODELS[getUserModel()] ? { name: AVAILABLE_MODELS[getUserModel()].name, description: AVAILABLE_MODELS[getUserModel()].description } : null });
+});
+
+router.post('/model/select', (req, res) => {
+  var modelId = req.body.model || req.query.model;
+  if (!modelId || !AVAILABLE_MODELS[modelId]) return res.status(400).json({ error: 'Modelo inválido' });
+  setUserModel(modelId);
+  console.log('[CodeOpen] Modelo cambiado a:', modelId);
+  res.json({ ok: true, model: modelId, name: AVAILABLE_MODELS[modelId].name });
 });
 
 // ---- WEBHOOK WHATSAPP ----
@@ -591,7 +647,8 @@ router.post('/analyze/:id', async (req, res) => {
     var row = db.prepare("SELECT * FROM pending_messages WHERE id=? AND status='pending'").get(req.params.id);
     if (!row) return res.status(404).json({ error: 'No encontrado o ya procesado' });
     
-    console.log('[CodeOpen] Analizando mensaje #' + row.id, 'de', row.from_name);
+    var modelId = req.body.model || getUserModel();
+    console.log('[CodeOpen] Analizando mensaje #' + row.id, 'de', row.from_name, 'con modelo', modelId);
     var crmCtx = getCRMContext();
     var fullText = row.body || row.subject || '';
     var ctx = 'Contexto CRM: ' + JSON.stringify(crmCtx) + '\n\nMensaje de ' + row.from_name + ': ' + fullText;
@@ -600,13 +657,13 @@ router.post('/analyze/:id', async (req, res) => {
     var agentList = catDef.agents.slice(0, 4);
     for (var i = 0; i < agentList.length; i++) {
       if (i > 0) await new Promise(function(r) { setTimeout(r, 2000); });
-      results[agentList[i].id] = await callLLM(agentList[i].prompt, ctx, 0.7);
+      results[agentList[i].id] = await callLLM(agentList[i].prompt, ctx, 0.7, modelId);
     }
     var synthesisInput = catDef.agents.slice(0, 4).map(function(a) { return '## ' + a.name + ':\n' + (results[a.id] || ''); }).join('\n\n') + '\n\nSintetiza todo en una respuesta final lista para enviar.';
     await new Promise(function(r) { setTimeout(r, 2000); });
-    var finalResponse = await callLLM(catDef.agents[4].prompt, synthesisInput, 0.8);
+    var finalResponse = await callLLM(catDef.agents[4].prompt, synthesisInput, 0.8, modelId);
     db.prepare("UPDATE pending_messages SET proposed_response=? WHERE id=?").run(finalResponse || '', row.id);
-    console.log('[CodeOpen] Mensaje #' + row.id + ' analizado');
+    console.log('[CodeOpen] Mensaje #' + row.id + ' analizado con', modelId);
     res.json({ ok: true, response: finalResponse || '' });
   } catch(e) {
     console.error('[CodeOpen] Error analizando #' + req.params.id + ':', e.message);

@@ -18,7 +18,7 @@
       <span id="waStatusText" style="font-size:0.7rem;">Descon.</span>
     </button>
     <span id="statusDot" style="width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block;"></span>
-    <span class="theme-muted" style="font-size:0.75rem;">DeepSeek V4 Free</span>
+    <select id="modelSelector" style="background:var(--bg-main);border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.75rem;padding:3px 8px;cursor:pointer;"></select>
   </div>
 
 
@@ -614,6 +614,35 @@ body { background:var(--bg-main); color:var(--text); }
     waQROverlay.style.display = 'none';
   });
 
+  // ---- SELECTOR DE MODELO ----
+  var modelSelector = $('modelSelector');
+  var currentModelId = 'deepseek-v4-flash-free';
+
+  function loadModels() {
+    fetch('/codeopen/models').then(function(r) { return r.json(); }).then(function(d) {
+      if (!d.models) return;
+      modelSelector.innerHTML = '';
+      for (var key in d.models) {
+        var m = d.models[key];
+        var opt = document.createElement('option');
+        opt.value = key;
+        opt.textContent = m.name;
+        if (key === d.current) opt.selected = true;
+        modelSelector.appendChild(opt);
+      }
+      currentModelId = d.current;
+    });
+  }
+
+  modelSelector.addEventListener('change', function() {
+    var modelId = this.value;
+    fetch('/codeopen/model/select', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: modelId }) }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.ok) { currentModelId = modelId; showToast('Modelo cambiado a ' + d.name); }
+    });
+  });
+
+  loadModels();
+
   // ---- VISTA DE CONTACTOS WHATSAPP ----
   var waContactsView = $('waContactsView');
   var waContactsList = $('waContactsList');
@@ -708,7 +737,7 @@ body { background:var(--bg-main); color:var(--text); }
   function analyzeMessage(id, btn) {
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm" style="width:10px;height:10px;"></span> Analizando...';
-    fetch('/codeopen/analyze/' + id, { method: 'POST' }).then(function(r) { return r.json(); }).then(function(d) {
+    fetch('/codeopen/analyze/' + id, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: currentModelId }) }).then(function(r) { return r.json(); }).then(function(d) {
       if (d.ok) {
         loadWAContacts();
         pollPendingCount();
