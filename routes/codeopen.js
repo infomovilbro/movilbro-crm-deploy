@@ -692,6 +692,7 @@ router.post('/approve/:id', async (req, res) => {
     if (!row) return res.status(404).json({ error: 'No encontrado o ya procesado' });
 
     var mode = req.body.mode || 'without_forward';
+    var asAudio = req.body.asAudio || false;
     var sent = false;
     var sendInfo = '';
 
@@ -700,19 +701,38 @@ router.post('/approve/:id', async (req, res) => {
       try {
         var wa = require('../wa-baileys');
         var opts = {};
+
+        // Configurar quote si es con reenvío
         if (mode === 'with_forward' && row.quoted_data) {
           opts.quotedData = row.quoted_data;
-          sendInfo = ' (con reenvío)';
-        } else if (mode === 'with_forward') {
-          // Sin quoted_data: incluir mensaje original como texto
+        }
+        if (mode === 'with_forward' && !row.quoted_data) {
           var textWithQuote = '📩 Mensaje original:\n"' + (row.body || '') + '"\n\n---\n\n' + row.proposed_response;
-          var result = await wa.sendMessage(row.from_address, textWithQuote);
+          var result = await wa.sendMessage(row.from_address, textWithQuote, opts);
           if (result.ok) { sent = true; sendInfo = ' (con texto original)'; }
           else { console.log('[CodeOpen] Error WhatsApp:', result.error); }
         }
+
+        // Enviar como audio si se solicita
+        if (!sent && asAudio && row.proposed_response) {
+          try {
+            var transcriptionService = require('../services/transcription');
+            var ttsResult = await transcriptionService.textToSpeech(row.proposed_response);
+            if (ttsResult.audio) {
+              opts.asAudio = true;
+              var result = await wa.sendMessage(row.from_address, { audioBuffer: ttsResult.audio, mimeType: 'audio/mp3', text: row.proposed_response }, opts);
+              if (result.ok) { sent = true; sendInfo = ' (audio)'; }
+              else { console.log('[CodeOpen] Error al enviar audio:', result.error); }
+            } else {
+              sendInfo = ' (TTS falló: ' + (ttsResult.error || '') + ')';
+            }
+          } catch(ttsErr) { console.error('[CodeOpen] Error TTS:', ttsErr.message); }
+        }
+
+        // Enviar como texto (default)
         if (!sent) {
           var result = await wa.sendMessage(row.from_address, row.proposed_response, opts);
-          if (result.ok) { sent = true; }
+          if (result.ok) { sent = true; sendInfo = asAudio ? ' (texto, audio no disponible)' : ''; }
           else { console.log('[CodeOpen] Error WhatsApp:', result.error); }
         }
         if (sent) console.log('[CodeOpen] WhatsApp respondido a', row.from_address, sendInfo);

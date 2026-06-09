@@ -200,19 +200,27 @@ function getStatus() {
   return { connected: isConnected, state: connectionState, hasQR: !!qrCodeData, error: lastError };
 }
 
-async function sendBaileysMessage(jid, text, options) {
+async function sendBaileysMessage(jid, content, options) {
   if (!sock) return { ok: false, error: 'Baileys no iniciado' };
   try {
     var opts = {};
-    // Si mode=with_forward y tenemos quoted_data, enviar como reply
     if (options && options.quotedData) {
       try {
         var quoted = JSON.parse(options.quotedData);
         if (quoted && quoted.key) opts.quoted = quoted;
       } catch(e) {}
     }
+    
+    // Si es audio, enviar como audio
+    if (options && options.asAudio && content.audioBuffer) {
+      await sock.sendMessage(jid, { audio: content.audioBuffer, mimetype: content.mimeType || 'audio/mp3', ptt: true }, opts);
+      return { ok: true, type: 'audio' };
+    }
+    
+    // Por defecto, enviar como texto
+    var text = typeof content === 'string' ? content : (content.text || '');
     await sock.sendMessage(jid, { text: text }, opts);
-    return { ok: true };
+    return { ok: true, type: 'text' };
   } catch(e) {
     return { ok: false, error: e.message };
   }
