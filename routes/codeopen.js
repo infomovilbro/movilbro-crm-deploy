@@ -14,7 +14,26 @@ const AVAILABLE_MODELS = {
     apiEndpoint: 'https://opencode.ai/zen/v1/chat/completions',
     key: OPENCODE_API_KEY,
     description: 'Gratis, model DeepSeek V4 Flash Free',
-    type: 'text'
+    type: 'text',
+    fallbacks: ['nemotron-3-ultra-free', 'nemotron-3-super-free']
+  },
+  'nemotron-3-ultra-free': {
+    name: 'Nemotron 3 Ultra Free',
+    provider: 'opencode',
+    apiEndpoint: 'https://opencode.ai/zen/v1/chat/completions',
+    key: OPENCODE_API_KEY,
+    description: 'Gratis, NVIDIA Nemotron 3 Ultra - respaldo automático',
+    type: 'text',
+    fallbacks: ['nemotron-3-super-free', 'deepseek-v4-flash-free']
+  },
+  'nemotron-3-super-free': {
+    name: 'Nemotron 3 Super Free',
+    provider: 'opencode',
+    apiEndpoint: 'https://opencode.ai/zen/v1/chat/completions',
+    key: OPENCODE_API_KEY,
+    description: 'Gratis, NVIDIA Nemotron 3 Super - respaldo automático',
+    type: 'text',
+    fallbacks: ['deepseek-v4-flash-free', 'nemotron-3-ultra-free']
   }
 };
 
@@ -85,32 +104,60 @@ function getCRMContext() {
 }
 
 async function callLLM(systemPrompt, userMessage, temperature, modelId) {
-  var modelConfig = getModelConfig(modelId || getUserModel());
+  var primaryModel = modelId || getUserModel();
+  var modelConfig = getModelConfig(primaryModel);
   if (!modelConfig) return 'Error: Modelo no disponible';
   if (!modelConfig.key) return 'Error: API key para ' + modelConfig.name + ' no configurada';
-  var maxRetries = 2;
-  for (var attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      const r = await axios.post(modelConfig.apiEndpoint, {
-        model: modelId || 'deepseek-v4-flash-free',
-        messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }],
-        temperature: temperature || 0.7, max_tokens: 4096
-      }, { timeout: 25000, headers: { 'Authorization': 'Bearer ' + modelConfig.key, 'Content-Type': 'application/json' } });
-      var text = r?.data?.choices?.[0]?.message?.content;
-      return (text || '').trim() || 'Error: Respuesta vacía';
-    } catch(e) {
-      var isRateLimit = e.response?.status === 429 || (e.message && e.message.indexOf('429') > -1);
-      if (isRateLimit && attempt < maxRetries) {
-        var delay = Math.pow(8, attempt) * 1000 + Math.random() * 5000;
-        console.log('[CodeOpen] Rate limit 429, reintento ' + attempt + '/' + maxRetries + ' en ' + Math.round(delay/1000) + 's');
-        await new Promise(function(r) { setTimeout(r, delay); });
-      } else {
-        console.error('[CodeOpen] LLM error:', e.message);
-        if (isRateLimit) return 'La IA está sobrecargada. Reintentaré en unos segundos.';
-        return 'Error: ' + e.message;
+
+  // Modelos a probar en orden: primario, fallbacks, luego cualquier otro modelo disponible
+  var modelsToTry = [primaryModel];
+  if (modelConfig.fallbacks) modelsToTry = modelsToTry.concat(modelConfig.fallbacks);
+  // Añadir el resto de modelos gratis como último recurso
+  var allFreeModels = Object.keys(AVAILABLE_MODELS).filter(function(m) { return modelsToTry.indexOf(m) === -1; });
+  modelsToTry = modelsToTry.concat(allFreeModels);
+
+  var lastError = '';
+  for (var mi = 0; mi < modelsToTry.length; mi++) {
+    var currentModel = modelsToTry[mi];
+    var currentConfig = getModelConfig(currentModel);
+    if (!currentConfig || !currentConfig.key) continue;
+    
+    var maxRetries = 2;
+    for (var attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const r = await axios.post(currentConfig.apiEndpoint, {
+          model: currentModel,
+          messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }],
+          temperature: temperature || 0.7, max_tokens: 4096
+        }, { timeout: 25000, headers: { 'Authorization': 'Bearer ' + currentConfig.key, 'Content-Type': 'application/json' } });
+        var text = r?.data?.choices?.[0]?.message?.content;
+        if ((text || '').trim()) {
+          if (mi > 0) {
+            console.log('[CodeOpen] Fallback automático: ' + primaryModel + ' → ' + currentModel);
+          }
+          return (text || '').trim();
+        }
+      } catch(e) {
+        var isRateLimit = e.response?.status === 429 || (e.message && e.message.indexOf('429') > -1);
+        lastError = e.message;
+        if (isRateLimit && attempt < maxRetries) {
+          var delay = Math.pow(8, attempt) * 1000 + Math.random() * 5000;
+          console.log('[CodeOpen] Rate limit 429 en ' + currentModel + ', reintento ' + attempt + '/' + maxRetries);
+          await new Promise(function(r) { setTimeout(r, delay); });
+        } else if (isRateLimit) {
+          console.log('[CodeOpen] ' + currentModel + ' rate limit, probando siguiente modelo...');
+          break; // Probar siguiente modelo
+        } else {
+          console.log('[CodeOpen] Error en ' + currentModel + ':', e.message);
+          break; // Error no recuperable, probar siguiente
+        }
       }
     }
   }
+  
+  console.error('[CodeOpen] Todos los modelos agotados, último error:', lastError);
+  if (lastError.indexOf('429') > -1) return 'La IA está sobrecargada. Reintentaré en unos segundos.';
+  return 'Error: ' + lastError;
 }
 
 const AGENT_CATEGORIES = {
