@@ -89,6 +89,25 @@
   </div>
   <div id="waQROverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:999;display:none;"></div>
 
+  <!-- Chat History Modal -->
+  <div id="chatHistoryModal" style="position:fixed;top:0;right:-500px;width:480px;height:100vh;background:var(--bg-card);border-left:1px solid var(--border);z-index:1000;transition:right 0.3s ease;display:flex;flex-direction:column;">
+    <div style="padding:14px 16px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);flex-shrink:0;">
+      <button id="closeChatHistory" style="background:none;border:0;cursor:pointer;font-size:1.2rem;color:var(--text-dim);padding:4px;">&larr;</button>
+      <div style="flex:1;min-width:0;">
+        <div id="chatHistoryContactName" style="font-weight:600;font-size:0.85rem;"></div>
+        <div style="font-size:0.65rem;color:var(--text-faint);">Historial de conversación</div>
+      </div>
+      <span id="chatHistoryStatus" style="font-size:0.7rem;color:var(--text-dim);"></span>
+    </div>
+    <div id="chatHistoryMessages" style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:6px;"></div>
+    <div style="padding:10px 12px;border-top:1px solid var(--border);display:flex;gap:8px;flex-shrink:0;">
+      <input type="text" id="chatHistoryInput" class="form-control" placeholder="Escribe un mensaje..." style="border-radius:8px;padding:8px 12px;font-size:0.8rem;">
+      <button id="chatHistorySendText" style="background:var(--accent);color:#fff;border:0;border-radius:8px;padding:8px 12px;cursor:pointer;font-size:0.8rem;"><i class="ri-send-plane-line"></i></button>
+      <button id="chatHistorySendAudio" style="background:#8B5CF6;color:#fff;border:0;border-radius:8px;padding:8px 12px;cursor:pointer;font-size:0.8rem;"><i class="ri-voiceprint-line"></i></button>
+    </div>
+  </div>
+  <div id="chatHistoryOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:999;display:none;"></div>
+
   <!-- Pending Panel -->
   <div id="pendingPanel" style="position:fixed;top:0;right:-400px;width:380px;height:100vh;background:var(--bg-card);border-left:1px solid var(--border);z-index:1000;transition:right 0.3s ease;display:flex;flex-direction:column;">
     <div style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);flex-shrink:0;">
@@ -674,9 +693,10 @@ body { background:var(--bg-main); color:var(--text); }
       var unanalyzed = g.messages.filter(function(m) { return !m.proposed_response || m.proposed_response === 'Analizando con IA...' || m.proposed_response === ''; }).length;
       var card = document.createElement('div');
       card.style.cssText = 'background:var(--bg-card);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;overflow:hidden;animation:fadeScale 0.3s ease;';
-      card.innerHTML = '<div class="wa-contact-header" style="display:flex;align-items:center;gap:10px;padding:12px 16px;cursor:pointer;transition:background 0.2s;" onclick="toggleContactGroup(this)">' +
+      card.innerHTML = '<div class="wa-contact-header" style="display:flex;align-items:center;gap:8px;padding:12px 16px;cursor:pointer;transition:background 0.2s;" onclick="toggleContactGroup(this)">' +
         '<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#25D366,#128C7E);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:0.85rem;flex-shrink:0;">' + (g.contact.charAt(0).toUpperCase()) + '</div>' +
         '<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:0.85rem;">' + escHtml(g.contact) + '</div><div style="font-size:0.7rem;color:var(--text-dim);">' + g.messages.length + ' mensaje' + (g.messages.length !== 1 ? 's' : '') + (unanalyzed > 0 ? ' · <span style="color:#f59e0b;">' + unanalyzed + ' sin analizar</span>' : '') + '</div></div>' +
+        '<button class="btn-chat-history" data-address="' + escHtml(g.address) + '" data-name="' + escHtml(g.contact) + '" style="background:none;border:1px solid var(--border);border-radius:8px;padding:4px 8px;cursor:pointer;font-size:0.7rem;color:var(--text-muted);white-space:nowrap;" title="Ver historial completo de la conversación"><i class="ri-chat-history-line"></i> Historial</button>' +
         '<i class="ri-arrow-down-s-line" style="font-size:1.2rem;color:var(--text-dim);transition:transform 0.2s;"></i></div>' +
         '<div class="wa-contact-messages" style="display:none;border-top:1px solid var(--border);padding:8px 16px 12px;"></div>';
       waContactsList.appendChild(card);
@@ -716,6 +736,9 @@ body { background:var(--bg-main); color:var(--text); }
       });
       msgsContainer.querySelectorAll('.btn-send-no-fwd').forEach(function(b) {
         b.addEventListener('click', function(e) { e.stopPropagation(); approveMessage(this.dataset.id, 'without_forward', this); });
+      });
+      card.querySelectorAll('.btn-chat-history').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation(); openChatHistory(this.dataset.address, this.dataset.name); });
       });
       msgsContainer.querySelectorAll('.btn-send-audio').forEach(function(b) {
         b.addEventListener('click', function(e) { e.stopPropagation(); approveMessage(this.dataset.id, 'without_forward', this, true); });
@@ -794,6 +817,148 @@ body { background:var(--bg-main); color:var(--text); }
     document.body.appendChild(t);
     setTimeout(function() { t.style.opacity = '0'; t.style.transition = 'opacity 0.3s'; setTimeout(function() { t.remove(); }, 300); }, 2500);
   }
+
+  // ---- CHAT HISTORY MODAL ----
+  var chatHistoryModal = $('chatHistoryModal');
+  var chatHistoryOverlay = $('chatHistoryOverlay');
+  var chatHistoryMessages = $('chatHistoryMessages');
+  var chatHistoryContactName = $('chatHistoryContactName');
+  var chatHistoryInput = $('chatHistoryInput');
+  var chatHistorySendText = $('chatHistorySendText');
+  var chatHistorySendAudio = $('chatHistorySendAudio');
+  var chatHistoryStatus = $('chatHistoryStatus');
+  var currentChatJid = null;
+
+  function openChatHistory(address, name) {
+    currentChatJid = address;
+    chatHistoryContactName.textContent = name;
+    chatHistoryMessages.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-faint);"><div class="spinner-border spinner-border-sm"></div> Cargando historial...</div>';
+    chatHistoryModal.style.right = '0';
+    chatHistoryOverlay.style.display = 'block';
+    chatHistoryStatus.textContent = 'cargando...';
+    loadChatHistory(address);
+  }
+
+  function closeChatHistory() {
+    chatHistoryModal.style.right = '-500px';
+    chatHistoryOverlay.style.display = 'none';
+    currentChatJid = null;
+  }
+
+  $('closeChatHistory').addEventListener('click', closeChatHistory);
+  chatHistoryOverlay.addEventListener('click', closeChatHistory);
+
+  function loadChatHistory(address) {
+    var encoded = encodeURIComponent(address);
+    fetch('/codeopen/whatsapp/chat/' + encoded + '/messages?count=40').then(function(r) { return r.json(); }).then(function(d) {
+      if (!d.ok || !d.messages || d.messages.length === 0) {
+        chatHistoryMessages.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-faint);"><i class="ri-chat-history-line" style="font-size:2rem;display:block;margin-bottom:8px;opacity:0.4;"></i>No hay historial disponible<br><span style="font-size:0.75rem;">Los mensajes nuevos se guardan automáticamente</span></div>';
+        chatHistoryStatus.textContent = '0 mensajes';
+        return;
+      }
+      chatHistoryMessages.innerHTML = '';
+      d.messages.forEach(function(m) {
+        var div = document.createElement('div');
+        var isMe = m.fromMe;
+        var ts = m.timestamp ? new Date(m.timestamp).toLocaleString('es-ES', {hour:'2-digit', minute:'2-digit', day:'2-digit', month:'2-digit'}) : '';
+        div.style.cssText = 'max-width:85%;padding:8px 12px;border-radius:12px;font-size:0.8rem;align-self:' + (isMe ? 'flex-end' : 'flex-start') + ';background:' + (isMe ? 'var(--accent)' : 'var(--bg-main)') + ';color:' + (isMe ? '#fff' : 'var(--text)') + ';border:1px solid ' + (isMe ? 'transparent' : 'var(--border)') + ';animation:fadeScale 0.2s ease;';
+        div.innerHTML = '<div style="word-break:break-word;">' + escHtml(m.text || '(sin texto)') + '</div><div style="font-size:0.6rem;opacity:0.6;margin-top:4px;text-align:' + (isMe ? 'right' : 'left') + ';">' + ts + (isMe ? ' · Yo' : '') + '</div>';
+        chatHistoryMessages.appendChild(div);
+      });
+      chatHistoryStatus.textContent = d.messages.length + ' mensajes';
+      chatHistoryMessages.scrollTop = chatHistoryMessages.scrollHeight;
+    }).catch(function() {
+      chatHistoryMessages.innerHTML = '<div style="text-align:center;padding:30px;color:var(--error);">Error al cargar historial</div>';
+    });
+  }
+
+  // Send message from chat history input
+  function sendChatMessage(asAudio) {
+    var text = chatHistoryInput.value.trim();
+    if (!text || !currentChatJid) return;
+    var btn = asAudio ? chatHistorySendAudio : chatHistorySendText;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm" style="width:12px;height:12px;"></span>';
+    fetch('/codeopen/whatsapp/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jid: currentChatJid, text: text, asAudio: asAudio }) }).then(function(r) { return r.json(); }).then(function(d) {
+      btn.disabled = false;
+      btn.innerHTML = asAudio ? '<i class="ri-voiceprint-line"></i>' : '<i class="ri-send-plane-line"></i>';
+      if (d.ok) {
+        chatHistoryInput.value = '';
+        loadChatHistory(currentChatJid);
+        showToast('Mensaje enviado' + (asAudio ? ' (audio)' : ''));
+      } else {
+        alert('Error: ' + (d.error || 'desconocido'));
+      }
+    }).catch(function() {
+      btn.disabled = false;
+      btn.innerHTML = asAudio ? '<i class="ri-voiceprint-line"></i>' : '<i class="ri-send-plane-line"></i>';
+      alert('Error de red');
+    });
+  }
+
+  chatHistorySendText.addEventListener('click', function() { sendChatMessage(false); });
+  chatHistorySendAudio.addEventListener('click', function() { sendChatMessage(true); });
+  chatHistoryInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(false); }
+  });
+
+  // ---- VOICE INPUT (Speech-to-Text en el input principal) ----
+  var recognition = null;
+  var isListening = false;
+  var voiceBtn = document.createElement('button');
+  voiceBtn.type = 'button';
+  voiceBtn.id = 'voiceInputBtn';
+  voiceBtn.innerHTML = '<i class="ri-mic-line"></i>';
+  voiceBtn.style.cssText = 'background:none;border:1px solid var(--border);border-radius:10px;padding:12px 14px;cursor:pointer;font-size:0.9rem;color:var(--text-muted);display:flex;align-items:center;';
+  voiceBtn.title = 'Dictar mensaje por voz';
+
+  // Insert voice button next to askBtn
+  var askForm = els.askForm;
+  askForm.insertBefore(voiceBtn, els.askBtn);
+
+  voiceBtn.addEventListener('click', function() {
+    if (isListening) {
+      if (recognition) { recognition.stop(); }
+      return;
+    }
+    try {
+      var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) { alert('Tu navegador no soporta entrada por voz. Usa Chrome/Edge.'); return; }
+      recognition = new SpeechRecognition();
+      recognition.lang = 'es-ES';
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.onresult = function(event) {
+        var transcript = '';
+        for (var i = event.resultIndex; i < event.results.length; i++) {
+          transcript += event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            els.askInput.value = transcript;
+          } else {
+            els.askInput.value = transcript + '...';
+          }
+        }
+      };
+      recognition.onend = function() {
+        isListening = false;
+        voiceBtn.innerHTML = '<i class="ri-mic-line"></i>';
+        voiceBtn.style.color = 'var(--text-muted)';
+        voiceBtn.style.borderColor = 'var(--border)';
+      };
+      recognition.onerror = function() {
+        isListening = false;
+        voiceBtn.innerHTML = '<i class="ri-mic-line"></i>';
+        voiceBtn.style.color = 'var(--text-muted)';
+        voiceBtn.style.borderColor = 'var(--border)';
+      };
+      recognition.start();
+      isListening = true;
+      voiceBtn.innerHTML = '<i class="ri-mic-fill" style="color:#ef4444;animation:pulse 1s infinite;"></i>';
+      voiceBtn.style.borderColor = '#ef4444';
+    } catch(e) {
+      alert('Error al iniciar reconocimiento de voz: ' + e.message);
+    }
+  });
 
   // Load contacts periodically and on pending open
   loadWAContacts();

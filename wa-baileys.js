@@ -258,4 +258,63 @@ async function transcribeAudioMessage(msg, from, name, pendingId) {
   }
 }
 
-module.exports = { initBaileys, getQRDataURL, getStatus, sendMessage: sendBaileysMessage, transcribeAudioMessage };
+async function getChats() {
+  if (!sock) return { ok: false, error: 'Baileys no iniciado' };
+  try {
+    var chatList = [];
+    // Intentar obtener chats de la memoria de Baileys
+    if (sock.chats && typeof sock.chats.all === 'function') {
+      chatList = sock.chats.all();
+    } else if (sock.store && typeof sock.store.chats === 'object') {
+      chatList = Object.values(sock.store.chats);
+    }
+    // Ordenar por última actividad
+    chatList.sort(function(a, b) { return (b.conversationTimestamp || 0) - (a.conversationTimestamp || 0); });
+    // Máximo 50 chats
+    var result = chatList.slice(0, 50).map(function(c) {
+      var jid = c.id || c.jid || '';
+      return {
+        jid: jid,
+        name: c.name || c.formattedTitle || jid.split('@')[0] || 'Desconocido',
+        lastMessage: (c.lastMessage?.message?.conversation || c.lastMessage?.message?.extendedTextMessage?.text || '').substring(0, 80),
+        unreadCount: c.unreadCount || 0,
+        timestamp: c.conversationTimestamp || null
+      };
+    });
+    return { ok: true, chats: result };
+  } catch(e) {
+    return { ok: false, error: e.message };
+  }
+}
+
+async function getChatMessages(jid, count) {
+  if (!sock) return { ok: false, error: 'Baileys no iniciado' };
+  try {
+    var limit = Math.min(count || 30, 100);
+    var messages = [];
+    // Intentar cargar mensajes del chat
+    if (typeof sock.loadMessages === 'function') {
+      messages = await sock.loadMessages(jid, limit);
+    } else if (sock.store && typeof sock.store.loadMessages === 'function') {
+      messages = await sock.store.loadMessages(jid, limit);
+    }
+    var result = messages.map(function(m) {
+      var text = m.message?.conversation || m.message?.extendedTextMessage?.text || 
+                 m.message?.imageMessage?.caption || m.message?.videoMessage?.caption || '';
+      return {
+        id: m.key?.id || '',
+        fromMe: m.key?.fromMe || false,
+        text: text.substring(0, 500),
+        timestamp: m.messageTimestamp ? new Date(m.messageTimestamp * 1000).toISOString() : null,
+        pushName: m.pushName || ''
+      };
+    });
+    // Ordenar cronológicamente
+    result.sort(function(a, b) { return new Date(a.timestamp || 0) - new Date(b.timestamp || 0); });
+    return { ok: true, messages: result };
+  } catch(e) {
+    return { ok: false, error: e.message };
+  }
+}
+
+module.exports = { initBaileys, getQRDataURL, getStatus, sendMessage: sendBaileysMessage, transcribeAudioMessage, getChats, getChatMessages };

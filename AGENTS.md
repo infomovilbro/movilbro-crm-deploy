@@ -47,6 +47,14 @@
 - [x] No tener acceso a Render dashboard → pedir contraseña o URL de deploy hook al principio; no esperar a necesitarla
 - [x] Repetir el mismo error de escapado PowerShell 4+ veces → usar SIEMPRE archivo .js, nunca -e
 
+## AssemblyAI (Audio)
+- API key: cadenas hex de 32 caracteres
+- AssemblyAI NO entiende el CRM, solo transcribe audio a texto
+- AssemblyAI TTS: endpoint POST https://api.assemblyai.com/v2/text-to-speech/{voiceId}
+- Configurar env var `ASSEMBLYAI_API_KEY` vía Render API PUT /v1/services/{serviceId}/env-vars
+- Body formato array: `[{"key":"VAR","value":"val"}]`
+- El cambio de env var fuerza redeploy automático
+
 ## Regla Absoluta: Todo en Servidor
 - **NADA en local** — Todo el código se ejecuta en Render (servidor). No depender del PC del usuario para nada.
 - No usar CDP local, no asumir navegador local, no leer archivos locales del usuario.
