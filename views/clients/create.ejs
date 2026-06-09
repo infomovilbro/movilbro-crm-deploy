@@ -1,0 +1,76 @@
+<section class="row justify-content-center">
+  <div class="col-md-8">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h2><i class="bi bi-person-plus"></i> Nuevo Cliente</h2>
+      <a href="/clientes" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Volver</a>
+    </div>
+
+    <% if (errors.length > 0) { %>
+      <div class="alert alert-danger"><%= errors.join(', ') %></div>
+    <% } %>
+
+    <div class="card">
+      <div class="card-body">
+        <form method="POST">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Nombre *</label>
+              <input type="text" name="nombre" class="form-control" value="<%= cliente.nombre || '' %>" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Apellidos</label>
+              <input type="text" name="apellidos" class="form-control" value="<%= cliente.apellidos || '' %>">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">DNI/NIF</label>
+              <input type="text" name="dni_nif" class="form-control" value="<%= cliente.dni_nif || '' %>">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Teléfono *</label>
+              <input type="text" name="telefono" class="form-control" value="<%= cliente.telefono || '' %>" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Teléfono 2</label>
+              <input type="text" name="telefono2" class="form-control" value="<%= cliente.telefono2 || '' %>">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Email</label>
+              <input type="email" name="email" class="form-control" value="<%= cliente.email || '' %>">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Tipo</label>
+              <select name="tipo_cliente" class="form-select">
+                <option value="particular" <%= cliente.tipo_cliente === 'particular' ? 'selected' : '' %>>Particular</option>
+                <option value="empresa" <%= cliente.tipo_cliente === 'empresa' ? 'selected' : '' %>>Empresa</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Código Postal</label>
+              <input type="text" name="codigo_postal" class="form-control" value="<%= cliente.codigo_postal || '29200' %>">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Dirección</label>
+              <input type="text" name="direccion" class="form-control" value="<%= cliente.direccion || '' %>">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Ciudad</label>
+              <input type="text" name="ciudad" class="form-control" value="<%= cliente.ciudad || 'Antequera' %>">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Provincia</label>
+              <input type="text" name="provincia" class="form-control" value="<%= cliente.provincia || 'Málaga' %>">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Notas</label>
+              <textarea name="notas" class="form-control" rows="3"><%= cliente.notas || '' %></textarea>
+            </div>
+          </div>
+          <div class="mt-4">
+            <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Guardar Cliente</button>
+            <a href="/clientes" class="btn btn-outline-secondary">Cancelar</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>

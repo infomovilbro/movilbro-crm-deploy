@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title><%= title %></title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<style>
+body { background: #f5f7fa; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; min-height: 100vh; }
+.kyc-card { max-width: 640px; margin: 40px auto; background: #fff; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); overflow: hidden; }
+.kyc-header { background: linear-gradient(135deg, #0050A1, #003d7a); color: #fff; padding: 32px; text-align: center; }
+.kyc-header h1 { font-size: 22px; margin: 0; font-weight: 600; }
+.kyc-header p { opacity: 0.85; margin: 8px 0 0; font-size: 14px; }
+.kyc-body { padding: 32px; }
+.kyc-step { display: none; }
+.kyc-step.active { display: block; }
+
+.kyc-step { animation: none; }
+.kyc-step.active { animation: fadeIn 0.4s ease-out; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes pulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+@keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes popIn { 0% { transform: scale(0); opacity: 0; } 70% { transform: scale(1.15); } 100% { transform: scale(1); opacity: 1; } }
+@keyframes checkmark { 0% { stroke-dashoffset: 100; } 100% { stroke-dashoffset: 0; } }
+.animate-slide { animation: slideDown 0.3s ease-out; }
+.animate-pop { animation: popIn 0.5s ease-out; }
+
+.progress-steps { margin-bottom: 20px; }
+.progress-steps .progress { height: 6px; border-radius: 3px; margin-bottom: 8px; overflow: hidden; background: #e9ecef; }
+.progress-steps .progress-bar { background: #0050A1; transition: width 0.6s ease; }
+.progress-labels { display: flex; justify-content: space-between; font-size: 12px; color: #6c757d; }
+.progress-labels .label { transition: color 0.3s; }
+.progress-labels .label.active { color: #0050A1; font-weight: 600; }
+.progress-labels .label.done { color: #28a745; font-weight: 600; }
+
+.step-indicator { display: flex; justify-content: center; gap: 12px; margin-bottom: 24px; }
+.step-dot { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; background: #e9ecef; color: #6c757d; transition: all 0.3s ease; position: relative; }
+.step-dot.active { background: #0050A1; color: #fff; transform: scale(1.1); }
+.step-dot.done { background: #28a745; color: #fff; }
+.step-dot.done::after { content: '\2713'; font-size: 18px; }
+.step-dot.done span { display: none; }
+.step-dot .step-label { position: absolute; top: 44px; font-size: 11px; color: #6c757d; width: 80px; text-align: center; white-space: nowrap; }
+
+.camera-box { width: 100%; border: 2px dashed #dee2e6; border-radius: 12px; overflow: hidden; position: relative; background: #000; aspect-ratio: 4/3; display: flex; align-items: center; justify-content: center; }
+.camera-box video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.camera-box .placeholder { color: #fff; text-align: center; padding: 20px; }
+.camera-box .placeholder i { font-size: 48px; opacity: 0.5; }
+.camera-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; }
+.camera-overlay canvas { width: 100%; height: 100%; }
+
+.camera-box-grid { border-width: 1px; border-radius: 8px; }
+.camera-box-grid .placeholder i { font-size: 28px; }
+.camera-box-grid .placeholder p { font-size: 12px; }
+
+.upload-manual-area { border: 2px dashed #dee2e6; border-radius: 12px; padding: 32px 24px; text-align: center; cursor: pointer; transition: all 0.3s ease; }
+.upload-manual-area:hover { border-color: #0050A1; background: #f0f4ff; transform: translateY(-1px); }
+.upload-manual-area input[type="file"] { display: none; }
+
+.capture-actions { display: flex; gap: 6px; justify-content: center; margin-top: 8px; flex-wrap: wrap; }
+.capture-actions .btn { font-size: 12px; padding: 4px 10px; }
+.preview-img { max-width: 100%; border-radius: 8px; border: 2px solid #dee2e6; transition: border-color 0.3s; }
+.preview-img.preview-valid { border-color: #28a745; }
+.preview-img.preview-invalid { border-color: #dc3545; }
+canvas.signature-pad { width: 100%; height: 180px; border: 2px solid #dee2e6; border-radius: 8px; cursor: crosshair; touch-action: none; }
+.quality-badge { position: absolute; top: 8px; right: 8px; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; z-index: 10; }
+.quality-badge.good { background: rgba(40,167,69,0.9); color: #fff; }
+.quality-badge.bad { background: rgba(220,53,69,0.9); color: #fff; }
+.status-icon { font-size: 64px; display: block; margin-bottom: 16px; }
+.tracking-pixel { position: absolute; width: 1px; height: 1px; opacity: 0; }
+
+.status-msg { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 8px; font-size: 14px; margin-top: 8px; animation: slideDown 0.3s ease-out; }
+.status-msg.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+.status-msg.error { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+.status-msg.error i { color: #17a2b8; }
+.status-msg.success i { color: #28a745; }
+.status-msg .status-icon-big { font-size: 20px; flex-shrink: 0; }
+.status-msg .status-text { flex: 1; }
+.status-msg .status-sub { font-size: 12px; opacity: 0.8; display: block; }
+
+.quality-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; border-radius: 8px; padding: 8px 12px; font-size: 13px; margin-top: 6px; display: none; animation: slideDown 0.3s ease-out; }
+.quality-error i { margin-right: 6px; }
+
+.success-screen { text-align: center; padding: 40px 20px; }
+.success-screen .checkmark-circle { width: 96px; height: 96px; border-radius: 50%; background: #28a745; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; animation: popIn 0.6s ease-out; }
+.success-screen .checkmark-circle i { font-size: 48px; color: #fff; }
+.success-screen h3 { font-size: 24px; font-weight: 700; margin-bottom: 12px; color: #28a745; }
+.success-screen .success-text { color: #6c757d; font-size: 15px; max-width: 380px; margin: 0 auto 8px; line-height: 1.6; }
+.success-screen .company-info { margin-top: 24px; padding-top: 20px; border-top: 1px solid #e9ecef; font-size: 13px; color: #adb5bd; }
+
+@media (max-width: 576px) {
+  .kyc-card { margin: 16px; border-radius: 12px; }
+  .kyc-body { padding: 20px 16px; }
+  .kyc-header { padding: 24px 16px; }
+  .camera-box { max-width: 100%; border-radius: 8px; }
+  .capture-actions .btn { font-size: 11px; padding: 4px 8px; }
+  .progress-labels { font-size: 11px; }
+  .step-dot .step-label { font-size: 10px; width: 60px; }
+}
+
+@media (max-width: 400px) {
+  .camera-box .placeholder i { font-size: 36px; }
+  .camera-box .placeholder p { font-size: 13px; }
+  .camera-box-grid .placeholder i { font-size: 22px; }
+}
+</style>
+</head>
+<body>
+<img src="/kyc/tracking/<%= token %>.gif" class="tracking-pixel" alt="">
+
+<div class="kyc-card">
+  <div class="kyc-header">
+    <h1><i class="bi bi-shield-check"></i> Verificación de identidad</h1>
+    <p><%= empresaNombre %> necesita verificar tus datos para completar el alta</p>
+  </div>
+  <div class="kyc-body">
+    <div class="progress-steps">
+      <div class="progress">
+        <div class="progress-bar" id="progressBar" role="progressbar" style="width:<%= kycCompletado ? '100' : (paso === 1 ? '0' : '50') %>%"></div>
+      </div>
+      <div class="progress-labels">
+        <span class="label <%= paso === 1 ? 'active' : (kycCompletado ? 'done' : '') %>" id="progressLabel1">Paso 1/2: Verificación</span>
+        <span class="label <%= paso === 2 ? 'active' : (kycCompletado ? 'done' : '') %>" id="progressLabel2">Paso 2/2: Firma del contrato</span>
+      </div>
+    </div>
+
+    <div class="step-indicator">
+      <div class="step-dot <%= paso === 1 ? 'active' : (kycCompletado ? 'done' : '') %>" id="step1Dot"><span>1</span><span class="step-label">Verificación</span></div>
+      <div class="step-dot <%= paso === 2 ? 'active' : (kycCompletado ? 'done' : '') %>" id="step2Dot"><span>2</span><span class="step-label">Firma</span></div>
+    </div>
+
+    <% if (kycCompletado) { %>
+    <div class="text-center py-5">
+      <div class="status-icon" style="color:#28a745;"><i class="bi bi-check-circle-fill"></i></div>
+      <h4 class="mb-2">¡Verificación completada!</h4>
+      <p class="text-muted">Gracias por verificar tu identidad. Nos pondremos en contacto contigo para confirmar el alta.</p>
+    </div>
+    <% } else { %>
+
+    <!-- STEP 1: DOCUMENTOS -->
+    <div class="kyc-step <%= paso === 1 ? 'active' : '' %>" id="step1">
+      <h5 class="mb-3"><i class="bi bi-camera"></i> Paso 1: Verifica tu identidad</h5>
+      <p class="text-muted small mb-3">Necesitamos tu DNI/NIE para cumplir con la normativa de verificación de identidad (KYC). Tus datos están seguros.</p>
+
+      <div class="row g-2">
+        <!-- PHOTO 1: DNI ANVERSO (rear camera) -->
+        <div class="col-md-6" id="photo1Section">
+          <label class="form-label fw-semibold small">1. DNI anverso</label>
+          <div id="photo1Camera" class="camera-box camera-box-grid mb-1">
+            <video id="p1Video" autoplay playsinline muted style="display:none;"></video>
+            <div class="placeholder" id="p1Placeholder">
+              <i class="bi bi-camera"></i>
+              <p class="mt-1">Activar cámara</p>
+            </div>
+          </div>
+          <div id="p1Preview" style="display:none;text-align:center;margin-bottom:4px;position:relative;">
+            <img id="p1PreviewImg" class="preview-img" style="max-height:160px;">
+            <div id="p1Quality" class="quality-badge" style="display:none;"></div>
+            <div id="p1QualityError" class="quality-error"></div>
+          </div>
+          <div class="capture-actions">
+            <button class="btn btn-outline-primary btn-sm" onclick="startCamera(1)" id="p1StartBtn"><i class="bi bi-camera"></i> Activar</button>
+            <button class="btn btn-primary btn-sm" onclick="capturePhoto(1)" id="p1CaptureBtn" style="display:none;"><i class="bi bi-camera-fill"></i> Hacer foto</button>
+            <button class="btn btn-success btn-sm" onclick="uploadDoc('obverseOnly',1)" id="p1UploadBtn" style="display:none;"><i class="bi bi-check-lg"></i> Usar</button>
+            <button class="btn btn-outline-secondary btn-sm" onclick="retryPhoto(1)" id="p1RetryBtn" style="display:none;"><i class="bi bi-arrow-counterclockwise"></i> Repetir</button>
+          </div>
+          <div id="p1Status" class="mt-1"></div>
+        </div>
+
+        <!-- PHOTO 2: DNI REVERSO (rear camera) -->
+        <div class="col-md-6" id="photo2Section">
+          <label class="form-label fw-semibold small">2. DNI reverso</label>
+          <div id="photo2Camera" class="camera-box camera-box-grid mb-1">
+            <video id="p2Video" autoplay playsinline muted style="display:none;"></video>
+            <div class="placeholder" id="p2Placeholder">
+              <i class="bi bi-camera"></i>
+              <p class="mt-1">Activar cámara</p>
+            </div>
+          </div>
+          <div id="p2Preview" style="display:none;text-align:center;margin-bottom:4px;position:relative;">
+            <img id="p2PreviewImg" class="preview-img" style="max-height:160px;">
+            <div id="p2Quality" class="quality-badge" style="display:none;"></div>
+            <div id="p2QualityError" class="quality-error"></div>
+          </div>
+          <div class="capture-actions">
+            <button class="btn btn-outline-primary btn-sm" onclick="startCamera(2)" id="p2StartBtn"><i class="bi bi-camera"></i> Activar</button>
+            <button class="btn btn-primary btn-sm" onclick="capturePhoto(2)" id="p2CaptureBtn" style="display:none;"><i class="bi bi-camera-fill"></i> Hacer foto</button>
+            <button class="btn btn-success btn-sm" onclick="uploadDoc('reverseOnly',2)" id="p2UploadBtn" style="display:none;"><i class="bi bi-check-lg"></i> Usar</button>
+            <button class="btn btn-outline-secondary btn-sm" onclick="retryPhoto(2)" id="p2RetryBtn" style="display:none;"><i class="bi bi-arrow-counterclockwise"></i> Repetir</button>
+          </div>
+          <div id="p2Status" class="mt-1"></div>
+        </div>
+
+        <!-- PHOTO 3: ROSTRO COGIENDO DNI (front camera) -->
+        <div class="col-md-6" id="photo3Section">
+          <label class="form-label fw-semibold small">3. Rostro cogiendo DNI</label>
+          <div id="photo3Camera" class="camera-box camera-box-grid mb-1">
+            <video id="p3Video" autoplay playsinline muted style="display:none;"></video>
+            <div class="placeholder" id="p3Placeholder">
+              <i class="bi bi-camera"></i>
+              <p class="mt-1">Activar cámara</p>
+            </div>
+          </div>
+          <div id="p3Preview" style="display:none;text-align:center;margin-bottom:4px;position:relative;">
+            <img id="p3PreviewImg" class="preview-img" style="max-height:160px;">
+            <div id="p3Quality" class="quality-badge" style="display:none;"></div>
+            <div id="p3QualityError" class="quality-error"></div>
+          </div>
+          <div class="capture-actions">
+            <button class="btn btn-outline-primary btn-sm" onclick="startCamera(3)" id="p3StartBtn"><i class="bi bi-camera"></i> Activar</button>
+            <button class="btn btn-primary btn-sm" onclick="capturePhoto(3)" id="p3CaptureBtn" style="display:none;"><i class="bi bi-camera-fill"></i> Hacer foto</button>
+            <button class="btn btn-success btn-sm" onclick="uploadDoc('obverseFace',3)" id="p3UploadBtn" style="display:none;"><i class="bi bi-check-lg"></i> Usar</button>
+            <button class="btn btn-outline-secondary btn-sm" onclick="retryPhoto(3)" id="p3RetryBtn" style="display:none;"><i class="bi bi-arrow-counterclockwise"></i> Repetir</button>
+          </div>
+          <div id="p3Status" class="mt-1"></div>
+        </div>
+      </div>
+
+      <!-- Manual upload below photos -->
+      <div class="mt-4 pt-3 border-top">
+        <h6 class="mb-2"><i class="bi bi-upload"></i> Subir DNI manualmente</h6>
+        <p class="text-muted small mb-2">Si no puedes usar la cámara, selecciona las fotos del DNI directamente desde tu dispositivo.</p>
+        <div id="manualUploadArea" class="upload-manual-area" onclick="document.getElementById('manualFileInput').click()">
+          <i class="bi bi-cloud-upload" style="font-size:48px;display:block;color:#0050A1;"></i>
+          <p class="mt-2 mb-1 fw-semibold">Haz clic para seleccionar imágenes</p>
+          <small class="text-muted">Selecciona una o varias fotos del anverso y reverso del DNI</small>
+          <input type="file" id="manualFileInput" accept="image/*" multiple onchange="handleManualFiles(event)">
+        </div>
+        <div id="manualPreviews" class="row g-2 mt-2"></div>
+        <button class="btn btn-primary w-100 mt-2" id="manualSubmitBtn" style="display:none;" onclick="submitManualFiles()">
+          <i class="bi bi-cloud-upload"></i> Subir archivos seleccionados
+        </button>
+        <div id="manualStatus" class="mt-1"></div>
+      </div>
+    </div>
+
+    <!-- STEP 2: FIRMA -->
+    <div class="kyc-step <%= paso === 2 ? 'active' : '' %>" id="step2">
+      <h5 class="mb-3"><i class="bi bi-pen"></i> Paso 2: Revisa y firma el contrato</h5>
+
+      <div class="mb-3">
+        <iframe src="/kyc/contrato/<%= token %>" style="width:100%;height:400px;border:1px solid #dee2e6;border-radius:8px;background:#fff;"></iframe>
+        <div class="mt-2 text-end">
+          <a href="/kyc/contrato/<%= token %>" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-box-arrow-up-right"></i> Ver en ventana completa</a>
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Firma aquí</label>
+        <p class="text-muted small">Firma con el dedo o el ratón dentro del recuadro</p>
+        <canvas id="signaturePad" class="signature-pad" width="576" height="180"></canvas>
+        <div class="mt-1 d-flex gap-2">
+          <button class="btn btn-outline-secondary btn-sm" onclick="clearSignature()"><i class="bi bi-eraser"></i> Limpiar</button>
+        </div>
+      </div>
+
+      <div class="form-check mb-3">
+        <input type="checkbox" class="form-check-input" id="acceptTerms">
+        <label class="form-check-label small" for="acceptTerms">He leído y acepto el contrato de servicios de <strong><%= empresaNombre %></strong></label>
+      </div>
+
+      <button class="btn btn-success w-100 btn-lg" onclick="submitSignature()" id="signBtn" disabled>
+        <i class="bi bi-check-lg"></i> Firmar y finalizar
+      </button>
+      <div id="signStatus" class="mt-2"></div>
+    </div>
+
+    <% } %>
+  </div>
+  <div class="kyc-footer text-center p-3 border-top bg-light">
+    <small class="text-muted"><%= empresaNombre %> - Protegemos tu privacidad</small>
+  </div>
+</div>
+
+<script>
+const TOKEN = '<%= token %>';
+const TOTAL_PHOTOS = 3;
+let streams = [null, null, null, null];
+let captured = [null, null, null, null];
+let uploaded = [false, false, false, false];
+let manualFiles = [];
+
+function drawGuideOverlay(canvasId) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const parent = canvas.parentElement;
+  const rect = parent.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = (rect.width || 480) * dpr;
+  canvas.height = (rect.height || 360) * dpr;
+  canvas.style.width = '100%';
+  canvas.style.height = '100%';
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+window.addEventListener('resize', function() {
+  for (let i = 1; i <= TOTAL_PHOTOS; i++) {
+    if (document.getElementById('p' + i + 'Video').style.display !== 'none') {
+      drawGuideOverlay('p' + i + 'GuideCanvas');
+    }
+  }
+});
+
+async function startCamera(idx) {
+  const facingMode = (idx === 3) ? 'user' : 'environment';
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: false
+    });
+    streams[idx] = stream;
+    const video = document.getElementById('p' + idx + 'Video');
+    video.srcObject = stream;
+    video.style.display = 'block';
+    document.getElementById('p' + idx + 'Placeholder').style.display = 'none';
+    document.getElementById('p' + idx + 'StartBtn').style.display = 'none';
+    document.getElementById('p' + idx + 'CaptureBtn').style.display = '';
+    setTimeout(function() { drawGuideOverlay('p' + idx + 'GuideCanvas'); }, 100);
+  } catch(e) {
+    document.getElementById('p' + idx + 'StartBtn').textContent = 'Cámara no disponible';
+    document.getElementById('p' + idx + 'StartBtn').disabled = true;
+  }
+}
+
+function stopStream(stream) {
+  if (stream) stream.getTracks().forEach(t => t.stop());
+}
+
+function capturePhoto(idx) {
+  const video = document.getElementById('p' + idx + 'Video');
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth || 1280;
+  canvas.height = video.videoHeight || 720;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  captured[idx] = canvas.toDataURL('image/jpeg', 0.92);
+  document.getElementById('p' + idx + 'PreviewImg').src = captured[idx];
+  document.getElementById('p' + idx + 'Preview').style.display = '';
+  document.getElementById('p' + idx + 'CaptureBtn').style.display = 'none';
+  document.getElementById('p' + idx + 'UploadBtn').style.display = '';
+  document.getElementById('p' + idx + 'RetryBtn').style.display = '';
+  stopStream(streams[idx]);
+  streams[idx] = null;
+  checkImageQuality(idx);
+}
+
+function retryPhoto(idx) {
+  captured[idx] = null;
+  document.getElementById('p' + idx + 'Preview').style.display = 'none';
+  document.getElementById('p' + idx + 'PreviewImg').className = 'preview-img';
+  document.getElementById('p' + idx + 'UploadBtn').style.display = 'none';
+  document.getElementById('p' + idx + 'RetryBtn').style.display = 'none';
+  document.getElementById('p' + idx + 'QualityError').style.display = 'none';
+  document.getElementById('p' + idx + 'Quality').style.display = 'none';
+  document.getElementById('p' + idx + 'StartBtn').textContent = 'Activar';
+  document.getElementById('p' + idx + 'StartBtn').disabled = false;
+  startCamera(idx);
+}
+
+function handleManualFiles(event) {
+  if (!event.target.files || event.target.files.length === 0) return;
+  manualFiles = Array.from(event.target.files);
+  const container = document.getElementById('manualPreviews');
+  container.innerHTML = '';
+  container.style.display = '';
+  manualFiles.forEach(function(file, i) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const col = document.createElement('div');
+      col.className = 'col-6';
+      col.innerHTML = '<div class="border rounded p-1 text-center"><img src="' + e.target.result + '" class="preview-img" style="max-height:120px;width:100%;object-fit:cover;"><small class="text-muted d-block mt-1">' + file.name + '</small></div>';
+      container.appendChild(col);
+    };
+    reader.readAsDataURL(file);
+  });
+  document.getElementById('manualSubmitBtn').style.display = '';
+}
+
+async function submitManualFiles() {
+  if (manualFiles.length === 0) return;
+  const statusEl = document.getElementById('manualStatus');
+  statusEl.innerHTML = '<div class="status-msg" style="background:#cce5ff;color:#004085;border:1px solid #b8daff;"><span class="spinner-border spinner-border-sm"></span> Subiendo archivos...</div>';
+  let successCount = 0;
+  for (let i = 0; i < manualFiles.length; i++) {
+    const file = manualFiles[i];
+    const tipo = (i === 0) ? 'obverseDocument' : 'reverseDocument';
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('tipo', tipo);
+      const response = await fetch('/kyc/' + TOKEN + '/subir-doc', { method: 'POST', body: formData });
+      const result = await response.json();
+      if (result.ok) successCount++;
+    } catch(e) {}
+  }
+  if (successCount > 0) {
+    statusEl.innerHTML = '<div class="status-msg success animate-slide"><span class="status-icon-big"><i class="bi bi-check-circle-fill"></i></span><span class="status-text">' + successCount + ' archivo(s) subido(s) correctamente</span></div>';
+    document.getElementById('manualSubmitBtn').style.display = 'none';
+    document.getElementById('manualUploadArea').style.display = 'none';
+    document.getElementById('manualPreviews').style.display = 'none';
+  } else {
+    statusEl.innerHTML = '<div class="status-msg error animate-slide"><span class="status-icon-big"><i class="bi bi-x-circle"></i></span><span class="status-text">Error al subir los archivos</span></div>';
+  }
+}
+
+function calculateLaplacianVariance(imageData, width, height) {
+  const data = imageData.data;
+  const laplacianKernel = [
+    0,  1, 0,
+    1, -4, 1,
+    0,  1, 0
+  ];
+  let sumSquared = 0;
+  let count = 0;
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      let laplacian = 0;
+      for (let ky = -1; ky <= 1; ky++) {
+        for (let kx = -1; kx <= 1; kx++) {
+          const idx = ((y + ky) * width + (x + kx)) * 4;
+          const gray = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
+          laplacian += gray * laplacianKernel[(ky + 1) * 3 + (kx + 1)];
+        }
+      }
+      sumSquared += laplacian * laplacian;
+      count++;
+    }
+  }
+  return count > 0 ? sumSquared / count : 0;
+}
+
+function checkImageQuality(idx) {
+  const img = new Image();
+  img.onload = function() {
+    const canvas = document.createElement('canvas');
+    canvas.width = img.width;
+    canvas.height = img.height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+    let sum = 0;
+    const pixelCount = data.length / 4;
+    for (let i = 0; i < data.length; i += 4) {
+      const brightness = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+      sum += brightness;
+    }
+    const avg = sum / pixelCount;
+    let contrastSum = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      const brightness = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+      contrastSum += Math.pow(brightness - avg, 2);
+    }
+    const contrast = Math.sqrt(contrastSum / pixelCount);
+    const laplacianVar = calculateLaplacianVariance(imageData, canvas.width, canvas.height);
+    const previewImg = document.getElementById('p' + idx + 'PreviewImg');
+    const qualityError = document.getElementById('p' + idx + 'QualityError');
+    const badge = document.getElementById('p' + idx + 'Quality');
+    let errors = [];
+    let isGood = true;
+    if (laplacianVar < 100) {
+      isGood = false;
+      errors.push('La imagen está borrosa');
+    }
+    if (avg < 60) {
+      isGood = false;
+      errors.push('La imagen está demasiado oscura');
+    } else if (avg > 220) {
+      isGood = false;
+      errors.push('La imagen está demasiado clara');
+    }
+    if (contrast < 35) {
+      isGood = false;
+      if (errors.length < 3) {
+        errors.push('No se ve el DNI correctamente');
+      }
+    }
+    if (badge) {
+      badge.style.display = 'block';
+      if (isGood) {
+        badge.className = 'quality-badge good';
+        badge.textContent = 'Buena calidad';
+        previewImg.className = 'preview-img preview-valid';
+      } else {
+        badge.className = 'quality-badge bad';
+        badge.textContent = 'Baja calidad';
+        previewImg.className = 'preview-img preview-invalid';
+      }
+    }
+    if (qualityError) {
+      if (errors.length > 0) {
+        qualityError.style.display = 'block';
+        qualityError.innerHTML = errors.map(function(e) { return '<i class="bi bi-exclamation-triangle"></i> ' + e; }).join('<br>');
+      } else {
+        qualityError.style.display = 'none';
+      }
+    }
+  };
+  if (captured[idx]) img.src = captured[idx];
+}
+
+function dataURLtoBlob(dataUrl) {
+  const parts = dataUrl.split(',');
+  const mime = parts[0].match(/:(.*?);/)[1];
+  const bytes = atob(parts[1]);
+  const ab = new ArrayBuffer(bytes.length);
+  const ia = new Uint8Array(ab);
+  for (let i = 0; i < bytes.length; i++) ia[i] = bytes.charCodeAt(i);
+  return new Blob([ab], { type: mime });
+}
+
+async function uploadDoc(tipo, idx) {
+  if (!idx) return;
+  const dataUrl = captured[idx];
+  if (!dataUrl) return;
+  const statusEl = document.getElementById('p' + idx + 'Status');
+  statusEl.innerHTML = '<div class="status-msg" style="background:#cce5ff;color:#004085;border:1px solid #b8daff;"><span class="spinner-border spinner-border-sm"></span> Subiendo...</div>';
+  try {
+    const blob = dataURLtoBlob(dataUrl);
+    const formData = new FormData();
+    formData.append('file', blob, tipo + '.jpg');
+    formData.append('tipo', tipo);
+    const response = await fetch('/kyc/' + TOKEN + '/subir-doc', { method: 'POST', body: formData });
+    const result = await response.json();
+    if (result.ok) {
+      statusEl.innerHTML = '<div class="status-msg success animate-slide"><span class="status-icon-big"><i class="bi bi-check-circle-fill"></i></span><span class="status-text">Documento recibido correctamente</span></div>';
+      uploaded[idx] = true;
+      document.getElementById('p' + idx + 'UploadBtn').style.display = 'none';
+      document.getElementById('p' + idx + 'RetryBtn').style.display = 'none';
+      if (uploaded[1] && uploaded[2] && uploaded[3]) {
+        setTimeout(function() { goToStep2(); }, 800);
+      }
+    } else {
+      statusEl.innerHTML = '<div class="status-msg error animate-slide"><span class="status-icon-big"><i class="bi bi-x-circle"></i></span><span class="status-text">' + (result.error || 'Error al subir el documento') + '</span></div>';
+    }
+  } catch(e) {
+    statusEl.innerHTML = '<div class="status-msg error animate-slide"><span class="status-icon-big"><i class="bi bi-x-circle"></i></span><span class="status-text">Error de conexión. Intenta de nuevo.</span></div>';
+  }
+}
+
+function goToStep2() {
+  document.getElementById('progressBar').style.width = '50%';
+  document.getElementById('progressLabel1').classList.remove('active');
+  document.getElementById('progressLabel1').classList.add('done');
+  document.getElementById('progressLabel2').classList.add('active');
+  document.getElementById('step1').classList.remove('active');
+  document.getElementById('step2').classList.add('active');
+  document.getElementById('step1Dot').classList.remove('active');
+  document.getElementById('step1Dot').classList.add('done');
+  document.getElementById('step2Dot').classList.add('active');
+  initSignaturePad();
+}
+
+let sigCanvas, sigCtx, isDrawing = false;
+
+function initSignaturePad() {
+  sigCanvas = document.getElementById('signaturePad');
+  if (!sigCanvas) return;
+  sigCtx = sigCanvas.getContext('2d');
+  sigCanvas.addEventListener('mousedown', startDraw);
+  sigCanvas.addEventListener('mousemove', draw);
+  sigCanvas.addEventListener('mouseup', stopDraw);
+  sigCanvas.addEventListener('touchstart', startDrawTouch);
+  sigCanvas.addEventListener('touchmove', drawTouch);
+  sigCanvas.addEventListener('touchend', stopDraw);
+  sigCtx.strokeStyle = '#0050A1';
+  sigCtx.lineWidth = 2;
+  sigCtx.lineCap = 'round';
+}
+
+function startDraw(e) { isDrawing = true; sigCtx.beginPath(); sigCtx.moveTo(e.offsetX, e.offsetY); }
+function draw(e) { if (!isDrawing) return; sigCtx.lineTo(e.offsetX, e.offsetY); sigCtx.stroke(); }
+function stopDraw() { isDrawing = false; }
+function startDrawTouch(e) { e.preventDefault(); const rect = sigCanvas.getBoundingClientRect(); const touch = e.touches[0]; isDrawing = true; sigCtx.beginPath(); sigCtx.moveTo(touch.clientX - rect.left, touch.clientY - rect.top); }
+function drawTouch(e) { e.preventDefault(); if (!isDrawing) return; const rect = sigCanvas.getBoundingClientRect(); const touch = e.touches[0]; sigCtx.lineTo(touch.clientX - rect.left, touch.clientY - rect.top); sigCtx.stroke(); }
+
+function clearSignature() {
+  sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+  signatureData = null;
+}
+
+let signatureData = null;
+
+document.getElementById('acceptTerms')?.addEventListener('change', function() {
+  document.getElementById('signBtn').disabled = !this.checked;
+});
+
+async function submitSignature() {
+  if (!sigCanvas) return;
+  signatureData = sigCanvas.toDataURL('image/png');
+  if (!signatureData || signatureData.length < 100) {
+    document.getElementById('signStatus').innerHTML = '<div class="status-msg" style="background:#fff3cd;color:#856404;border:1px solid #ffeeba;"><i class="bi bi-exclamation-triangle"></i> Por favor, dibuja tu firma</div>';
+    return;
+  }
+  document.getElementById('signBtn').disabled = true;
+  document.getElementById('signBtn').innerHTML = '<span class="spinner-border spinner-border-sm"></span> Enviando...';
+  document.getElementById('signStatus').innerHTML = '';
+  try {
+    const response = await fetch('/kyc/' + TOKEN + '/firmar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ firma: signatureData }) });
+    const result = await response.json();
+    if (result.ok) {
+      document.getElementById('progressBar').style.width = '100%';
+      document.getElementById('progressLabel2').classList.remove('active');
+      document.getElementById('progressLabel2').classList.add('done');
+      document.getElementById('step2Dot').classList.remove('active');
+      document.getElementById('step2Dot').classList.add('done');
+      document.getElementById('signStatus').innerHTML =
+        '<div class="success-screen">' +
+          '<div class="checkmark-circle"><i class="bi bi-check-lg"></i></div>' +
+          '<h3>¡Todo completado!</h3>' +
+          '<p class="success-text">Hemos recibido tu documentación y firma. Te notificaremos cuando tu línea esté activa.</p>' +
+          '<div class="company-info"><i class="bi bi-building"></i> <%= empresaNombre %> - Todo listo</div>' +
+        '</div>';
+      document.getElementById('signBtn').style.display = 'none';
+    } else {
+      document.getElementById('signStatus').innerHTML = '<div class="status-msg error animate-slide"><span class="status-icon-big"><i class="bi bi-x-circle"></i></span><span class="status-text">Error: ' + (result.error || 'desconocido') + '</span></div>';
+      document.getElementById('signBtn').disabled = false;
+      document.getElementById('signBtn').innerHTML = '<i class="bi bi-check-lg"></i> Firmar y finalizar';
+    }
+  } catch(e) {
+    document.getElementById('signStatus').innerHTML = '<div class="status-msg error animate-slide"><span class="status-icon-big"><i class="bi bi-x-circle"></i></span><span class="status-text">Error de conexión. Intenta de nuevo.</span></div>';
+    document.getElementById('signBtn').disabled = false;
+    document.getElementById('signBtn').innerHTML = '<i class="bi bi-check-lg"></i> Firmar y finalizar';
+  }
+}
+
+setTimeout(startCamera, 500, 1);
+</script>
+</body>
+</html>

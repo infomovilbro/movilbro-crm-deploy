@@ -1,0 +1,401 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <div>
+      <h5 class="mb-0"><i class="bi bi-cloud"></i> Nube - Facturas</h5>
+      <small class="text-muted"><%= totalFacturas %> facturas · <%= totalPDFs %> PDFs</small>
+    </div>
+    <div class="d-flex gap-1 flex-wrap">
+      <button class="btn btn-outline-secondary btn-sm" onclick="syncDiskPDFs()" title="Sincronizar PDFs del disco"><i class="bi bi-arrow-repeat"></i> Sincronizar</button>
+      <button class="btn btn-outline-secondary btn-sm" onclick="descargarAnio('todas')" title="Descargar todos los años"><i class="bi bi-archive"></i> Todo</button>
+      <button class="btn btn-outline-primary btn-sm" onclick="generarTodas()" id="btnGenerar"><i class="bi bi-cloud-arrow-up"></i> PDFs</button>
+      <button class="btn btn-outline-success btn-sm" onclick="importarZips()" id="btnImportZips"><i class="bi bi-folder-plus"></i> Importar ZIPs</button>
+      <button class="btn btn-outline-warning btn-sm" onclick="document.getElementById('uploadZipInput').click()"><i class="bi bi-upload"></i> Subir ZIP</button>
+      <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalSubirArchivo"><i class="bi bi-cloud-upload"></i> Subir archivo</button>
+      <button class="btn btn-outline-info btn-sm" onclick="nuevaCarpeta()"><i class="bi bi-folder-plus"></i> Crear carpeta</button>
+      <input type="file" id="uploadZipInput" accept=".zip" style="display:none" onchange="subirZip(this)">
+      <div id="uploadStatus" class="small text-muted mt-1" style="display:none;"></div>
+    </div>
+  </div>
+
+  <!-- Google Drive -->
+  <% if (typeof driveAvailable !== 'undefined' && driveAvailable) { %>
+  <div class="card mb-3">
+    <div class="card-header py-2 d-flex justify-content-between align-items-center">
+      <span><i class="bi bi-cloud"></i> <strong>Google Drive</strong></span>
+      <div>
+        <button class="btn btn-sm btn-outline-secondary" onclick="navegarDrive('<%= driveRootId %>','Drive')"><i class="bi bi-arrow-clockwise"></i> Recargar</button>
+      </div>
+    </div>
+    <div class="card-body py-2" id="driveExplorer">
+      <div class="text-center py-2"><span class="spinner-border spinner-border-sm"></span> Cargando Drive...</div>
+    </div>
+  </div>
+  <% } %>
+
+  <!-- Buscador -->
+  <div class="input-group input-group-sm mb-3">
+    <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+    <input type="text" id="buscadorFacturas" class="form-control" placeholder="Buscar por nº factura, cliente o importe..." autocomplete="off">
+  </div>
+
+  <% if (years.length === 0) { %>
+  <div class="text-center py-5 text-muted"><i class="bi bi-inbox" style="font-size:3rem;"></i><p class="mt-2">No hay facturas.</p></div>
+  <% } else { %>
+    <% years.forEach(function(yr) { %>
+      <% var hasFacturas = yr.meses.some(function(m) { return m.count > 0; }); %>
+    <div class="card mb-3 <%= hasFacturas ? '' : 'opacity-50' %>">
+      <div class="card-header d-flex justify-content-between align-items-center py-2" style="cursor:pointer;" onclick="toggleYear('year-<%= yr.year %>')">
+        <span><i class="bi bi-calendar-year"></i> <strong><%= yr.year %></strong> <small class="text-muted">(<%= yr.meses.reduce(function(s,m){return s+m.count},0) %> facturas · <%= yr.meses.reduce(function(s,m){return s+m.total},0).toFixed(2) %>€)</small></span>
+        <div>
+          <button class="btn btn-sm btn-outline-secondary me-1" onclick="event.stopPropagation();descargarAnio('<%= yr.year %>')" title="Descargar <%= yr.year %>"><i class="bi bi-download"></i></button>
+          <i class="bi bi-chevron-down" id="chevron-year-<%= yr.year %>"></i>
+        </div>
+      </div>
+      <div id="year-<%= yr.year %>" class="card-body py-2" style="display:<%= yr.year == new Date().getFullYear() ? '' : 'none' %>;">
+        <div class="row g-1">
+          <% yr.meses.forEach(function(m) { %>
+          <div class="col-md-1 col-2 text-center" style="cursor:pointer;" onclick="toggleMes('mes-<%= yr.year %>-<%= m.num %>')">
+            <div class="p-1 rounded <%= m.count > 0 ? 'bg-primary text-white' : 'bg-light text-muted' %> small mes-cuadro" style="min-height:48px;display:flex;flex-direction:column;justify-content:center;align-items:center;">
+              <div><%= m.nombre.substring(0,3) %></div>
+              <div class="fw-bold"><%= m.count %></div>
+              <div style="font-size:8px;"><%= m.total.toFixed(0) %>€</div>
+            </div>
+          </div>
+          <% }); %>
+        </div>
+        <!-- Month detail rows -->
+        <% yr.meses.forEach(function(m) { %>
+        <div id="mes-<%= yr.year %>-<%= m.num %>" class="mt-1" style="display:none;">
+          <% if (m.count > 0) { %>
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <small class="text-muted"><%= m.nombre %> <%= yr.year %> · <%= m.count %> facturas · <%= m.total.toFixed(2) %>€</small>
+            <button class="btn btn-sm btn-outline-secondary" onclick="event.stopPropagation();descargarMes('<%= yr.year %>','<%= m.num %>')" title="Descargar mes"><i class="bi bi-download"></i> ZIP</button>
+          </div>
+          <div class="list-group">
+            <% m.facturas.forEach(function(f) { %>
+            <div class="list-group-item d-flex justify-content-between align-items-center py-1 px-3 factura-row" data-search="<%= (f.numFactura+' '+f.cliente+' '+f.importe).toLowerCase() %>">
+              <div class="d-flex align-items-center gap-2" style="min-width:0;">
+                <span class="fw-semibold text-nowrap" style="font-size:0.8rem;min-width:90px;"><%= f.numFactura %></span>
+                <span class="small text-truncate" style="max-width:200px;"><%= f.cliente %></span>
+                <span class="badge bg-<%= f.estado==='pagada'?'success':f.estado==='pendiente'?'warning':'secondary' %>" style="font-size:0.6rem;"><%= f.estado||'pendiente' %></span>
+              </div>
+              <div class="d-flex align-items-center gap-1 text-nowrap">
+                <span class="fw-bold" style="font-size:0.85rem;"><%= parseFloat(f.importe||0).toFixed(2) %>€</span>
+                <% if (f.id) { %>
+                <a href="/isp/nube/ver/<%= f.id %>" target="_blank" class="btn btn-sm btn-outline-info" title="Ver HTML"><i class="bi bi-eye" style="font-size:0.7rem;"></i></a>
+                <a href="/isp/nube/pdf/<%= f.id %>" class="btn btn-sm btn-outline-primary" title="Descargar PDF"><i class="bi bi-download" style="font-size:0.7rem;"></i></a>
+                <% } else if (f.inZip) { %>
+                <a href="/isp/nube/ver-zip?pdf=<%= encodeURIComponent(f.numFactura+'.pdf') %>" target="_blank" class="btn btn-sm btn-outline-info" title="Ver desde ZIP"><i class="bi bi-file-zip" style="font-size:0.7rem;"></i></a>
+                <a href="/isp/nube/ver-zip?pdf=<%= encodeURIComponent(f.numFactura+'.pdf') %>&download=1" class="btn btn-sm btn-outline-primary" title="Descargar PDF"><i class="bi bi-download" style="font-size:0.7rem;"></i></a>
+                <% } else if (f.dbId) { %>
+                <a href="/isp/nube/pdf-db/<%= f.dbId %>" target="_blank" class="btn btn-sm btn-outline-info" title="Ver PDF"><i class="bi bi-file-pdf" style="font-size:0.7rem;"></i></a>
+                <a href="/isp/nube/pdf-db/<%= f.dbId %>" class="btn btn-sm btn-outline-primary" title="Descargar PDF"><i class="bi bi-download" style="font-size:0.7rem;"></i></a>
+                <% } else if (f.pdfPath) { %>
+                <a href="/isp/nube/descargar?path=<%= encodeURIComponent(f.pdfPath) %>&view=1" target="_blank" class="btn btn-sm btn-outline-info" title="Ver PDF inline"><i class="bi bi-eye" style="font-size:0.7rem;"></i></a>
+                <a href="/isp/nube/descargar?path=<%= encodeURIComponent(f.pdfPath) %>" class="btn btn-sm btn-outline-primary" title="Descargar PDF"><i class="bi bi-download" style="font-size:0.7rem;"></i></a>
+                <% } else if (f.driveId) { %>
+                <a href="/isp/nube/descargar-drive?id=<%= f.driveId %>&view=1" target="_blank" class="btn btn-sm btn-outline-info" title="Ver PDF Drive"><i class="bi bi-eye" style="font-size:0.7rem;"></i></a>
+                <a href="/isp/nube/descargar-drive?id=<%= f.driveId %>" class="btn btn-sm btn-outline-primary" title="Descargar PDF"><i class="bi bi-download" style="font-size:0.7rem;"></i></a>
+                <% } %>
+              </div>
+            </div>
+            <% }); %>
+          </div>
+          <% } else { %>
+          <div class="text-center text-muted small py-2">Sin facturas este mes</div>
+          <% } %>
+        </div>
+        <% }); %>
+      </div>
+    </div>
+    <% }); %>
+  <% } %>
+</section>
+
+<!-- Modal Subir Archivo -->
+<div class="modal fade" id="modalSubirArchivo" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-cloud-upload"></i> Subir archivo a la nube</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="formSubirArchivo" enctype="multipart/form-data">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Archivo (cualquier tipo)</label>
+            <input type="file" name="archivo" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Carpeta de destino</label>
+            <div class="input-group">
+              <select name="destino" class="form-select" id="destinoArchivoSelect">
+                <option value="">Automático (año/mes actual)</option>
+                <optgroup label="Años/Meses">
+                  <% years.forEach(function(yr) { %>
+                    <% yr.meses.forEach(function(m) { %>
+                      <option value="<%= yr.year %>/<%= m.nombre %>"><%= yr.year %>/<%= m.nombre %></option>
+                    <% }); %>
+                  <% }); %>
+                </optgroup>
+              </select>
+            </div>
+            <small class="text-muted">O escribe una ruta personalizada: año/mes o nombre de carpeta</small>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="btnSubirArchivo"><i class="bi bi-cloud-upload"></i> Subir</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+var driveBreadcrumb = [];
+var driveRootId = '<%= typeof driveRootId !== "undefined" ? driveRootId : "" %>';
+
+function navegarDrive(folderId, folderName) {
+  if (!folderId) return;
+  var container = document.getElementById('driveExplorer');
+  if (!container) return;
+  container.innerHTML = '<div class="text-center py-2"><span class="spinner-border spinner-border-sm"></span> Cargando...</div>';
+
+  // Track breadcrumb
+  if (folderName) {
+    if (driveBreadcrumb.length === 0 || driveBreadcrumb[driveBreadcrumb.length - 1].id !== folderId) {
+      driveBreadcrumb.push({ id: folderId, name: folderName });
+      if (driveBreadcrumb.length > 10) driveBreadcrumb.shift();
+    }
+  }
+
+  fetch('/isp/nube/carpeta-drive?id=' + folderId)
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      var items = d.items || [];
+      var html = '';
+
+      // Breadcrumb
+      html += '<div class="small d-flex align-items-center gap-1 mb-2 flex-wrap">';
+      html += '<button class="btn btn-sm btn-link p-0 text-decoration-none" onclick="navegarDriveRoot()" title="Raíz Drive"><i class="bi bi-house"></i></button>';
+      for (var i = 0; i < driveBreadcrumb.length; i++) {
+        html += '<span class="text-muted">/</span>';
+        html += '<button class="btn btn-sm btn-link p-0 text-decoration-none small" onclick="navegarDriveBreadcrumb(' + i + ')">' + escaparHTML(driveBreadcrumb[i].name) + '</button>';
+      }
+      html += '</div>';
+
+      if (items.length === 0) {
+        html += '<div class="text-center text-muted py-3"><i class="bi bi-folder2-open" style="font-size:2rem;"></i><p class="mt-1">Carpeta vacía</p></div>';
+      } else {
+        var folders = items.filter(function(f) { return f.isFolder; });
+        var files = items.filter(function(f) { return !f.isFolder; });
+
+        html += '<div class="row g-2">';
+        folders.forEach(function(item) {
+          html += '<div class="col-md-3 col-4">';
+          html += '<div class="border rounded p-2 text-center folder-card" style="background:#f8f9fa;cursor:pointer;" onclick="navegarDrive(\'' + item.id + '\',\'' + item.name.replace(/'/g,"\\'") + '\')">';
+          html += '<div style="font-size:2rem;">📁</div>';
+          html += '<div class="fw-semibold small text-truncate">' + escaparHTML(item.name) + '/</div>';
+          html += '<div class="small text-muted">Carpeta</div>';
+          html += '<span class="btn btn-sm btn-outline-primary mt-1"><i class="bi bi-folder-open"></i> Abrir</span>';
+          html += '</div></div>';
+        });
+        files.forEach(function(item) {
+          var isPDF = item.name.toLowerCase().endsWith('.pdf');
+          html += '<div class="col-md-3 col-4">';
+          html += '<div class="border rounded p-2 text-center" style="background:#f8f9fa;">';
+          html += '<div style="font-size:2rem;">' + (isPDF ? '📄' : '📎') + '</div>';
+          html += '<div class="fw-semibold small text-truncate" title="' + escaparHTML(item.name) + '">' + escaparHTML(item.name) + '</div>';
+          html += '<div class="small text-muted">' + (item.size ? (parseInt(item.size)/1024).toFixed(1) + ' KB' : 'Archivo') + '</div>';
+          html += '<div class="mt-1">';
+          if (isPDF) {
+            html += '<a href="/isp/nube/descargar-drive?id=' + item.id + '&view=1" target="_blank" class="btn btn-sm btn-outline-info py-0 me-1" title="Ver"><i class="bi bi-eye"></i></a>';
+          }
+          html += '<a href="/isp/nube/descargar-drive?id=' + item.id + '" class="btn btn-sm btn-outline-primary py-0" title="Descargar"><i class="bi bi-download"></i></a>';
+          html += '</div></div></div>';
+        });
+        html += '</div>';
+      }
+      container.innerHTML = html;
+    })
+    .catch(function() {
+      container.innerHTML = '<div class="text-danger text-center py-2"><i class="bi bi-exclamation-triangle"></i> Error al conectar con Drive</div>';
+    });
+}
+
+function navegarDriveRoot() {
+  driveBreadcrumb = [];
+  if (driveRootId) navegarDrive(driveRootId, 'Drive');
+}
+
+function navegarDriveBreadcrumb(idx) {
+  if (idx < 0 || idx >= driveBreadcrumb.length) return;
+  driveBreadcrumb = driveBreadcrumb.slice(0, idx + 1);
+  var last = driveBreadcrumb[driveBreadcrumb.length - 1];
+  navegarDrive(last.id, last.name);
+}
+
+function escaparHTML(str) {
+  var div = document.createElement('div');
+  div.appendChild(document.createTextNode(str));
+  return div.innerHTML;
+}
+
+// Load Drive on page ready
+(function() {
+  if (driveRootId) navegarDrive(driveRootId, 'Drive');
+})();
+
+// Toggle year accordion
+function toggleYear(id) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? '' : 'none';
+  var chevron = document.getElementById('chevron-' + id);
+  if (chevron) chevron.className = el.style.display === 'none' ? 'bi bi-chevron-right' : 'bi bi-chevron-down';
+}
+
+// Toggle month details
+function toggleMes(id) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? '' : 'none';
+}
+
+// Search filter
+document.getElementById('buscadorFacturas')?.addEventListener('input', function() {
+  var q = this.value.toLowerCase().trim();
+  document.querySelectorAll('.factura-row').forEach(function(row) {
+    row.style.display = (!q || (row.getAttribute('data-search')||'').includes(q)) ? '' : 'none';
+  });
+  // Show months that have visible rows
+  document.querySelectorAll('[id^="mes-"]').forEach(function(el) {
+    if (!q) return;
+    var anyVisible = Array.from(el.querySelectorAll('.factura-row')).some(function(r) { return r.style.display !== 'none'; });
+    if (anyVisible) el.style.display = '';
+  });
+});
+
+function generarTodas() {
+  var btn = document.getElementById('btnGenerar');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+  fetch('/isp/nube/generar-todas', { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function() { btn.disabled = false; btn.innerHTML = '<i class="bi bi-cloud-arrow-up"></i> PDFs'; })
+    .catch(function() { btn.disabled = false; btn.innerHTML = '<i class="bi bi-cloud-arrow-up"></i> PDFs'; });
+}
+
+function descargarAnio(year) {
+  var url = year === 'todas' ? '/isp/nube/zip/todas' : '/isp/nube/zip/' + year;
+  window.open(url, '_blank');
+}
+
+function descargarMes(year, month) {
+  window.open('/isp/nube/zip/' + year + '/' + month, '_blank');
+}
+
+function syncDiskPDFs() {
+  var btn = document.querySelector('button[onclick*="syncDiskPDFs"]');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Sincronizando...';
+  fetch('/isp/nube/migrar-a-db', { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.ok) {
+        alert('Sincronizados ' + d.migrados + ' PDFs');
+        location.reload();
+      } else {
+        alert('Error: ' + (d.error || 'desconocido'));
+        btn.disabled = false; btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Sincronizar';
+      }
+    })
+    .catch(function() {
+      alert('Error de conexión');
+      btn.disabled = false; btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Sincronizar';
+    });
+}
+
+function importarZips() {
+  if (!confirm('¿Importar facturas desde los ZIPs locales?')) return;
+  var btn = document.getElementById('btnImportZips');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Importando...';
+  fetch('/isp/nube/importar-zips', { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.ok) {
+        alert('ZIPs importados: ' + d.imported.length + ' archivos');
+        location.reload();
+      } else {
+        alert('Error: ' + (d.error || 'desconocido'));
+        btn.disabled = false; btn.innerHTML = '<i class="bi bi-folder-plus"></i> Importar ZIPs';
+      }
+    })
+    .catch(function() {
+      alert('Error de conexión');
+      btn.disabled = false; btn.innerHTML = '<i class="bi bi-folder-plus"></i> Importar ZIPs';
+    });
+}
+
+function subirZip(input) {
+  var file = input.files[0];
+  if (!file) return;
+  var status = document.getElementById('uploadStatus');
+  status.style.display = 'block';
+  status.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Subiendo ' + file.name + '...';
+  var formData = new FormData();
+  formData.append('zip', file);
+  fetch('/isp/nube/subir-zip', { method: 'POST', body: formData })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.ok) {
+        status.innerHTML = '<span class="text-success">✅ ' + d.message + '</span>';
+        setTimeout(function() { location.reload(); }, 1500);
+      } else {
+        status.innerHTML = '<span class="text-danger">❌ Error: ' + (d.error || 'desconocido') + '</span>';
+      }
+    })
+    .catch(function() {
+      status.innerHTML = '<span class="text-danger">❌ Error de conexión</span>';
+    });
+  input.value = '';
+}
+
+// Upload any file
+document.getElementById('formSubirArchivo')?.addEventListener('submit', function(e) {
+  e.preventDefault();
+  var btn = document.getElementById('btnSubirArchivo');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Subiendo...';
+  var formData = new FormData(this);
+  fetch('/isp/nube/subir-archivo', { method: 'POST', body: formData })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.ok) {
+        alert('Archivo subido correctamente: ' + d.fileName);
+        location.reload();
+      } else {
+        alert('Error: ' + (d.error || 'desconocido'));
+        btn.disabled = false; btn.innerHTML = '<i class="bi bi-cloud-upload"></i> Subir';
+      }
+    })
+    .catch(function() {
+      alert('Error de conexión');
+      btn.disabled = false; btn.innerHTML = '<i class="bi bi-cloud-upload"></i> Subir';
+    });
+});
+
+function nuevaCarpeta() {
+  var nombre = prompt('Nombre de la nueva carpeta:');
+  if (!nombre || !nombre.trim()) return;
+  fetch('/isp/nube/crear-carpeta', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nombre: nombre.trim() }) })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.ok) { location.reload(); }
+      else { alert('Error: ' + (d.error || 'desconocido')); }
+    })
+    .catch(function() { alert('Error de conexión'); });
+}
+</script>
+<style>
+.mes-cuadro { transition: all 0.15s; border:1px solid transparent; }
+.mes-cuadro:hover { transform: scale(1.05); border-color: var(--primary, #0d6efd) !important; }
+</style>

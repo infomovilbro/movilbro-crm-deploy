@@ -1,0 +1,81 @@
+# CDP scripts
+cdp_*.js
+pw_template.js
+
+# Downloaded files
+isp_*.html
+isp_*.pdf
+isp_*.txt
+*.csv
+
+# Generated files
+test_invoice_output.html
+nube/
+
+# Scripts
+parse_pdf*.js
+extract_*.js
+decode_*.js
+download_*.js
+fetch_*.js
+find_*.js
+check_*.js
+generate_*.js
+resend_email.js
+read_edge_cookies.js
+analyze_*.js
+
+# DB
+movilbro.db
+
+# Temp
+node_modules/
+
+# Secrets
+.opencode/drive-key.json
+.opencode/oauth-config.json
+
+# OAuth utility scripts (contain credentials)
+add_tester.js
+auth_drive_setup.js
+authorize_drive.js
+debug_page.js
+device_oauth.js
+get_oauth_token.js
+get_secret.js
+get_token.js
+migrate_to_drive.js
+playground_oauth.js
+setup_oauth.js
+test_oauth.js
+-w
+cookie.txt
+cookies.txt
+headers*.txt
+*.db-shm
+*.db-wal
+cdrs_page.html
+dashboard.html
+fact_page.html
+kpis_page.html
+nube_error.html
+tienda_page.html
+checkpoint_db.js
+original_tree.json
+movilbro_full.db
+movilbro_recovered.db
+nube.html
+nube_err.html
+nube_full.html
+nube_page.html
+
+# Summary
+ANCHORED_SUMMARY.md
+
+movilbro.db-shm
+movilbro.db-wal
+movilbro_seed.db-shm
+movilbro_seed.db-wal
+
+
+.opencode/oauth-config.json

@@ -1,0 +1,579 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h4 class="mb-1"><i class="bi bi-person-circle text-primary"></i> <%= cliente.nombre %> <%= cliente.apellidos || '' %></h4>
+      <small class="text-muted"><%= cliente.dni_nif || '' %> &middot; #<%= cliente.id %></small>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="/customers/<%= cliente.id %>" class="btn btn-sm btn-outline-info"><i class="bi bi-box-arrow-up-right"></i> Ficha principal</a>
+      <a href="/isp/clientes" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i> Volver</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header p-0">
+      <ul class="nav nav-tabs card-header-tabs mx-2 mt-2" id="detalleTab" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="info-tab" data-bs-toggle="tab" data-bs-target="#info" type="button" role="tab" aria-controls="info" aria-selected="true">
+            <i class="bi bi-info-circle"></i> Informaci&oacute;n
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="lineas-tab" data-bs-toggle="tab" data-bs-target="#lineas" type="button" role="tab" aria-controls="lineas" aria-selected="false">
+            <i class="bi bi-phone"></i> L&iacute;neas
+            <% if (lineas.length > 0) { %><span class="badge bg-secondary ms-1"><%= lineas.length %></span><% } %>
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="documentos-tab" data-bs-toggle="tab" data-bs-target="#documentos" type="button" role="tab" aria-controls="documentos" aria-selected="false">
+            <i class="bi bi-file-earmark-text"></i> Documentos KYC
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="ordenes-tab" data-bs-toggle="tab" data-bs-target="#ordenes" type="button" role="tab" aria-controls="ordenes" aria-selected="false">
+            <i class="bi bi-cart"></i> &Oacute;rdenes
+            <% if (altasOrdenes.length > 0) { %><span class="badge bg-secondary ms-1"><%= altasOrdenes.length %></span><% } %>
+          </button>
+        </li>
+      </ul>
+    </div>
+    <div class="card-body">
+      <div class="tab-content" id="detalleTabContent">
+
+        <!-- ==================== TAB 1: INFORMACIÓN ==================== -->
+        <div class="tab-pane fade show active" id="info" role="tabpanel" aria-labelledby="info-tab">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <div class="card h-100 border">
+                <div class="card-header fw-semibold"><i class="bi bi-person"></i> Datos personales</div>
+                <div class="card-body">
+                  <table class="table table-sm mb-0">
+                    <tr><th style="width:100px;">Nombre</th><td><%= cliente.nombre %> <%= cliente.apellidos || '' %></td></tr>
+                    <tr><th>DNI/NIF</th><td><strong><%= cliente.dni_nif || '-' %></strong></td></tr>
+                    <tr><th>Email</th><td><% if (cliente.email) { %><a href="mailto:<%= cliente.email %>"><%= cliente.email %></a><% } else { %>-<% } %></td></tr>
+                    <tr><th>Tel&eacute;fono</th><td><% if (cliente.telefono) { %><a href="tel:<%= cliente.telefono %>"><%= cliente.telefono %></a><% } else { %>-<% } %></td></tr>
+                    <tr><th>Tel&eacute;fono 2</th><td><%= cliente.telefono2 || '-' %></td></tr>
+                    <tr><th>Tipo</th><td><span class="badge bg-<%= cliente.tipo_cliente === 'empresa' ? 'secondary' : 'primary' %>"><%= cliente.tipo_cliente || 'particular' %></span></td></tr>
+                    <tr><th>Cliente desde</th><td><%= cliente.created_at ? new Date(cliente.created_at).toLocaleDateString('es-ES') : '-' %></td></tr>
+                  </table>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="card h-100 border">
+                <div class="card-header fw-semibold"><i class="bi bi-geo-alt"></i> Direcci&oacute;n y pago</div>
+                <div class="card-body">
+                  <table class="table table-sm mb-0">
+                    <tr><th style="width:100px;">Direcci&oacute;n</th><td><%= cliente.direccion || '-' %><%= cliente.ciudad ? ', ' + cliente.ciudad : '' %><%= cliente.provincia ? ', ' + cliente.provincia : '' %><%= cliente.codigo_postal ? ' (' + cliente.codigo_postal + ')' : '' %></td></tr>
+                    <tr><th>M&eacute;todo pago</th><td><% if (cliente.metodo_pago) { %><span class="badge bg-info"><i class="bi bi-credit-card"></i> <%= cliente.metodo_pago %></span><% } else { %>-<% } %></td></tr>
+                    <tr><th>IBAN</th><td><% if (cliente.iban) { %><code><%= cliente.iban %></code><% } else { %>-<% } %></td></tr>
+                    <% if (cliente.stripe_payment_method) { %>
+                    <tr><th>Stripe PM</th><td><small class="text-muted"><%= cliente.stripe_payment_method %></small></td></tr>
+                    <% } %>
+                  </table>
+                </div>
+              </div>
+            </div>
+            <% if (cliente.notas) { %>
+            <div class="col-12">
+              <div class="card border">
+                <div class="card-header fw-semibold"><i class="bi bi-sticky"></i> Notas</div>
+                <div class="card-body">
+                  <p class="mb-0 text-muted"><%= cliente.notas %></p>
+                </div>
+              </div>
+            </div>
+            <% } %>
+            <% if (contratos.length > 0) { %>
+            <div class="col-12">
+              <div class="card border">
+                <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
+                  <span><i class="bi bi-file-text"></i> Contratos ISP</span>
+                  <a href="/isp/contratos?cliente=<%= cliente.id %>" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i> Ver todos</a>
+                </div>
+                <div class="card-body p-0">
+                  <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                      <thead class="table-light">
+                        <tr><th>#</th><th>Producto</th><th>L&iacute;nea</th><th>Estado</th><th>ICCID</th><th>Alta</th><th></th></tr>
+                      </thead>
+                      <tbody>
+                        <% contratos.forEach(function(c) { %>
+                        <tr>
+                          <td>#<%= c.id %></td>
+                          <td><%= c.producto || c.tarifa || '-' %></td>
+                          <td><strong><%= c.linea || '-' %></strong></td>
+                          <td><span class="badge bg-<%= c.estado === 'activo' ? 'success' : c.estado === 'pendiente' ? 'warning' : c.estado === 'baja' ? 'secondary' : 'danger' %>"><%= c.estado %></span></td>
+                          <td><small class="text-muted"><%= c.iccid || '-' %></small></td>
+                          <td><small><%= c.fecha_alta ? new Date(c.fecha_alta).toLocaleDateString('es-ES') : '-' %></small></td>
+                          <td class="text-end">
+                            <a href="/isp/contratos/<%= c.id %>" class="btn btn-sm btn-outline-info"><i class="bi bi-eye"></i></a>
+                          </td>
+                        </tr>
+                        <% }) %>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <% } %>
+          </div>
+        </div>
+
+        <!-- ==================== TAB 2: LÍNEAS ==================== -->
+        <div class="tab-pane fade" id="lineas" role="tabpanel" aria-labelledby="lineas-tab">
+          <% if (lineas.length === 0) { %>
+          <div class="text-center text-muted py-5">
+            <i class="bi bi-phone" style="font-size:3rem;"></i>
+            <p class="mt-2">Este cliente no tiene l&iacute;neas asignadas</p>
+          </div>
+          <% } else { %>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-dark">
+                <tr>
+                  <th>L&iacute;nea</th>
+                  <th>Producto / Tarifa</th>
+                  <th>Estado</th>
+                  <th>ICCID</th>
+                  <th>PIN / PUK</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% lineas.forEach(function(l) { %>
+                <tr>
+                  <td><strong><%= l.linea || '-' %></strong></td>
+                  <td><%= l.producto || '-' %></td>
+                  <td>
+                    <span class="badge bg-<%= l.estado === 'activo' ? 'success' : l.estado === 'pendiente' ? 'warning' : l.estado === 'baja' ? 'secondary' : 'danger' %> fs-6">
+                      <%= l.estado %>
+                    </span>
+                  </td>
+                  <td><small class="text-muted"><%= l.iccid || '-' %></small></td>
+                  <td>
+                    <% if (l.pin || l.puk) { %>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="mostrarPinPuk('<%= l.linea %>', '<%= l.pin %>', '<%= l.puk %>')">
+                      <i class="bi bi-key"></i> Ver PIN/PUK
+                    </button>
+                    <% } else { %>
+                    <span class="text-muted">-</span>
+                    <% } %>
+                  </td>
+                  <td>
+                    <div class="d-flex gap-1 flex-wrap">
+                      <button class="btn btn-sm btn-outline-info ver-consumo" data-line="<%= l.linea %>" data-client="<%= cliente.id %>" <%= l.linea ? '' : 'disabled' %>>
+                        <i class="bi bi-graph-up"></i> Consumo
+                      </button>
+                      <button class="btn btn-sm btn-outline-<%= l.estado === 'activo' ? 'warning' : 'success' %> toggle-block" data-line="<%= l.linea %>" data-client="<%= cliente.id %>" data-blocked="<%= l.estado !== 'activo' %>" <%= l.linea ? '' : 'disabled' %>>
+                        <% if (l.estado === 'activo') { %><i class="bi bi-lock"></i> Bloquear<% } else { %><i class="bi bi-unlock"></i> Desbloquear<% } %>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+          <% } %>
+
+          <% if (apiSubs && apiSubs.length > 0) { %>
+          <hr class="my-3">
+          <h6 class="text-muted"><i class="bi bi-cloud"></i> Suscripciones desde API</h6>
+          <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle">
+              <thead class="table-light">
+                <tr><th>L&iacute;nea</th><th>Producto</th><th>Estado</th><th>Alta</th></tr>
+              </thead>
+              <tbody>
+                <% apiSubs.forEach(function(s) { %>
+                <tr class="table-info">
+                  <td><strong><%= s.linea || '-' %></strong></td>
+                  <td><%= s.producto || '-' %></td>
+                  <td><span class="badge bg-<%= s.estado === 'activa' ? 'success' : s.estado === 'suspendida' ? 'warning' : 'danger' %>"><%= s.estado %></span></td>
+                  <td><small><%= s.fecha_alta ? new Date(s.fecha_alta).toLocaleDateString('es-ES') : '-' %></small></td>
+                </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+          <% } %>
+        </div>
+
+        <!-- ==================== TAB 3: DOCUMENTOS KYC ==================== -->
+        <div class="tab-pane fade" id="documentos" role="tabpanel" aria-labelledby="documentos-tab">
+          <% if (altasOrdenes.length === 0) { %>
+          <div class="text-center text-muted py-5">
+            <i class="bi bi-file-earmark-text" style="font-size:3rem;"></i>
+            <p class="mt-2">No hay &oacute;rdenes de alta con documentos KYC</p>
+          </div>
+          <% } else { %>
+            <% altasOrdenes.forEach(function(o, oidx) { %>
+            <% var datosCliente = o.datos_cliente ? JSON.parse(o.datos_cliente) : {}; %>
+            <% var datosProducto = o.datos_producto ? JSON.parse(o.datos_producto) : {}; %>
+            <div class="card border mb-3">
+              <div class="card-header d-flex justify-content-between align-items-center">
+                <span class="fw-semibold">
+                  <i class="bi bi-cart"></i> Orden #<%= o.id %>
+                  <span class="badge bg-<%= o.estado === 'completada' ? 'success' : o.estado === 'pendiente_kyc' ? 'warning' : o.estado === 'pendiente_aprobacion' ? 'info' : o.estado === 'cancelada' ? 'danger' : 'secondary' %> ms-2"><%= o.estado %></span>
+                </span>
+                <small class="text-muted"><%= new Date(o.created_at).toLocaleDateString('es-ES') %></small>
+              </div>
+              <div class="card-body">
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <table class="table table-sm mb-0">
+                      <tr><th style="width:120px;">Producto</th><td><%= datosProducto.producto_id || '-' %></td></tr>
+                      <tr><th>Contrataci&oacute;n</th><td><%= datosProducto.tipo_contratacion || '-' %></td></tr>
+                      <tr><th>M&eacute;todo pago</th><td><%= (o.datos_pago ? JSON.parse(o.datos_pago).metodo : '') || '-' %></td></tr>
+                      <tr><th>KYC docs</th><td><%= o.kyc_docs_subidos || 0 %> subidos<%= o.kyc_completado ? ' &middot; <span class="text-success"><i class="bi bi-check-circle"></i> Completado</span>' : '' %></td></tr>
+                      <tr><th>Contrato firmado</th><td><%= o.kyc_contrato_firmado ? '<span class="text-success"><i class="bi bi-check-circle"></i> S&iacute;</span>' : '<span class="text-warning"><i class="bi bi-clock"></i> Pendiente</span>' %></td></tr>
+                    </table>
+                  </div>
+                  <div class="col-md-6 text-end">
+                    <div class="d-flex gap-2 justify-content-end flex-wrap">
+                      <a href="/kyc/contrato/<%= o.token %>" target="_blank" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-file-text"></i> Ver contrato
+                      </a>
+                      <% if (o.kyc_contrato_firmado) { %>
+                      <button class="btn btn-sm btn-success" onclick="verContratoFirmado('<%= o.token %>')">
+                        <i class="bi bi-file-earmark-check"></i> Contrato firmado
+                      </button>
+                      <% } %>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- KYC Docs for this order -->
+                <% var docsOrden = kycDocsPorOrden && kycDocsPorOrden[o.id] ? kycDocsPorOrden[o.id] : []; %>
+                <% if (docsOrden.length > 0) { %>
+                <hr>
+                <h6 class="mb-2"><i class="bi bi-images"></i> Documentos subidos</h6>
+                <div class="row g-2">
+                  <% docsOrden.forEach(function(d) { %>
+                  <div class="col-md-4 col-6">
+                    <div class="card border h-100">
+                      <div class="card-body text-center py-3">
+                        <i class="bi bi-file-earmark-image" style="font-size:2rem;"></i>
+                        <div class="mt-1"><small><strong><%= d.tipo || 'Documento' %></strong></small></div>
+                        <div class="mt-1">
+                          <span class="badge bg-<%= d.estado === 'subido' ? 'success' : 'warning' %>"><%= d.estado %></span>
+                        </div>
+                        <% if (d.download_url) { %>
+                        <a href="<%= d.download_url %>" target="_blank" class="btn btn-sm btn-outline-primary mt-2">
+                          <i class="bi bi-download"></i> Descargar
+                        </a>
+                        <% } else if (d.archivo) { %>
+                        <a href="/uploads/kyc/<%= d.archivo %>" target="_blank" class="btn btn-sm btn-outline-primary mt-2">
+                          <i class="bi bi-eye"></i> Ver
+                        </a>
+                        <% } %>
+                      </div>
+                    </div>
+                  </div>
+                  <% }) %>
+                </div>
+                <% } %>
+              </div>
+            </div>
+            <% }) %>
+          <% } %>
+
+          <% if (documentos && documentos.length > 0) { %>
+          <hr class="my-3">
+          <h6><i class="bi bi-folder"></i> Documentos ISP</h6>
+          <div class="table-responsive">
+            <table class="table table-sm table-hover">
+              <thead class="table-light">
+                <tr><th>Nombre</th><th>Tipo</th><th>Categor&iacute;a</th><th>Fecha</th><th></th></tr>
+              </thead>
+              <tbody>
+                <% documentos.forEach(function(d) { %>
+                <tr>
+                  <td><%= d.nombre || d.archivo || 'Documento' %></td>
+                  <td><span class="badge bg-secondary"><%= d.tipo || '-' %></span></td>
+                  <td><%= d.categoria || '-' %></td>
+                  <td><small><%= d.created_at ? new Date(d.created_at).toLocaleDateString('es-ES') : '-' %></small></td>
+                  <td>
+                    <% if (d.ruta) { %>
+                    <a href="<%= d.ruta %>" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-download"></i></a>
+                    <% } %>
+                  </td>
+                </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+          <% } %>
+        </div>
+
+        <!-- ==================== TAB 4: ÓRDENES ==================== -->
+        <div class="tab-pane fade" id="ordenes" role="tabpanel" aria-labelledby="ordenes-tab">
+          <% if (altasOrdenes.length === 0) { %>
+          <div class="text-center text-muted py-5">
+            <i class="bi bi-inbox" style="font-size:3rem;"></i>
+            <p class="mt-2">No hay &oacute;rdenes de alta para este cliente</p>
+          </div>
+          <% } else { %>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-dark">
+                <tr>
+                  <th>#</th>
+                  <th>Estado</th>
+                  <th>Producto</th>
+                  <th>KYC</th>
+                  <th>Contrato</th>
+                  <th>Email</th>
+                  <th>Creaci&oacute;n</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <% altasOrdenes.forEach(function(o) { %>
+                <% var dp = o.datos_producto ? JSON.parse(o.datos_producto) : {}; %>
+                <tr>
+                  <td><strong>#<%= o.id %></strong></td>
+                  <td>
+                    <span class="badge bg-<%= o.estado === 'completada' ? 'success' : o.estado === 'pendiente_kyc' ? 'warning' : o.estado === 'pendiente_aprobacion' ? 'info' : o.estado === 'cancelada' ? 'danger' : 'secondary' %> fs-6">
+                      <%= o.estado %>
+                    </span>
+                  </td>
+                  <td><%= dp.producto_id || '-' %></td>
+                  <td>
+                    <% if (o.kyc_completado) { %>
+                    <span class="text-success"><i class="bi bi-check-circle"></i> Completo</span>
+                    <% } else { %>
+                    <span class="text-warning"><small><%= o.kyc_docs_subidos || 0 %>/2 docs</small></span>
+                    <% } %>
+                  </td>
+                  <td>
+                    <% if (o.kyc_contrato_firmado) { %>
+                    <span class="text-success"><i class="bi bi-check-circle"></i> Firmado</span>
+                    <% } else { %>
+                    <span class="text-muted">-</span>
+                    <% } %>
+                  </td>
+                  <td>
+                    <% if (o.email_enviado) { %>
+                    <span class="text-success"><i class="bi bi-check-circle"></i> Enviado</span>
+                    <% if (o.email_leido) { %><small class="text-info ms-1">(Le&iacute;do x<%= o.email_veces_leido || 1 %>)</small><% } %>
+                    <% } else { %>
+                    <span class="text-muted">No</span>
+                    <% } %>
+                  </td>
+                  <td><small><%= new Date(o.created_at).toLocaleDateString('es-ES') %></small></td>
+                  <td class="text-end">
+                    <div class="d-flex gap-1">
+                      <a href="/kyc/<%= o.token %>" target="_blank" class="btn btn-sm btn-outline-info" title="Abrir KYC">
+                        <i class="bi bi-box-arrow-up-right"></i>
+                      </a>
+                      <a href="/kyc/contrato/<%= o.token %>" target="_blank" class="btn btn-sm btn-outline-primary" title="Ver contrato">
+                        <i class="bi bi-file-text"></i>
+                      </a>
+                    </div>
+                  </td>
+                </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+          <% } %>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PIN/PUK Modal -->
+<div class="modal fade" id="pinPukModal" tabindex="-1">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-key"></i> PIN / PUK</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center">
+        <p class="mb-2"><strong>L&iacute;nea:</strong> <span id="pinPukLinea" class="text-primary"></span></p>
+        <div class="row g-2">
+          <div class="col-6">
+            <div class="border rounded p-3 bg-light">
+              <small class="text-muted d-block">PIN</small>
+              <strong id="pinPukPin" style="font-size:1.3rem;letter-spacing:2px;">-</strong>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="border rounded p-3 bg-light">
+              <small class="text-muted d-block">PUK</small>
+              <strong id="pinPukPuk" style="font-size:1.3rem;letter-spacing:2px;">-</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer justify-content-center">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Consumption Modal -->
+<div class="modal fade" id="consumptionModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-graph-up"></i> Consumo - <span id="consLineNumber"></span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-md-5">
+            <canvas id="consGBChart" height="200"></canvas>
+          </div>
+          <div class="col-md-7">
+            <table class="table table-sm table-bordered mb-0">
+              <tr><th>Total GB</th><td id="consTotalGB">-</td></tr>
+              <tr><th>Usados GB</th><td id="consUsedGB">-</td></tr>
+              <tr><th>Restantes GB</th><td id="consRemainingGB">-</td></tr>
+              <tr><th>Roaming GB</th><td id="consRoamingGB">-</td></tr>
+            </table>
+          </div>
+        </div>
+        <hr>
+        <h6 class="mt-3"><i class="bi bi-telephone"></i> Llamadas recientes (CDRs)</h6>
+        <div style="max-height:300px;overflow:auto">
+          <table class="table table-sm table-striped mb-0">
+            <thead><tr><th>Fecha</th><th>Tipo</th><th>Destino</th><th>Duraci&oacute;n</th><th>Coste</th></tr></thead>
+            <tbody id="cdrsBody"><tr><td colspan="5" class="text-center text-muted">Cargando...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function mostrarPinPuk(linea, pin, puk) {
+  document.getElementById('pinPukLinea').textContent = linea || '-';
+  document.getElementById('pinPukPin').textContent = pin || '-';
+  document.getElementById('pinPukPuk').textContent = puk || '-';
+  new bootstrap.Modal(document.getElementById('pinPukModal')).show();
+}
+
+function verContratoFirmado(token) {
+  window.open('/kyc/contrato/' + token, '_blank');
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  // ====== Ver Consumo ======
+  document.querySelectorAll('.ver-consumo').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var line = this.dataset.line;
+      var clientId = this.dataset.client;
+      if (!line) return;
+      document.getElementById('consLineNumber').textContent = line;
+      document.getElementById('cdrsBody').innerHTML = '<tr><td colspan="5" class="text-center text-muted">Cargando...</td></tr>';
+
+      fetch('/customers/' + clientId + '/line/' + encodeURIComponent(line) + '/consumption', { method: 'POST' })
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+          if (res.ok && res.data) {
+            var d = res.data;
+            var total = parseFloat(d.totalGB || d.total_gb || d.total || 0);
+            var used = parseFloat(d.usedGB || d.used_gb || d.used || d.consumed || 0);
+            var remaining = parseFloat(d.remainingGB || d.remaining_gb || d.remaining || 0);
+            var roaming = parseFloat(d.roamingGB || d.roaming_gb || d.roaming || 0);
+            document.getElementById('consTotalGB').textContent = total.toFixed(2);
+            document.getElementById('consUsedGB').textContent = used.toFixed(2);
+            document.getElementById('consRemainingGB').textContent = remaining.toFixed(2);
+            document.getElementById('consRoamingGB').textContent = roaming.toFixed(2);
+
+            var consCtx = document.getElementById('consGBChart');
+            if (consCtx) {
+              new Chart(consCtx, {
+                type: 'bar',
+                data: {
+                  labels: ['Totales', 'Usados', 'Restantes'],
+                  datasets: [{
+                    label: 'GB',
+                    data: [total, used, remaining],
+                    backgroundColor: ['#17a2b8', '#ffc107', '#28a745']
+                  }]
+                },
+                options: {
+                  animation: false, resizeDelay: 0,
+                  responsive: true, maintainAspectRatio: false,
+                  indexAxis: 'y',
+                  plugins: { legend: { display: false } }
+                }
+              });
+            }
+          } else {
+            document.getElementById('consTotalGB').textContent = 'Error';
+            document.getElementById('consUsedGB').textContent = '-';
+            document.getElementById('consRemainingGB').textContent = '-';
+            document.getElementById('consRoamingGB').textContent = '-';
+          }
+        })
+        .catch(function(err) {
+          console.error('Consumption error:', err);
+          document.getElementById('consTotalGB').textContent = 'Error';
+        });
+
+      fetch('/customers/' + clientId + '/line/' + encodeURIComponent(line) + '/cdrs', { method: 'POST' })
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+          var tbody = document.getElementById('cdrsBody');
+          tbody.innerHTML = '';
+          if (res.ok && Array.isArray(res.data)) {
+            if (res.data.length === 0) {
+              tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Sin registros de llamadas</td></tr>';
+            } else {
+              res.data.forEach(function(cdr) {
+                var tr = document.createElement('tr');
+                tr.innerHTML = '<td class="small">' + (cdr.date || cdr.fecha || cdr.startTime || cdr.start_date || '-') + '</td>' +
+                  '<td>' + (cdr.type || cdr.tipo || cdr.callType || cdr.direction || '-') + '</td>' +
+                  '<td>' + (cdr.destination || cdr.destino || cdr.calledNumber || cdr.callee || '-') + '</td>' +
+                  '<td>' + (cdr.duration || cdr.duracion || cdr.durationSec || cdr.seconds || '-') + '</td>' +
+                  '<td>' + (cdr.cost || cdr.coste || cdr.price || cdr.amount || '-') + '</td>';
+                tbody.appendChild(tr);
+              });
+            }
+          } else {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Sin registros de llamadas</td></tr>';
+          }
+        })
+        .catch(function(err) {
+          console.error('CDRs error:', err);
+          document.getElementById('cdrsBody').innerHTML = '<tr><td colspan="5" class="text-center text-muted">Error al cargar CDRs</td></tr>';
+        });
+
+      new bootstrap.Modal(document.getElementById('consumptionModal')).show();
+    });
+  });
+
+  // ====== Bloquear / Desbloquear ======
+  document.querySelectorAll('.toggle-block').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var line = this.dataset.line;
+      var clientId = this.dataset.client;
+      var blocked = this.dataset.blocked === 'true';
+      if (!line) return;
+      if (!confirm((blocked ? 'Desbloquear' : 'Bloquear') + ' la l&iacute;nea ' + line + '?')) return;
+      fetch('/customers/' + clientId + '/line/' + encodeURIComponent(line) + '/block', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ blocked: !blocked })
+      })
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+          if (res.ok) { location.reload(); }
+          else { alert('Error: ' + (res.error || 'Desconocido')); }
+        })
+        .catch(function(err) { alert('Error: ' + err.message); });
+    });
+  });
+});
+</script>

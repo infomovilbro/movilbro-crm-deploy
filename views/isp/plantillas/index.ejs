@@ -1,0 +1,93 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0"><i class="bi bi-file-text"></i> Plantillas <span class="badge bg-secondary fs-6"><%= plantillas.length %></span></h5>
+    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createPlantillaModal"><i class="bi bi-plus-lg"></i> Nueva Plantilla</button>
+  </div>
+  <div class="card">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle" id="plantillasTable">
+          <thead class="table-dark">
+            <tr>
+              <th>Nombre</th>
+              <th>Tipo</th>
+              <th>Descripci&oacute;n</th>
+              <th>Creaci&oacute;n</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (plantillas.length === 0) { %>
+            <tr><td colspan="5" class="text-center text-muted py-4"><i class="bi bi-file-text"></i> No hay plantillas registradas</td></tr>
+            <% } else { %>
+              <% plantillas.forEach(p => { %>
+              <tr>
+                <td><%= p.nombre %></td>
+                <td><span class="badge bg-info"><%= p.tipo %></span></td>
+                <td><%= p.descripcion || '-' %></td>
+                <td class="small"><%= p.created_at ? new Date(p.created_at).toLocaleDateString('es-ES') : '-' %></td>
+                <td class="text-end">
+                  <button class="btn btn-sm btn-outline-info" onclick="verPlantilla(<%= p.id %>)"><i class="bi bi-eye"></i></button>
+                  <button class="btn btn-sm btn-outline-danger" onclick="eliminarPlantilla(<%= p.id %>)"><i class="bi bi-trash"></i></button>
+                </td>
+              </tr>
+              <% }) %>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+<div class="modal fade" id="createPlantillaModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-plus-circle"></i> Nueva Plantilla</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="/isp/plantillas/create">
+        <div class="modal-body">
+          <% if (typeof errors !== 'undefined' && errors.length > 0) { %><div class="alert alert-danger"><%= errors.join(', ') %></div><% } %>
+          <div class="mb-3">
+            <label class="form-label">Nombre *</label>
+            <input type="text" name="nombre" class="form-control" required>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Tipo</label>
+              <select name="tipo" class="form-select">
+                <option value="email">Email</option>
+                <option value="documento">Documento</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Descripci&oacute;n</label>
+              <input type="text" name="descripcion" class="form-control">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Contenido</label>
+            <textarea name="contenido" class="form-control" rows="10"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Crear Plantilla</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<script>
+function verPlantilla(id) {
+  window.location.href = '/isp/plantillas/' + id;
+}
+function eliminarPlantilla(id) {
+  if (!confirm('¿Eliminar esta plantilla?')) return;
+  fetch('/isp/plantillas/' + id + '/delete', { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) { if (d.success) location.reload(); else alert('Error al eliminar'); })
+    .catch(function() { alert('Error de conexi&oacute;n'); });
+}
+</script>

@@ -1,0 +1,144 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-credit-card-2-front"></i> Métodos de Pago por Cliente</h2>
+    <a href="/isp/facturacion" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Volver</a>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-body py-2">
+      <div class="row g-2 align-items-center">
+        <div class="col-md-4">
+          <input type="text" class="form-control form-control-sm" id="searchCliente" placeholder="Buscar nombre o email...">
+        </div>
+        <div class="col-md-2">
+          <select class="form-select form-select-sm" id="filterMetodo">
+            <option value="">Todos los métodos</option>
+            <option value="stripe">Stripe</option>
+            <option value="iban">IBAN</option>
+            <option value="efectivo">Efectivo</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <button class="btn btn-outline-secondary btn-sm w-100" id="btnLimpiarFiltros"><i class="bi bi-x-circle"></i> Limpiar</button>
+        </div>
+        <div class="col-md-2 ms-auto">
+          <button class="btn btn-success btn-sm w-100" id="btnGuardarTodos">
+            <i class="bi bi-save"></i> Guardar Cambios
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle" id="clientesPagoTable">
+          <thead class="table-dark">
+            <tr>
+              <th>Nombre</th>
+              <th>Email</th>
+              <th>Método Pago</th>
+              <th>IBAN</th>
+              <th>Stripe ID</th>
+              <th>Pago Activo</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (clientes.length === 0) { %>
+            <tr><td colspan="6" class="text-center text-muted py-4"><i class="bi bi-inbox"></i> No hay clientes registrados</td></tr>
+            <% } else { clientes.forEach(function(c) { %>
+            <tr class="cliente-row" data-id="<%= c.id %>">
+              <td class="fw-semibold"><%= c.nombre %></td>
+              <td><%= c.email || '-' %></td>
+              <td>
+                <select class="form-select form-select-sm edit-metodo" data-field="metodo_pago">
+                  <option value="stripe" <%= c.metodo_pago === 'stripe' ? 'selected' : '' %>>Stripe</option>
+                  <option value="iban" <%= c.metodo_pago === 'iban' ? 'selected' : '' %>>IBAN</option>
+                  <option value="efectivo" <%= c.metodo_pago === 'efectivo' ? 'selected' : '' %>>Efectivo</option>
+                </select>
+              </td>
+              <td>
+                <input type="text" class="form-control form-control-sm edit-iban" data-field="iban" value="<%= c.iban || '' %>" placeholder="ES00 0000 0000 0000 0000 0000">
+              </td>
+              <td><%= c.stripe_id || '-' %></td>
+              <td>
+                <div class="form-check form-switch mb-0 d-flex justify-content-center">
+                  <input type="checkbox" class="form-check-input edit-activo" data-field="pago_activo" role="switch" <%= c.pago_activo ? 'checked' : '' %>>
+                </div>
+              </td>
+            </tr>
+            <% }) } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const searchInput = document.getElementById('searchCliente');
+  const filterMetodo = document.getElementById('filterMetodo');
+  const btnLimpiar = document.getElementById('btnLimpiarFiltros');
+
+  function filtrar() {
+    const q = searchInput ? searchInput.value.toLowerCase().trim() : '';
+    const mt = filterMetodo ? filterMetodo.value : '';
+    document.querySelectorAll('.cliente-row').forEach(function(row) {
+      const nombre = row.querySelector('td:nth-child(1)')?.textContent.toLowerCase() || '';
+      const email = row.querySelector('td:nth-child(2)')?.textContent.toLowerCase() || '';
+      const metodo = row.querySelector('.edit-metodo')?.value || '';
+      const matchTexto = !q || nombre.includes(q) || email.includes(q);
+      const matchMetodo = !mt || metodo === mt;
+      row.style.display = matchTexto && matchMetodo ? '' : 'none';
+    });
+  }
+
+  if (searchInput) searchInput.addEventListener('input', filtrar);
+  if (filterMetodo) filterMetodo.addEventListener('change', filtrar);
+  if (btnLimpiar) btnLimpiar.addEventListener('click', function() {
+    if (searchInput) searchInput.value = '';
+    if (filterMetodo) filterMetodo.value = '';
+    filtrar();
+  });
+
+  document.getElementById('btnGuardarTodos')?.addEventListener('click', function() {
+    const btn = this;
+    const data = [];
+    document.querySelectorAll('.cliente-row').forEach(function(row) {
+      const id = row.dataset.id;
+      if (!id) return;
+      data.push({
+        id: parseInt(id),
+        metodo_pago: row.querySelector('.edit-metodo')?.value || 'efectivo',
+        iban: row.querySelector('.edit-iban')?.value || '',
+        pago_activo: row.querySelector('.edit-activo')?.checked ? 1 : 0
+      });
+    });
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Guardando...';
+    fetch('/isp/facturacion/clientes-pago/actualizar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clientes: data })
+    })
+      .then(r => r.json())
+      .then(d => {
+        if (d.success) {
+          alert('Datos actualizados correctamente');
+        } else {
+          alert('Error: ' + (d.error || 'desconocido'));
+        }
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-save"></i> Guardar Cambios';
+      })
+      .catch(() => {
+        alert('Error de conexión');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-save"></i> Guardar Cambios';
+      });
+  });
+});
+</script>

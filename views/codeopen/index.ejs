@@ -1,0 +1,869 @@
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;600;700&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: #0a0a1a !important;
+  min-height: 100vh;
+  font-family: 'Rajdhani', sans-serif;
+  overflow-x: hidden;
+  color: #e0e0ff;
+}
+
+/* ===== PARTICLES BACKGROUND ===== */
+#particles-canvas {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.particle {
+  position: absolute;
+  background: rgba(100, 200, 255, 0.6);
+  border-radius: 50%;
+  box-shadow: 0 0 6px rgba(100, 200, 255, 0.4);
+  animation: floatStar linear infinite;
+}
+@keyframes floatStar {
+  0% { transform: translateY(100vh) rotate(0deg) scale(0); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(-10vh) rotate(720deg) scale(1); opacity: 0; }
+}
+.star-twinkle {
+  position: absolute;
+  background: #fff;
+  border-radius: 50%;
+  animation: twinkle ease-in-out infinite alternate;
+}
+@keyframes twinkle {
+  0% { opacity: 0.2; transform: scale(0.5); }
+  100% { opacity: 1; transform: scale(1.2); }
+}
+
+/* ===== SHOOTING STAR ===== */
+.shooting-star {
+  position: fixed;
+  width: 3px; height: 3px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 6px 2px rgba(150, 200, 255, 0.8);
+  animation: shoot 3s ease-in-out infinite;
+  z-index: 1;
+  pointer-events: none;
+}
+.shooting-star::after {
+  content: '';
+  position: absolute;
+  top: 50%; left: 0;
+  width: 80px; height: 1px;
+  background: linear-gradient(to left, rgba(150,200,255,0.8), transparent);
+  transform: translateY(-50%);
+}
+.shooting-star:nth-child(1) { top: 10%; left: 80%; animation-delay: 0s; }
+.shooting-star:nth-child(2) { top: 40%; left: 90%; animation-delay: 5s; }
+.shooting-star:nth-child(3) { top: 70%; left: 70%; animation-delay: 10s; }
+@keyframes shoot {
+  0% { transform: translate(0, 0) rotate(-45deg); opacity: 0; }
+  5% { opacity: 1; }
+  30% { transform: translate(-400px, 400px) rotate(-45deg); opacity: 1; }
+  35% { opacity: 0; }
+  100% { opacity: 0; }
+}
+
+/* ===== HEADER ===== */
+.co-header {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  padding: 30px 20px 10px;
+}
+.co-header h1 {
+  font-family: 'Orbitron', monospace;
+  font-size: 2.2rem;
+  font-weight: 900;
+  background: linear-gradient(135deg, #00d4ff, #7b2ff7, #ff6bcb);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: none;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+.co-header .subtitle {
+  color: rgba(255,255,255,0.5);
+  font-size: 0.9rem;
+  letter-spacing: 6px;
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+
+/* ===== MAIN LAYOUT ===== */
+.co-container {
+  position: relative;
+  z-index: 2;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px 40px;
+}
+
+/* ===== GLASSMORPHISM CARD ===== */
+.glass-card {
+  background: rgba(20, 20, 50, 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(100, 200, 255, 0.15);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+  transition: all 0.3s ease;
+}
+.glass-card:hover {
+  border-color: rgba(100, 200, 255, 0.3);
+  box-shadow: 0 8px 40px rgba(100, 200, 255, 0.1), inset 0 1px 0 rgba(255,255,255,0.08);
+  transform: translateY(-2px);
+}
+
+/* ===== INPUT AREA ===== */
+.co-input-area {
+  position: relative;
+  z-index: 2;
+  margin: 20px auto;
+  max-width: 800px;
+}
+.co-input-wrapper {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.co-input-wrapper input {
+  flex: 1;
+  background: rgba(20, 20, 50, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(100, 200, 255, 0.2);
+  border-radius: 12px;
+  padding: 16px 20px;
+  color: #e0e0ff;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  outline: none;
+}
+.co-input-wrapper input:focus {
+  border-color: rgba(100, 200, 255, 0.5);
+  box-shadow: 0 0 20px rgba(100, 200, 255, 0.15);
+}
+.co-input-wrapper input::placeholder {
+  color: rgba(255,255,255,0.3);
+  font-style: italic;
+}
+.co-btn {
+  background: linear-gradient(135deg, #00d4ff, #7b2ff7);
+  border: none;
+  border-radius: 12px;
+  padding: 14px 24px;
+  color: #fff;
+  font-family: 'Orbitron', monospace;
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  position: relative;
+  overflow: hidden;
+}
+.co-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(123, 47, 247, 0.4);
+}
+.co-btn:active { transform: translateY(0); }
+.co-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+.co-btn-mic {
+  background: rgba(20, 20, 50, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(100, 200, 255, 0.2);
+  border-radius: 12px;
+  width: 52px; height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #e0e0ff;
+  font-size: 1.4rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+.co-btn-mic:hover { border-color: rgba(100, 200, 255, 0.5); }
+.co-btn-mic.recording {
+  border-color: #ff3366;
+  color: #ff3366;
+  animation: pulseMic 0.8s ease-in-out infinite;
+  box-shadow: 0 0 20px rgba(255, 51, 102, 0.3);
+}
+@keyframes pulseMic {
+  0%, 100% { box-shadow: 0 0 10px rgba(255, 51, 102, 0.2); }
+  50% { box-shadow: 0 0 30px rgba(255, 51, 102, 0.5); }
+}
+
+/* ===== PROGRESS BAR GENERAL ===== */
+.co-progress-general {
+  position: relative;
+  z-index: 2;
+  max-width: 800px;
+  margin: 16px auto;
+  display: none;
+}
+.co-progress-general.active { display: block; }
+.co-progress-track {
+  width: 100%;
+  height: 4px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.co-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #00d4ff, #7b2ff7, #ff6bcb);
+  background-size: 200% 100%;
+  animation: shimmer 2s linear infinite;
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.co-progress-label {
+  display: flex;
+  justify-content: space-between;
+  color: rgba(255,255,255,0.4);
+  font-size: 0.75rem;
+  margin-top: 4px;
+  letter-spacing: 1px;
+}
+
+/* ===== AGENTS GRID ===== */
+.co-agents-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin: 20px 0;
+  position: relative;
+  z-index: 2;
+}
+.co-agent-card {
+  position: relative;
+  overflow: hidden;
+  padding: 20px;
+  text-align: center;
+  transition: all 0.4s ease;
+}
+.co-agent-card::before {
+  content: '';
+  position: absolute;
+  top: -2px; left: -2px;
+  right: -2px; bottom: -2px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, transparent, rgba(100, 200, 255, 0.1), transparent);
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+.co-agent-card:hover::before { opacity: 1; }
+.co-agent-card.glow {
+  box-shadow: 0 0 30px rgba(100, 200, 255, 0.15);
+  border-color: rgba(100, 200, 255, 0.3);
+}
+.co-agent-card.glow::before { opacity: 1; }
+
+.co-agent-emoji {
+  font-size: 3rem;
+  display: block;
+  margin-bottom: 8px;
+  transition: transform 0.3s ease;
+}
+.co-agent-card:hover .co-agent-emoji { transform: scale(1.15) rotate(5deg); }
+.co-agent-name {
+  font-family: 'Orbitron', monospace;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  margin-bottom: 4px;
+}
+.co-agent-title {
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.4);
+  margin-bottom: 12px;
+  letter-spacing: 1px;
+}
+
+/* Agent status badges */
+.co-agent-status {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  transition: all 0.3s ease;
+}
+.status-waiting {
+  background: rgba(255,255,255,0.05);
+  color: rgba(255,255,255,0.3);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.status-working {
+  background: rgba(0, 212, 255, 0.15);
+  color: #00d4ff;
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  animation: pulseStatus 1s ease-in-out infinite;
+}
+@keyframes pulseStatus {
+  0%, 100% { box-shadow: 0 0 5px rgba(0, 212, 255, 0.2); }
+  50% { box-shadow: 0 0 20px rgba(0, 212, 255, 0.4); }
+}
+.status-done {
+  background: rgba(0, 255, 136, 0.15);
+  color: #00ff88;
+  border: 1px solid rgba(0, 255, 136, 0.3);
+}
+.status-error {
+  background: rgba(255, 51, 102, 0.15);
+  color: #ff3366;
+  border: 1px solid rgba(255, 51, 102, 0.3);
+}
+
+/* Individual progress bar */
+.co-agent-progress {
+  margin-top: 10px;
+  height: 3px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.co-agent-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #00d4ff, #7b2ff7);
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+.co-agent-progress-fill.done { background: linear-gradient(90deg, #00ff88, #00d4ff); }
+.co-agent-progress-fill.error { background: #ff3366; }
+
+/* Agent partial result */
+.co-agent-result {
+  margin-top: 10px;
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.5);
+  text-align: left;
+  max-height: 100px;
+  overflow-y: auto;
+  padding: 8px;
+  background: rgba(0,0,0,0.2);
+  border-radius: 8px;
+  line-height: 1.4;
+  display: none;
+}
+.co-agent-result.visible { display: block; }
+.co-agent-result::-webkit-scrollbar { width: 4px; }
+.co-agent-result::-webkit-scrollbar-track { background: transparent; }
+.co-agent-result::-webkit-scrollbar-thumb { background: rgba(100,200,255,0.3); border-radius: 4px; }
+
+/* ===== FINAL RESPONSE ===== */
+.co-final {
+  position: relative;
+  z-index: 2;
+  margin: 20px auto;
+  max-width: 800px;
+  display: none;
+}
+.co-final.visible { display: block; }
+.co-final-content {
+  padding: 24px;
+  line-height: 1.7;
+  font-size: 0.95rem;
+  color: #d0d0ff;
+}
+.co-final-content h1, .co-final-content h2, .co-final-content h3 {
+  color: #00d4ff;
+  font-family: 'Orbitron', monospace;
+  letter-spacing: 1px;
+  margin: 16px 0 8px;
+}
+.co-final-content h2 { font-size: 1.1rem; }
+.co-final-content h3 { font-size: 0.95rem; }
+.co-final-content code {
+  background: rgba(0, 212, 255, 0.1);
+  color: #00d4ff;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+.co-final-content pre {
+  background: rgba(0,0,0,0.4);
+  padding: 12px;
+  border-radius: 8px;
+  overflow-x: auto;
+  border: 1px solid rgba(100, 200, 255, 0.1);
+  margin: 8px 0;
+}
+.co-final-content pre code { background: none; padding: 0; }
+.co-final-content ul, .co-final-content ol { padding-left: 20px; margin: 8px 0; }
+.co-final-content a { color: #7b2ff7; text-decoration: underline; }
+.co-final-content strong { color: #fff; }
+.co-final-content blockquote {
+  border-left: 3px solid #7b2ff7;
+  padding-left: 12px;
+  margin: 8px 0;
+  color: rgba(255,255,255,0.6);
+}
+
+.co-final-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 24px;
+  border-top: 1px solid rgba(100,200,255,0.1);
+  font-size: 0.8rem;
+  color: rgba(255,255,255,0.4);
+}
+.co-final-actions {
+  display: flex;
+  gap: 8px;
+}
+.co-btn-sm {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 8px;
+  padding: 6px 14px;
+  color: rgba(255,255,255,0.6);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+.co-btn-sm:hover {
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+  border-color: rgba(255,255,255,0.3);
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+  .co-header h1 { font-size: 1.4rem; }
+  .co-agents-grid { grid-template-columns: 1fr 1fr; }
+  .co-input-wrapper { flex-wrap: wrap; }
+  .co-input-wrapper input { min-width: 100%; }
+  .co-btn { width: 100%; text-align: center; }
+}
+@media (max-width: 480px) {
+  .co-agents-grid { grid-template-columns: 1fr; }
+}
+
+/* ===== LOADING DOTS ===== */
+.loading-dots::after {
+  content: '';
+  animation: dots 1.5s steps(4, end) infinite;
+}
+@keyframes dots {
+  0% { content: ''; }
+  25% { content: '.'; }
+  50% { content: '..'; }
+  75% { content: '...'; }
+  100% { content: ''; }
+}
+
+/* ===== TIMER ===== */
+.co-timer {
+  font-family: 'Orbitron', monospace;
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.3);
+  letter-spacing: 2px;
+}
+</style>
+
+<!-- PARTICLES -->
+<div id="particles-canvas"></div>
+<div class="shooting-star"></div>
+<div class="shooting-star"></div>
+<div class="shooting-star"></div>
+
+<!-- HEADER -->
+<div class="co-header">
+  <h1>⌘ CodeOpen</h1>
+  <div class="subtitle">Sistema Multi-Agente Inteligente</div>
+</div>
+
+<div class="co-container">
+  <!-- INPUT -->
+  <div class="co-input-area">
+    <div class="co-input-wrapper">
+      <input type="text" id="coQuestion" placeholder="🔭 ¿Qué necesitas analizar en el CRM? Ej: 'Analiza las facturas pendientes y sugiere mejoras'"
+             autocomplete="off" onkeydown="if(event.key==='Enter') sendQuery()">
+      <button class="co-btn-mic" id="coMicBtn" onclick="toggleMic()" title="Grabar voz">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+          <line x1="12" y1="19" x2="12" y2="23"/>
+          <line x1="8" y1="23" x2="16" y2="23"/>
+        </svg>
+      </button>
+      <button class="co-btn" id="coSendBtn" onclick="sendQuery()">
+        ▶ Ejecutar
+      </button>
+    </div>
+  </div>
+
+  <!-- PROGRESS GENERAL -->
+  <div class="co-progress-general" id="coProgressGeneral">
+    <div class="co-progress-track">
+      <div class="co-progress-fill" id="coProgressFill"></div>
+    </div>
+    <div class="co-progress-label">
+      <span id="coProgressText">Iniciando agentes...</span>
+      <span class="co-timer" id="coTimer">00:00</span>
+    </div>
+  </div>
+
+  <!-- AGENTS -->
+  <div class="co-agents-grid" id="coAgentsGrid">
+    <div class="glass-card co-agent-card" data-agent="orion">
+      <span class="co-agent-emoji">🔭</span>
+      <div class="co-agent-name">Orion</div>
+      <div class="co-agent-title">Analista de Requisitos</div>
+      <div class="co-agent-status status-waiting" id="status-orion">Esperando</div>
+      <div class="co-agent-progress"><div class="co-agent-progress-fill" id="progress-orion"></div></div>
+      <div class="co-agent-result" id="result-orion"></div>
+    </div>
+    <div class="glass-card co-agent-card" data-agent="nova">
+      <span class="co-agent-emoji">🛸</span>
+      <div class="co-agent-name">Nova</div>
+      <div class="co-agent-title">Investigadora de Datos</div>
+      <div class="co-agent-status status-waiting" id="status-nova">Esperando</div>
+      <div class="co-agent-progress"><div class="co-agent-progress-fill" id="progress-nova"></div></div>
+      <div class="co-agent-result" id="result-nova"></div>
+    </div>
+    <div class="glass-card co-agent-card" data-agent="kronos">
+      <span class="co-agent-emoji">⚡</span>
+      <div class="co-agent-name">Kronos</div>
+      <div class="co-agent-title">Generador Técnico</div>
+      <div class="co-agent-status status-waiting" id="status-kronos">Esperando</div>
+      <div class="co-agent-progress"><div class="co-agent-progress-fill" id="progress-kronos"></div></div>
+      <div class="co-agent-result" id="result-kronos"></div>
+    </div>
+    <div class="glass-card co-agent-card" data-agent="atlas">
+      <span class="co-agent-emoji">🛡️</span>
+      <div class="co-agent-name">Atlas</div>
+      <div class="co-agent-title">Revisor de Calidad</div>
+      <div class="co-agent-status status-waiting" id="status-atlas">Esperando</div>
+      <div class="co-agent-progress"><div class="co-agent-progress-fill" id="progress-atlas"></div></div>
+      <div class="co-agent-result" id="result-atlas"></div>
+    </div>
+    <div class="glass-card co-agent-card" data-agent="ether" style="grid-column: 1 / -1; max-width: 500px; margin: 0 auto;">
+      <span class="co-agent-emoji">🌀</span>
+      <div class="co-agent-name">Ether</div>
+      <div class="co-agent-title">Sintetizador</div>
+      <div class="co-agent-status status-waiting" id="status-ether">Esperando</div>
+      <div class="co-agent-progress"><div class="co-agent-progress-fill" id="progress-ether"></div></div>
+      <div class="co-agent-result" id="result-ether"></div>
+    </div>
+  </div>
+
+  <!-- FINAL RESPONSE -->
+  <div class="glass-card co-final" id="coFinal">
+    <div class="co-final-content" id="coFinalContent"></div>
+    <div class="co-final-meta">
+      <span id="coFinalTime"></span>
+      <div class="co-final-actions">
+        <button class="co-btn-sm" onclick="copyFinal()">📋 Copiar</button>
+        <button class="co-btn-sm" onclick="resetAll()">🔄 Nueva consulta</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function generateParticles() {
+  const canvas = document.getElementById('particles-canvas');
+  for (let i = 0; i < 80; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    const size = Math.random() * 3 + 1;
+    p.style.width = size + 'px';
+    p.style.height = size + 'px';
+    p.style.left = Math.random() * 100 + '%';
+    p.style.animationDuration = (Math.random() * 20 + 15) + 's';
+    p.style.animationDelay = (Math.random() * 20) + 's';
+    canvas.appendChild(p);
+  }
+  for (let i = 0; i < 40; i++) {
+    const s = document.createElement('div');
+    s.className = 'star-twinkle';
+    const sz = Math.random() * 2 + 1;
+    s.style.width = sz + 'px';
+    s.style.height = sz + 'px';
+    s.style.top = Math.random() * 100 + '%';
+    s.style.left = Math.random() * 100 + '%';
+    s.style.animationDuration = (Math.random() * 3 + 2) + 's';
+    s.style.animationDelay = (Math.random() * 5) + 's';
+    canvas.appendChild(s);
+  }
+})();
+
+let currentTaskId = null;
+let pollInterval = null;
+let timerInterval = null;
+let startTime = null;
+let recognition = null;
+let isRecording = false;
+
+// Web Speech API
+if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SpeechRecognition();
+  recognition.lang = 'es-ES';
+  recognition.continuous = false;
+  recognition.interimResults = true;
+  recognition.onresult = function(event) {
+    let transcript = '';
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      transcript += event.results[i][0].transcript;
+    }
+    document.getElementById('coQuestion').value = transcript;
+  };
+  recognition.onend = function() {
+    stopMic();
+    const val = document.getElementById('coQuestion').value.trim();
+    if (val) sendQuery();
+  };
+  recognition.onerror = function() {
+    stopMic();
+  };
+}
+
+function toggleMic() {
+  if (!recognition) {
+    alert('Reconocimiento de voz no disponible en este navegador. Usa Chrome/Edge.');
+    return;
+  }
+  if (isRecording) {
+    recognition.stop();
+    stopMic();
+  } else {
+    isRecording = true;
+    document.getElementById('coMicBtn').classList.add('recording');
+    recognition.start();
+  }
+}
+
+function stopMic() {
+  isRecording = false;
+  document.getElementById('coMicBtn').classList.remove('recording');
+}
+
+function startTimer() {
+  startTime = Date.now();
+  clearInterval(timerInterval);
+  timerInterval = setInterval(function() {
+    const elapsed = Date.now() - startTime;
+    const secs = Math.floor(elapsed / 1000);
+    const mins = String(Math.floor(secs / 60)).padStart(2, '0');
+    const sss = String(secs % 60).padStart(2, '0');
+    document.getElementById('coTimer').textContent = mins + ':' + sss;
+  }, 200);
+}
+
+function stopTimer() {
+  clearInterval(timerInterval);
+}
+
+async function sendQuery() {
+  const input = document.getElementById('coQuestion');
+  const question = input.value.trim();
+  if (!question) { input.focus(); return; }
+
+  resetAll();
+  document.getElementById('coProgressGeneral').classList.add('active');
+  document.getElementById('coSendBtn').disabled = true;
+  document.getElementById('coSendBtn').textContent = '...';
+  startTimer();
+
+  try {
+    const r = await fetch('/codeopen/ask', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question })
+    });
+    const data = await r.json();
+    if (data.error) { alert(data.error); resetAll(); return; }
+    currentTaskId = data.taskId;
+    pollInterval = setInterval(function() { pollStatus(); }, 800);
+  } catch (e) {
+    alert('Error al enviar consulta: ' + e.message);
+    resetAll();
+  }
+}
+
+async function pollStatus() {
+  if (!currentTaskId) return;
+  try {
+    const r = await fetch('/codeopen/status/' + currentTaskId);
+    const data = await r.json();
+    if (data.error) { clearInterval(pollInterval); return; }
+    updateAgents(data);
+    updateProgress(data);
+    if (data.done) {
+      clearInterval(pollInterval);
+      stopTimer();
+      document.getElementById('coSendBtn').disabled = false;
+      document.getElementById('coSendBtn').textContent = '▶ Ejecutar';
+      showFinal(data);
+    }
+  } catch (e) {
+    // ignore polling errors
+  }
+}
+
+function updateAgents(data) {
+  const agents = data.agents;
+  Object.keys(agents).forEach(function(name) {
+    const agent = agents[name];
+    const statusEl = document.getElementById('status-' + name);
+    const progressEl = document.getElementById('progress-' + name);
+    const resultEl = document.getElementById('result-' + name);
+    const card = document.querySelector('[data-agent="' + name + '"]');
+
+    statusEl.className = 'co-agent-status';
+    if (agent.status === 'waiting') {
+      statusEl.classList.add('status-waiting');
+      statusEl.textContent = 'Esperando';
+      card.classList.remove('glow');
+    } else if (agent.status === 'working') {
+      statusEl.classList.add('status-working');
+      statusEl.textContent = 'Trabajando' + (name === 'ether' ? '' : '') + '...';
+      card.classList.add('glow');
+    } else if (agent.status === 'done') {
+      statusEl.classList.add('status-done');
+      statusEl.textContent = 'Completado ✓';
+      card.classList.remove('glow');
+      progressEl.classList.add('done');
+    } else if (agent.status === 'error') {
+      statusEl.classList.add('status-error');
+      statusEl.textContent = 'Error ✗';
+      card.classList.remove('glow');
+      progressEl.classList.add('error');
+    }
+
+    progressEl.style.width = agent.progress + '%';
+
+    if (agent.result && agent.status !== 'waiting') {
+      resultEl.textContent = agent.result.substring(0, 300) + (agent.result.length > 300 ? '...' : '');
+      resultEl.classList.add('visible');
+    }
+  });
+}
+
+function updateProgress(data) {
+  const agents = data.agents;
+  const names = Object.keys(agents);
+  let totalProgress = 0;
+  names.forEach(function(n) { totalProgress += agents[n].progress; });
+  const avg = Math.round(totalProgress / names.length);
+  document.getElementById('coProgressFill').style.width = avg + '%';
+
+  const statuses = names.map(function(n) { return agents[n].status; });
+  const working = statuses.filter(function(s) { return s === 'working'; }).length;
+  const done = statuses.filter(function(s) { return s === 'done' || s === 'error'; }).length;
+  const total = names.length;
+  document.getElementById('coProgressText').textContent = done + '/' + total + ' agentes completados';
+}
+
+function showFinal(data) {
+  const final = document.getElementById('coFinal');
+  const content = document.getElementById('coFinalContent');
+  const elapsed = Math.floor(data.elapsed / 1000);
+  const mins = Math.floor(elapsed / 60);
+  const secs = elapsed % 60;
+
+  let responseText = data.finalResponse || data.agents.ether.result || 'No se generó respuesta.';
+  responseText = marked(responseText);
+  content.innerHTML = responseText;
+
+  document.getElementById('coFinalTime').textContent = '⏱️ ' + mins + 'm ' + secs + 's | Pregunta: ' + escapeHtml(data.question.substring(0, 80)) + (data.question.length > 80 ? '...' : '');
+  final.classList.add('visible');
+  final.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+  document.getElementById('coProgressFill').style.width = '100%';
+  document.getElementById('coProgressText').textContent = 'Completado';
+}
+
+function marked(text) {
+  text = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  text = text.replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+  text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
+  text = text.replace(/### (.+)/g, '<h3>$1</h3>');
+  text = text.replace(/## (.+)/g, '<h2>$1</h2>');
+  text = text.replace(/# (.+)/g, '<h1>$1</h1>');
+  text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  text = text.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  text = text.replace(/^- (.+)/gm, '<li>$1</li>');
+  text = text.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
+  text = text.replace(/\n\n/g, '</p><p>');
+  text = text.replace(/\n/g, '<br>');
+  text = '<p>' + text + '</p>';
+  return text;
+}
+
+function escapeHtml(text) {
+  const d = document.createElement('div');
+  d.textContent = text;
+  return d.innerHTML;
+}
+
+function copyFinal() {
+  const el = document.getElementById('coFinalContent');
+  const text = el.textContent || el.innerText;
+  navigator.clipboard.writeText(text).then(function() {
+    const btn = event.target;
+    const orig = btn.textContent;
+    btn.textContent = '✅ Copiado';
+    setTimeout(function() { btn.textContent = orig; }, 2000);
+  }).catch(function() { alert('No se pudo copiar'); });
+}
+
+function resetAll() {
+  currentTaskId = null;
+  clearInterval(pollInterval);
+  stopTimer();
+  document.getElementById('coProgressGeneral').classList.remove('active');
+  document.getElementById('coProgressFill').style.width = '0%';
+  document.getElementById('coSendBtn').disabled = false;
+  document.getElementById('coSendBtn').textContent = '▶ Ejecutar';
+  document.getElementById('coFinal').classList.remove('visible');
+  document.getElementById('coFinalContent').innerHTML = '';
+  document.getElementById('coTimer').textContent = '00:00';
+
+  ['orion','nova','kronos','atlas','ether'].forEach(function(name) {
+    const statusEl = document.getElementById('status-' + name);
+    const progressEl = document.getElementById('progress-' + name);
+    const resultEl = document.getElementById('result-' + name);
+    const card = document.querySelector('[data-agent="' + name + '"]');
+    statusEl.className = 'co-agent-status status-waiting';
+    statusEl.textContent = 'Esperando';
+    progressEl.style.width = '0%';
+    progressEl.className = 'co-agent-progress-fill';
+    resultEl.textContent = '';
+    resultEl.classList.remove('visible');
+    card.classList.remove('glow');
+  });
+
+  document.getElementById('coQuestion').value = '';
+  document.getElementById('coQuestion').focus();
+}
+</script>

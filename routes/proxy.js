@@ -1,0 +1,164 @@
+const express = require('express');
+const { requireAuth } = require('../middleware/auth');
+const https = require('https');
+const url = require('url');
+const router = express.Router();
+
+// TEST: simple fetch to see what WhatsApp returns
+router.get('/test-whatsapp', requireAuth, function(req, res) {
+  https.get('https://web.whatsapp.com/', {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+    },
+    timeout: 10000
+  }, function(whatsRes) {
+    var chunks = [];
+    console.log('[TestWA] Status:', whatsRes.statusCode);
+    console.log('[TestWA] Headers:', JSON.stringify(whatsRes.headers));
+    
+    whatsRes.on('data', function(c) { chunks.push(c); });
+    whatsRes.on('end', function() {
+      var buf = Buffer.concat(chunks);
+      res.json({
+        status: whatsRes.statusCode,
+        contentType: whatsRes.headers['content-type'],
+        contentEncoding: whatsRes.headers['content-encoding'] || 'none',
+        contentLength: whatsRes.headers['content-length'] || 'chunked',
+        bodyLength: buf.length,
+        firstBytesHex: buf.slice(0, 50).toString('hex'),
+        firstBytesUtf8: buf.slice(0, 200).toString('utf8'),
+        isHTML: buf.slice(0, 9).toString('utf8').startsWith('<!'),
+        hasApp: buf.toString('utf8').includes('id="app"')
+      });
+    });
+  }).on('error', function(e) {
+    res.json({ error: e.message });
+  });
+});
+
+// Simplified proxy - just fetch and pipe, no patching
+// This is the DIAGNOSTIC version to find the bug
+router.all('/:target(*)', requireAuth, (req, res) => {
+  const target = req.params.target;
+  if (!target) return res.status(400).send('No target specified');
+
+  let targetUrl = target.startsWith('http') ? target : 'https://' + target;
+  var qs = req.url.indexOf('?');
+  if (qs >= 0) targetUrl += req.url.substring(qs);
+  const parsed = url.parse(targetUrl);
+  const allowed = {
+    'web.whatsapp.com': { host: 'web.whatsapp.com', protocol: 'https:' },
+    'correo.piensasolutions.com': { host: 'correo.piensasolutions.com', protocol: 'https:' },
+    'dashboard.stripe.com': { host: 'dashboard.stripe.com', protocol: 'https:' },
+    'movilbro-pro-web-2026.web.app': { host: 'movilbro-pro-web-2026.web.app', protocol: 'https:' }
+  };
+  if (!allowed[parsed.hostname]) return res.status(403).send('Target not allowed');
+
+  // Forward headers from browser, override Host
+  // Use MOBILE user-agent for WhatsApp to force QR code display (desktop version removed QR in 2026)
+  var isWA = (parsed.hostname === 'web.whatsapp.com');
+  const headers = {
+    'User-Agent': isWA ? 'Mozilla/5.0 (Linux; Android 14; SM-S928B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.6422.165 Mobile Safari/537.36' : (req.headers['user-agent'] || 'Mozilla/5.0'),
+    'Accept': req.headers['accept'] || '*/*',
+    'Accept-Language': req.headers['accept-language'] || 'es-ES,es;q=0.9',
+    'Host': allowed[parsed.hostname].host
+  };
+  if (req.headers['referer']) headers['Referer'] = req.headers['referer'];
+  if (req.headers['origin']) headers['Origin'] = req.headers['origin'];
+  if (req.headers['sec-fetch-dest']) headers['Sec-Fetch-Dest'] = req.headers['sec-fetch-dest'];
+  if (req.headers['sec-fetch-mode']) headers['Sec-Fetch-Mode'] = req.headers['sec-fetch-mode'];
+  if (req.headers['sec-fetch-site']) headers['Sec-Fetch-Site'] = req.headers['sec-fetch-site'];
+  if (req.headers['x-requested-with']) headers['X-Requested-With'] = req.headers['x-requested-with'];
+  if (req.headers['content-type']) headers['Content-Type'] = req.headers['content-type'];
+  // Forward WhatsApp cookies from browser to WhatsApp server
+  if (req.headers['cookie']) {
+    var waCookies = req.headers['cookie'].split(';').filter(function(c) { return c.trim().startsWith('wa_'); }).join(';');
+    if (waCookies) headers['Cookie'] = waCookies;
+  }
+
+  const proxyReq = https.request(targetUrl, {
+    method: req.method,
+    headers,
+    rejectUnauthorized: true
+  }, (proxyRes) => {
+    // Clean headers
+    const cleanHeaders = {};
+    Object.keys(proxyRes.headers).forEach(function(k) {
+      var lk = k.toLowerCase();
+      if (lk !== 'x-frame-options' && lk !== 'content-security-policy' && lk !== 'strict-transport-security' && lk !== 'transfer-encoding' && lk !== 'set-cookie') {
+        cleanHeaders[k] = proxyRes.headers[k];
+      }
+    });
+    cleanHeaders['X-Frame-Options'] = 'SAMEORIGIN';
+    if (parsed.hostname === 'web.whatsapp.com') {
+      cleanHeaders['Access-Control-Allow-Origin'] = '*';
+    }
+
+    // Forward WhatsApp cookies to browser for subsequent requests
+    var waSetCookies = proxyRes.headers['set-cookie'];
+    if (waSetCookies) {
+      if (typeof waSetCookies === 'string') waSetCookies = [waSetCookies];
+      var waForward = [];
+      waSetCookies.forEach(function(c) {
+        if (c.split('=')[0].startsWith('wa_')) {
+          waForward.push(c.split(';')[0] + '; Path=/; Secure; SameSite=None');
+        }
+      });
+      if (waForward.length > 0) {
+        cleanHeaders['set-cookie'] = waForward;
+      }
+    }
+
+    // For WhatsApp: inject patches into HTML
+    var isWA = (parsed.hostname === 'web.whatsapp.com');
+    var ct = proxyRes.headers['content-type'] || '';
+    if (isWA && ct.includes('text/html')) {
+      var chunks = [];
+      proxyRes.on('data', function(c) { chunks.push(c); });
+      proxyRes.on('end', function() {
+        var body = Buffer.concat(chunks).toString('utf8');
+        
+        // Only patch if we got valid HTML
+        if (body.trim().startsWith('<!')) {
+          // Full patches: WebSocket + XHR + fetch proxy + frame-busting
+          var patches = '<script>' +
+          '/* Force clean state for QR to appear */' +
+          'try{localStorage.clear();sessionStorage.clear();}catch(e){}' +
+          '/* WS proxy */' +
+          'var OW=window.WebSocket;window.WebSocket=function(u,p){if(typeof u==="string"&&u.indexOf("web.whatsapp.com")>=0){u=u.replace("wss://web.whatsapp.com:5222","wss://"+location.host+"/proxy-ws/5222");u=u.replace("wss://web.whatsapp.com","wss://"+location.host+"/proxy-ws/443")}return new OW(u,p)};window.WebSocket.prototype=OW.prototype;' +
+          '/* XHR proxy */' +
+          'var _XPO=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(m,u){if(typeof u==="string"&&u.indexOf("//web.whatsapp.com")>=0){arguments[1]=u.replace(/https?:\\/\\/web\\.whatsapp\\.com\\/|^\\/\\/web\\.whatsapp\\.com\\//,"")}return _XPO.apply(this,arguments)};' +
+          '/* fetch proxy */' +
+          'var _FO=window.fetch;window.fetch=function(u,o){if(typeof u==="string"&&u.indexOf("//web.whatsapp.com")>=0){u=u.replace(/https?:\\/\\/web\\.whatsapp\\.com\\/|^\\/\\/web\\.whatsapp\\.com\\//,"")}return _FO.call(window,u,o)};' +
+          '</script>';
+          body = body.replace('<head>', '<head><base href="/proxy/web.whatsapp.com/">' + patches);
+          body = body.replace(/top\s*!==\s*self/g, 'false');
+          body = body.replace(/self\s*!==\s*top/g, 'false');
+          body = body.replace(/top\.location/g, 'self.location');
+          body = body.replace(/parent\.location/g, 'self.location');
+          body = body.replace(/window\.top/g, 'window.self');
+          
+          console.log('[Proxy] WhatsApp HTML patched, length:', body.length);
+        } else {
+          console.log('[Proxy] WhatsApp returned non-HTML content, length:', body.length, 'first bytes:', body.substring(0, 100).replace(/[^ -~]/g, '.'));
+        }
+        
+        cleanHeaders['content-length'] = Buffer.byteLength(body, 'utf8');
+        res.writeHead(proxyRes.statusCode, cleanHeaders);
+        res.end(body);
+      });
+    } else {
+      res.writeHead(proxyRes.statusCode, cleanHeaders);
+      proxyRes.pipe(res);
+    }
+  });
+
+  proxyReq.on('error', function(e) {
+    console.error('Proxy error:', e.message);
+    if (!res.headersSent) res.status(502).json({ error: e.message });
+  });
+  proxyReq.end();
+});
+
+module.exports = router;

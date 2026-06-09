@@ -1,0 +1,774 @@
+<div class="container-fluid p-0" id="appRoot" style="height:calc(100vh - 60px);display:flex;flex-direction:column;">
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@4.5.0/fonts/remixicon.css" rel="stylesheet">
+
+  <!-- Top Bar -->
+  <div id="catBar" style="padding:12px 20px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex-shrink:0;">
+    <span style="font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-right:8px;">Agentes</span>
+    <div id="categoryPills" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+    <div style="flex-grow:1;"></div>
+    <button id="themeToggle" style="background:none;border:1px solid;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:0.85rem;display:flex;align-items:center;gap:4px;">
+      <i class="ri-moon-line"></i>
+    </button>
+    <button id="pendingBtn" style="background:none;border:1px solid;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:0.85rem;display:flex;align-items:center;gap:4px;position:relative;">
+      <i class="ri-inbox-line"></i>
+      <span id="pendingBadge" style="background:#ef4444;color:#fff;font-size:0.6rem;border-radius:50%;min-width:16px;height:16px;display:none;align-items:center;justify-content:center;position:absolute;top:-4px;right:-4px;font-weight:700;"></span>
+    </button>
+    <button id="whatsappBtn" style="background:none;border:1px solid var(--border);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:0.85rem;display:flex;align-items:center;gap:4px;color:#25D366;">
+      <i class="ri-whatsapp-line"></i>
+      <span id="waStatusText" style="font-size:0.7rem;">Descon.</span>
+    </button>
+    <span id="statusDot" style="width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block;"></span>
+    <span class="theme-muted" style="font-size:0.75rem;">DeepSeek V4 Free</span>
+  </div>
+
+
+
+  <!-- Main -->
+  <div style="flex:1;display:flex;overflow:hidden;position:relative;">
+    <div id="canvasWrap" style="flex:1;overflow-y:auto;overflow-x:hidden;padding:20px;position:relative;">
+      <div id="emptyState" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center;">
+        <div style="font-size:4rem;margin-bottom:16px;opacity:0.4;">
+          <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/><path d="M8 3a3 3 0 0 1 3-3h2a3 3 0 0 1 3 3"/></svg>
+        </div>
+        <h3 style="font-weight:300;margin-bottom:8px;">Panel de Agentes Inteligentes</h3>
+        <p style="max-width:420px;font-size:0.9rem;">Selecciona una categoría y escribe tu consulta. Los agentes trabajarán en paralelo y verás su progreso en tiempo real.</p>
+        <div id="quickExamples" style="margin-top:16px;display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:500px;"></div>
+      </div>
+      <!-- Vista de Contactos WhatsApp -->
+      <div id="waContactsView" style="display:none;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border);">
+          <i class="ri-whatsapp-line" style="color:#25D366;font-size:1.3rem;"></i>
+          <span style="font-weight:600;font-size:0.9rem;">Mensajes WhatsApp</span>
+          <span id="waContactsCount" style="background:var(--border);color:var(--text-muted);font-size:0.7rem;border-radius:10px;padding:2px 8px;"></span>
+          <button id="switchToAgents" style="margin-left:auto;background:none;border:1px solid var(--border);border-radius:8px;padding:4px 12px;cursor:pointer;font-size:0.75rem;color:var(--text-muted);">← Agentes</button>
+        </div>
+        <div id="waContactsList"></div>
+      </div>
+      <div id="agentPipeline" style="display:none;flex-direction:column;gap:0;position:relative;padding:10px 0;"></div>
+      <div id="resultArea" style="display:none;margin-top:20px;"></div>
+    </div>
+    <div id="activitySidebar" style="width:280px;display:none;flex-direction:column;flex-shrink:0;">
+      <div style="padding:12px 16px;font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:1px;">Actividad</div>
+      <div id="activityFeed" style="flex:1;overflow-y:auto;padding:8px;font-size:0.8rem;"></div>
+    </div>
+  </div>
+
+  <!-- Input Bar -->
+  <div style="flex-shrink:0;padding:12px 20px;">
+    <form id="askForm" style="display:flex;gap:10px;align-items:center;">
+      <input type="text" id="askInput" class="form-control" placeholder="Escribe tu consulta para los agentes..." autocomplete="off" style="border-radius:10px;padding:12px 16px;font-size:0.9rem;">
+      <button type="submit" id="askBtn" style="background:linear-gradient(135deg,#6366f1,#0050A1);color:#fff;border:0;border-radius:10px;padding:12px 20px;font-size:0.9rem;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;">
+        <i class="ri-send-plane-2-line"></i> Ejecutar
+      </button>
+    </form>
+  </div>
+
+  <!-- WhatsApp QR Panel -->
+  <div id="waQRPanel" style="position:fixed;top:0;right:-400px;width:380px;height:100vh;background:var(--bg-card);border-left:1px solid var(--border);z-index:1000;transition:right 0.3s ease;display:flex;flex-direction:column;">
+    <div style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);flex-shrink:0;">
+      <span style="font-size:0.85rem;font-weight:600;display:flex;align-items:center;gap:6px;color:#25D366;"><i class="ri-whatsapp-line"></i> WhatsApp Conectar</span>
+      <button id="closeWAQR" style="background:none;border:0;cursor:pointer;font-size:1.2rem;color:var(--text-dim);padding:4px;">&times;</button>
+    </div>
+    <div id="waQRContent" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;">
+      <div style="font-size:0.85rem;color:var(--text-muted);margin-bottom:16px;">
+        Escanea este código QR con tu WhatsApp para conectar el monitor de mensajes.
+      </div>
+      <div id="waQRImageWrap" style="background:#fff;padding:12px;border-radius:12px;display:none;">
+        <img id="waQRImage" src="" alt="QR WhatsApp" style="width:260px;height:260px;image-rendering:pixelated;">
+      </div>
+      <div id="waQRLoading" style="color:var(--text-faint);font-size:0.8rem;">
+        <div class="spinner-border spinner-border-sm"></div> Generando QR...
+      </div>
+      <div id="waQRConnected" style="display:none;color:var(--success);">
+        <i class="ri-checkbox-circle-line" style="font-size:3rem;display:block;margin-bottom:8px;"></i>
+        <strong>WhatsApp Conectado</strong>
+        <div style="font-size:0.8rem;color:var(--text-muted);margin-top:4px;">Los mensajes entrantes aparecerán en Pendientes</div>
+      </div>
+      <div id="waQRError" style="display:none;color:var(--error);font-size:0.8rem;"></div>
+    </div>
+  </div>
+  <div id="waQROverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:999;display:none;"></div>
+
+  <!-- Pending Panel -->
+  <div id="pendingPanel" style="position:fixed;top:0;right:-400px;width:380px;height:100vh;background:var(--bg-card);border-left:1px solid var(--border);z-index:1000;transition:right 0.3s ease;display:flex;flex-direction:column;">
+    <div style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);flex-shrink:0;">
+      <span style="font-size:0.85rem;font-weight:600;display:flex;align-items:center;gap:6px;"><i class="ri-inbox-line"></i> Pendientes</span>
+      <div style="display:flex;gap:4px;">
+        <button id="refreshImapBtn" style="background:var(--accent);color:#fff;border:0;border-radius:6px;padding:4px 10px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-refresh-line"></i> Refrescar</button>
+        <button id="approveAllBtn" style="background:var(--success);color:#fff;border:0;border-radius:6px;padding:4px 10px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-check-double-line"></i> Leídos</button>
+        <button id="clearAllBtn" style="background:var(--error);color:#fff;border:0;border-radius:6px;padding:4px 10px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-delete-bin-line"></i> Borrar</button>
+        <button id="closePending" style="background:none;border:0;cursor:pointer;font-size:1.2rem;color:var(--text-dim);padding:4px;">&times;</button>
+      </div>
+    </div>
+    <div id="pendingList" style="flex:1;overflow-y:auto;padding:8px;"></div>
+  </div>
+  <div id="pendingOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:999;display:none;"></div>
+</div>
+
+<style>
+@keyframes spin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
+:root {
+  --bg-main: #0f0f1a; --bg-card: #1e1e3a; --bg-bar: #1a1a2e;
+  --bg-activity: #15152a; --bg-result: #1a1a3a; --bg-code: #12122a;
+  --border: #2a2a5a; --border-light: #2a2a4a;
+  --text: #ddd; --text-muted: #8888bb; --text-dim: #6666aa;
+  --text-faint: #5555aa; --text-strong: #f0f0ff;
+  --accent: #6366f1; --accent2: #0050A1;
+  --success: #22c55e; --error: #ef4444;
+  --code-bg: #1a1a3a; --code-color: #a78bfa;
+  --scrollbar: #2a2a4a;
+}
+.theme-light {
+  --bg-main: #f5f5ff; --bg-card: #ffffff; --bg-bar: #eef0ff;
+  --bg-activity: #f0f0ff; --bg-result: #ffffff; --bg-code: #f0f0fa;
+  --border: #d0d0e8; --border-light: #ddddf0;
+  --text: #222244; --text-muted: #555577; --text-dim: #7777aa;
+  --text-faint: #9999bb; --text-strong: #111133;
+  --accent: #4f46e5; --accent2: #0050A1;
+  --success: #16a34a; --error: #dc2626;
+  --code-bg: #f0f0fa; --code-color: #7c3aed;
+  --scrollbar: #ccccdd;
+}
+* { scrollbar-width:thin; scrollbar-color:var(--scrollbar) transparent; }
+body { background:var(--bg-main); color:var(--text); }
+#appRoot, #catBar, #activitySidebar, #canvasWrap { background:var(--bg-main); transition:background 0.3s,color 0.3s; }
+#catBar { background:var(--bg-bar); border-bottom:1px solid var(--border-light); color:var(--text-muted); }
+#catBar span:first-child { color:var(--text-dim); }
+#activitySidebar { background:var(--bg-activity); border-left:1px solid var(--border-light); }
+#canvasWrap::-webkit-scrollbar, #activityFeed::-webkit-scrollbar { width:5px; }
+#canvasWrap::-webkit-scrollbar-thumb, #activityFeed::-webkit-scrollbar-thumb { background:var(--scrollbar); border-radius:3px; }
+#emptyState { color:var(--text-faint); }
+#emptyState h3 { color:var(--text-muted); }
+#askInput { background:var(--bg-main); border:1px solid var(--border); color:var(--text); }
+#askInput::placeholder { color:var(--text-dim); }
+#askInput:focus { border-color:var(--accent); box-shadow:0 0 0 2px rgba(99,102,241,0.2); outline:0; }
+#activitySidebar > div:first-child { color:var(--text-dim); border-bottom:1px solid var(--border-light); }
+#themeToggle { border-color:var(--border); color:var(--text-muted); }
+#themeToggle:hover { background:var(--border); color:var(--text); }
+.theme-muted { color:var(--text-dim); }
+@keyframes pulse-ring { 0% { transform:scale(0.8); opacity:0.7; } 50% { transform:scale(1.15); opacity:0.3; } 100% { transform:scale(0.8); opacity:0.7; } }
+@keyframes glow-pulse { 0%,100% { box-shadow:0 0 8px rgba(99,102,241,0.3); } 50% { box-shadow:0 0 20px rgba(99,102,241,0.6); } }
+@keyframes slide-in { 0% { opacity:0; transform:translateY(10px); } 100% { opacity:1; transform:translateY(0); } }
+@keyframes shake { 0%,100% { transform:translateX(0); } 20% { transform:translateX(-4px); } 40% { transform:translateX(4px); } 60% { transform:translateX(-2px); } 80% { transform:translateX(2px); } }
+@keyframes fadeScale { 0% { opacity:0; transform:scale(0.95); } 100% { opacity:1; transform:scale(1); } }
+.agent-card { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:16px; transition:all 0.3s ease; animation:slide-in 0.3s ease; }
+.agent-card.working { border-color:var(--accent); animation:glow-pulse 1.5s infinite; }
+.agent-card.done { border-color:var(--success); }
+.agent-card.error { border-color:var(--error); animation:shake 0.4s ease; }
+.agent-card.waiting { opacity:0.6; }
+.agent-card .card-icon { width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.2rem; }
+.agent-card .card-name { font-weight:600; font-size:0.85rem; color:var(--text); }
+.agent-card .card-desc { font-size:0.75rem; color:var(--text-dim); }
+.agent-card .status-dot { width:10px;height:10px;border-radius:50%;flex-shrink:0; }
+.agent-connector { height:24px; position:relative; display:flex; align-items:center; justify-content:center; }
+.agent-connector::before { content:''; position:absolute; width:2px; height:100%; background:var(--border); }
+.agent-connector.active::before { background:linear-gradient(to bottom,var(--accent),var(--success)); }
+.agent-connector .dot { width:8px; height:8px; border-radius:50%; background:var(--border); position:relative; z-index:1; transition:all 0.3s; }
+.agent-connector.active .dot { background:var(--accent); box-shadow:0 0 10px var(--accent); }
+.progress-bar { height:3px; background:var(--bg-main); border-radius:2px; overflow:hidden; margin-top:8px; }
+.progress-fill { height:100%; border-radius:2px; transition:width 0.5s ease; background:linear-gradient(90deg,var(--accent),var(--success)); }
+.category-pill { padding:6px 16px; border-radius:20px; border:1px solid var(--border); background:transparent; color:var(--text-dim); cursor:pointer; font-size:0.8rem; transition:all 0.2s; display:flex; align-items:center; gap:6px; }
+.category-pill:hover { background:var(--border); color:var(--text); }
+.category-pill.active { background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#fff; border-color:transparent; }
+.step-text { font-size:0.75rem; color:var(--text-dim); margin-top:4px; }
+.result-markdown { line-height:1.7; font-size:0.9rem; color:var(--text); }
+.result-markdown code { background:var(--code-bg); padding:2px 6px; border-radius:4px; font-size:0.85em; color:var(--code-color); }
+.result-markdown pre { background:var(--bg-code); padding:14px; border-radius:10px; border:1px solid var(--border); overflow-x:auto; font-size:0.8rem; }
+.activity-item { padding:6px 10px; border-radius:6px; margin-bottom:4px; animation:slide-in 0.2s ease; display:flex; align-items:start; gap:8px; }
+.activity-item .time { color:var(--text-faint); font-size:0.7rem; white-space:nowrap; margin-top:1px; }
+.activity-item .msg { color:var(--text-muted); font-size:0.75rem; }
+.confirm-bar { display:flex; gap:10px; margin-top:16px; padding:16px; border-radius:12px; animation:fadeScale 0.4s ease; }
+.confirm-bar .btn-confirm { padding:10px 24px; border:0; border-radius:10px; cursor:pointer; font-size:0.9rem; font-weight:600; display:flex; align-items:center; gap:6px; }
+</style>
+
+<script>
+(function() {
+  var categories = {};
+  var currentCategory = 'general';
+  var currentTaskId = null;
+  var lastResponse = '';
+  var isDark = true;
+  var eventSource = null;
+  var pollingTimer = null;
+
+  var els = {};
+  'categoryPills,askForm,askInput,askBtn,agentPipeline,resultArea,emptyState,activityFeed,activitySidebar,quickExamples,statusDot,themeToggle,appRoot'.split(',').forEach(function(id) {
+    els[id] = document.getElementById(id === 'appRoot' ? 'appRoot' : id);
+  });
+
+  function $(id) { return document.getElementById(id); }
+
+  // Theme toggle
+  els.themeToggle.addEventListener('click', function() {
+    isDark = !isDark;
+    document.body.classList.toggle('theme-light', !isDark);
+    els.themeToggle.innerHTML = '<i class="' + (isDark ? 'ri-moon-line' : 'ri-sun-line') + '"></i>';
+    try { localStorage.setItem('codeopen_theme', isDark ? 'dark' : 'light'); } catch(e) {}
+  });
+  try {
+    if (localStorage.getItem('codeopen_theme') === 'light') { isDark = false; document.body.classList.add('theme-light'); els.themeToggle.innerHTML = '<i class="ri-sun-line"></i>'; }
+  } catch(e) {}
+
+  fetch('/codeopen/categories').then(function(r) { return r.json(); }).then(function(data) {
+    categories = data.categories;
+    renderCategoryPills();
+    renderExamples('general');
+  });
+
+  function renderCategoryPills() {
+    els.categoryPills.innerHTML = '';
+    var first = true;
+    for (var key in categories) {
+      var c = categories[key];
+      var pill = document.createElement('div');
+      pill.className = 'category-pill' + (first ? ' active' : '');
+      pill.dataset.cat = key;
+      pill.innerHTML = '<i class="' + c.icon + '" style="color:' + c.color + '"></i> ' + c.name;
+      pill.addEventListener('click', function() { selectCategory(this.dataset.cat); });
+      els.categoryPills.appendChild(pill);
+      if (first) { currentCategory = key; first = false; }
+    }
+  }
+
+  function selectCategory(key) {
+    if (currentTaskId) return;
+    currentCategory = key;
+    document.querySelectorAll('.category-pill').forEach(function(p) { p.classList.remove('active'); });
+    document.querySelector('.category-pill[data-cat="' + key + '"]').classList.add('active');
+    renderExamples(key);
+    if (!els.agentPipeline.querySelector('.agent-card')) {
+      els.emptyState.style.display = 'flex';
+    }
+  }
+
+  function renderExamples(cat) {
+    fetch('/codeopen/examples/' + cat).then(function(r) { return r.json(); }).then(function(data) {
+      els.quickExamples.innerHTML = '';
+      (data.examples || []).slice(0, 4).forEach(function(ex) {
+        var btn = document.createElement('button');
+        btn.textContent = ex.length > 40 ? ex.substring(0, 40) + '...' : ex;
+        btn.style.cssText = 'padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-faint);font-size:0.75rem;cursor:pointer;transition:all 0.2s;';
+        btn.addEventListener('mouseenter', function() { this.style.borderColor = 'var(--accent)'; });
+        btn.addEventListener('mouseleave', function() { this.style.borderColor = 'var(--border)'; });
+        btn.addEventListener('click', function() { els.askInput.value = ex; els.askInput.focus(); });
+        els.quickExamples.appendChild(btn);
+      });
+    });
+  }
+
+  els.askForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    var msg = els.askInput.value.trim();
+    if (!msg || currentTaskId) return;
+    startAgentTask(msg);
+  });
+
+  function startAgentTask(question) {
+    currentTaskId = 'pending';
+    lastResponse = '';
+    els.askInput.disabled = true;
+    els.askBtn.disabled = true;
+    els.askBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    els.emptyState.style.display = 'none';
+    els.activitySidebar.style.display = 'flex';
+    els.resultArea.style.display = 'none';
+    els.resultArea.innerHTML = '';
+    els.agentPipeline.style.display = 'flex';
+    els.agentPipeline.innerHTML = '';
+
+    var cat = categories[currentCategory] || categories.general;
+    cat.agents.forEach(function(a, idx) {
+      if (idx > 0) {
+        var conn = document.createElement('div');
+        conn.className = 'agent-connector'; conn.id = 'conn_' + idx;
+        conn.innerHTML = '<div class="dot"></div>';
+        els.agentPipeline.appendChild(conn);
+      }
+      var card = document.createElement('div');
+      card.className = 'agent-card waiting'; card.id = 'agent_' + a.id;
+      card.innerHTML = '<div style="display:flex;align-items:center;gap:12px;"><div class="card-icon" style="background:var(--bg-main);color:' + cat.color + ';"><i class="' + a.icon + '"></i></div><div style="flex:1;min-width:0;"><div class="card-name">' + a.name + '</div><div class="card-desc">' + a.desc + '</div></div><div class="status-dot" id="sdot_' + a.id + '" style="background:var(--border);"></div></div><div class="progress-bar"><div id="prog_' + a.id + '" class="progress-fill" style="width:0%;"></div></div><div id="step_' + a.id + '" class="step-text">Esperando...</div>';
+      els.agentPipeline.appendChild(card);
+    });
+
+    fetch('/codeopen/ask', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: question, category: currentCategory })
+    }).then(function(r) { return r.json(); }).then(function(data) {
+      currentTaskId = data.taskId;
+      startSSE(data.taskId);
+    }).catch(function() { resetUI(); showError('Error al iniciar tarea'); });
+  }
+
+  function startSSE(taskId) {
+    if (eventSource) eventSource.close();
+    try {
+      eventSource = new EventSource('/codeopen/events/' + taskId);
+      eventSource.addEventListener('agent_step', function(e) { updateAgents(JSON.parse(e.data).agents); });
+      eventSource.addEventListener('agent_done', function(e) {
+        var d = JSON.parse(e.data); updateAgents(d.agents); addActivity(d.agentId, d.result && d.result.substring(0, 80), 'done');
+      });
+      eventSource.addEventListener('done', function(e) {
+        var d = JSON.parse(e.data); updateAgents(d.agents); lastResponse = d.finalResponse || '';
+        showFinalResult(lastResponse); addActivity('completado', 'Respuesta generada', 'done');
+        if (eventSource) { eventSource.close(); eventSource = null; }
+        resetUI(true);
+      });
+      eventSource.addEventListener('error', function() { if (eventSource) { eventSource.close(); eventSource = null; } startPolling(taskId); });
+    } catch(e) { startPolling(taskId); }
+  }
+
+  function startPolling(taskId) {
+    if (pollingTimer) clearInterval(pollingTimer);
+    pollingTimer = setInterval(function() {
+      fetch('/codeopen/status/' + taskId).then(function(r) { return r.json(); }).then(function(data) {
+        if (data.error) { clearInterval(pollingTimer); resetUI(); return; }
+        updateAgents(data.agents);
+        if (data.done) {
+          clearInterval(pollingTimer); lastResponse = data.finalResponse || '';
+          showFinalResult(lastResponse); resetUI(true);
+        }
+      });
+    }, 300);
+  }
+
+  function updateAgents(agents) {
+    for (var id in agents) {
+      var a = agents[id];
+      var card = $('agent_' + id); if (!card) continue;
+      card.className = 'agent-card ' + a.status;
+      var sd = $('sdot_' + id);
+      if (sd) {
+        sd.style.background = a.status === 'done' ? 'var(--success)' : a.status === 'error' ? 'var(--error)' : a.status === 'working' ? 'var(--accent)' : 'var(--border)';
+        sd.style.animation = a.status === 'working' ? 'pulse-ring 1.5s infinite' : 'none';
+      }
+      var p = $('prog_' + id); if (p) p.style.width = (a.progress || 0) + '%';
+      var s = $('step_' + id);
+      if (s) {
+        if (a.steps && a.steps.length > 0) s.textContent = a.steps[a.steps.length - 1].text;
+        else s.textContent = a.status === 'done' ? 'Completado' : a.status === 'error' ? 'Error' : a.status === 'working' ? 'Procesando...' : 'Esperando...';
+      }
+      var keys = Object.keys(agents);
+      var idx = keys.indexOf(id);
+      if (idx > 0) {
+        var conn = $('conn_' + idx);
+        if (conn) conn.className = 'agent-connector' + (a.status === 'working' || a.status === 'done' ? ' active' : '');
+      }
+    }
+  }
+
+  function showFinalResult(text) {
+    var isWhatsAppOrEmail = currentCategory === 'whatsapp' || currentCategory === 'email';
+    if (!text || text.startsWith('Error')) {
+      els.resultArea.innerHTML = '<div style="padding:20px;text-align:center;color:var(--error);">' + (text || 'Error al generar respuesta') + '</div>';
+    } else {
+      var html = '<div style="background:var(--bg-result);border:1px solid var(--border);border-radius:14px;padding:20px;animation:fadeScale 0.4s ease;"><h4 style="color:var(--text-dim);margin-bottom:12px;font-size:0.8rem;text-transform:uppercase;letter-spacing:1px;"><i class="ri-quote-text"></i> Resultado Final</h4><div class="result-markdown">' + formatMarkdown(text) + '</div>';
+      if (isWhatsAppOrEmail) {
+        html += '<div class="confirm-bar" style="background:var(--bg-card);border:1px solid var(--border);"><div style="flex:1;"><div style="font-size:0.8rem;color:var(--text-muted);">¿Quieres que envíe esta respuesta?</div><div style="font-size:0.7rem;color:var(--text-faint);margin-top:2px;">' + (currentCategory === 'whatsapp' ? 'Se enviaría como mensaje WhatsApp' : 'Se enviaría como correo electrónico') + '</div></div><div style="display:flex;gap:8px;"><button class="btn-confirm" onclick="window.confirmSend(true)" style="background:var(--success);color:#fff;">✓ Confirmar y enviar</button><button class="btn-confirm" onclick="window.confirmSend(false)" style="background:var(--error);color:#fff;">✕ Descartar</button></div></div>';
+      }
+      html += '</div>';
+      els.resultArea.innerHTML = html;
+    }
+    els.resultArea.style.display = 'block';
+    els.resultArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    addActivity('resultado', text.substring(0, 100), 'done');
+  }
+
+  window.confirmSend = function(approve) {
+    var bar = els.resultArea.querySelector('.confirm-bar');
+    if (!bar) return;
+    if (approve) {
+      bar.innerHTML = '<div style="display:flex;align-items:center;gap:10px;color:var(--success);"><i class="ri-checkbox-circle-line" style="font-size:1.5rem;"></i><div><strong>Respuesta confirmada</strong><div style="font-size:0.8rem;color:var(--text-muted);">' + (currentCategory === 'whatsapp' ? 'Mensaje listo para enviar por WhatsApp' : 'Correo listo para enviar') + '</div></div></div>';
+      bar.style.borderColor = 'var(--success)';
+      addActivity('confirmado', 'Respuesta aprobada para envío', 'done');
+    } else {
+      bar.innerHTML = '<div style="display:flex;align-items:center;gap:10px;color:var(--text-muted);"><i class="ri-close-circle-line" style="font-size:1.5rem;"></i><div><strong>Respuesta descartada</strong><div style="font-size:0.8rem;color:var(--text-muted);">Puedes pedir una nueva respuesta modificando la consulta</div></div></div>';
+      bar.style.borderColor = 'var(--border)';
+      addActivity('descartado', 'Respuesta no enviada', 'done');
+    }
+  };
+
+  function formatMarkdown(text) {
+    return text
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/### (.+)/g, '<h5 style="color:var(--code-color);margin:12px 0 6px;">$1</h5>')
+      .replace(/## (.+)/g, '<h4 style="color:var(--code-color);margin:14px 0 8px;">$1</h4>')
+      .replace(/# (.+)/g, '<h3 style="margin:16px 0 8px;">$1</h3>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--text-strong);">$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
+      .replace(/\n- (.+)/g, '\n• $1')
+      .replace(/\n/g, '<br>');
+  }
+
+  function addActivity(agentId, text, type) {
+    if (!text) return;
+    var item = document.createElement('div');
+    item.className = 'activity-item';
+    var time = new Date().toLocaleTimeString();
+    var icon = type === 'done' ? 'ri-check-line' : 'ri-arrow-right-line';
+    var color = type === 'done' ? 'var(--success)' : 'var(--accent)';
+    item.innerHTML = '<span class="time">' + time + '</span><i class="' + icon + '" style="color:' + color + ';font-size:0.7rem;margin-top:3px;"></i><span class="msg">' + (agentId !== 'completado' && agentId !== 'confirmado' && agentId !== 'descartado' ? '<strong style="color:' + color + ';">' + agentId + '</strong>: ' : '') + (text.length > 80 ? text.substring(0, 80) + '...' : text) + '</span>';
+    els.activityFeed.insertBefore(item, els.activityFeed.firstChild);
+  }
+
+  function showError(msg) {
+    els.agentPipeline.innerHTML = '<div style="padding:30px;text-align:center;color:var(--error);">' + msg + '</div>';
+  }
+
+  function resetUI(keepResult) {
+    currentTaskId = null;
+    els.askInput.disabled = false;
+    els.askBtn.disabled = false;
+    els.askBtn.innerHTML = '<i class="ri-send-plane-2-line"></i> Ejecutar';
+    if (!keepResult) {
+      els.agentPipeline.style.display = 'none';
+      els.emptyState.style.display = 'flex';
+      els.activitySidebar.style.display = 'none';
+      els.resultArea.style.display = 'none';
+    }
+  }
+
+  // Pending approvals
+  var pendingBtn = $('pendingBtn');
+  var pendingBadge = $('pendingBadge');
+  var pendingPanel = $('pendingPanel');
+  var pendingList = $('pendingList');
+  var pendingOverlay = $('pendingOverlay');
+  var closePending = $('closePending');
+
+  function pollPendingCount() {
+    fetch('/codeopen/pending/count').then(function(r) { return r.json(); }).then(function(d) {
+      if (d.count > 0) {
+        pendingBadge.style.display = 'flex';
+        pendingBadge.textContent = d.count > 99 ? '99+' : d.count;
+      } else {
+        pendingBadge.style.display = 'none';
+      }
+    });
+  }
+
+  pollPendingCount();
+  setInterval(pollPendingCount, 15000);
+
+  pendingBtn.addEventListener('click', function() {
+    pendingPanel.style.right = '0';
+    pendingOverlay.style.display = 'block';
+    loadPendingList();
+  });
+
+  $('approveAllBtn').addEventListener('click', function() {
+    if (!confirm('¿Marcar todos como leídos?')) return;
+    fetch('/codeopen/pending/approve-all', { method: 'POST' }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.ok) { loadPendingList(); pollPendingCount(); }
+    });
+  });
+
+  $('clearAllBtn').addEventListener('click', function() {
+    if (!confirm('¿Borrar todos los mensajes pendientes? Esta acción no se puede deshacer.')) return;
+    fetch('/codeopen/pending/clear', { method: 'POST' }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.ok) { loadPendingList(); pollPendingCount(); }
+    });
+  });
+
+  $('refreshImapBtn').addEventListener('click', function() {
+    var btn = $('refreshImapBtn');
+    btn.disabled = true; btn.innerHTML = '<i class="ri-loader-4-line" style="animation:spin 1s linear infinite"></i> Refrescando...';
+    fetch('/codeopen/refresh-imap', { method: 'POST' }).then(function(r) { return r.json(); }).then(function(d) {
+      console.log('[IMAP] Refresh:', d);
+      setTimeout(function() { loadPendingList(); pollPendingCount(); }, 3000);
+      btn.disabled = false; btn.innerHTML = '<i class="ri-refresh-line"></i> Refrescar';
+    }).catch(function(e) {
+      btn.disabled = false; btn.innerHTML = '<i class="ri-refresh-line"></i> Refrescar';
+    });
+  });
+
+  function closePendingPanel() {
+    pendingPanel.style.right = '-400px';
+    pendingOverlay.style.display = 'none';
+  }
+
+  closePending.addEventListener('click', closePendingPanel);
+  pendingOverlay.addEventListener('click', closePendingPanel);
+
+  function loadPendingList() {
+    pendingList.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-faint);"><div class="spinner-border spinner-border-sm"></div> Cargando...</div>';
+    fetch('/codeopen/pending').then(function(r) { return r.json(); }).then(function(d) {
+      var items = d.pending || [];
+      if (items.length === 0) {
+        pendingList.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-faint);"><i class="ri-inbox-line" style="font-size:2rem;display:block;margin-bottom:8px;opacity:0.4;"></i>No hay pendientes</div>';
+        return;
+      }
+      pendingList.innerHTML = '';
+      items.forEach(function(item) {
+        var card = document.createElement('div');
+        card.style.cssText = 'background:var(--bg-main);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;animation:fadeScale 0.3s ease;';
+        var icon = item.category === 'whatsapp' ? 'ri-whatsapp-line' : 'ri-mail-line';
+        var catColor = item.category === 'whatsapp' ? '#25D366' : '#6366f1';
+        card.style.cursor = 'pointer';
+        card.onclick = function() { toggleWAOverlay(); };
+        var ts = item.created_at || '';
+        try { var d = new Date(ts + 'Z'); ts = d.toLocaleString('es-ES', {timeZone:'Europe/Madrid', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'}); } catch(e) {}
+        card.innerHTML = '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><i class="' + icon + '" style="color:' + catColor + ';font-size:1rem;"></i><strong style="font-size:0.8rem;flex:1;">' + escHtml(item.from_name || 'desconocido') + '</strong><span style="font-size:0.65rem;color:var(--text-faint);">' + ts + '</span></div>' +
+          (item.subject ? '<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;"><strong>Asunto:</strong> ' + escHtml(item.subject) + '</div>' : '') +
+          '<div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">' + escHtml(item.body || '').substring(0, 150) + '</div>' +
+          '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;"><div style="font-size:0.7rem;color:var(--text-faint);margin-bottom:4px;">Respuesta propuesta:</div><div style="font-size:0.75rem;color:var(--text);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">' + escHtml(item.proposed_response || 'Sin respuesta').substring(0, 200) + '</div></div>' +
+          '<div style="display:flex;gap:6px;"><button class="pending-approve" data-id="' + item.id + '" style="flex:1;padding:8px;border:0;border-radius:8px;background:var(--success);color:#fff;font-size:0.8rem;cursor:pointer;font-weight:600;">✓ Aprobar</button><button class="pending-reject" data-id="' + item.id + '" style="flex:1;padding:8px;border:0;border-radius:8px;background:var(--error);color:#fff;font-size:0.8rem;cursor:pointer;font-weight:600;">✕ Rechazar</button></div>';
+        pendingList.appendChild(card);
+      });
+      // Bind approve/reject
+      pendingList.querySelectorAll('.pending-approve').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation(); handlePending(this.dataset.id, 'approve'); });
+      });
+      pendingList.querySelectorAll('.pending-reject').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation(); handlePending(this.dataset.id, 'reject'); });
+      });
+    }).catch(function() {
+      pendingList.innerHTML = '<div style="text-align:center;padding:30px;color:var(--error);">Error al cargar pendientes</div>';
+    });
+  }
+
+  function handlePending(id, action) {
+    fetch('/codeopen/' + action + '/' + id, { method: 'POST', credentials: 'same-origin' }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.ok) {
+        loadPendingList();
+        pollPendingCount();
+      } else {
+        alert(d.error || 'Error');
+      }
+    }).catch(function() { alert('Error de red'); });
+  }
+
+  function escHtml(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  els.askInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); els.askForm.dispatchEvent(new Event('submit')); }
+  });
+
+  // WhatsApp QR Panel
+  var whatsappBtn = $('whatsappBtn');
+  var waQRPanel = $('waQRPanel');
+  var waQROverlay = $('waQROverlay');
+  var closeWAQR = $('closeWAQR');
+  var waQRImage = $('waQRImage');
+  var waQRImageWrap = $('waQRImageWrap');
+  var waQRLoading = $('waQRLoading');
+  var waQRConnected = $('waQRConnected');
+  var waQRError = $('waQRError');
+  var waStatusText = $('waStatusText');
+
+  function pollWAStatus() {
+    fetch('/codeopen/baileys-qr').then(function(r) { return r.json(); }).then(function(d) {
+      var st = d.status || {};
+      if (st.connected) {
+        waStatusText.textContent = 'Conect.';
+        waStatusText.style.color = '#22c55e';
+        waQRLoading.style.display = 'none';
+        waQRImageWrap.style.display = 'none';
+        waQRConnected.style.display = 'block';
+        waQRError.style.display = 'none';
+      } else if (st.hasQR) {
+        waStatusText.textContent = 'QR';
+        waStatusText.style.color = '#f59e0b';
+        waQRImage.src = '/codeopen/baileys-qr-image?' + Date.now();
+        waQRImage.onload = function() {
+          waQRLoading.style.display = 'none';
+          waQRImageWrap.style.display = 'block';
+          waQRConnected.style.display = 'none';
+          waQRError.style.display = 'none';
+        };
+        waQRImage.onerror = function() {
+          waQRLoading.innerHTML = '<div>Error al cargar QR</div>';
+        };
+      } else if (st.error) {
+        waStatusText.textContent = 'Error';
+        waStatusText.style.color = '#ef4444';
+        waQRError.textContent = 'Error: ' + st.error;
+        waQRError.style.display = 'block';
+        waQRLoading.style.display = 'none';
+      } else {
+        waStatusText.textContent = 'Descon.';
+        waStatusText.style.color = '#888';
+      }
+    });
+  }
+
+  pollWAStatus();
+  setInterval(pollWAStatus, 5000);
+
+  whatsappBtn.addEventListener('click', function() {
+    waQRPanel.style.right = '0';
+    waQROverlay.style.display = 'block';
+    pollWAStatus();
+  });
+
+  closeWAQR.addEventListener('click', function() {
+    waQRPanel.style.right = '-400px';
+    waQROverlay.style.display = 'none';
+  });
+  waQROverlay.addEventListener('click', function() {
+    waQRPanel.style.right = '-400px';
+    waQROverlay.style.display = 'none';
+  });
+
+  // ---- VISTA DE CONTACTOS WHATSAPP ----
+  var waContactsView = $('waContactsView');
+  var waContactsList = $('waContactsList');
+  var waContactsCount = $('waContactsCount');
+  var switchToAgents = $('switchToAgents');
+
+  switchToAgents.addEventListener('click', function() {
+    waContactsView.style.display = 'none';
+    els.emptyState.style.display = 'flex';
+  });
+
+  function loadWAContacts() {
+    fetch('/codeopen/pending/grouped').then(function(r) { return r.json(); }).then(function(d) {
+      if (!d.groups || d.groups.length === 0) {
+        if (waContactsView.style.display !== 'none' && !waContactsView.style.display) return;
+        waContactsView.style.display = 'none';
+        return;
+      }
+      waContactsView.style.display = 'block';
+      els.emptyState.style.display = 'none';
+      waContactsCount.textContent = d.total + ' mensajes';
+      renderWAContacts(d.groups);
+    });
+  }
+
+  function renderWAContacts(groups) {
+    waContactsList.innerHTML = '';
+    groups.forEach(function(g) {
+      var unanalyzed = g.messages.filter(function(m) { return !m.proposed_response || m.proposed_response === 'Analizando con IA...' || m.proposed_response === ''; }).length;
+      var card = document.createElement('div');
+      card.style.cssText = 'background:var(--bg-card);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;overflow:hidden;animation:fadeScale 0.3s ease;';
+      card.innerHTML = '<div class="wa-contact-header" style="display:flex;align-items:center;gap:10px;padding:12px 16px;cursor:pointer;transition:background 0.2s;" onclick="toggleContactGroup(this)">' +
+        '<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#25D366,#128C7E);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:0.85rem;flex-shrink:0;">' + (g.contact.charAt(0).toUpperCase()) + '</div>' +
+        '<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:0.85rem;">' + escHtml(g.contact) + '</div><div style="font-size:0.7rem;color:var(--text-dim);">' + g.messages.length + ' mensaje' + (g.messages.length !== 1 ? 's' : '') + (unanalyzed > 0 ? ' · <span style="color:#f59e0b;">' + unanalyzed + ' sin analizar</span>' : '') + '</div></div>' +
+        '<i class="ri-arrow-down-s-line" style="font-size:1.2rem;color:var(--text-dim);transition:transform 0.2s;"></i></div>' +
+        '<div class="wa-contact-messages" style="display:none;border-top:1px solid var(--border);padding:8px 16px 12px;"></div>';
+      waContactsList.appendChild(card);
+      var msgsContainer = card.querySelector('.wa-contact-messages');
+      g.messages.forEach(function(msg) {
+        var hasAnalysis = msg.proposed_response && msg.proposed_response !== 'Analizando con IA...' && msg.proposed_response !== '';
+        var msgCard = document.createElement('div');
+        msgCard.style.cssText = 'background:var(--bg-main);border:1px solid var(--border-light);border-radius:10px;padding:10px;margin-bottom:8px;';
+        var ts = msg.created_at || '';
+        try { var d = new Date(ts + 'Z'); ts = d.toLocaleString('es-ES', {timeZone:'Europe/Madrid', day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}); } catch(e) {}
+        msgCard.innerHTML = '<div style="font-size:0.7rem;color:var(--text-faint);margin-bottom:4px;">#' + msg.id + ' · ' + ts + '</div>' +
+          '<div style="font-size:0.8rem;color:var(--text);margin-bottom:8px;padding:6px 10px;background:var(--bg-card);border-radius:8px;border-left:3px solid #25D366;">' + escHtml(msg.body || '').substring(0, 300) + '</div>' +
+          '<div class="wa-msg-actions" data-id="' + msg.id + '">' +
+          (hasAnalysis ? '' : '<button class="btn-analyze" data-id="' + msg.id + '" style="background:var(--accent);color:#fff;border:0;border-radius:8px;padding:6px 14px;font-size:0.75rem;cursor:pointer;font-weight:600;"><i class="ri-robot-line"></i> Analizar</button>') +
+          '</div>';
+        if (hasAnalysis) {
+          var respDiv = document.createElement('div');
+          respDiv.style.cssText = 'margin-top:6px;padding:8px;background:rgba(34,197,94,0.08);border-radius:8px;border:1px solid rgba(34,197,94,0.2);';
+          respDiv.innerHTML = '<div style="font-size:0.7rem;color:#22c55e;margin-bottom:4px;"><i class="ri-check-line"></i> Analizado</div>' +
+            '<div style="font-size:0.75rem;color:var(--text);margin-bottom:8px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">' + escHtml(msg.proposed_response).substring(0, 200) + '</div>' +
+            '<div style="display:flex;gap:6px;">' +
+            '<button class="btn-send-with-fwd" data-id="' + msg.id + '" style="flex:1;background:#25D366;color:#fff;border:0;border-radius:8px;padding:6px 10px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-reply-line"></i> Con reenvío</button>' +
+            '<button class="btn-send-no-fwd" data-id="' + msg.id + '" style="flex:1;background:var(--accent);color:#fff;border:0;border-radius:8px;padding:6px 10px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-send-plane-line"></i> Sin reenvío</button>' +
+            '<button class="btn-reject" data-id="' + msg.id + '" style="background:var(--error);color:#fff;border:0;border-radius:8px;padding:6px 10px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-close-line"></i></button>' +
+            '</div>';
+          msgCard.querySelector('.wa-msg-actions').after(respDiv);
+        }
+        msgsContainer.appendChild(msgCard);
+      });
+      // Bind events
+      msgsContainer.querySelectorAll('.btn-analyze').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation(); analyzeMessage(this.dataset.id, this); });
+      });
+      msgsContainer.querySelectorAll('.btn-send-with-fwd').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation(); approveMessage(this.dataset.id, 'with_forward', this); });
+      });
+      msgsContainer.querySelectorAll('.btn-send-no-fwd').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation(); approveMessage(this.dataset.id, 'without_forward', this); });
+      });
+      msgsContainer.querySelectorAll('.btn-reject').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation(); rejectMessage(this.dataset.id, this); });
+      });
+    });
+  }
+
+  window.toggleContactGroup = function(header) {
+    var msgs = header.parentElement.querySelector('.wa-contact-messages');
+    var arrow = header.querySelector('.ri-arrow-down-s-line');
+    if (msgs.style.display === 'none' || !msgs.style.display) {
+      msgs.style.display = 'block';
+      if (arrow) arrow.style.transform = 'rotate(180deg)';
+    } else {
+      msgs.style.display = 'none';
+      if (arrow) arrow.style.transform = 'rotate(0deg)';
+    }
+  };
+
+  function analyzeMessage(id, btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm" style="width:10px;height:10px;"></span> Analizando...';
+    fetch('/codeopen/analyze/' + id, { method: 'POST' }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.ok) {
+        loadWAContacts();
+        pollPendingCount();
+      } else {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="ri-robot-line"></i> Analizar';
+        alert('Error: ' + (d.error || 'desconocido'));
+      }
+    }).catch(function() {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="ri-robot-line"></i> Analizar';
+      alert('Error de red');
+    });
+  }
+
+  function approveMessage(id, mode, btn) {
+    btn.disabled = true;
+    var label = mode === 'with_forward' ? 'Enviando con reenvío...' : 'Enviando...';
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm" style="width:10px;height:10px;"></span> ' + label;
+    fetch('/codeopen/approve/' + id, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode: mode }) }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.ok) {
+        loadWAContacts();
+        loadPendingList();
+        pollPendingCount();
+        showToast(d.message || 'Enviado');
+      } else {
+        btn.disabled = false;
+        btn.innerHTML = mode === 'with_forward' ? 'Con reenvío' : 'Sin reenvío';
+        alert('Error: ' + (d.error || 'desconocido'));
+      }
+    }).catch(function() {
+      btn.disabled = false;
+      btn.innerHTML = mode === 'with_forward' ? 'Con reenvío' : 'Sin reenvío';
+      alert('Error de red');
+    });
+  }
+
+  function rejectMessage(id, btn) {
+    if (!confirm('¿Descartar este mensaje?')) return;
+    fetch('/codeopen/reject/' + id, { method: 'POST' }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.ok) { loadWAContacts(); loadPendingList(); pollPendingCount(); }
+      else { alert(d.error || 'Error'); }
+    });
+  }
+
+  function showToast(msg) {
+    var t = document.createElement('div');
+    t.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--bg-card);border:1px solid var(--success);border-radius:10px;padding:10px 20px;font-size:0.85rem;z-index:9999;animation:fadeScale 0.3s ease;color:var(--text);box-shadow:0 4px 20px rgba(0,0,0,0.3);';
+    t.innerHTML = '<i class="ri-checkbox-circle-line" style="color:var(--success);margin-right:6px;"></i> ' + msg;
+    document.body.appendChild(t);
+    setTimeout(function() { t.style.opacity = '0'; t.style.transition = 'opacity 0.3s'; setTimeout(function() { t.remove(); }, 300); }, 2500);
+  }
+
+  // Load contacts periodically and on pending open
+  loadWAContacts();
+  setInterval(loadWAContacts, 15000);
+
+  // Also load when pending panel opens
+  pendingBtn.addEventListener('click', function() {
+    setTimeout(loadWAContacts, 100);
+  });
+})();
+</script>

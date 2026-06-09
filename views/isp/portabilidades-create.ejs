@@ -1,0 +1,67 @@
+<section class="row justify-content-center">
+  <div class="col-md-8">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h2><i class="bi bi-plus-circle"></i> Nueva Portabilidad</h2>
+      <a href="/isp/portabilidades" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Volver</a>
+    </div>
+    <% if (errors && errors.length > 0) { %><div class="alert alert-danger"><%= errors.join(', ') %></div><% } %>
+    <div class="card">
+      <div class="card-body">
+        <form method="POST">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Cliente *</label>
+              <select name="client_id" class="form-select" required>
+                <option value="">Seleccionar cliente</option>
+                <% (clientes || []).forEach(function(c) { %>
+                <option value="<%= c.id %>" <%= portabilidad.client_id == c.id ? 'selected' : '' %>><%= c.nombre %> <%= c.apellidos || '' %> - <%= c.telefono || '' %></option>
+                <% }) %>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Línea *</label>
+              <input type="text" name="linea" class="form-control" value="<%= portabilidad.linea || '' %>" placeholder="+34 600 000 000" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Operador Origen *</label>
+              <select name="operador_origen" class="form-select" required>
+                <option value="">Seleccionar operador</option>
+                <option value="Movistar" <%= portabilidad.operador_origen === 'Movistar' ? 'selected' : '' %>>Movistar</option>
+                <option value="Vodafone" <%= portabilidad.operador_origen === 'Vodafone' ? 'selected' : '' %>>Vodafone</option>
+                <option value="Orange" <%= portabilidad.operador_origen === 'Orange' ? 'selected' : '' %>>Orange</option>
+                <option value="Yoigo" <%= portabilidad.operador_origen === 'Yoigo' ? 'selected' : '' %>>Yoigo</option>
+                <option value="MasMovil" <%= portabilidad.operador_origen === 'MasMovil' ? 'selected' : '' %>>MasMovil</option>
+                <option value="PepePhone" <%= portabilidad.operador_origen === 'PepePhone' ? 'selected' : '' %>>PepePhone</option>
+                <option value="Otro" <%= portabilidad.operador_origen === 'Otro' ? 'selected' : '' %>>Otro</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Operador Destino</label>
+              <input type="text" name="operador_destino" class="form-control" value="<%= portabilidad.operador_destino || 'Movilbro' %>">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Fecha Solicitud</label>
+              <input type="date" name="fecha_solicitud" class="form-control" value="<%= portabilidad.fecha_solicitud || new Date().toISOString().split('T')[0] %>">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Fecha Portabilidad</label>
+              <input type="date" name="fecha_portabilidad" class="form-control" value="<%= portabilidad.fecha_portabilidad || '' %>">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Referencia</label>
+              <input type="text" name="referencia" class="form-control" value="<%= portabilidad.referencia || '' %>">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Notas</label>
+              <textarea name="notas" class="form-control" rows="3"><%= portabilidad.notas || '' %></textarea>
+            </div>
+          </div>
+          <div class="mt-4">
+            <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Crear Portabilidad</button>
+            <a href="/isp/portabilidades" class="btn btn-outline-secondary">Cancelar</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,833 @@
+const express = require('express');
+const axios = require('axios');
+const crypto = require('crypto');
+const router = express.Router();
+const { db } = require('../database');
+
+const OPENCODE_API_KEY = process.env.OPENCODE_API_KEY;
+
+const tasks = new Map();
+const sseClients = new Map();
+const MAX_TASKS = 20;
+const TASK_TTL_MS = 30 * 60 * 1000;
+
+setInterval(function cleanupOldTasks() {
+  var now = Date.now();
+  for (var [id, task] of tasks) {
+    if (task.done && (now - task.endTime > TASK_TTL_MS)) {
+      tasks.delete(id); sseClients.delete(id);
+    }
+  }
+  if (tasks.size > MAX_TASKS) {
+    var entries = Array.from(tasks.entries()).sort((a, b) => a[1].startTime - b[1].startTime);
+    var toDelete = entries.slice(0, entries.length - MAX_TASKS);
+    toDelete.forEach(e => { tasks.delete(e[0]); sseClients.delete(e[0]); });
+  }
+}, 60000);
+
+function generateTaskId() {
+  return 'co_' + Date.now().toString(36) + '_' + crypto.randomBytes(4).toString('hex');
+}
+
+var PROJECT_SUMMARY = '';
+try {
+  PROJECT_SUMMARY = require('fs').readFileSync(require('path').join(__dirname, '..', 'PROJECT_SUMMARY.md'), 'utf8');
+} catch(e) { PROJECT_SUMMARY = ''; }
+
+function getCRMContext() {
+  try {
+    if (!db) return {};
+    var facts = {};
+    try { facts = Object.fromEntries(db.prepare("SELECT topic, content FROM shared_context").all().map(r => [r.topic, r.content.substring(0, 500)])); } catch(e) {}
+    return {
+      project_summary: PROJECT_SUMMARY.substring(0, 3000),
+      facts: facts,
+      clientes: (db.prepare("SELECT COUNT(*) as c FROM clients").get() || {}).c || 0,
+      productos: (db.prepare("SELECT COUNT(*) as c FROM products").get() || {}).c || 0,
+      tickets: (db.prepare("SELECT COUNT(*) as c FROM tickets").get() || {}).c || 0,
+      facturas: (db.prepare("SELECT COUNT(*) as c FROM isp_facturas").get() || {}).c || 0,
+      suscripciones: (db.prepare("SELECT COUNT(*) as c FROM subscriptions").get() || {}).c || 0,
+      usuarios: (db.prepare("SELECT COUNT(*) as c FROM users").get() || {}).c || 0,
+      leads: (db.prepare("SELECT COUNT(*) as c FROM leads").get() || {}).c || 0,
+      presupuestos: (db.prepare("SELECT COUNT(*) as c FROM tienda_presupuestos").get() || {}).c || 0,
+    };
+  } catch (e) { return {}; }
+}
+
+async function callLLM(systemPrompt, userMessage, temperature) {
+  if (!OPENCODE_API_KEY) return 'Error: OPENCODE_API_KEY no configurada';
+  var maxRetries = 2;
+  for (var attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const r = await axios.post('https://opencode.ai/zen/v1/chat/completions', {
+        model: 'deepseek-v4-flash-free',
+        messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }],
+        temperature: temperature || 0.7, max_tokens: 4096
+      }, { timeout: 25000, headers: { 'Authorization': 'Bearer ' + OPENCODE_API_KEY, 'Content-Type': 'application/json' } });
+      var text = r?.data?.choices?.[0]?.message?.content;
+      return (text || '').trim() || 'Error: Respuesta vacía';
+    } catch(e) {
+      var isRateLimit = e.response?.status === 429 || (e.message && e.message.indexOf('429') > -1);
+      if (isRateLimit && attempt < maxRetries) {
+        var delay = Math.pow(8, attempt) * 1000 + Math.random() * 5000;
+        console.log('[CodeOpen] Rate limit 429, reintento ' + attempt + '/' + maxRetries + ' en ' + Math.round(delay/1000) + 's');
+        await new Promise(function(r) { setTimeout(r, delay); });
+      } else {
+        console.error('[CodeOpen] LLM error:', e.message);
+        if (isRateLimit) return 'La IA está sobrecargada. Reintentaré en unos segundos.';
+        return 'Error: ' + e.message;
+      }
+    }
+  }
+}
+
+const AGENT_CATEGORIES = {
+  whatsapp: {
+    name: 'WhatsApp', icon: 'ri-whatsapp-line', color: '#25D366',
+    desc: 'Lee, analiza y responde mensajes de WhatsApp automáticamente',
+    agents: [
+      { id: 'lector', name: 'Lector', icon: 'ri-eye-line', desc: 'Lee el mensaje y extrae remitente, intención y urgencia', prompt: 'Eres Lector, experto en análisis de mensajes WhatsApp. Extrae: quién escribe, intención principal, urgencia (alta/media/baja), y tono. Máximo 300 caracteres.' },
+      { id: 'analizador', name: 'Analizador', icon: 'ri-search-eye-line', desc: 'Busca contexto del cliente en el CRM', prompt: 'Eres Analizador CRM. Busca si el remitente existe como cliente, su historial de pagos, facturas pendientes, productos contratados. Responde con datos concretos. Máximo 400 caracteres.' },
+      { id: 'redactor', name: 'Redactor', icon: 'ri-edit-line', desc: 'Redacta una respuesta profesional', prompt: 'Eres Redactor, experto en comunicación comercial. Redacta una respuesta profesional y empática al mensaje WhatsApp. Incluye saludo, respuesta clara y despedida. Máximo 400 caracteres.' },
+      { id: 'validador', name: 'Validador', icon: 'ri-shield-check-line', desc: 'Revisa seguridad y calidad', prompt: 'Eres Validador. Revisa la respuesta propuesta: ¿es segura? ¿revela datos sensibles? ¿el tono es apropiado? ¿cumple normativa? Señala problemas. Máximo 300 caracteres.' },
+      { id: 'sintetizador', name: 'Sintetizador', icon: 'ri-mist-line', desc: 'Combina todo en una respuesta final', prompt: 'Eres Sintetizador. Toma el análisis del Lector, contexto del Analizador, borrador del Redactor y revisión del Validador. Combínalos en una respuesta final coherente, profesional y útil. Máximo 800 caracteres.' }
+    ]
+  },
+  email: {
+    name: 'Correo', icon: 'ri-mail-send-line', color: '#EA4335',
+    desc: 'Clasifica, analiza y responde correos electrónicos',
+    agents: [
+      { id: 'clasificador', name: 'Clasificador', icon: 'ri-folder-transfer-line', desc: 'Clasifica el correo por tipo y urgencia', prompt: 'Eres Clasificador de correo. Clasifica: tipo (consulta/reclamación/alta/baja/facturación/soporte), urgencia, y destinatario adecuado. Máximo 200 caracteres.' },
+      { id: 'extractor', name: 'Extractor', icon: 'ri-database-2-line', desc: 'Extrae datos relevantes del correo', prompt: 'Eres Extractor de datos. Extrae del correo: nombre, email, teléfono, número de factura, motivo. Busca en CRM si el cliente existe. Máximo 400 caracteres.' },
+      { id: 'redactor', name: 'Redactor', icon: 'ri-edit-circle-line', desc: 'Redacta respuesta profesional', prompt: 'Eres Redactor de correo profesional. Redacta respuesta formal pero cercana. Incluye asunto, saludo, cuerpo resolutivo y despedida. Máximo 500 caracteres.' },
+      { id: 'revisor', name: 'Revisor', icon: 'ri-spell-check-line', desc: 'Revisa ortografía y tono', prompt: 'Eres Revisor. Corrige ortografía, gramática, tono y claridad de la respuesta. Asegura que sea profesional. Máximo 200 caracteres de correcciones.' },
+      { id: 'sintetizador', name: 'Sintetizador', icon: 'ri-mist-line', desc: 'Genera versión final del correo', prompt: 'Eres Sintetizador de correo. Combina la clasificación, datos extraídos, borrador y revisiones en un correo final listo para enviar. Máximo 800 caracteres.' }
+    ]
+  },
+  altas: {
+    name: 'Altas', icon: 'ri-user-add-line', color: '#7C3AED',
+    desc: 'Gestiona altas de nuevos clientes paso a paso',
+    agents: [
+      { id: 'validador', name: 'Validador', icon: 'ri-file-list-3-line', desc: 'Valida los datos del alta', prompt: 'Eres Validador de altas. Revisa los datos: nombre, NIF/CIF, dirección, email, teléfono. Indica qué falta o es incorrecto. Máximo 300 caracteres.' },
+      { id: 'buscador', name: 'Buscador', icon: 'ri-search-line', desc: 'Busca duplicados en CRM', prompt: 'Eres Buscador. Busca en CRM si ya existe un cliente con mismos datos (email, teléfono, NIF). Advierte si hay duplicado. Máximo 300 caracteres.' },
+      { id: 'generador', name: 'Generador', icon: 'ri-file-add-line', desc: 'Genera los datos del nuevo cliente', prompt: 'Eres Generador de altas. Prepara los datos del nuevo cliente: nombre, dirección, línea/servicio a contratar, precio, fecha de alta. Máximo 400 caracteres.' },
+      { id: 'verificador', name: 'Verificador', icon: 'ri-check-double-line', desc: 'Verifica que todo sea correcto', prompt: 'Eres Verificador. Comprueba: ¿todos los datos obligatorios están completos? ¿el servicio está disponible? ¿la dirección es válida? ¿el precio es correcto? Máximo 300 caracteres.' },
+      { id: 'sintetizador', name: 'Sintetizador', icon: 'ri-mist-line', desc: 'Resumen final del alta', prompt: 'Eres Sintetizador de altas. Combina validación, búsqueda, datos generados y verificación en un resumen final del alta listo para ejecutar. Máximo 800 caracteres.' }
+    ]
+  },
+  code: {
+    name: 'Código', icon: 'ri-code-line', color: '#0050A1',
+    desc: 'Análisis, desarrollo y revisión de código',
+    agents: [
+      { id: 'orion', name: 'Orion', icon: 'ri-question-answer-line', desc: 'Analiza requisitos', prompt: 'Eres Orion, analista de requisitos. Extrae los requisitos clave, objetivo principal y puntos a resolver. Máximo 500 caracteres.' },
+      { id: 'nova', name: 'Nova', icon: 'ri-search-eye-line', desc: 'Investiga contexto del CRM', prompt: 'Eres Nova, investigadora del CRM. Busca contexto relevante en los datos: clientes, productos, tickets, facturas. Responde en español con datos concretos. Máximo 500 caracteres.' },
+      { id: 'kronos', name: 'Kronos', icon: 'ri-tools-line', desc: 'Genera soluciones técnicas', prompt: 'Eres Kronos, generador de soluciones técnicas. Propón código, queries SQL o pasos técnicos. Sé práctico y directo. Máximo 500 caracteres.' },
+      { id: 'atlas', name: 'Atlas', icon: 'ri-shield-star-line', desc: 'Revisa calidad y seguridad', prompt: 'Eres Atlas, revisor de calidad y seguridad. Identifica errores, problemas de seguridad o mejoras. Máximo 500 caracteres.' },
+      { id: 'ether', name: 'Ether', icon: 'ri-mist-line', desc: 'Sintetiza respuesta final', prompt: 'Eres Ether, sintetizador final. Toma las respuestas de Orion, Nova, Kronos y Atlas y combínalas en una respuesta final coherente, bien estructurada y útil. Máximo 2000 caracteres.' }
+    ]
+  },
+  general: {
+    name: 'General', icon: 'ri-robot-line', color: '#6366f1',
+    desc: 'Consulta general con análisis multi-agente',
+    agents: [
+      { id: 'orion', name: 'Orion', icon: 'ri-question-answer-line', desc: 'Analiza la consulta', prompt: 'Eres Orion, analista. Extrae el objetivo principal, contexto y puntos clave de la consulta. Máximo 500 caracteres.' },
+      { id: 'nova', name: 'Nova', icon: 'ri-search-eye-line', desc: 'Busca datos relevantes', prompt: 'Eres Nova. Busca datos relevantes del CRM relacionados con la consulta. Máximo 500 caracteres.' },
+      { id: 'kronos', name: 'Kronos', icon: 'ri-tools-line', desc: 'Propone solución técnica', prompt: 'Eres Kronos. Propón soluciones prácticas, código o pasos a seguir. Máximo 500 caracteres.' },
+      { id: 'atlas', name: 'Atlas', icon: 'ri-shield-star-line', desc: 'Revisa y mejora', prompt: 'Eres Atlas. Revisa la solución propuesta, identifica mejoras o riesgos. Máximo 500 caracteres.' },
+      { id: 'ether', name: 'Ether', icon: 'ri-mist-line', desc: 'Sintetiza respuesta final', prompt: 'Eres Ether. Sintetiza todo en una respuesta coherente y útil. Máximo 2000 caracteres.' }
+    ]
+  }
+};
+
+function emitSSE(taskId, event, data) {
+  var clients = sseClients.get(taskId);
+  if (!clients) return;
+  var msg = 'event: ' + event + '\ndata: ' + JSON.stringify(data) + '\n\n';
+  clients.forEach(function(res) {
+    try { res.write(msg); } catch(e) { clients.delete(res); }
+  });
+}
+
+router.get('/', (req, res) => {
+  if (!req.session.user) return res.redirect('/auth/login');
+  res.render('codeopen', { title: 'CodeOpen AI', categories: Object.keys(AGENT_CATEGORIES) });
+});
+
+router.post('/', async (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'No autorizado' });
+  const msg = (req.body.message || '').trim();
+  if (!msg) return res.json({ response: 'Escribe un mensaje.' });
+  const sessionId = req.sessionID || String(req.session.user?.id || 'anon');
+  try {
+    var crmCtx = getCRMContext();
+    var sysContext = 'Eres CodeOpen AI, asistente experto. Respondes en español.\n\n';
+    if (crmCtx.project_summary) sysContext += '## RESUMEN DEL PROYECTO\n' + crmCtx.project_summary + '\n\n';
+    if (Object.keys(crmCtx.facts || {}).length) sysContext += '## HECHOS CONOCIDOS\n' + JSON.stringify(crmCtx.facts, null, 2) + '\n\n';
+    sysContext += '## ESTADÍSTICAS DEL CRM\nClientes: ' + crmCtx.clientes + ' | Facturas: ' + crmCtx.facturas;
+    const history = db.prepare("SELECT role, content FROM chat_history WHERE session_id = ? ORDER BY created_at ASC LIMIT 20").all(sessionId);
+    const messages = [{ role: 'system', content: sysContext }];
+    history.forEach(h => messages.push({ role: h.role, content: h.content }));
+    messages.push({ role: 'user', content: msg });
+    db.prepare("INSERT INTO chat_history (session_id, role, content) VALUES (?, 'user', ?)").run(sessionId, msg);
+    const response = await axios.post('https://opencode.ai/zen/v1/chat/completions', {
+      model: 'deepseek-v4-flash-free', messages, temperature: 0.5, max_tokens: 4096
+    }, { headers: { 'Authorization': 'Bearer ' + OPENCODE_API_KEY, 'Content-Type': 'application/json' }, timeout: 25000 });
+    const reply = response?.data?.choices?.[0]?.message?.content || '';
+    if (reply) db.prepare("INSERT INTO chat_history (session_id, role, content) VALUES (?, 'assistant', ?)").run(sessionId, reply);
+    res.json({ response: reply || 'No obtuve respuesta.' });
+  } catch (e) {
+    console.error('[CodeOpen] Error:', e.message);
+    res.json({ response: 'Error: ' + e.message });
+  }
+});
+
+router.post('/clear', (req, res) => {
+  try {
+    db.prepare("DELETE FROM chat_history WHERE session_id = ?").run(req.sessionID || 'anon');
+    res.json({ ok: true });
+  } catch (e) { res.json({ ok: false, error: e.message }); }
+});
+
+router.get('/categories', (req, res) => {
+  var cats = {};
+  for (var key in AGENT_CATEGORIES) {
+    var c = AGENT_CATEGORIES[key];
+    cats[key] = { name: c.name, icon: c.icon, color: c.color, desc: c.desc, agents: c.agents.map(function(a) { return { id: a.id, name: a.name, icon: a.icon, desc: a.desc }; }) };
+  }
+  res.json({ categories: cats });
+});
+
+router.post('/ask', async (req, res) => {
+  var question = (req.body.question || '').trim();
+  if (!question) return res.status(400).json({ error: 'La pregunta es requerida' });
+  var category = req.body.category || 'general';
+  var catDef = AGENT_CATEGORIES[category];
+  if (!catDef) return res.status(400).json({ error: 'Categoría inválida: ' + category });
+  var sessionId = req.body.session_id || req.session?.id || 'anon_' + generateTaskId();
+  var taskId = generateTaskId();
+  var crmContext = getCRMContext();
+  var contextStr = 'Contexto actual del CRM: ' + JSON.stringify(crmContext) + '\n\nProyecto: ' + (crmContext.project_summary || '').substring(0, 1000);
+  var task = {
+    taskId, sessionId, question, category,
+    agents: {},
+    finalResponse: '', startTime: Date.now(), endTime: null, done: false
+  };
+  catDef.agents.forEach(function(a) {
+    task.agents[a.id] = { name: a.name, icon: a.icon, status: 'waiting', result: '', progress: 0, steps: [] };
+  });
+  tasks.set(taskId, task);
+  sseClients.set(taskId, new Set());
+  db.prepare("INSERT INTO chat_history (session_id, role, content) VALUES (?, 'user', ?)").run(sessionId, '[' + catDef.name + '] ' + question);
+  emitSSE(taskId, 'start', { taskId, question, category, agents: Object.keys(task.agents) });
+  var fullMessage = contextStr + '\n\nConsulta del usuario: ' + question;
+  async function runAgent(agentId, agentDef, index) {
+    var ag = task.agents[agentId];
+    var steps = agentDef.prompt.split('. ').filter(Boolean).map(function(s, i) { return s.length > 20 ? s.substring(0, 60) + '...' : s; });
+    ag.status = 'working'; ag.progress = 10;
+    ag.steps.push({ text: 'Iniciando ' + agentDef.name + '...', time: Date.now() });
+    emitSSE(taskId, 'agent_step', { taskId, agentId, progress: 10, step: ag.steps[ag.steps.length - 1].text, agents: task.agents });
+    await new Promise(function(r) { setTimeout(r, 300 + Math.random() * 500); });
+    ag.progress = 30;
+    ag.steps.push({ text: 'Analizando con contexto del CRM...', time: Date.now() });
+    emitSSE(taskId, 'agent_step', { taskId, agentId, progress: 30, step: 'Analizando con contexto del CRM...', agents: task.agents });
+    var result = await callLLM(agentDef.prompt, fullMessage, 0.7);
+    ag.progress = 80;
+    ag.steps.push({ text: result.startsWith('Error') ? 'Error en análisis' : 'Análisis completado', time: Date.now() });
+    emitSSE(taskId, 'agent_step', { taskId, agentId, progress: 80, step: ag.steps[ag.steps.length - 1].text, agents: task.agents });
+    ag.result = result;
+    ag.status = result.startsWith('Error') ? 'error' : 'done';
+    ag.progress = 100;
+    ag.steps.push({ text: result.startsWith('Error') ? 'Falló: ' + result.substring(0, 50) : 'Listo', time: Date.now() });
+    emitSSE(taskId, 'agent_done', { taskId, agentId, result: result.substring(0, 500), agents: task.agents });
+  }
+  var agentList = catDef.agents;
+  Promise.allSettled(agentList.slice(0, 4).map(function(a, i) { return runAgent(a.id, a, i); })
+  ).then(async function() {
+    var etherDef = agentList[4];
+    var ag = task.agents[etherDef.id];
+    ag.status = 'working'; ag.progress = 10;
+    ag.steps.push({ text: 'Sintetizando respuestas de los agentes...', time: Date.now() });
+    emitSSE(taskId, 'agent_step', { taskId, agentId: etherDef.id, progress: 10, step: 'Sintetizando respuestas...', agents: task.agents });
+    var synthesisInput = agentList.slice(0, 4).map(function(a) { return '## ' + a.name + ':\n' + (task.agents[a.id].result || 'Sin respuesta'); }).join('\n\n');
+    synthesisInput += '\n\nSintetiza todo en una respuesta final para el usuario.';
+    ag.progress = 50;
+    emitSSE(taskId, 'agent_step', { taskId, agentId: etherDef.id, progress: 50, step: 'Generando respuesta final...', agents: task.agents });
+    var finalResult = await callLLM(etherDef.prompt, synthesisInput, 0.8);
+    ag.result = finalResult;
+    ag.status = finalResult.startsWith('Error') ? 'error' : 'done';
+    ag.progress = 100;
+    ag.steps.push({ text: finalResult.startsWith('Error') ? 'Error en síntesis' : 'Respuesta final generada', time: Date.now() });
+    task.finalResponse = finalResult;
+    task.endTime = Date.now();
+    task.done = true;
+    emitSSE(taskId, 'done', { taskId, finalResponse: finalResult, agents: task.agents });
+    if (!finalResult.startsWith('Error')) db.prepare("INSERT INTO chat_history (session_id, role, content) VALUES (?, 'assistant', ?)").run(sessionId, finalResult.substring(0, 2000));
+  });
+  res.json({ taskId, category, agents: Object.keys(task.agents) });
+});
+
+router.get('/status/:taskId', (req, res) => {
+  var task = tasks.get(req.params.taskId);
+  if (!task) return res.status(404).json({ error: 'Task not found' });
+  res.json({
+    taskId: task.taskId, question: task.question, category: task.category,
+    agents: task.agents, finalResponse: task.finalResponse,
+    startTime: task.startTime, endTime: task.endTime, done: task.done,
+    elapsed: task.endTime ? (task.endTime - task.startTime) : (Date.now() - task.startTime)
+  });
+});
+
+router.get('/events/:taskId', (req, res) => {
+  var task = tasks.get(req.params.taskId);
+  if (!task) return res.status(404).json({ error: 'Task not found' });
+  res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive', 'Access-Control-Allow-Origin': '*' });
+  var clients = sseClients.get(req.params.taskId);
+  if (clients) clients.add(res);
+  res.write('event: connected\ndata: {}\n\n');
+  if (task.done) {
+    res.write('event: done\ndata: ' + JSON.stringify({ taskId: task.taskId, finalResponse: task.finalResponse, agents: task.agents }) + '\n\n');
+  }
+  req.on('close', function() {
+    if (clients) clients.delete(res);
+    try { res.end(); } catch(e) {}
+  });
+});
+
+router.post('/transcribe', (req, res) => {
+  res.json({ message: 'Audio transcription endpoint ready for future use' });
+});
+
+router.get('/examples/:category', (req, res) => {
+  var examples = {
+    whatsapp: ['Un cliente dice "no me funciona internet desde ayer"', 'Mensaje: "quiero dar de baja mi línea"', 'Cliente nuevo: "me interesa vuestro fibra 300Mb"', '"no he recibido la factura de este mes"', '"mi wifi va muy lenta por las tardes"'],
+    email: ['Reclamación: "me han cobrado de más este mes"', "Alta: solicitud de nuevo servicio fibra + móvil", "Baja: \"quiero cancelar mi línea 6XX XXX XXX\"", "Consulta: \"qué velocidad necesito para teletrabajar\"", "Facturación: \"no me llega la factura por email\""],
+    altas: ['Alta para Juan García, NIF 12345678Z, dirección Calle Mayor 5', 'Portabilidad desde Vodafone: 612345678 con fibra 600Mb', "Alta de línea móvil 50GB para María López, DNI 87654321X", "Cliente empresa: TecnoShop SL, CIF B12345678, 3 líneas móviles", "Alta fibra + fijo en Calle Sol 12, 29200 Antequera"],
+    code: ['Crea un endpoint para listar facturas de un cliente', 'Cómo hago un backup automático de la BD SQLite?', 'Agrega validación de NIF en el formulario de altas', 'Script para migrar clientes de CSV a SQLite', 'Cómo usar fetchCDRsForFiscalId en una ruta nueva?'],
+    general: ['Explica la estructura del proyecto CRM', 'Cuántos clientes hay dados de alta?', 'Cómo funciona el sistema de facturación?', 'Qué tablas usa la tienda?', 'Resumen de tecnologías usadas en el proyecto']
+  };
+  res.json({ examples: examples[req.params.category] || examples.general });
+});
+
+// ---- WEBHOOK WHATSAPP ----
+var whatsappMessages = [];
+var emailMessages = [];
+
+// Dedup DB: evitar textos repetidos (persistente entre reinicios)
+function esDuplicado(texto) {
+  if (!texto || texto.length < 5) return true;
+  var existente = db.prepare("SELECT id FROM pending_messages WHERE body = ? AND created_at > datetime('now', '-2 hours') LIMIT 1").get(texto.trim().substring(0, 200));
+  return !!existente;
+}
+
+router.post('/webhook/whatsapp', async (req, res) => {
+  var from = req.body.from || req.body.remitente || 'desconocido';
+  var message = req.body.message || req.body.mensaje || req.body.text || '';
+  if (!message) return res.status(400).json({ error: 'Mensaje requerido' });
+  
+  // Solo aceptar mensajes CON timestamp posterior a las 12:45 del 6 de junio
+  var cutoff = new Date('2026-06-06T12:45:00+02:00');
+  var msgDate = req.body.timestamp ? new Date(req.body.timestamp) : null;
+  if (msgDate === null || isNaN(msgDate.getTime())) {
+    return res.json({ ok: false, message: 'Mensaje sin timestamp válido, rechazado' });
+  }
+  if (msgDate < cutoff) {
+    return res.json({ ok: false, message: 'Mensaje anterior a las 12:45, rechazado' });
+  }
+  
+  // Dedup persistente en DB: mismo texto en las ultimas 2h = duplicado
+  if (esDuplicado(message)) {
+    return res.json({ ok: true, dedup: true, message: 'Duplicado ignorado' });
+  }
+  
+  // SIN auto-análisis: solo guardar pendiente para que el usuario decida
+  var id = db.prepare("INSERT INTO pending_messages (source, from_name, from_address, body, proposed_response, status, category) VALUES (?,?,?,?,?,'pending','whatsapp')").run('whatsapp', from, from, message, null);
+  whatsappMessages.push({ id: id.lastInsertRowid, from, message, status: 'pending' });
+  console.log('[WhatsApp] Mensaje de', from, '→ pendiente #' + id.lastInsertRowid, '→ esperando análisis manual');
+  
+  res.json({ ok: true, pending_id: id.lastInsertRowid, message: 'Mensaje recibido. Ve a Pendientes para analizarlo manualmente.' });
+});
+
+router.post('/webhook/whatsapp/test', async (req, res) => {
+  var msg = req.body.message || 'Hola, quería saber el estado de mi factura';
+  var fakeReq = { body: { from: 'Cliente de prueba', message: msg } };
+  var fakeRes = { json: function(d) { console.log('[Test Webhook] Response:', d); }, status: function() { return this; } };
+  try {
+    var from = fakeReq.body.from;
+    var message = fakeReq.body.message;
+    var crmCtx = getCRMContext();
+    var ctx = 'Contexto CRM: ' + JSON.stringify(crmCtx) + '\n\nMensaje WhatsApp de ' + from + ': ' + message;
+    var catDef = AGENT_CATEGORIES.whatsapp;
+    var results = {};
+    for (var a of catDef.agents.slice(0, 4)) { results[a.id] = await callLLM(a.prompt, ctx, 0.7); }
+    var synthesisInput = catDef.agents.slice(0, 4).map(function(a) { return '## ' + a.name + ':\n' + (results[a.id] || ''); }).join('\n\n') + '\n\nSintetiza todo en una respuesta final lista para enviar.';
+    var finalResponse = await callLLM(catDef.agents[4].prompt, synthesisInput, 0.8);
+    var id = db.prepare("INSERT INTO pending_messages (source, from_name, from_address, body, proposed_response, status, category) VALUES (?,?,?,?,?, 'pending', 'whatsapp')").run('whatsapp_test', from, from, message, finalResponse || '');
+    res.json({ ok: true, pending_id: id.lastInsertRowid, response: finalResponse });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ---- WEBHOOK EMAIL ----
+router.post('/webhook/email', async (req, res) => {
+  var from = req.body.from || req.body.remitente || req.body.de || 'desconocido';
+  var subject = req.body.subject || req.body.asunto || '(sin asunto)';
+  var body = req.body.body || req.body.cuerpo || req.body.text || '';
+  if (!body && !subject) return res.status(400).json({ error: 'Cuerpo o asunto requerido' });
+  try {
+    var fullText = 'Asunto: ' + subject + '\nDe: ' + from + '\n\n' + body;
+    var crmCtx = getCRMContext();
+    var ctx = 'Contexto CRM: ' + JSON.stringify(crmCtx) + '\n\nCorreo recibido:\n' + fullText;
+    var catDef = AGENT_CATEGORIES.email;
+    var agentList = catDef.agents;
+    var results = {};
+    for (var a of agentList.slice(0, 4)) {
+      results[a.id] = await callLLM(a.prompt, ctx, 0.7);
+    }
+    var synthesisInput = agentList.slice(0, 4).map(function(a) { return '## ' + a.name + ':\n' + (results[a.id] || ''); }).join('\n\n') + '\n\nSintetiza todo en un correo de respuesta final listo para enviar.';
+    var finalResponse = await callLLM(agentList[4].prompt, synthesisInput, 0.8);
+    var id = db.prepare("INSERT INTO pending_messages (source, from_name, from_address, subject, body, proposed_response, status, category) VALUES (?,?,?,?,?,?, 'pending', 'email')").run('email', from, from, subject, fullText, finalResponse || 'Error al generar respuesta');
+    emailMessages.push({ id: id.lastInsertRowid, from, subject, body: fullText, response: finalResponse, status: 'pending' });
+    console.log('[Email] Correo de', from, '→ pendiente #' + id.lastInsertRowid);
+    res.json({ ok: true, pending_id: id.lastInsertRowid, message: 'Correo recibido, respuesta propuesta pendiente de aprobación' });
+  } catch(e) { console.error('[Email Webhook] Error:', e.message); res.status(500).json({ error: e.message }); }
+});
+
+// ---- IMAP POLLING ----
+var imapInterval = null;
+var imapRunning = false;
+var processedUIDs = {};
+
+function getIMAPLastDate() {
+  try {
+    var row = db.prepare("SELECT value FROM settings WHERE key='imap_last_date'").get();
+    if (row && row.value) return row.value;
+  } catch(e) {}
+  return '';
+}
+
+function setIMAPLastDate(dateStr) {
+  try {
+    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('imap_last_date', ?)").run(dateStr);
+  } catch(e) {}
+}
+
+var gmailUser = process.env.GMAIL_USER || 'infomovilbro@gmail.com';
+var gmailPass = process.env.GMAIL_PASS || '';
+// Fallback to DB settings if env vars not set
+try {
+  var emailService = require('../services/email');
+  var creds = emailService.getGmailCreds();
+  if (!gmailPass && creds.pass) gmailPass = creds.pass;
+  if (creds.user) gmailUser = creds.user;
+} catch(e) {}
+var ImapModule = null, simpleParserModule = null;
+try { ImapModule = require('imap'); simpleParserModule = require('mailparser').simpleParser; } catch(e) { console.error('[IMAP] Error cargando módulos:', e.message); }
+
+function startIMAPPolling() {
+  if (!gmailUser || !gmailPass) {
+    console.log('[IMAP] GMAIL_USER/GMAIL_PASS no configurados, polling desactivado');
+    return;
+  }
+  if (imapRunning) return;
+  imapRunning = true;
+  console.log('[IMAP] Iniciando polling cada 120s para', gmailUser);
+
+  // Clean old UIDs from memory every hour
+  setInterval(function() { processedUIDs = {}; }, 3600000);
+
+  checkMail();
+  imapInterval = setInterval(checkMail, 120000);
+}
+
+function checkMail() {
+  if (!ImapModule || !simpleParserModule) return;
+  var Imap = ImapModule;
+  var simpleParser = simpleParserModule;
+  try {
+    var imap = new Imap({ user: gmailUser, password: gmailPass, host: 'imap.gmail.com', port: 993, tls: true, tlsOptions: { rejectUnauthorized: false } });
+    imap.once('ready', function() {
+      imap.openBox('INBOX', true, function(err, box) {
+        if (err) { console.error('[IMAP] Error abriendo inbox:', err.message); imap.end(); return; }
+
+          var lastDate = getIMAPLastDate();
+          var searchSince = lastDate;
+          // If no last date, search last 3 days
+          if (!searchSince) {
+            var d = new Date(); d.setDate(d.getDate() - 3);
+            searchSince = d.toISOString().split('T')[0];
+          }
+
+          // Step 1: search ALL unseen + seen (to catch emails marked read before polling)
+          var searchCriteria = ['ALL', ['SINCE', searchSince]];
+          console.log('[IMAP] Buscando desde', searchSince);
+
+          imap.search(searchCriteria, function(err, results) {
+            if (err) { console.error('[IMAP] Error search:', err.message); imap.end(); return; }
+            if (!results || results.length === 0) {
+              console.log('[IMAP] Sin resultados desde', searchSince);
+              imap.end(); return;
+            }
+
+            // Filter out already-processed UIDs
+            var newResults = results.filter(function(uid) { return !processedUIDs[uid]; });
+            if (newResults.length === 0) { console.log('[IMAP] Todos ya procesados (' + results.length + ' UIDs)'); imap.end(); return; }
+            console.log('[IMAP]', newResults.length, 'nuevos de', results.length, 'totales');
+
+          // Rate limit: process max 1 email per poll
+          var toFetch = newResults.slice(0, 1);
+          var fetch = imap.fetch(toFetch, { bodies: '', markSeen: true });
+          fetch.on('message', function(msg, seqno) {
+            var chunks = [];
+            msg.on('body', function(stream) { stream.on('data', function(chunk) { chunks.push(chunk.toString()); }); });
+            msg.on('attributes', function(attrs) {
+              var uid = attrs.uid;
+              if (uid) processedUIDs[uid] = true;
+            });
+            msg.on('end', function() {
+              var raw = chunks.join('');
+              simpleParser(raw).then(function(parsed) {
+                var from = parsed.from ? parsed.from.text : 'desconocido';
+                var fromAddr = parsed.from ? parsed.from.value[0].address : '';
+                var subject = parsed.subject || '(sin asunto)';
+                var body = parsed.text || parsed.html || '';
+                var date = parsed.date || new Date();
+                if (body.length > 3000) body = body.substring(0, 3000) + '...';
+                var fullText = 'Asunto: ' + subject + '\nDe: ' + from + '\n\n' + body;
+
+                // Usar IA para clasificar: ¿es un cliente real o spam/publicidad?
+                var classifyPrompt = 'Eres un asistente que clasifica correos. Responde SOLO con una palabra: CLIENTE o SPAM.\n\n' +
+                  'CLIENTE = el remitente parece un cliente real preguntando, contratando, consultando factura, pidiendo cambio de tarifa, reportando incidencia, o cualquier consulta comercial real.\n' +
+                  'SPAM = newsletter, publicidad, notificaciones automáticas, confirmaciones de pedido de tiendas, alertas de redes sociales, marketing, ofertas promocionales, correos masivos.\n\n' +
+                  'IMPORTANTE: Un cliente PUEDE escribir desde gmail, hotmail, o cualquier dominio. No asumas que es SPAM por el dominio.\n\n' +
+                  'Correo:\nDe: ' + fromAddr + '\nAsunto: ' + subject + '\n\n' + body;
+
+                if (emailExists(fromAddr, subject)) {
+                  console.log('[IMAP] Duplicado, saltando:', fromAddr, '-', subject);
+                  return;
+                }
+
+                callLLM(classifyPrompt, '', 0.3).then(function(classification) {
+                  var isClient = classification && classification.toUpperCase().includes('CLIENTE');
+                  console.log('[IMAP]', fromAddr, '-', subject, '→', isClient ? 'CLIENTE' : 'SPAM');
+
+                  if (!isClient) {
+                    console.log('[IMAP] Marcado como SPAM, descartado:', fromAddr, '-', subject);
+                    return;
+                  }
+
+                  var crmCtx = getCRMContext();
+                  var ctx = 'Contexto CRM: ' + JSON.stringify(crmCtx) + '\n\nCorreo recibido:\n' + fullText;
+                  var catDef = AGENT_CATEGORIES.email;
+                  Promise.all(catDef.agents.slice(0, 4).map(function(a) { return callLLM(a.prompt, ctx, 0.7); })).then(function(results) {
+                    var synthesisInput = catDef.agents.slice(0, 4).map(function(a, i) { return '## ' + a.name + ':\n' + (results[i] || ''); }).join('\n\n') + '\n\nSintetiza todo en un correo de respuesta final listo para enviar.';
+                    return callLLM(catDef.agents[4].prompt, synthesisInput, 0.8);
+                  }).then(function(finalResp) {
+                    if (!emailExists(fromAddr, subject)) {
+                      db.prepare("INSERT INTO pending_messages (source, from_name, from_address, subject, body, proposed_response, status, category) VALUES (?,?,?,?,?,?, 'pending', 'email')").run('email', from, from, subject, fullText, finalResp || 'Error: sin respuesta');
+                      console.log('[IMAP] Cliente procesado:', from);
+                    }
+                  }).catch(function(e) {
+                    console.error('[IMAP] Error LLM:', e.message);
+                    if (!emailExists(fromAddr, subject)) {
+                      db.prepare("INSERT INTO pending_messages (source, from_name, from_address, subject, body, proposed_response, status, category) VALUES (?,?,?,?,?,?, 'pending', 'email')").run('email', from, from, subject, fullText, 'Error: ' + e.message);
+                    }
+                  });
+                }).catch(function(e) {
+                  console.error('[IMAP] Error clasificación IA:', e.message, '- guardando como pendiente');
+                  if (!emailExists(fromAddr, subject)) {
+                    db.prepare("INSERT INTO pending_messages (source, from_name, from_address, subject, body, proposed_response, status, category) VALUES (?,?,?,?,?,?, 'pending', 'email')").run('email', from, from, subject, fullText, 'Error en clasificación IA: ' + e.message + ' - Revisar manualmente');
+                  }
+                });
+                // Update last processed date
+                var dateStr = date.toISOString().split('T')[0];
+                setIMAPLastDate(dateStr);
+              }).catch(function(e) { console.error('[IMAP] Parse error:', e.message); });
+            });
+          });
+          fetch.on('end', function() {
+            imap.end();
+            // Mark remaining as seen too
+            if (newResults.length > 1) {
+              try {
+                var rem = imap.fetch(newResults.slice(1), { bodies: '', markSeen: true });
+                rem.on('message', function() {});
+                rem.on('end', function() {});
+              } catch(e) {}
+            }
+          });
+        });
+      });
+    });
+    imap.once('error', function(err) { console.error('[IMAP] Error:', err.message); });
+    imap.once('end', function() {});
+    imap.connect();
+  } catch(e) { console.error('[IMAP] Connection error:', e.message); }
+}
+
+startIMAPPolling();
+
+// ---- ANÁLISIS MANUAL (solo cuando el usuario hace clic en "Analizar") ----
+// ---- MENSAJES AGRUPADOS POR CONTACTO ----
+router.get('/pending/grouped', (req, res) => {
+  try {
+    var rows = db.prepare("SELECT * FROM pending_messages WHERE status='pending' ORDER BY created_at ASC").all();
+    var groups = {};
+    var order = [];
+    rows.forEach(function(r) {
+      var key = r.from_address || r.from_name || 'desconocido';
+      if (!groups[key]) {
+        groups[key] = { contact: r.from_name || key, address: r.from_address || '', messages: [] };
+        order.push(key);
+      }
+      groups[key].messages.push(r);
+    });
+    var result = order.map(function(k) { return groups[k]; });
+    res.json({ groups: result, total: rows.length });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ---- ANÁLISIS MANUAL (solo cuando el usuario hace clic en "Analizar") ----
+router.post('/analyze/:id', async (req, res) => {
+  try {
+    var row = db.prepare("SELECT * FROM pending_messages WHERE id=? AND status='pending'").get(req.params.id);
+    if (!row) return res.status(404).json({ error: 'No encontrado o ya procesado' });
+    
+    console.log('[CodeOpen] Analizando mensaje #' + row.id, 'de', row.from_name);
+    var crmCtx = getCRMContext();
+    var fullText = row.body || row.subject || '';
+    var ctx = 'Contexto CRM: ' + JSON.stringify(crmCtx) + '\n\nMensaje de ' + row.from_name + ': ' + fullText;
+    var catDef = row.source === 'whatsapp' || row.category === 'whatsapp' ? AGENT_CATEGORIES.whatsapp : AGENT_CATEGORIES.email;
+    var results = {};
+    var agentList = catDef.agents.slice(0, 4);
+    for (var i = 0; i < agentList.length; i++) {
+      if (i > 0) await new Promise(function(r) { setTimeout(r, 2000); });
+      results[agentList[i].id] = await callLLM(agentList[i].prompt, ctx, 0.7);
+    }
+    var synthesisInput = catDef.agents.slice(0, 4).map(function(a) { return '## ' + a.name + ':\n' + (results[a.id] || ''); }).join('\n\n') + '\n\nSintetiza todo en una respuesta final lista para enviar.';
+    await new Promise(function(r) { setTimeout(r, 2000); });
+    var finalResponse = await callLLM(catDef.agents[4].prompt, synthesisInput, 0.8);
+    db.prepare("UPDATE pending_messages SET proposed_response=? WHERE id=?").run(finalResponse || '', row.id);
+    console.log('[CodeOpen] Mensaje #' + row.id + ' analizado');
+    res.json({ ok: true, response: finalResponse || '' });
+  } catch(e) {
+    console.error('[CodeOpen] Error analizando #' + req.params.id + ':', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ---- PENDING APPROVALS ----
+router.get('/pending', (req, res) => {
+  try {
+    var rows = db.prepare("SELECT * FROM pending_messages WHERE status='pending' ORDER BY created_at DESC LIMIT 50").all();
+    res.json({ pending: rows });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/pending/count', (req, res) => {
+  try {
+    var count = (db.prepare("SELECT COUNT(*) as c FROM pending_messages WHERE status='pending'").get() || {}).c || 0;
+    res.json({ count });
+  } catch(e) { res.json({ count: 0 }); }
+});
+
+router.post('/approve/:id', async (req, res) => {
+  try {
+    var row = db.prepare("SELECT * FROM pending_messages WHERE id=? AND status='pending'").get(req.params.id);
+    if (!row) return res.status(404).json({ error: 'No encontrado o ya procesado' });
+
+    var mode = req.body.mode || 'without_forward';
+    var sent = false;
+    var sendInfo = '';
+
+    // Enviar respuesta por WhatsApp vía Baileys
+    if (row.source === 'whatsapp' || row.category === 'whatsapp') {
+      try {
+        var wa = require('../wa-baileys');
+        var opts = {};
+        if (mode === 'with_forward' && row.quoted_data) {
+          opts.quotedData = row.quoted_data;
+          sendInfo = ' (con reenvío)';
+        } else if (mode === 'with_forward') {
+          // Sin quoted_data: incluir mensaje original como texto
+          var textWithQuote = '📩 Mensaje original:\n"' + (row.body || '') + '"\n\n---\n\n' + row.proposed_response;
+          var result = await wa.sendMessage(row.from_address, textWithQuote);
+          if (result.ok) { sent = true; sendInfo = ' (con texto original)'; }
+          else { console.log('[CodeOpen] Error WhatsApp:', result.error); }
+        }
+        if (!sent) {
+          var result = await wa.sendMessage(row.from_address, row.proposed_response, opts);
+          if (result.ok) { sent = true; }
+          else { console.log('[CodeOpen] Error WhatsApp:', result.error); }
+        }
+        if (sent) console.log('[CodeOpen] WhatsApp respondido a', row.from_address, sendInfo);
+      } catch(waErr) { console.error('[CodeOpen] Error WhatsApp:', waErr.message); }
+    }
+
+    // Send Email
+    if (row.source === 'email' || row.category === 'email') {
+      try {
+        var emailService = require('../services/email');
+        var sentOk = await emailService.sendEmail(row.from_address, row.from_name, 'Re: ' + (row.subject || ''), row.proposed_response);
+        if (sentOk) { sent = true; console.log('[CodeOpen] Email enviado a', row.from_address); }
+        else { console.log('[CodeOpen] No se pudo enviar email a', row.from_address); }
+      } catch(emailErr) { console.error('[CodeOpen] Error Email:', emailErr.message); }
+    }
+
+    db.prepare("UPDATE pending_messages SET status='approved', responded_at=CURRENT_TIMESTAMP WHERE id=?").run(req.params.id);
+    res.json({ ok: true, message: sent ? ('Respuesta enviada' + sendInfo) : 'Aprobado (no se pudo enviar automáticamente)' });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/reject/:id', (req, res) => {
+  try {
+    var row = db.prepare("SELECT * FROM pending_messages WHERE id=? AND status='pending'").get(req.params.id);
+    if (!row) return res.status(404).json({ error: 'No encontrado o ya procesado' });
+    db.prepare("UPDATE pending_messages SET status='rejected', responded_at=CURRENT_TIMESTAMP WHERE id=?").run(req.params.id);
+    console.log('[Rechazado] Mensaje #' + req.params.id, row.source, '→', row.from_name);
+    res.json({ ok: true, message: 'Respuesta descartada' });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/history', (req, res) => {
+  try {
+    var rows = db.prepare("SELECT * FROM pending_messages ORDER BY created_at DESC LIMIT 100").all();
+    res.json({ history: rows });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/pending/clear', (req, res) => {
+  try {
+    var info = db.prepare("DELETE FROM pending_messages").run();
+    res.json({ ok: true, deleted: info.changes });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/refresh-imap', (req, res) => {
+  try {
+    if (!gmailUser || !gmailPass) return res.json({ ok: false, error: 'GMAIL_USER/GMAIL_PASS no configurados' });
+    checkMail();
+    res.json({ ok: true, message: 'IMAP check triggered' });
+  } catch(e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+router.post('/pending/approve-all', (req, res) => {
+  try {
+    var info = db.prepare("UPDATE pending_messages SET status='read', responded_at=CURRENT_TIMESTAMP WHERE status='pending'").run();
+    res.json({ ok: true, updated: info.changes });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+function emailExists(fromAddress, subject) {
+  try {
+    var existing = db.prepare("SELECT id FROM pending_messages WHERE from_address=? AND subject=? LIMIT 1").get(fromAddress, subject);
+    return !!existing;
+  } catch(e) { return false; }
+}
+
+// Diagnostic: test IMAP polling status
+router.get('/imap-status', (req, res) => {
+  var lastDate = getIMAPLastDate();
+  res.json({
+    pollingActive: imapRunning,
+    lastDate: lastDate || 'none',
+    processedUIDs: Object.keys(processedUIDs).length,
+    pendingCount: (db.prepare("SELECT COUNT(*) as c FROM pending_messages WHERE status='pending'").get() || {}).c || 0,
+    allPending: db.prepare("SELECT id, from_address, subject, status, created_at FROM pending_messages ORDER BY created_at DESC LIMIT 20").all()
+  });
+});
+
+// Manual scan: check for specific email or list recent inbox
+router.post('/scan-inbox', (req, res) => {
+  if (!ImapModule || !simpleParserModule) return res.json({ ok: false, error: 'IMAP modules not loaded' });
+  var Imap = ImapModule;
+  var simpleParser = simpleParserModule;
+  var results_list = [];
+  try {
+    var imap = new Imap({ user: gmailUser, password: gmailPass, host: 'imap.gmail.com', port: 993, tls: true, tlsOptions: { rejectUnauthorized: false } });
+    imap.once('ready', function() {
+      imap.openBox('INBOX', false, function(err, box) {
+        if (err) { imap.end(); return res.json({ ok: false, error: err.message }); }
+        imap.search(['ALL', ['SINCE', getIMAPLastDate() || '03-Jun-2026']], function(err, results) {
+          if (err) { imap.end(); return res.json({ ok: false, error: err.message }); }
+          if (!results || results.length === 0) { imap.end(); return res.json({ ok: true, found: 0, emails: [] }); }
+          // Fetch last 5
+          var uids = results.slice(-5);
+          var fetch = imap.fetch(uids, { bodies: '', markSeen: false });
+          var emails = [];
+          fetch.on('message', function(msg, seqno) {
+            var chunks = [];
+            msg.on('body', function(stream) { stream.on('data', function(chunk) { chunks.push(chunk.toString()); }); });
+            msg.on('end', function() {
+              var raw = chunks.join('');
+              simpleParser(raw).then(function(parsed) {
+                emails.push({
+                  from: parsed.from ? parsed.from.text : '?',
+                  fromAddr: parsed.from ? parsed.from.value[0].address : '?',
+                  subject: parsed.subject || '(sin asunto)',
+                  date: parsed.date || '?',
+                  inDB: emailExists(parsed.from ? parsed.from.value[0].address : '', parsed.subject || '')
+                });
+              }).catch(function() {});
+            });
+          });
+          fetch.on('end', function() {
+            imap.end();
+            setTimeout(function() { res.json({ ok: true, found: uids.length, emails: emails }); }, 1000);
+          });
+        });
+      });
+    });
+    imap.once('error', function(err) { res.json({ ok: false, error: err.message }); });
+    imap.connect();
+  } catch(e) { res.json({ ok: false, error: e.message }); }
+});
+
+// Test email sending
+router.post('/test-email', async (req, res) => {
+  try {
+    var emailService = require('../services/email');
+    var to = req.body.to || 'infomovilbro@gmail.com';
+    var result = await emailService.sendEmail(to, 'Test', 'Prueba CRM Movilbro', '<h2>Email de prueba</h2><p>Si recibes esto, el email funciona correctamente.</p>');
+    res.json({ ok: result, message: result ? 'Email enviado a ' + to : 'Falló el envío' });
+  } catch(e) { res.json({ ok: false, error: e.message }); }
+});
+
+// Email connection test
+router.get('/email-status', async (req, res) => {
+  var emailService = require('../services/email');
+  var status = await emailService.testConnection();
+  res.json(status);
+});
+
+// ---- BAILEYS WHATSAPP INTEGRATION ----
+router.get('/baileys-qr', async (req, res) => {
+  try {
+    var wa = require('../wa-baileys');
+    var status = wa.getStatus();
+    var qrDataUrl = await wa.getQRDataURL();
+    res.json({ status: status, qr: qrDataUrl, error: status.error });
+  } catch(e) {
+    res.json({ error: e.message });
+  }
+});
+
+// Endpoint to serve the QR image directly
+router.get('/baileys-qr-image', async (req, res) => {
+  try {
+    var wa = require('../wa-baileys');
+    var qrDataUrl = await wa.getQRDataURL();
+    if (qrDataUrl) {
+      var base64 = qrDataUrl.split(',')[1];
+      var img = Buffer.from(base64, 'base64');
+      res.writeHead(200, { 'Content-Type': 'image/png', 'Content-Length': img.length });
+      res.end(img);
+    } else {
+      res.status(404).send('QR not available');
+    }
+  } catch(e) {
+    res.status(500).send(e.message);
+  }
+});
+
+module.exports = router;

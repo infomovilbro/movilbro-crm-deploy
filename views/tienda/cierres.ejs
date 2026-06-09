@@ -1,0 +1,137 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-lock-fill"></i> 🔒 Historial de Cierres</h2>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCierre"><i class="bi bi-plus-lg"></i> Nuevo Cierre</button>
+  </div>
+
+  <div class="card hideable-section" data-card-id="cierres-historial">
+    <div class="card-body p-0">
+      <table class="table table-hover mb-0">
+        <thead><tr><th>Fecha</th><th>Efectivo</th><th>Tarjeta</th><th>Transferencia</th><th>Total Ingresos</th><th>Gastos</th><th>Saldo</th><th>Operaciones</th><th>Cerrado por</th><th>Observaciones</th></tr></thead>
+        <tbody>
+        <% if (cierres.length === 0) { %>
+          <tr><td colspan="10" class="text-center text-muted py-4"><i class="bi bi-journal" style="font-size:2rem;display:block;margin-bottom:8px;"></i>No hay cierres registrados</td></tr>
+        <% } else { cierres.forEach(c => { %>
+          <tr>
+            <td><strong><%= c.fecha %></strong></td>
+            <td><%= (c.ingresos_efectivo || 0).toFixed(2) %>€</td>
+            <td><%= (c.ingresos_tarjeta || 0).toFixed(2) %>€</td>
+            <td><%= (c.ingresos_transferencia || 0).toFixed(2) %>€</td>
+            <td class="text-success"><strong><%= (c.total_ingresos || 0).toFixed(2) %>€</strong></td>
+            <td class="text-danger"><%= (c.gastos || 0).toFixed(2) %>€</td>
+            <td><strong class="<%= c.saldo >= 0 ? 'text-success' : 'text-danger' %>"><%= (c.saldo || 0).toFixed(2) %>€</strong></td>
+            <td><%= c.num_operaciones || 0 %></td>
+            <td class="small"><%= c.user_name || '-' %></td>
+            <td class="small"><%= c.observaciones ? c.observaciones.substring(0, 30) + (c.observaciones.length > 30 ? '...' : '') : '-' %></td>
+          </tr>
+        <% }) } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="row g-3 mt-2">
+    <div class="col-md-6"><div class="card hideable-section" data-card-id="cierres-ingresos"><div class="card-header"><i class="bi bi-pie-chart"></i> Ingresos por método de pago</div><div class="card-body"><div class="chart-container" style="height:221px;"><canvas id="chartCierresPago"></canvas></div></div></div></div>
+    <div class="col-md-6"><div class="card hideable-section" data-card-id="cierres-evolucion"><div class="card-header"><i class="bi bi-bar-chart"></i> Evolución de cierres</div><div class="card-body"><div class="chart-container" style="height:221px;"><canvas id="chartCierresEvol"></canvas></div></div></div></div>
+  </div>
+</section>
+
+<!-- Modal Nuevo Cierre -->
+<div class="modal fade" id="modalCierre" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <form method="POST" action="/tienda/cierres/crear">
+      <div class="modal-header"><h5><i class="bi bi-journal-plus"></i> Nuevo Cierre</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="mb-2"><label class="form-label">Fecha *</label><input type="date" name="fecha" class="form-control" value="<%= new Date().toISOString().split('T')[0] %>" required></div>
+        <div class="row g-2 mb-2">
+          <div class="col"><label class="form-label">Ingresos Efectivo</label><input type="number" step="0.01" name="ingresos_efectivo" class="form-control" value="0"></div>
+          <div class="col"><label class="form-label">Ingresos Tarjeta</label><input type="number" step="0.01" name="ingresos_tarjeta" class="form-control" value="0"></div>
+          <div class="col"><label class="form-label">Ingresos Transferencia</label><input type="number" step="0.01" name="ingresos_transferencia" class="form-control" value="0"></div>
+        </div>
+        <div class="mb-2"><label class="form-label">Gastos</label><input type="number" step="0.01" name="gastos" class="form-control" value="0"></div>
+        <div class="mb-2"><label class="form-label">Observaciones</label><textarea name="observaciones" class="form-control" rows="3"></textarea></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Guardar Cierre</button>
+      </div>
+    </form>
+  </div></div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  <% if (cierres.length > 0) { %>
+  try {
+    const totalEf = <%= cierres.reduce((s,c) => s + (c.ingresos_efectivo||0), 0) %>;
+    const totalTj = <%= cierres.reduce((s,c) => s + (c.ingresos_tarjeta||0), 0) %>;
+    const totalTr = <%= cierres.reduce((s,c) => s + (c.ingresos_transferencia||0), 0) %>;
+    if (totalEf > 0 || totalTj > 0 || totalTr > 0) {
+      new Chart(document.getElementById('chartCierresPago'), {
+        type: 'bar',
+        data: {
+          labels: ['Efectivo', 'Tarjeta', 'Transferencia'],
+          datasets: [{
+            label: 'Total ingresado',
+            data: [totalEf, totalTj, totalTr],
+            backgroundColor: ['#198754', '#0d6efd', '#6610f2'],
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { beginAtZero: true, grid: { color: '#eee' } },
+            x: { grid: { display: false } }
+          }
+        }
+      });
+    }
+  } catch(e) { console.error(e); }
+
+  try {
+    // Last 15 cierres for evolution chart
+    const cierresSorted = <%- JSON.stringify(cierres.slice().reverse()) %>;
+    const ultimos = cierresSorted.slice(-15);
+    const fechas = ultimos.map(function(c) { return c.fecha ? c.fecha.substring(5) : ''; });
+    const ingresos = ultimos.map(function(c) { return c.total_ingresos || 0; });
+    const gastos = ultimos.map(function(c) { return c.gastos || 0; });
+    if (fechas.length > 0) {
+      new Chart(document.getElementById('chartCierresEvol'), {
+        type: 'bar',
+        data: {
+          labels: fechas,
+          datasets: [
+            {
+              label: 'Ingresos',
+              data: ingresos,
+              backgroundColor: ingresos.map(function(v, i) {
+                if (i === 0) return '#198754';
+                return v >= ingresos[i-1] ? '#198754' : '#dc3545';
+              }),
+              borderRadius: 4
+            },
+            {
+              label: 'Gastos',
+              data: gastos,
+              backgroundColor: '#ffc107',
+              borderRadius: 4
+            }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { position: 'top' } },
+          scales: {
+            y: { beginAtZero: true, grid: { color: '#eee' } },
+            x: { grid: { display: false } }
+          }
+        }
+      });
+    }
+  } catch(e) { console.error(e); }
+  <% } %>
+});
+</script>
