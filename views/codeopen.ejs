@@ -206,6 +206,7 @@ body { background:var(--bg-main); color:var(--text); }
 </style>
 
 <script>
+window.addEventListener('error', function(e) { console.error('[CodeOpen Error]', e.message, e.filename, e.lineno); });
 (function() {
   var categories = {};
   var currentCategory = 'general';
@@ -524,8 +525,8 @@ body { background:var(--bg-main); color:var(--text); }
     });
   }
 
-  pollPendingCount();
-  setInterval(pollPendingCount, 15000);
+  try { pollPendingCount(); } catch(e) { console.error('[Init] pollPendingCount:', e); }
+  setInterval(function() { try { pollPendingCount(); } catch(e) {} }, 15000);
 
   pendingBtn.addEventListener('click', function() {
     pendingPanel.style.right = '0';
@@ -672,8 +673,8 @@ body { background:var(--bg-main); color:var(--text); }
     });
   }
 
-  pollWAStatus();
-  setInterval(pollWAStatus, 5000);
+  try { pollWAStatus(); } catch(e) { console.error('[Init] pollWAStatus:', e); }
+  setInterval(function() { try { pollWAStatus(); } catch(e) {} }, 5000);
 
   whatsappBtn.addEventListener('click', function() {
     waQRPanel.style.right = '0';
@@ -762,10 +763,10 @@ body { background:var(--bg-main); color:var(--text); }
       }
     });
   }
-  setInterval(loadModelUsage, 60000);
+  setInterval(function() { try { loadModelUsage(); } catch(e) {} }, 60000);
 
-  loadModelDropdown();
-  loadModels(); // Old loadModels kept for compatibility
+  try { loadModelDropdown(); } catch(e) { console.error('[Init] loadModelDropdown:', e); }
+  try { loadModels(); } catch(e) { console.error('[Init] loadModels:', e); }
 
   // Keep loadModels for compatibility
   function loadModels() {}
@@ -1174,8 +1175,10 @@ body { background:var(--bg-main); color:var(--text); }
   voiceBtn.title = 'Dictar mensaje por voz';
 
   // Insert voice button next to askBtn
-  var askForm = els.askForm;
-  askForm.insertBefore(voiceBtn, els.askBtn);
+  try {
+    var askForm = els.askForm;
+    if (askForm && els.askBtn) askForm.insertBefore(voiceBtn, els.askBtn);
+  } catch(e) { console.error('[Init] voiceBtn:', e); }
 
   voiceBtn.addEventListener('click', function() {
     if (isListening) {
@@ -1222,12 +1225,14 @@ body { background:var(--bg-main); color:var(--text); }
   });
 
   // Load contacts periodically and on pending open
-  loadWAContacts();
-  setInterval(loadWAContacts, 15000);
+  try { loadWAContacts(); } catch(e) { console.error('[Init] loadWAContacts:', e); }
+  setInterval(function() { try { loadWAContacts(); } catch(e) { console.error('[Init] interval:', e); } }, 15000);
 
   // Also load when pending panel opens
-  pendingBtn.addEventListener('click', function() {
-    setTimeout(loadWAContacts, 100);
-  });
+  if (pendingBtn) {
+    pendingBtn.addEventListener('click', function() {
+      setTimeout(function() { try { loadWAContacts(); } catch(e) {} }, 100);
+    });
+  }
 })();
 </script>
