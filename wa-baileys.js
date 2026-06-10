@@ -217,6 +217,16 @@ async function sendBaileysMessage(jid, content, options) {
       return { ok: true, type: 'audio' };
     }
     
+    // Si es documento (PDF), enviar como archivo
+    if (options && options.asDocument && content.documentBuffer) {
+      await sock.sendMessage(jid, { 
+        document: content.documentBuffer, 
+        mimetype: content.mimeType || 'application/pdf', 
+        fileName: content.fileName || 'documento.pdf'
+      }, opts);
+      return { ok: true, type: 'document', fileName: content.fileName };
+    }
+    
     // Por defecto, enviar como texto
     var text = typeof content === 'string' ? content : (content.text || '');
     await sock.sendMessage(jid, { text: text }, opts);

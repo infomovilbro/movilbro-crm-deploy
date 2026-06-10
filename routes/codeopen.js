@@ -137,6 +137,75 @@ function getCRMContext() {
   } catch (e) { return {}; }
 }
 
+// ---- DETECCIÓN Y RECUPERACIÓN DE DOCUMENTOS ----
+// Cuando un cliente pide una factura/contrato, el sistema la busca y la prepara
+async function detectAndFetchDocument(msgBody, fromName, fromAddress) {
+  try {
+    // 1. Preguntar a la IA si esto es una petición de documento
+    var docPrompt = 'Analiza si el cliente está pidiendo UN DOCUMENTO (factura, contrato, recibo, albarán, justificante). ' +
+      'Responde SOLO con JSON: {"isDocument":true/false, "type":"factura/contrato/recibo/otro", "periodo":"mes-año o null", "clientName":"nombre del cliente si lo menciona o null", "clientDni":"DNI si lo menciona o null"}\n\n' +
+      'Cliente: ' + fromName + '\nMensaje: ' + msgBody;
+    
+    var llmResp = await callLLM(docPrompt, '', 0.3, 'deepseek-v4-flash-free');
+    var jsonMatch = llmResp.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return null;
+    var info = JSON.parse(jsonMatch[0]);
+    if (!info.isDocument) return null;
+    
+    // 2. Buscar el cliente en la BD
+    var client = null;
+    var searchPhone = fromAddress.replace(/[^0-9]/g, '');
+    if (searchPhone.length >= 9) {
+      client = db.prepare("SELECT * FROM clients WHERE telefono LIKE ? OR telefono2 LIKE ? LIMIT 1").get('%' + searchPhone + '%', '%' + searchPhone + '%');
+    }
+    if (!client && info.clientDni) {
+      client = db.prepare("SELECT * FROM clients WHERE dni_nif=? LIMIT 1").get(info.clientDni);
+    }
+    if (!client && info.clientName) {
+      client = db.prepare("SELECT * FROM clients WHERE nombre LIKE ? LIMIT 1").get('%' + info.clientName.substring(0, 30) + '%');
+    }
+    if (!client) return { error: 'Cliente no identificado. Pídele nombre completo y DNI.' };
+    
+    // 3. Buscar la factura/documento
+    if (info.type === 'factura' || info.type === 'recibo') {
+      var periodo = info.periodo || '';
+      var factura = null;
+      if (periodo) {
+        factura = db.prepare("SELECT * FROM isp_facturas WHERE fiscal_id=? AND periodo=? LIMIT 1").get(client.dni_nif || client.likes_customer_id, periodo);
+      }
+      if (!factura) {
+        factura = db.prepare("SELECT * FROM isp_facturas WHERE fiscal_id=? ORDER BY created_at DESC LIMIT 1").get(client.dni_nif || client.likes_customer_id);
+      }
+      if (!factura) return { error: 'No encontré facturas para ' + client.nombre + '.', clientName: client.nombre };
+      
+      // 4. Buscar el PDF generado en archivos
+      var archivo = db.prepare("SELECT * FROM archivos WHERE nombre LIKE ? ORDER BY created_at DESC LIMIT 1").get('%' + factura.serie + '-' + factura.numero_factura + '%');
+      if (!archivo) {
+        // Intentar con el periodo
+        archivo = db.prepare("SELECT * FROM archivos WHERE periodo=? AND nombre LIKE '%factura%' ORDER BY created_at DESC LIMIT 1").get(factura.periodo);
+      }
+      
+      return {
+        clientName: client.nombre,
+        factura: factura,
+        archivo: archivo ? { id: archivo.id, nombre: archivo.nombre, driveId: archivo.drive_id } : null,
+        encontrado: !!archivo,
+        resumen: 'Factura de ' + factura.periodo + ' por ' + factura.importe_total + '€'
+      };
+    }
+    
+    if (info.type === 'contrato') {
+      var contrato = db.prepare("SELECT * FROM isp_contratos WHERE fiscal_id=? ORDER BY created_at DESC LIMIT 1").get(client.dni_nif || client.likes_customer_id);
+      if (!contrato) return { error: 'No encontré contrato para ' + client.nombre + '.', clientName: client.nombre };
+      return { clientName: client.nombre, contrato: contrato, encontrado: true };
+    }
+    
+    return { error: 'No sé cómo obtener ' + info.type + '. Pregunta al administrador.' };
+  } catch(e) {
+    return { error: 'Error buscando documento: ' + e.message };
+  }
+}
+
 async function callLLM(systemPrompt, userMessage, temperature, modelId) {
   var primaryModel = modelId || getUserModel();
   var modelConfig = getModelConfig(primaryModel);
@@ -724,24 +793,55 @@ router.post('/analyze/:id', async (req, res) => {
     var bodyPreview = (row.body || '').substring(0, 300);
     var ctx = 'Contexto CRM: ' + JSON.stringify(crmCtx) + '\n\nMensaje de ' + row.from_name + ': ' + bodyPreview;
     
-    // Single-call rápido: pedir todo al LLM de una vez
+    // Detectar si pide un documento (factura, contrato, etc.)
+    var docInfo = await detectAndFetchDocument(row.body || '', row.from_name, row.from_address);
+    var docReady = false;
+    var docData = null;
+    
+    if (docInfo && docInfo.error) {
+      // Cliente no identificado o documento no encontrado
+      var finalResponse = 'Hola ' + row.from_name + ', ' + docInfo.error + ' ¿En qué más puedo ayudarte?';
+      db.prepare("UPDATE pending_messages SET proposed_response=? WHERE id=?").run(finalResponse, row.id);
+      res.json({ ok: true, response: finalResponse, docInfo: docInfo });
+      return;
+    }
+    
+    if (docInfo && docInfo.encontrado && docInfo.archivo) {
+      // Documento encontrado en BD - recuperar el buffer
+      try {
+        var archivoRow = db.prepare("SELECT * FROM archivos WHERE id=?").get(docInfo.archivo.id);
+        if (archivoRow && archivoRow.datos) {
+          docData = { buffer: archivoRow.datos, fileName: archivoRow.nombre, mimeType: 'application/pdf' };
+          docReady = true;
+        }
+      } catch(e) {}
+    }
+    
+    // Generar respuesta con IA
+    var ctxDoc = docInfo ? '\n\nDOCUMENTO SOLICITADO: ' + (docInfo.resumen || '') : '';
     var fastPrompt = 'Eres un asistente CRM experto. Analiza este mensaje de ' + row.from_name + ' y genera una respuesta profesional.\n\n' +
-      'Contexto del CRM: ' + JSON.stringify(crmCtx) + '\n\nMensaje:\n' + bodyPreview + '\n\n' +
+      'Contexto del CRM: ' + JSON.stringify(crmCtx) + '\n\nMensaje:\n' + bodyPreview + ctxDoc + '\n\n' +
       'Responde en este formato:\n' +
       'ANÁLISIS: (quién escribe, intención, urgencia)\n' +
       'CONTEXTO CRM: (qué datos del CRM son relevantes)\n' +
-      'RESPUESTA: (la respuesta profesional lista para enviar)';
+      'RESPUESTA: (la respuesta profesional lista para enviar. Si el documento está disponible, indica que se lo enviamos adjunto)';
     
     var finalResponse = await callLLM(fastPrompt, '', 0.7, modelId);
-    
-    // Intentar extraer solo la RESPUESTA para enviar
     var cleanResponse = finalResponse || '';
     var respMatch = cleanResponse.match(/RESPUESTA:\s*([\s\S]*)/i);
     var sendResponse = respMatch ? respMatch[1].trim() : cleanResponse;
     
-    db.prepare("UPDATE pending_messages SET proposed_response=? WHERE id=?").run(sendResponse || cleanResponse, row.id);
-    console.log('[CodeOpen] Mensaje #' + row.id + ' analizado con', modelId);
-    res.json({ ok: true, response: sendResponse || cleanResponse });
+    // Guardar todo
+    if (docReady && docData) {
+      db.prepare("UPDATE pending_messages SET proposed_response=?, document_ready=1, document_info=?, document_buffer=? WHERE id=?").run(
+        sendResponse || cleanResponse, JSON.stringify(docInfo), docData.buffer, row.id
+      );
+    } else {
+      db.prepare("UPDATE pending_messages SET proposed_response=? WHERE id=?").run(sendResponse || cleanResponse, row.id);
+    }
+    
+    console.log('[CodeOpen] Mensaje #' + row.id + ' analizado con', modelId, docReady ? '(documento listo)' : '');
+    res.json({ ok: true, response: sendResponse || cleanResponse, docReady: docReady, docInfo: docInfo });
   } catch(e) {
     console.error('[CodeOpen] Error analizando #' + req.params.id + ':', e.message);
     res.status(500).json({ error: e.message });
@@ -788,6 +888,22 @@ router.post('/approve/:id', async (req, res) => {
           var result = await wa.sendMessage(row.from_address, textWithQuote, opts);
           if (result.ok) { sent = true; sendInfo = ' (con texto original)'; }
           else { console.log('[CodeOpen] Error WhatsApp:', result.error); }
+        }
+
+        // Enviar como documento PDF si está listo
+        if (!sent && row.document_ready && row.document_buffer) {
+          try {
+            var docInfo = row.document_info ? JSON.parse(row.document_info) : null;
+            opts.asDocument = true;
+            var result = await wa.sendMessage(row.from_address, { 
+              documentBuffer: row.document_buffer, 
+              mimeType: 'application/pdf', 
+              fileName: (docInfo && docInfo.archivo ? docInfo.archivo.nombre : 'documento.pdf'),
+              text: row.proposed_response || ''
+            }, opts);
+            if (result.ok) { sent = true; sendInfo = ' (📄 ' + (docInfo && docInfo.archivo ? docInfo.archivo.nombre : 'PDF') + ')'; }
+            else { console.log('[CodeOpen] Error al enviar documento:', result.error); }
+          } catch(docErr) { console.error('[CodeOpen] Error doc:', docErr.message); }
         }
 
         // Enviar como audio si se solicita

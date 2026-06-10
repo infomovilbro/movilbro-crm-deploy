@@ -412,6 +412,9 @@ function initDatabase() {
   try { db.prepare("ALTER TABLE tickets ADD COLUMN departamento TEXT DEFAULT 'General'").run(); } catch(e) {}
   try { db.prepare("ALTER TABLE tickets ADD COLUMN user_id INTEGER").run(); } catch(e) {}
   try { db.prepare("ALTER TABLE pending_messages ADD COLUMN quoted_data TEXT").run(); } catch(e) {}
+  try { db.prepare("ALTER TABLE pending_messages ADD COLUMN document_ready INTEGER DEFAULT 0").run(); } catch(e) {}
+  try { db.prepare("ALTER TABLE pending_messages ADD COLUMN document_info TEXT").run(); } catch(e) {}
+  try { db.prepare("ALTER TABLE pending_messages ADD COLUMN document_buffer BLOB").run(); } catch(e) {}
 
   // Altas ordenes tables for multi-step order flow
   try {
