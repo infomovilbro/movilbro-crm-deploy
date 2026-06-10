@@ -128,9 +128,18 @@ function mapSubscriptions(allSubs, customers) {
     var estadoRaw = (prod.status || sub.status || sub.estado || 'activa').toLowerCase();
     var telefono = prod.lineNumber || sub.phone || '';
     var cn = sub.customer || sub.client || sub.customerInfo || {};
+    // Find matching local client by phone
+    var localClientId = null;
+    try {
+      var phoneClean = (telefono || '').replace(/[^\d]/g, '');
+      if (phoneClean) {
+        var local = db.prepare("SELECT id FROM clients WHERE telefono = ? OR telefono2 = ? OR REPLACE(telefono, ' ', '') = ? LIMIT 1").get(phoneClean, phoneClean, phoneClean);
+        if (local) localClientId = local.id;
+      }
+    } catch(e) {}
     return {
       id: sub.subscriptionId || sub.id || sub.likes_id,
-      client_id: null,
+      client_id: localClientId || null,
       linea: subLinea,
       producto: prod.productName || sub.productName || sub.product || sub.producto || '',
       familia: FAMILY_MAP[(prod.family || sub.family || '').toLowerCase()] || prod.family || sub.family || '',

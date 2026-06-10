@@ -225,34 +225,34 @@ async function callLLM(systemPrompt, userMessage, temperature, modelId) {
     var currentConfig = getModelConfig(currentModel);
     if (!currentConfig || !currentConfig.key) continue;
     
-    var maxRetries = 2;
+    var maxRetries = 1;
     for (var attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         const r = await axios.post(currentConfig.apiEndpoint, {
           model: currentModel,
           messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }],
-          temperature: temperature || 0.7, max_tokens: 4096
-        }, { timeout: 25000, headers: { 'Authorization': 'Bearer ' + currentConfig.key, 'Content-Type': 'application/json' } });
+          temperature: temperature || 0.7, max_tokens: 2048
+        }, { timeout: 15000, headers: { 'Authorization': 'Bearer ' + currentConfig.key, 'Content-Type': 'application/json' } });
         var text = r?.data?.choices?.[0]?.message?.content;
         if ((text || '').trim()) {
           if (mi > 0) {
             console.log('[CodeOpen] Fallback automático: ' + primaryModel + ' → ' + currentModel);
           }
+          try {
+            var today = new Date().toISOString().split('T')[0];
+            db.prepare("INSERT INTO model_usage (model_id, date, calls) VALUES (?, ?, 1) ON CONFLICT(model_id, date) DO UPDATE SET calls = calls + 1, updated_at = CURRENT_TIMESTAMP").run(currentModel, today);
+          } catch(e) {}
           return (text || '').trim();
         }
       } catch(e) {
         var isRateLimit = e.response?.status === 429 || (e.message && e.message.indexOf('429') > -1);
         lastError = e.message;
-        if (isRateLimit && attempt < maxRetries) {
-          var delay = Math.pow(8, attempt) * 1000 + Math.random() * 5000;
-          console.log('[CodeOpen] Rate limit 429 en ' + currentModel + ', reintento ' + attempt + '/' + maxRetries);
-          await new Promise(function(r) { setTimeout(r, delay); });
-        } else if (isRateLimit) {
+        if (isRateLimit) {
           console.log('[CodeOpen] ' + currentModel + ' rate limit, probando siguiente modelo...');
-          break; // Probar siguiente modelo
+          break;
         } else {
           console.log('[CodeOpen] Error en ' + currentModel + ':', e.message);
-          break; // Error no recuperable, probar siguiente
+          break;
         }
       }
     }
@@ -528,17 +528,18 @@ router.post('/model/select', (req, res) => {
   res.json({ ok: true, model: modelId, name: AVAILABLE_MODELS[modelId].name });
 });
 
-// ---- MODEL USAGE TRACKING ----
+// ---- MODEL USAGE TRACKING (real desde tabla model_usage) ----
 router.get('/model-usage', (req, res) => {
   try {
     var usage = {};
     var models = Object.keys(AVAILABLE_MODELS);
     var today = new Date().toISOString().split('T')[0];
     models.forEach(function(m) {
-      var count = (db.prepare("SELECT COUNT(*) as c FROM chat_history WHERE content LIKE ? AND created_at > ?").get('%' + m + '%', today) || {}).c || 0;
-      // Estimar %: asumimos ~200 llamadas/día como límite gratuito
-      var pct = Math.min(Math.round(count / 200 * 100), 100);
-      usage[m] = { name: AVAILABLE_MODELS[m].name, calls: count, percent: pct };
+      var row = db.prepare("SELECT calls FROM model_usage WHERE model_id=? AND date=?").get(m, today);
+      var count = row ? row.calls : 0;
+      var MAX_CALLS = 100;
+      var pct = Math.min(Math.round(count / MAX_CALLS * 100), 100);
+      usage[m] = { name: AVAILABLE_MODELS[m].name, calls: count, percent: pct, maxCalls: MAX_CALLS };
     });
     res.json({ usage: usage, date: today });
   } catch(e) { res.json({ usage: {}, error: e.message }); }
@@ -817,14 +818,10 @@ router.post('/analyze/:id', async (req, res) => {
       } catch(e) {}
     }
     
-    // Generar respuesta con IA
+    // Generar respuesta con IA - ultra rápido: single call directo
     var ctxDoc = docInfo ? '\n\nDOCUMENTO SOLICITADO: ' + (docInfo.resumen || '') : '';
-    var fastPrompt = 'Eres un asistente CRM experto. Analiza este mensaje de ' + row.from_name + ' y genera una respuesta profesional.\n\n' +
-      'Contexto del CRM: ' + JSON.stringify(crmCtx) + '\n\nMensaje:\n' + bodyPreview + ctxDoc + '\n\n' +
-      'Responde en este formato:\n' +
-      'ANÁLISIS: (quién escribe, intención, urgencia)\n' +
-      'CONTEXTO CRM: (qué datos del CRM son relevantes)\n' +
-      'RESPUESTA: (la respuesta profesional lista para enviar. Si el documento está disponible, indica que se lo enviamos adjunto)';
+    var fastPrompt = 'Analiza este mensaje y genera respuesta profesional.\nCliente: ' + row.from_name + '\nMensaje: ' + bodyPreview + ctxDoc +
+      '\n\nResponde SOLO con:\nRESPUESTA: (texto listo para enviar, max 300 chars)';
     
     var finalResponse = await callLLM(fastPrompt, '', 0.7, modelId);
     var cleanResponse = finalResponse || '';
@@ -962,6 +959,27 @@ router.post('/delete/:id', (req, res) => {
     var info = db.prepare("DELETE FROM pending_messages WHERE id=?").run(req.params.id);
     res.json({ ok: true, deleted: info.changes });
   } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/send-document', require('multer')({ dest: '/tmp/codeopen-docs' }).single('document'), async (req, res) => {
+  try {
+    if (!req.file) return res.json({ ok: false, error: 'No se recibió archivo' });
+    var messageId = req.body.message_id;
+    if (!messageId) return res.json({ ok: false, error: 'message_id requerido' });
+    var row = db.prepare("SELECT * FROM pending_messages WHERE id=? AND status='pending'").get(messageId);
+    if (!row) return res.json({ ok: false, error: 'Mensaje no encontrado' });
+    var wa = require('../wa-baileys');
+    var fs = require('fs');
+    var fileBuf = fs.readFileSync(req.file.path);
+    var result = await wa.sendMessage(row.from_address, {
+      documentBuffer: fileBuf,
+      mimeType: req.file.mimetype || 'application/pdf',
+      fileName: req.file.originalname || 'documento.pdf',
+      text: '📄 Documento adjunto'
+    }, { asDocument: true });
+    try { fs.unlinkSync(req.file.path); } catch(e) {}
+    res.json(result);
+  } catch(e) { res.json({ ok: false, error: e.message }); }
 });
 
 router.post('/delete-contact/:address', (req, res) => {

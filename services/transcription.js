@@ -17,34 +17,32 @@ async function transcribeAudio(audioBuffer, mimeType) {
     var tmpPath = path.join(os.tmpdir(), 'wa_audio_' + Date.now() + '.ogg');
     fs.writeFileSync(tmpPath, audioBuffer);
 
-    // Subir audio
-    var uploadRes = await axios.post('https://api.assemblyai.com/v2/upload', fs.createReadStream(tmpPath), {
+    // Subir audio usando buffer directamente (más fiable que stream)
+    var audioData = fs.readFileSync(tmpPath);
+    var uploadRes = await axios.post('https://api.assemblyai.com/v2/upload', audioData, {
       headers: { 'Authorization': assemblyAIKey, 'Content-Type': 'application/octet-stream' },
-      maxContentLength: Infinity, maxBodyLength: Infinity
+      maxContentLength: Infinity, maxBodyLength: Infinity,
+      timeout: 60000
     });
     var audioUrl = uploadRes.data.upload_url;
-    if (!audioUrl) return { text: null, error: 'Error al subir audio' };
+    if (!audioUrl) return { text: null, error: 'Error al subir audio (no upload_url)' };
 
-    // Transcripción con análisis completo: sentimiento, entidades, temas
+    // Transcripción - solo lo esencial para ser más rápido y compatible
     var transcribeRes = await axios.post('https://api.assemblyai.com/v2/transcript', {
       audio_url: audioUrl,
       language_code: 'es',
-      sentiment_analysis: true,
-      entity_detection: true,
-      iab_categories: true,
-      auto_chapters: true,
-      summarization: true,
-      summary_type: 'paragraph'
-    }, { headers: { 'Authorization': assemblyAIKey } });
+      punctuate: true,
+      format_text: true
+    }, { headers: { 'Authorization': assemblyAIKey }, timeout: 30000 });
     var transcriptId = transcribeRes.data.id;
 
     // Esperar resultado
     var result = null;
     var fullData = null;
-    for (var i = 0; i < 60; i++) {
-      await new Promise(function(r) { setTimeout(r, 2000); });
+    for (var i = 0; i < 120; i++) {
+      await new Promise(function(r) { setTimeout(r, 1000); });
       var pollRes = await axios.get('https://api.assemblyai.com/v2/transcript/' + transcriptId, {
-        headers: { 'Authorization': assemblyAIKey }
+        headers: { 'Authorization': assemblyAIKey }, timeout: 15000
       });
       if (pollRes.data.status === 'completed') {
         result = pollRes.data.text;
@@ -52,6 +50,7 @@ async function transcribeAudio(audioBuffer, mimeType) {
         break;
       }
       if (pollRes.data.status === 'error') {
+        try { fs.unlinkSync(tmpPath); } catch(e) {}
         return { text: null, error: 'Error transcripción: ' + (pollRes.data.error || '') };
       }
     }
@@ -105,27 +104,71 @@ async function transcribeAudio(audioBuffer, mimeType) {
 }
 
 async function textToSpeech(text, voice) {
-  if (!assemblyAIKey) return { audio: null, error: 'ASSEMBLYAI_API_KEY no configurada' };
-  try {
-    var voiceId = voice || 'f199a85a-472e-4f72-857f-064e85467d14'; // AssemblyAI femenina español
-    var resp = await axios.post('https://api.assemblyai.com/v2/text-to-speech/' + voiceId, {
-      text: text.substring(0, 1000)
-    }, {
-      headers: { 'Authorization': assemblyAIKey },
-      responseType: 'arraybuffer',
-      timeout: 30000
-    });
-    return { audio: Buffer.from(resp.data), format: 'mp3' };
-  } catch(e) {
-    return { audio: null, error: 'Error TTS: ' + e.message };
+  // Intentar con AssemblyAI TTS
+  if (assemblyAIKey) {
+    try {
+      // Obtener voces disponibles primero
+      var voicesResp = await axios.get('https://api.assemblyai.com/v2/text-to-speech/voices', {
+        headers: { 'Authorization': assemblyAIKey }, timeout: 10000
+      });
+      var voices = voicesResp.data.voices || [];
+      var voiceId = null;
+      if (voice) {
+        var found = voices.find(function(v) { return v.id === voice || v.name === voice; });
+        if (found) voiceId = found.id;
+      }
+      if (!voiceId) {
+        // Buscar voz femenina en español
+        var esVoice = voices.find(function(v) { return v.language && v.language.indexOf('es') >= 0; });
+        voiceId = esVoice ? esVoice.id : (voices.length > 0 ? voices[0].id : null);
+      }
+      if (voiceId) {
+        var resp = await axios.post('https://api.assemblyai.com/v2/text-to-speech/' + voiceId, {
+          text: text.substring(0, 1000)
+        }, {
+          headers: { 'Authorization': assemblyAIKey },
+          responseType: 'arraybuffer',
+          timeout: 30000
+        });
+        if (resp.data && resp.data.length > 100) {
+          return { audio: Buffer.from(resp.data), format: 'mp3' };
+        }
+      }
+    } catch(e) {
+      console.log('[TTS] AssemblyAI falló:', e.message);
+    }
   }
+
+  // Fallback: OpenRouter TTS si está disponible
+  var openRouterKey = process.env.OPENROUTER_API_KEY || '';
+  if (openRouterKey) {
+    try {
+      var resp = await axios.post('https://openrouter.ai/api/v1/chat/completions', {
+        model: 'openai/tts-1',
+        input: text.substring(0, 500),
+        voice: 'alloy',
+        response_format: 'mp3'
+      }, {
+        headers: { 'Authorization': 'Bearer ' + openRouterKey },
+        responseType: 'arraybuffer',
+        timeout: 30000
+      });
+      if (resp.data && resp.data.length > 100) {
+        return { audio: Buffer.from(resp.data), format: 'mp3' };
+      }
+    } catch(e) {
+      console.log('[TTS] OpenRouter TTS falló:', e.message);
+    }
+  }
+
+  return { audio: null, error: 'No hay servicio TTS disponible. Configura AssemblyAI o API key en Settings.' };
 }
 
 async function getVoices() {
   if (!assemblyAIKey) return [];
   try {
     var resp = await axios.get('https://api.assemblyai.com/v2/text-to-speech/voices', {
-      headers: { 'Authorization': assemblyAIKey }
+      headers: { 'Authorization': assemblyAIKey }, timeout: 10000
     });
     return resp.data.voices || [];
   } catch(e) {

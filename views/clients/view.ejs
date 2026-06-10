@@ -22,6 +22,8 @@
             <tr><th>Dirección</th><td><%= cliente.direccion || '-' %>, <%= cliente.ciudad %>, <%= cliente.provincia %> <%= cliente.codigo_postal %></td></tr>
             <tr><th>Cliente desde</th><td><%= new Date(cliente.created_at).toLocaleDateString('es-ES') %></td></tr>
             <% if (cliente.likes_customer_id) { %><tr><th>ID Likes</th><td><code><%= cliente.likes_customer_id %></code></td></tr><% } %>
+            <tr><th>Método pago</th><td><%= cliente.metodo_pago || '-' %></td></tr>
+            <% if (cliente.iban) { %><tr><th>IBAN</th><td><code><%= cliente.iban %></code></td></tr><% } %>
           </table>
           <% if (cliente.notas) { %>
             <hr><h6>Notas:</h6>
@@ -80,7 +82,35 @@
         </div>
       </div>
 
-      <div class="card">
+      <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between">
+          <span><i class="bi bi-file-text"></i> Contratos</span>
+          <a href="/isp/contratos/nuevo?cliente_id=<%= cliente.id %>" class="btn btn-sm btn-primary"><i class="bi bi-plus"></i> Nuevo</a>
+        </div>
+        <div class="card-body p-0">
+          <table class="table table-hover mb-0">
+            <thead class="table-light"><tr><th>Tipo</th><th>Producto</th><th>Tarifa</th><th>Estado</th><th>Fecha</th><th></th></tr></thead>
+            <tbody>
+              <% if (!contratos || contratos.length === 0) { %><tr><td colspan="6" class="text-center text-muted py-3">Sin contratos</td></tr><% } %>
+              <% (contratos || []).forEach(function(c) { %>
+              <tr>
+                <td><%= c.tipo %></td>
+                <td><%= c.producto || '-' %></td>
+                <td><%= c.tarifa || '-' %> <%= c.precio ? '(' + c.precio + '€)' : '' %></td>
+                <td><span class="badge bg-<%= c.estado === 'activo' ? 'success' : c.estado === 'borrador' ? 'secondary' : 'warning' %>"><%= c.estado %></span></td>
+                <td class="small"><%= c.fecha_alta ? new Date(c.fecha_alta).toLocaleDateString('es-ES') : '-' %></td>
+                <td>
+                  <a href="/isp/contratos/<%= c.id %>" class="btn btn-sm btn-outline-primary" title="Ver"><i class="bi bi-eye"></i></a>
+                  <a href="/isp/contratos/<%= c.id %>/pdf" class="btn btn-sm btn-outline-success" title="Descargar PDF" target="_blank"><i class="bi bi-download"></i></a>
+                </td>
+              </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card mb-3">
         <div class="card-header"><i class="bi bi-ticket"></i> Tickets</div>
         <div class="card-body p-0">
           <table class="table table-hover mb-0">

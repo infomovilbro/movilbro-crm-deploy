@@ -420,10 +420,12 @@ router.get('/descargar', (req, res) => {
   res.download(filePath);
 });
 
-router.get('/zip/:year/:month?', (req, res) => {
+router.get('/zip/:year/:month?', async (req, res) => {
   try {
-    var archiver = require('archiver');
-    var archive = archiver('zip', { zlib: { level: 9 } });
+    var archiverMod = await import('archiver');
+    var ArchiverClass = archiverMod.ZipArchive || archiverMod.default?.ZipArchive;
+    if (!ArchiverClass) throw new Error('No se pudo cargar archiver');
+    var archive = new ArchiverClass({ zlib: { level: 9 } });
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader('Content-Disposition', 'attachment; filename="facturas-' + req.params.year + (req.params.month ? '-' + req.params.month : '') + '.zip"');
     archive.pipe(res);

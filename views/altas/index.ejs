@@ -609,6 +609,18 @@ function goWizardStep4() {
     '</p>';
 
   document.getElementById('checkPortaRow').style.display = 'none';
+
+  // Mostrar paso 4
+  document.getElementById('wizardStep1').style.display = 'none';
+  document.getElementById('wizardStep2').style.display = 'none';
+  document.getElementById('wizardStep3').style.display = 'none';
+  document.getElementById('wizardStep4').style.display = 'block';
+  actualizarProgressBar(4);
+  WIZARD.step = 4;
+
+  document.getElementById('checkPago').addEventListener('change', function() {
+    document.getElementById('btnCrearCliente').disabled = !this.checked;
+  });
 }
 
 function goWizardStep1() {
@@ -788,32 +800,6 @@ function toggleLineaTipo(lineaIdx) {
 function toggleLineaIcc(lineaIdx) {
   var sim = document.querySelector('.linea-sim[data-linea="' + lineaIdx + '"]').value;
   document.getElementById('licc-' + lineaIdx).style.display = sim === 'fisica' ? '' : 'none';
-}
-
-function validarPaso3() {
-  var allValid = true;
-  // Each portability line must have phone number
-  document.querySelectorAll('.linea-tipo').forEach(function(sel) {
-    var idx = sel.dataset.linea;
-    if (sel.value === 'PORTABILIDAD') {
-      var num = document.querySelector('.linea-porta-num[data-linea="' + idx + '"]');
-      var don = document.querySelector('.linea-donante[data-linea="' + idx + '"]');
-      if (!num || !num.value.trim() || !don || !don.value) allValid = false;
-    }
-  });
-  document.getElementById('btnStep3Next').disabled = !allValid;
-}
-
-  document.getElementById('wizardStep1').style.display = 'none';
-  document.getElementById('wizardStep2').style.display = 'none';
-  document.getElementById('wizardStep3').style.display = 'none';
-  document.getElementById('wizardStep4').style.display = 'block';
-  actualizarProgressBar(4);
-  WIZARD.step = 4;
-
-  document.getElementById('checkPago').addEventListener('change', function() {
-    document.getElementById('btnCrearCliente').disabled = !this.checked;
-  });
 }
 
 // Payment methods

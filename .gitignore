@@ -1,6 +1,19 @@
-# CDP scripts
+# CDP and debug scripts
 cdp_*.js
+_cdp_*.js
+_check_*.js
+_debug_*.js
 pw_template.js
+
+# Log files
+server_*.log
+
+# Local startup scripts
+iniciar_local.bat
+abrir_*.bat
+start_*.bat
+start_*.ps1
+diagnostico.bat
 
 # Downloaded files
 isp_*.html
@@ -77,5 +90,10 @@ movilbro.db-wal
 movilbro_seed.db-shm
 movilbro_seed.db-wal
 
+# Backup folders
+BACKUP_*/
+
+# Uploads
+uploads/
 
 .opencode/oauth-config.json

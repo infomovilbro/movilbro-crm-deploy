@@ -3,7 +3,7 @@
 
   <!-- Top Bar -->
   <div id="catBar" style="padding:12px 20px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex-shrink:0;">
-    <span style="font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-right:8px;">Agentes</span>
+    <span style="font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-right:8px;">Categoría</span>
     <div id="categoryPills" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
     <div style="flex-grow:1;"></div>
     <button id="themeToggle" style="background:none;border:1px solid;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:0.85rem;display:flex;align-items:center;gap:4px;">
@@ -39,13 +39,12 @@
         <p style="max-width:420px;font-size:0.9rem;">Selecciona una categoría y escribe tu consulta. Los agentes trabajarán en paralelo y verás su progreso en tiempo real.</p>
         <div id="quickExamples" style="margin-top:16px;display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:500px;"></div>
       </div>
-      <!-- Vista de Contactos WhatsApp -->
+      <!-- Vista de Contactos -->
       <div id="waContactsView" style="display:none;">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border);">
-          <i class="ri-whatsapp-line" style="color:#25D366;font-size:1.3rem;"></i>
-          <span style="font-weight:600;font-size:0.9rem;">Mensajes WhatsApp</span>
+          <i id="waViewIcon" class="ri-inbox-2-line" style="color:#6366f1;font-size:1.3rem;"></i>
+          <span style="font-weight:600;font-size:0.9rem;">Mensajes <span class="filter-label" style="font-weight:400;color:var(--text-muted);">todos</span></span>
           <span id="waContactsCount" style="background:var(--border);color:var(--text-muted);font-size:0.7rem;border-radius:10px;padding:2px 8px;"></span>
-          <button id="switchToAgents" style="margin-left:auto;background:none;border:1px solid var(--border);border-radius:8px;padding:4px 12px;cursor:pointer;font-size:0.75rem;color:var(--text-muted);">← Agentes</button>
         </div>
         <div id="waContactsList"></div>
       </div>
@@ -240,30 +239,107 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
     renderExamples('general');
   });
 
+  var TAB_DEFS = [
+    { id: 'todos', name: 'Todos', icon: 'ri-inbox-2-line', color: '#6366f1' },
+    { id: 'whatsapp', name: 'WhatsApp', icon: 'ri-whatsapp-line', color: '#25D366' },
+    { id: 'email', name: 'Correo', icon: 'ri-mail-send-line', color: '#EA4335' },
+    { id: 'altas', name: 'Altas', icon: 'ri-user-add-line', color: '#7C3AED' },
+    { id: 'code', name: 'Código', icon: 'ri-code-line', color: '#0050A1' },
+    { id: 'general', name: 'General', icon: 'ri-robot-line', color: '#6366f1' }
+  ];
+
   function renderCategoryPills() {
     els.categoryPills.innerHTML = '';
-    var first = true;
-    for (var key in categories) {
-      var c = categories[key];
+    TAB_DEFS.forEach(function(tabDef, idx) {
       var pill = document.createElement('div');
-      pill.className = 'category-pill' + (first ? ' active' : '');
-      pill.dataset.cat = key;
-      pill.innerHTML = '<i class="' + c.icon + '" style="color:' + c.color + '"></i> ' + c.name;
+      pill.className = 'category-pill' + (idx === 0 ? ' active' : '');
+      pill.dataset.cat = tabDef.id;
+      pill.innerHTML = '<i class="' + tabDef.icon + '" style="color:' + tabDef.color + '"></i> ' + tabDef.name;
       pill.addEventListener('click', function() { selectCategory(this.dataset.cat); });
       els.categoryPills.appendChild(pill);
-      if (first) { currentCategory = key; first = false; }
-    }
+    });
+    currentCategory = 'todos';
+    selectCategory('todos');
   }
+
+  var LIST_CATEGORIES = ['whatsapp', 'email', 'altas', 'todos'];
+  var AGENT_CATEGORIES_LIST = ['code', 'general'];
 
   function selectCategory(key) {
     if (currentTaskId) return;
     currentCategory = key;
     document.querySelectorAll('.category-pill').forEach(function(p) { p.classList.remove('active'); });
     document.querySelector('.category-pill[data-cat="' + key + '"]').classList.add('active');
-    renderExamples(key);
-    if (!els.agentPipeline.querySelector('.agent-card')) {
-      els.emptyState.style.display = 'flex';
+    
+    // Si es categoría de listado (whatsapp/email/altas/todos), ocultar panel agentes y mostrar contactos filtrados
+    if (LIST_CATEGORIES.indexOf(key) >= 0) {
+      els.agentPipeline.style.display = 'none';
+      els.resultArea.style.display = 'none';
+      els.activitySidebar.style.display = 'none';
+      if (key === 'todos') {
+        loadFilteredContacts('all');
+      } else if (key === 'altas') {
+        loadFilteredContacts('altas');
+      } else {
+        loadFilteredContacts(key);
+      }
+      // Ocultar input bar en categorías de listado
+      els.askForm.style.display = 'none';
+      els.emptyState.style.display = 'none';
+      return;
     }
+    
+    // Para Código y General: mostrar input bar y panel agentes
+    els.askForm.style.display = 'flex';
+    renderExamples(key);
+    if (key === 'code') {
+      waContactsView.style.display = 'none';
+      els.emptyState.style.display = 'none';
+      els.agentPipeline.style.display = 'flex';
+      showCodePlaceholder();
+    } else {
+      if (!els.agentPipeline.querySelector('.agent-card')) {
+        els.emptyState.style.display = 'flex';
+      }
+    }
+  }
+
+  function showCodePlaceholder() {
+    els.agentPipeline.style.display = 'flex';
+    els.agentPipeline.innerHTML = '<div style="padding:30px;text-align:center;color:var(--text-faint);font-size:0.9rem;"><i class="ri-code-line" style="font-size:3rem;display:block;margin-bottom:12px;opacity:0.3;"></i>Escribe tu consulta de código, SQL o cambios en el CRM en el campo de abajo y pulsa Ejecutar.</div>';
+  }
+
+  function loadFilteredContacts(filterCategory) {
+    waContactsView.style.display = 'block';
+    els.agentPipeline.style.display = 'none';
+    els.resultArea.style.display = 'none';
+    els.emptyState.style.display = 'none';
+    
+    var filterLabel = filterCategory === 'all' ? 'todos los mensajes' : (filterCategory === 'whatsapp' ? 'WhatsApp' : (filterCategory === 'email' ? 'Correo' : 'Altas'));
+    document.querySelector('#waContactsView .filter-label').textContent = filterLabel;
+    var iconEl = document.getElementById('waViewIcon');
+    if (iconEl) {
+      var iconMap = { all: 'ri-inbox-2-line', whatsapp: 'ri-whatsapp-line', email: 'ri-mail-send-line', altas: 'ri-user-add-line' };
+      var colorMap = { all: '#6366f1', whatsapp: '#25D366', email: '#EA4335', altas: '#7C3AED' };
+      iconEl.className = iconMap[filterCategory] || 'ri-inbox-2-line';
+      iconEl.style.color = colorMap[filterCategory] || '#6366f1';
+    }
+    
+    fetch('/codeopen/pending/grouped').then(function(r) { return r.json(); }).then(function(d) {
+      var groups = (d.groups || []).filter(function(g) {
+        if (filterCategory === 'all') return true;
+        if (filterCategory === 'altas') {
+          var kw = ['alta', 'contratar', 'contrataci', 'nuevo servicio', 'nueva linea', 'portabilida', 'fibra', 'movil', 'movilbro', 'precio', 'tarifa', 'me interesa', 'quiero contrat', 'darme de alta', 'nuevo producto', 'presupuesto'];
+          return g.messages.some(function(m) {
+            var body = (m.body || '').toLowerCase();
+            return kw.some(function(k) { return body.indexOf(k) >= 0; });
+          });
+        }
+        return g.category === filterCategory;
+      });
+      renderWAContacts(groups);
+      waContactsCount.textContent = groups.reduce(function(acc, g) { return acc + g.messages.length; }, 0) + ' mensajes';
+    });
   }
 
   function renderExamples(cat) {
@@ -714,23 +790,23 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
     fetch('/codeopen/models').then(function(r) { return r.json(); }).then(function(d) {
       if (!d.models) return;
       cerebroDropdown.innerHTML = '<div style="padding:6px 10px;font-size:0.7rem;color:var(--text-faint);border-bottom:1px solid var(--border);margin-bottom:4px;">🧠 Modelos</div>';
-      for (var key in d.models) {
-        var m = d.models[key];
+      Object.keys(d.models).forEach(function(k) {
+        var m = d.models[k];
         var item = document.createElement('div');
-        var isActive = key === d.current;
+        var isActive = k === d.current;
         var needsKey = m.needsKey;
         item.style.cssText = 'padding:8px 10px;border-radius:8px;cursor:' + (needsKey ? 'default' : 'pointer') + ';font-size:0.78rem;display:flex;align-items:center;gap:8px;' + (isActive ? 'background:rgba(99,102,241,0.15);border:1px solid var(--accent);' : '') + ';transition:background 0.2s;';
         item.innerHTML = '<span style="flex-shrink:0;">' + (isActive ? '✅' : (needsKey ? '🔒' : '○')) + '</span>' +
           '<div style="flex:1;min-width:0;"><div style="font-weight:' + (isActive ? '600' : '400') + ';">' + m.name + '</div>' +
           (needsKey ? '<div style="font-size:0.65rem;color:#f59e0b;">🔑 ' + (m.keyHint || 'Necesita API key') + '</div>' : '') +
-          '<div id="usage_' + key.replace(/[^a-zA-Z0-9]/g, '_') + '" style="height:3px;background:var(--border);border-radius:2px;margin-top:4px;overflow:hidden;"><div style="width:30%;height:100%;background:var(--accent);border-radius:2px;"></div></div></div>';
+          '<div id="usage_' + k.replace(/[^a-zA-Z0-9]/g, '_') + '" style="height:3px;background:var(--border);border-radius:2px;margin-top:4px;overflow:hidden;"><div style="width:30%;height:100%;background:var(--accent);border-radius:2px;"></div></div></div>';
         if (!needsKey) {
-          item.addEventListener('click', function() {
-            selectModel(key);
-          });
+          item.addEventListener('click', (function(modelKey) {
+            return function() { selectModel(modelKey); };
+          })(k));
         }
         cerebroDropdown.appendChild(item);
-      }
+      });
       loadModelUsage();
     });
   }
@@ -771,32 +847,28 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
   // Keep loadModels for compatibility
   function loadModels() {}
 
-  // ---- VISTA DE CONTACTOS WHATSAPP ----
+  // ---- VISTA DE CONTACTOS ----
   var waContactsView = $('waContactsView');
   var waContactsList = $('waContactsList');
   var waContactsCount = $('waContactsCount');
-  var switchToAgents = $('switchToAgents');
-
-  switchToAgents.addEventListener('click', function() {
-    waContactsView.style.display = 'none';
-    els.emptyState.style.display = 'flex';
-  });
 
   var activeCategoryTab = 'all';
   var isAnalyzing = false;
 
-  function loadWAContacts() {
-    if (isAnalyzing) return;
-    fetch('/codeopen/pending/grouped').then(function(r) { return r.json(); }).then(function(d) {
-      if (!d.groups || d.groups.length === 0) {
-        if (waContactsView.style.display !== 'none') return;
-        waContactsView.style.display = 'none';
-        return;
+  var profilePicCache = {};
+
+  function getProfilePic(address, imgEl) {
+    if (profilePicCache[address]) {
+      imgEl.src = profilePicCache[address];
+      imgEl.style.display = 'block';
+      return;
+    }
+    fetch('/codeopen/whatsapp/profile-pic/' + encodeURIComponent(address)).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.url) {
+        profilePicCache[address] = d.url;
+        imgEl.src = d.url;
+        imgEl.style.display = 'block';
       }
-      waContactsView.style.display = 'block';
-      els.emptyState.style.display = 'none';
-      waContactsCount.textContent = d.total + ' mensajes';
-      renderWAContacts(d.groups);
     });
   }
 
@@ -806,10 +878,12 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
       var unanalyzed = g.messages.filter(function(m) { return !m.proposed_response || m.proposed_response === 'Analizando con IA...' || m.proposed_response === ''; }).length;
       var card = document.createElement('div');
       card.style.cssText = 'background:var(--bg-card);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;overflow:hidden;animation:fadeScale 0.3s ease;';
+      var initial = g.contact.charAt(0).toUpperCase();
       card.innerHTML = '<div class="wa-contact-header" style="display:flex;align-items:center;gap:8px;padding:12px 16px;cursor:pointer;transition:background 0.2s;" onclick="toggleContactGroup(this)">' +
-        '<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#25D366,#128C7E);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:0.85rem;flex-shrink:0;">' + (g.contact.charAt(0).toUpperCase()) + '</div>' +
+        '<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#25D366,#128C7E);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:0.85rem;flex-shrink:0;position:relative;overflow:hidden;"><img class="profile-pic" data-address="' + escHtml(g.address) + '" src="" style="width:100%;height:100%;object-fit:cover;display:none;position:absolute;top:0;left:0;" onerror="this.style.display=\'none\'"><span class="profile-initial">' + initial + '</span></div>' +
         '<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:0.85rem;">' + escHtml(g.contact) + '</div><div style="font-size:0.7rem;color:var(--text-dim);">' + g.messages.length + ' mensaje' + (g.messages.length !== 1 ? 's' : '') + (unanalyzed > 0 ? ' · <span style="color:#f59e0b;">' + unanalyzed + ' sin analizar</span>' : '') + '</div></div>' +
         '<button class="btn-chat-history" data-address="' + escHtml(g.address) + '" data-name="' + escHtml(g.contact) + '" style="background:none;border:1px solid var(--border);border-radius:8px;padding:4px 8px;cursor:pointer;font-size:0.7rem;color:var(--text-muted);white-space:nowrap;" title="Ver historial completo de la conversación"><i class="ri-chat-history-line"></i> Historial</button>' +
+        '<button class="btn-delete-contact" data-address="' + escHtml(g.address) + '" style="background:none;border:1px solid var(--error);border-radius:8px;padding:4px 8px;cursor:pointer;font-size:0.7rem;color:var(--error);white-space:nowrap;" title="Borrar todos los mensajes de este contacto"><i class="ri-delete-bin-line"></i></button>' +
         '<i class="ri-arrow-down-s-line" style="font-size:1.2rem;color:var(--text-dim);transition:transform 0.2s;"></i></div>' +
         '<div class="wa-contact-messages" style="display:none;border-top:1px solid var(--border);padding:8px 16px 12px;"></div>';
       waContactsList.appendChild(card);
@@ -820,7 +894,8 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
         msgCard.style.cssText = 'background:var(--bg-main);border:1px solid var(--border-light);border-radius:10px;padding:10px;margin-bottom:8px;';
         var ts = msg.created_at || '';
         try { var d = new Date(ts + 'Z'); ts = d.toLocaleString('es-ES', {timeZone:'Europe/Madrid', day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}); } catch(e) {}
-        msgCard.innerHTML = '<div style="font-size:0.7rem;color:var(--text-faint);margin-bottom:4px;">#' + msg.id + ' · ' + ts + '</div>' +
+        msgCard.innerHTML = '<div style="font-size:0.7rem;color:var(--text-faint);margin-bottom:4px;">#' + msg.id + ' · ' + ts + 
+          ' <button class="btn-delete-msg" data-id="' + msg.id + '" style="background:none;border:0;color:var(--error);cursor:pointer;font-size:0.7rem;float:right;" title="Borrar este mensaje"><i class="ri-delete-bin-6-line"></i></button></div>' +
           '<div style="font-size:0.8rem;color:var(--text);margin-bottom:8px;padding:6px 10px;background:var(--bg-card);border-radius:8px;border-left:3px solid #25D366;">' + escHtml(msg.body || '').substring(0, 300) + '</div>' +
           '<div class="wa-msg-actions" data-id="' + msg.id + '">' +
           (hasAnalysis ? '' : '<button class="btn-analyze" data-id="' + msg.id + '" style="background:var(--accent);color:#fff;border:0;border-radius:8px;padding:6px 14px;font-size:0.75rem;cursor:pointer;font-weight:600;"><i class="ri-robot-line"></i> Analizar</button>') +
@@ -834,12 +909,17 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
             '<button class="btn-send-with-fwd" data-id="' + msg.id + '" style="flex:1;min-width:80px;background:#25D366;color:#fff;border:0;border-radius:8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-reply-line"></i> Con reenvío</button>' +
             '<button class="btn-send-no-fwd" data-id="' + msg.id + '" style="flex:1;min-width:80px;background:var(--accent);color:#fff;border:0;border-radius:8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-send-plane-line"></i> Sin reenvío</button>' +
             '<button class="btn-send-audio" data-id="' + msg.id + '" style="flex:1;min-width:70px;background:#8B5CF6;color:#fff;border:0;border-radius:8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-voiceprint-line"></i> Audio</button>' +
+            '<button class="btn-send-doc" data-id="' + msg.id + '" style="flex:1;min-width:70px;background:#f59e0b;color:#fff;border:0;border-radius:8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-file-pdf-line"></i> Doc</button>' +
             '<button class="btn-reject" data-id="' + msg.id + '" style="background:var(--error);color:#fff;border:0;border-radius:8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-close-line"></i></button>' +
             '</div>';
           msgCard.querySelector('.wa-msg-actions').after(respDiv);
         }
         msgsContainer.appendChild(msgCard);
       });
+      // Load profile pictures for this contact
+      var ppImg = card.querySelector('.profile-pic');
+      if (ppImg && g.address) setTimeout(function() { getProfilePic(g.address, ppImg); }, 100);
+
       // Bind events
       msgsContainer.querySelectorAll('.btn-analyze').forEach(function(b) {
         b.addEventListener('click', function(e) { e.stopPropagation(); analyzeMessage(this.dataset.id, this); });
@@ -853,11 +933,20 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
       card.querySelectorAll('.btn-chat-history').forEach(function(b) {
         b.addEventListener('click', function(e) { e.stopPropagation(); openChatHistory(this.dataset.address, this.dataset.name); });
       });
+      card.querySelectorAll('.btn-delete-contact').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation(); deleteContact(this.dataset.address, this); });
+      });
       msgsContainer.querySelectorAll('.btn-send-audio').forEach(function(b) {
         b.addEventListener('click', function(e) { e.stopPropagation(); approveMessage(this.dataset.id, 'without_forward', this, true); });
       });
+      msgsContainer.querySelectorAll('.btn-send-doc').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation(); sendDocument(this.dataset.id, this); });
+      });
       msgsContainer.querySelectorAll('.btn-reject').forEach(function(b) {
         b.addEventListener('click', function(e) { e.stopPropagation(); rejectMessage(this.dataset.id, this); });
+      });
+      msgsContainer.querySelectorAll('.btn-delete-msg').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation(); deleteMessage(this.dataset.id, this); });
       });
     });
   }
@@ -877,15 +966,21 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
   function deleteMessage(id, btn) {
     if (!confirm('¿Borrar este mensaje?')) return;
     fetch('/codeopen/delete/' + id, { method: 'POST' }).then(function(r) { return r.json(); }).then(function(d) {
-      if (d.ok) { loadWAContacts(); loadPendingList(); pollPendingCount(); }
+      if (d.ok) { refreshCurrentView(); loadPendingList(); pollPendingCount(); }
     });
   }
 
   function deleteContact(address, btn) {
     if (!confirm('¿Borrar TODOS los mensajes de este contacto?')) return;
     fetch('/codeopen/delete-contact/' + encodeURIComponent(address), { method: 'POST' }).then(function(r) { return r.json(); }).then(function(d) {
-      if (d.ok) { loadWAContacts(); loadPendingList(); pollPendingCount(); }
+      if (d.ok) { refreshCurrentView(); loadPendingList(); pollPendingCount(); }
     });
+  }
+
+  function refreshCurrentView() {
+    if (LIST_CATEGORIES.indexOf(currentCategory) >= 0) {
+      loadFilteredContacts(currentCategory === 'todos' ? 'all' : currentCategory);
+    }
   }
 
   function analyzeMessage(id, btn) {
@@ -895,11 +990,10 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
     fetch('/codeopen/analyze/' + id, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: currentModelId }) }).then(function(r) { return r.json(); }).then(function(d) {
       isAnalyzing = false;
       if (d.ok) {
-        // Actualizar SOLO este mensaje, no recargar todo
         var msgDiv = btn.closest('[style*="padding"]');
         if (msgDiv) msgDiv.style.opacity = '0.5';
         pollPendingCount();
-        setTimeout(function() { loadWAContacts(); }, 3000);
+        setTimeout(function() { refreshCurrentView(); }, 3000);
       } else {
         btn.disabled = false;
         btn.innerHTML = '<i class="ri-robot-line"></i> Analizar';
@@ -919,7 +1013,7 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
     btn.innerHTML = '<span class="spinner-border spinner-border-sm" style="width:10px;height:10px;"></span> ' + label;
     fetch('/codeopen/approve/' + id, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode: mode, asAudio: asAudio || false }) }).then(function(r) { return r.json(); }).then(function(d) {
       if (d.ok) {
-        loadWAContacts();
+        refreshCurrentView();
         loadPendingList();
         pollPendingCount();
         showToast(d.message || 'Enviado');
@@ -935,10 +1029,30 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
     });
   }
 
+  function sendDocument(id, btn) {
+    var input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.pdf,.doc,.docx,.jpg,.png';
+    input.onchange = function() {
+      var file = input.files[0];
+      if (!file) return;
+      var formData = new FormData();
+      formData.append('document', file);
+      formData.append('message_id', id);
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm" style="width:10px;height:10px;"></span>';
+      fetch('/codeopen/send-document', { method: 'POST', body: formData }).then(function(r) { return r.json(); }).then(function(d) {
+        if (d.ok) { showToast('📄 Documento enviado'); refreshCurrentView(); }
+        else { alert('Error: ' + (d.error || '')); btn.disabled = false; btn.innerHTML = 'Doc'; }
+      }).catch(function() { btn.disabled = false; btn.innerHTML = 'Doc'; });
+    };
+    input.click();
+  }
+
   function rejectMessage(id, btn) {
     if (!confirm('¿Descartar este mensaje?')) return;
     fetch('/codeopen/reject/' + id, { method: 'POST' }).then(function(r) { return r.json(); }).then(function(d) {
-      if (d.ok) { loadWAContacts(); loadPendingList(); pollPendingCount(); }
+      if (d.ok) { refreshCurrentView(); loadPendingList(); pollPendingCount(); }
       else { alert(d.error || 'Error'); }
     });
   }
@@ -1095,15 +1209,16 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
     }
   });
 
-  // Load contacts periodically and on pending open
-  try { loadWAContacts(); } catch(e) { console.error('[Init] loadWAContacts:', e); }
-  setInterval(function() { try { loadWAContacts(); } catch(e) { console.error('[Init] interval:', e); } }, 15000);
+  // Refresh pending count periodically
+  setInterval(function() { try { pollPendingCount(); } catch(e) {} }, 15000);
 
-  // Also load when pending panel opens
-  if (pendingBtn) {
-    pendingBtn.addEventListener('click', function() {
-      setTimeout(function() { try { loadWAContacts(); } catch(e) {} }, 100);
-    });
-  }
+  // Refresh current view periodically if it's a list category
+  setInterval(function() {
+    try {
+      if (LIST_CATEGORIES.indexOf(currentCategory) >= 0) {
+        loadFilteredContacts(currentCategory === 'todos' ? 'all' : currentCategory);
+      }
+    } catch(e) {}
+  }, 20000);
 })();
 </script>

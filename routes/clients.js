@@ -163,10 +163,12 @@ router.get('/:id', requireAuth, async (req, res) => {
     }
   });
 
+  var contratos = db.prepare("SELECT * FROM isp_contratos WHERE client_id = ? ORDER BY created_at DESC").all(req.params.id);
   res.render('clients/view', {
     title: 'Cliente: ' + cliente.nombre,
     cliente,
     ordenes,
+    contratos,
     suscripciones: todasSuscripciones,
     tickets,
     apiSubCount: apiSuscripciones.length,

@@ -99,7 +99,9 @@
           <% if (suscripciones.length === 0) { %>
           <tr><td colspan="7" class="text-center text-muted py-3"><small><i class="bi bi-inbox"></i> No hay suscripciones</small></td></tr>
           <% } else { %>
-            <% suscripciones.forEach(function(s) { %>
+            <% suscripciones.forEach(function(s) { 
+              var susClienteId = s.client_id || (s.clientId || (typeof s === 'object' ? (s.cliente_id || 0) : 0));
+            %>
             <tr>
               <td>
                 <div class="d-flex align-items-center gap-1">
@@ -107,6 +109,9 @@
                     <span class="small fw-semibold"><%= s.cliente_nombre %></span>
                   <% } else { %>
                     <span class="small text-muted"><%= s.linea || 'Sin cliente' %></span>
+                  <% } %>
+                  <% if (susClienteId > 0) { %>
+                    <a href="/clientes/<%= susClienteId %>" class="btn btn-sm btn-outline-primary py-0 px-1" style="font-size:0.6rem;" title="Ir al cliente"><i class="bi bi-box-arrow-up-right"></i></a>
                   <% } %>
                   <% if (s.from_api) { %>
                     <small class="text-info" style="font-size:0.6rem;"><i class="bi bi-cloud"></i></small>

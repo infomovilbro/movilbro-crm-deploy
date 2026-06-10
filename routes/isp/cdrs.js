@@ -42,7 +42,7 @@ router.get('/', async (req, res) => {
     }
     query += " ORDER BY c.created_at DESC LIMIT 500";
 
-    var cdrs = db.prepare(query).all.apply(db, params);
+    var cdrs = params.length > 0 ? db.prepare(query).all(...params) : db.prepare(query).all();
     var cdrsByFiscal = {};
     cdrs.forEach(function(c) {
       var key = c.fiscal_id || 'sin_fiscal';

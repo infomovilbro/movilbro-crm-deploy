@@ -23,16 +23,35 @@ function generarToken() {
 router.get('/', requireAuth, async (req, res) => {
   try {
     const api = getApi();
-    const [customers, products, portabilities, donors] = await Promise.all([
-      api.getCustomers(),
-      api.getProducts(),
-      api.getPortabilities(),
-      api.getDonorOperators()
-    ]);
+    var customers = [], products = [], portabilities = [], donors = [];
+    var apiError = null;
+    
+    try {
+      const results = await Promise.allSettled([
+        api.getCustomers(),
+        api.getProducts(),
+        api.getPortabilities(),
+        api.getDonorOperators()
+      ]);
+      customers = results[0].status === 'fulfilled' ? results[0].value : [];
+      products = results[1].status === 'fulfilled' ? results[1].value : [];
+      portabilities = results[2].status === 'fulfilled' ? results[2].value : [];
+      donors = results[3].status === 'fulfilled' ? results[3].value : [];
+      if (results.some(r => r.status === 'rejected')) {
+        apiError = 'Algunos datos no pudieron cargarse de la API. Los productos pueden no estar disponibles.';
+      }
+    } catch(e) {
+      apiError = 'Error de conexión con API Likes Telecom: ' + e.message;
+    }
+
+    // Cargar productos desde BD local como fallback
+    if (!Array.isArray(products) || products.length === 0) {
+      products = db.prepare("SELECT id, nombre as productName, precio as price, tipo as family FROM products WHERE activo = 1 OR activo IS NULL ORDER BY nombre").all();
+    }
 
     const familias = {};
     (Array.isArray(products) ? products : []).forEach(p => {
-      const fam = p.family || 'Otros';
+      const fam = p.family || p.tipo || 'Otros';
       if (!familias[fam]) familias[fam] = { name: fam, items: [] };
       familias[fam].items.push(p);
     });
@@ -64,7 +83,7 @@ router.get('/', requireAuth, async (req, res) => {
       donantes: Array.isArray(donors) ? donors : [],
       ordenesPendientes,
       success: req.query.success || null,
-      error: req.query.error || null
+      error: apiError || req.query.error || null
     });
   } catch (error) {
     const localCustomers = db.prepare('SELECT id, nombre, apellidos, telefono, likes_customer_id, email FROM clients ORDER BY nombre').all();
@@ -78,7 +97,7 @@ router.get('/', requireAuth, async (req, res) => {
       donantes: [],
       ordenesPendientes: [],
       success: null,
-      error: 'Error: ' + error.message
+      error: 'Error al cargar datos: ' + error.message
     });
   }
 });
