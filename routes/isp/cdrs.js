@@ -59,7 +59,7 @@ router.get('/', async (req, res) => {
       grupos.push({ cliente: nombre, fiscal_id: key, cdrs: cdrsByFiscal[key].cdrs, total: cdrsByFiscal[key].total });
     });
 
-    var total = db.prepare('SELECT COUNT(*) as c, COALESCE(SUM(importe),0) as t FROM isp_cdrs WHERE factura_id IS NULL').get();
+    var total = db.prepare('SELECT COUNT(*) as c, COALESCE(SUM(importe),0) as t FROM isp_cdrs WHERE factura_id IS NULL').get() || { c: 0, t: 0 };
     var clientes = db.prepare('SELECT id, nombre, likes_customer_id FROM clients WHERE likes_customer_id IS NOT NULL').all();
     res.render('isp/cdrs/index', { title: 'CDRs y Excedentes', groups: grupos, total, clientes, yearsMap: yearsMap, selectedPeriodo: selectedPeriodo, MES_NOMBRES: ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'] });
   } catch(e) { console.error(e); res.status(500).send('Error: ' + e.message); }

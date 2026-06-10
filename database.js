@@ -425,6 +425,8 @@ function initDatabase() {
   try { db.prepare("ALTER TABLE pending_messages ADD COLUMN document_ready INTEGER DEFAULT 0").run(); } catch(e) {}
   try { db.prepare("ALTER TABLE pending_messages ADD COLUMN document_info TEXT").run(); } catch(e) {}
   try { db.prepare("ALTER TABLE pending_messages ADD COLUMN document_buffer BLOB").run(); } catch(e) {}
+  try { db.prepare("ALTER TABLE isp_cdrs ADD COLUMN factura_id INTEGER").run(); } catch(e) {}
+  try { db.prepare("ALTER TABLE isp_cdrs ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP").run(); } catch(e) {}
 
   // Altas ordenes tables for multi-step order flow
   try {
