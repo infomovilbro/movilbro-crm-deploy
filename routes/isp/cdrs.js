@@ -18,31 +18,26 @@ router.get('/', async (req, res) => {
   try {
     var selectedPeriodo = req.query.periodo || '';
     var yearsMap = {};
-    var allPeriods = db.prepare("SELECT DISTINCT periodo FROM isp_cdrs WHERE periodo IS NOT NULL AND periodo != '' ORDER BY periodo DESC").all();
-    allPeriods.forEach(function(p) {
-      var parts = p.periodo.split('-');
-      if (parts.length >= 2) {
-        var y = parts[0], m = parseInt(parts[1]);
-        if (!yearsMap[y]) yearsMap[y] = {};
-        yearsMap[y][m] = true;
-      }
-    });
+    try {
+      var allPeriods = db.prepare("SELECT DISTINCT periodo FROM isp_cdrs WHERE periodo IS NOT NULL AND periodo != '' ORDER BY periodo DESC").all();
+      allPeriods.forEach(function(p) {
+        var parts = p.periodo.split('-');
+        if (parts.length >= 2) {
+          var y = parts[0], m = parseInt(parts[1]);
+          if (!yearsMap[y]) yearsMap[y] = {};
+          yearsMap[y][m] = true;
+        }
+      });
+    } catch(periodErr) { console.error('[CDRs] period query:', periodErr.message); }
 
     // Build query based on selected period
-    var query = `
-      SELECT c.*, COALESCE(f.cliente_nombre, cl.nombre, c.fiscal_id, 'Sin cliente') as cliente 
-      FROM isp_cdrs c 
-      LEFT JOIN isp_facturas f ON c.factura_id=f.id 
-      LEFT JOIN clients cl ON cl.likes_customer_id = c.fiscal_id 
-    `;
-    var params = [];
+    var query = "SELECT c.*, COALESCE(f.cliente_nombre, cl.nombre, c.fiscal_id, 'Sin cliente') as cliente FROM isp_cdrs c LEFT JOIN isp_facturas f ON c.factura_id=f.id LEFT JOIN clients cl ON cl.likes_customer_id = c.fiscal_id";
     if (selectedPeriodo) {
-      query += " WHERE c.periodo = ?";
-      params.push(selectedPeriodo);
+      query += " WHERE c.periodo = '" + selectedPeriodo.replace(/'/g, "''") + "'";
     }
     query += " ORDER BY c.created_at DESC LIMIT 500";
 
-    var cdrs = params.length > 0 ? db.prepare(query).all(...params) : db.prepare(query).all();
+    var cdrs = db.prepare(query).all();
     var cdrsByFiscal = {};
     cdrs.forEach(function(c) {
       var key = c.fiscal_id || 'sin_fiscal';
@@ -59,10 +54,11 @@ router.get('/', async (req, res) => {
       grupos.push({ cliente: nombre, fiscal_id: key, cdrs: cdrsByFiscal[key].cdrs, total: cdrsByFiscal[key].total });
     });
 
-    var total = db.prepare('SELECT COUNT(*) as c, COALESCE(SUM(importe),0) as t FROM isp_cdrs WHERE factura_id IS NULL').get() || { c: 0, t: 0 };
+    var total = { c: 0, t: 0 };
+    try { total = db.prepare("SELECT COUNT(*) as c, IFNULL(SUM(importe),0) as t FROM isp_cdrs WHERE factura_id IS NULL").get() || { c: 0, t: 0 }; } catch(totalErr) { console.error('[CDRs] total query:', totalErr.message); }
     var clientes = db.prepare('SELECT id, nombre, likes_customer_id FROM clients WHERE likes_customer_id IS NOT NULL').all();
     res.render('isp/cdrs/index', { title: 'CDRs y Excedentes', groups: grupos, total, clientes, yearsMap: yearsMap, selectedPeriodo: selectedPeriodo, MES_NOMBRES: ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'] });
-  } catch(e) { console.error(e); res.status(500).send('Error: ' + e.message); }
+  } catch(e) { console.error('[CDRs] Error completo:', e.stack || e.message); res.status(500).send('Error: ' + (e.message || e) + ' (linea: ' + (e.lineNumber || '?') + ')'); }
 });
 
 // Get daily CDR data for a specific line (from Likes API or DB)
