@@ -316,6 +316,20 @@ router.post('/ask', async (req, res) => {
   var question = (req.body.question || '').trim();
   if (!question) return res.status(400).json({ error: 'La pregunta es requerida' });
   var category = req.body.category || 'general';
+  
+  // Si es categoría "code", ejecutar cambios reales
+  if (category === 'code') {
+    var modelId = req.body.model || getUserModel();
+    try {
+      var execResult = await executeCodeTask(question, modelId);
+      res.json({ taskId: generateTaskId(), category: 'code', directResult: execResult, agents: ['orion', 'nova', 'kronos', 'atlas', 'ether'], done: true });
+      return;
+    } catch(e) {
+      res.json({ taskId: generateTaskId(), category: 'code', directResult: { ok: false, error: e.message }, agents: [], done: true });
+      return;
+    }
+  }
+  
   var catDef = AGENT_CATEGORIES[category];
   if (!catDef) return res.status(400).json({ error: 'Categoría inválida: ' + category });
   var sessionId = req.body.session_id || req.session?.id || 'anon_' + generateTaskId();
@@ -337,7 +351,6 @@ router.post('/ask', async (req, res) => {
   var fullMessage = contextStr + '\n\nConsulta del usuario: ' + question;
   async function runAgent(agentId, agentDef, index) {
     var ag = task.agents[agentId];
-    var steps = agentDef.prompt.split('. ').filter(Boolean).map(function(s, i) { return s.length > 20 ? s.substring(0, 60) + '...' : s; });
     ag.status = 'working'; ag.progress = 10;
     ag.steps.push({ text: 'Iniciando ' + agentDef.name + '...', time: Date.now() });
     emitSSE(taskId, 'agent_step', { taskId, agentId, progress: 10, step: ag.steps[ag.steps.length - 1].text, agents: task.agents });
@@ -1045,6 +1058,87 @@ router.post('/whatsapp/send', async (req, res) => {
     var result = await wa.sendMessage(jid, text, opts);
     res.json(result);
   } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ---- CÓDIGO: EJECUTAR ACCIONES EN EL CRM ----
+var codeExecHistory = [];
+
+async function executeCodeTask(task, modelId) {
+  var systemPrompt = 'Eres un agente de código que ejecuta cambios en un CRM Node.js/Express/SQLite en /opt/render/project/src. ' +
+    'Genera una lista de ACCIONES en JSON:\n' +
+    '{"actions":[\n' +
+    '  {"type":"sql","query":"SQL..."},\n' +
+    '  {"type":"read","path":"ruta"},\n' +
+    '  {"type":"write","path":"ruta","content":"..."},\n' +
+    '  {"type":"exec_node","code":"Node.js..."},\n' +
+    '  {"type":"deploy"}\n' +
+    ']}\nResponde SOLO con el JSON, sin explicaciones.';
+  
+  var llmResponse = await callLLM(systemPrompt, 'PETICIÓN:\n' + task, 0.3, modelId);
+  var jsonMatch = llmResponse.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) return { ok: false, error: 'No se pudo generar plan', raw: llmResponse };
+  
+  var plan = JSON.parse(jsonMatch[0]);
+  if (!plan.actions || !Array.isArray(plan.actions)) return { ok: false, error: 'Plan sin acciones', raw: llmResponse };
+  
+  var results = [];
+  var hasError = false;
+  var projectRoot = process.env.RENDER_PROJECT_ROOT || '/opt/render/project/src';
+  try { if (!process.env.RENDER) projectRoot = require('path').join(__dirname, '..'); } catch(e) {}
+  
+  for (var i = 0; i < plan.actions.length; i++) {
+    var action = plan.actions[i];
+    if (hasError && action.type !== 'deploy') { results.push({ action: i, type: action.type, status: 'skipped' }); continue; }
+    try {
+      if (action.type === 'sql') {
+        var d = require('../database').db.prepare(action.query);
+        var data = d.all ? d.all() : { changes: d.run().changes };
+        results.push({ action: i, type: 'sql', status: 'ok', data: data && data.length > 5 ? data.slice(0, 5) : data });
+      } else if (action.type === 'read') {
+        var fs = require('fs');
+        var fp = require('path').join(projectRoot, action.path);
+        if (!fs.existsSync(fp)) throw new Error('No encontrado: ' + action.path);
+        results.push({ action: i, type: 'read', status: 'ok', path: action.path, content: fs.readFileSync(fp, 'utf8').substring(0, 3000) });
+      } else if (action.type === 'write') {
+        var fs = require('fs');
+        var fp = require('path').join(projectRoot, action.path);
+        if (fp.indexOf(projectRoot) !== 0) throw new Error('Ruta no permitida');
+        if (fs.existsSync(fp)) fs.copyFileSync(fp, fp + '.bak');
+        fs.writeFileSync(fp, action.content, 'utf8');
+        results.push({ action: i, type: 'write', status: 'ok', path: action.path });
+      } else if (action.type === 'exec_node') {
+        var vm = require('vm');
+        var ctx = vm.createContext({ db: require('../database').db, require: require, console: console, __dirname: projectRoot, result: null, JSON: JSON, process: process });
+        vm.runInContext('result = (function(){ ' + action.code + ' })()', ctx, { timeout: 10000 });
+        results.push({ action: i, type: 'exec_node', status: 'ok', result: String(ctx.result || '') });
+      } else if (action.type === 'deploy') {
+        var https = require('https');
+        await new Promise(function(ok) {
+          var r = https.request('https://api.render.com/deploy/srv-d87dr3mq1p3s73b3a680?key=5k-d_2_3YAs', { method: 'POST' }, function(resp) { resp.on('data',function(){}); resp.on('end', ok); });
+          r.on('error', ok); r.end();
+        });
+        results.push({ action: i, type: 'deploy', status: 'triggered' });
+      } else results.push({ action: i, type: action.type, status: 'unknown' });
+    } catch(e) { hasError = true; results.push({ action: i, type: action.type, status: 'error', error: e.message }); }
+  }
+  
+  codeExecHistory.push({ task: task, plan: plan, results: results, time: new Date().toISOString() });
+  if (codeExecHistory.length > 50) codeExecHistory.shift();
+  return { ok: true, plan: plan, results: results };
+}
+
+router.post('/code/execute', async (req, res) => {
+  var task = (req.body.task || '').trim();
+  if (!task) return res.status(400).json({ error: 'Task requerida' });
+  var modelId = req.body.model || getUserModel();
+  try {
+    var result = await executeCodeTask(task, modelId);
+    res.json(result);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/code/history', (req, res) => {
+  res.json({ history: codeExecHistory.slice(-20) });
 });
 
 module.exports = router;

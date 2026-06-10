@@ -318,9 +318,61 @@ body { background:var(--bg-main); color:var(--text); }
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ question: question, category: currentCategory })
     }).then(function(r) { return r.json(); }).then(function(data) {
+      // Code category: resultado directo sin SSE
+      if (data.directResult) {
+        showCodeResult(data.directResult);
+        return;
+      }
       currentTaskId = data.taskId;
       startSSE(data.taskId);
     }).catch(function() { resetUI(); showError('Error al iniciar tarea'); });
+  }
+
+  function showCodeResult(result) {
+    currentTaskId = null;
+    els.askInput.disabled = false;
+    els.askBtn.disabled = false;
+    els.askBtn.innerHTML = '<i class="ri-send-plane-2-line"></i> Ejecutar';
+    els.emptyState.style.display = 'none';
+    els.resultArea.style.display = 'block';
+    
+    var html = '<div style="background:var(--bg-result);border:1px solid var(--border);border-radius:14px;padding:20px;animation:fadeScale 0.4s ease;">';
+    if (result.ok) {
+      html += '<h4 style="color:#22c55e;margin-bottom:12px;display:flex;align-items:center;gap:8px;"><i class="ri-checkbox-circle-line"></i> Ejecutado</h4>';
+      if (result.plan && result.plan.actions) {
+        html += '<div style="margin-bottom:12px;"><strong style="font-size:0.8rem;">Acciones ejecutadas:</strong><div style="margin-top:6px;">';
+        result.plan.actions.forEach(function(a, i) {
+          var r = result.results && result.results[i];
+          var ok = r && r.status === 'ok';
+          var icon = ok ? '✅' : (r && r.status === 'error' ? '❌' : '⏭️');
+          html += '<div style="padding:4px 0;font-size:0.8rem;display:flex;align-items:center;gap:6px;">' + icon + ' <span style="color:var(--text);">' + a.type + '</span>';
+          if (a.path) html += ' <code style="font-size:0.7rem;">' + a.path + '</code>';
+          if (r && r.error) html += ' <span style="color:var(--error);font-size:0.75rem;">' + r.error + '</span>';
+          html += '</div>';
+        });
+        html += '</div></div>';
+      }
+      if (result.results) {
+        result.results.forEach(function(r, i) {
+          if (r.type === 'sql' && r.data) {
+            html += '<div style="margin-top:8px;padding:8px;background:var(--bg-code);border-radius:8px;font-size:0.75rem;"><strong>SQL Result:</strong> <pre style="margin:4px 0 0;">' + escHtml(JSON.stringify(r.data, null, 2)) + '</pre></div>';
+          }
+          if (r.type === 'read' && r.content) {
+            html += '<div style="margin-top:8px;padding:8px;background:var(--bg-code);border-radius:8px;font-size:0.75rem;"><strong>' + r.path + ':</strong> <pre style="margin:4px 0 0;max-height:200px;overflow-y:auto;">' + escHtml(r.content) + '</pre></div>';
+          }
+          if (r.type === 'write') {
+            html += '<div style="margin-top:4px;font-size:0.75rem;color:var(--text-muted);">✏️ ' + r.path + ' actualizado</div>';
+          }
+        });
+      }
+    } else {
+      html += '<h4 style="color:var(--error);margin-bottom:12px;"><i class="ri-close-circle-line"></i> Error</h4>';
+      html += '<div style="font-size:0.85rem;color:var(--text);">' + escHtml(result.error || 'Error desconocido') + '</div>';
+      if (result.raw) html += '<pre style="margin-top:8px;background:var(--bg-code);padding:10px;border-radius:8px;font-size:0.7rem;max-height:200px;overflow-y:auto;">' + escHtml(result.raw) + '</pre>';
+    }
+    html += '</div>';
+    els.resultArea.innerHTML = html;
+    resetUI(true);
   }
 
   function startSSE(taskId) {
