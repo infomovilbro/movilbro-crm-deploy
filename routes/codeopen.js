@@ -1257,4 +1257,14 @@ router.get('/code/history', (req, res) => {
   res.json({ history: codeExecHistory.slice(-20) });
 });
 
+// Debug: mostrar el JS del template
+router.get('/debug-js', (req, res) => {
+  if (!req.session.user) return res.status(401).send('No auth');
+  var fs = require('fs');
+  var html = fs.readFileSync(require('path').join(__dirname, '..', 'views', 'codeopen.ejs'), 'utf8');
+  // Extraer solo el script
+  var m = html.match(/<script>([\s\S]*?)<\/script>/);
+  res.type('text/plain').send('window.onerror = function(m,f,l){alert("JS ERROR: "+m+" at "+f+":"+l);};\n' + (m ? m[1].trim() : 'NO SCRIPT'));
+});
+
 module.exports = router;
