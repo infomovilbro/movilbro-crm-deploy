@@ -18,7 +18,12 @@
       <span id="waStatusText" style="font-size:0.7rem;">Descon.</span>
     </button>
     <span id="statusDot" style="width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block;"></span>
-    <select id="modelSelector" style="background:var(--bg-main);border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.75rem;padding:3px 8px;cursor:pointer;"></select>
+    <div id="cerebroBtn" style="position:relative;display:inline-block;">
+      <button id="cerebroToggle" style="background:var(--bg-main);border:1px solid var(--border);border-radius:8px;padding:4px 10px;cursor:pointer;font-size:0.85rem;color:var(--text-muted);display:flex;align-items:center;gap:4px;" title="Seleccionar modelo de IA">
+        <span>🧠</span><span style="font-size:0.6rem;opacity:0.5;">▼</span>
+      </button>
+      <div id="cerebroDropdown" style="display:none;position:absolute;top:100%;right:0;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:6px;z-index:100;min-width:200px;box-shadow:0 8px 30px rgba(0,0,0,0.3);"></div>
+    </div>
   </div>
 
 
@@ -633,34 +638,85 @@ body { background:var(--bg-main); color:var(--text); }
     waQROverlay.style.display = 'none';
   });
 
-  // ---- SELECTOR DE MODELO ----
-  var modelSelector = $('modelSelector');
+  // ---- SELECTOR DE MODELO (CEREBRO) ----
   var currentModelId = 'deepseek-v4-flash-free';
+  var cerebroToggle = $('cerebroToggle');
+  var cerebroDropdown = $('cerebroDropdown');
+  var cerebroMenuOpen = false;
 
-  function loadModels() {
+  document.addEventListener('click', function(e) {
+    if (!document.getElementById('cerebroBtn').contains(e.target)) {
+      cerebroDropdown.style.display = 'none';
+      cerebroMenuOpen = false;
+    }
+  });
+
+  cerebroToggle.addEventListener('click', function() {
+    cerebroMenuOpen = !cerebroMenuOpen;
+    cerebroDropdown.style.display = cerebroMenuOpen ? 'block' : 'none';
+    if (cerebroMenuOpen) loadModelDropdown();
+  });
+
+  function loadModelDropdown() {
     fetch('/codeopen/models').then(function(r) { return r.json(); }).then(function(d) {
       if (!d.models) return;
-      modelSelector.innerHTML = '';
+      cerebroDropdown.innerHTML = '<div style="padding:6px 10px;font-size:0.7rem;color:var(--text-faint);border-bottom:1px solid var(--border);margin-bottom:4px;">🧠 Modelos</div>';
       for (var key in d.models) {
         var m = d.models[key];
-        var opt = document.createElement('option');
-        opt.value = key;
-        opt.textContent = m.name;
-        if (key === d.current) opt.selected = true;
-        modelSelector.appendChild(opt);
+        var item = document.createElement('div');
+        var isActive = key === d.current;
+        var needsKey = m.needsKey;
+        item.style.cssText = 'padding:8px 10px;border-radius:8px;cursor:' + (needsKey ? 'default' : 'pointer') + ';font-size:0.78rem;display:flex;align-items:center;gap:8px;' + (isActive ? 'background:rgba(99,102,241,0.15);border:1px solid var(--accent);' : '') + ';transition:background 0.2s;';
+        item.innerHTML = '<span style="flex-shrink:0;">' + (isActive ? '✅' : (needsKey ? '🔒' : '○')) + '</span>' +
+          '<div style="flex:1;min-width:0;"><div style="font-weight:' + (isActive ? '600' : '400') + ';">' + m.name + '</div>' +
+          (needsKey ? '<div style="font-size:0.65rem;color:#f59e0b;">🔑 ' + (m.keyHint || 'Necesita API key') + '</div>' : '') +
+          '<div id="usage_' + key.replace(/[^a-zA-Z0-9]/g, '_') + '" style="height:3px;background:var(--border);border-radius:2px;margin-top:4px;overflow:hidden;"><div style="width:30%;height:100%;background:var(--accent);border-radius:2px;"></div></div></div>';
+        if (!needsKey) {
+          item.addEventListener('click', function() {
+            selectModel(key);
+          });
+        }
+        cerebroDropdown.appendChild(item);
       }
-      currentModelId = d.current;
+      loadModelUsage();
     });
   }
 
-  modelSelector.addEventListener('change', function() {
-    var modelId = this.value;
+  function selectModel(modelId) {
     fetch('/codeopen/model/select', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: modelId }) }).then(function(r) { return r.json(); }).then(function(d) {
-      if (d.ok) { currentModelId = modelId; showToast('Modelo cambiado a ' + d.name); }
+      if (d.ok) {
+        currentModelId = modelId;
+        cerebroDropdown.style.display = 'none';
+        cerebroMenuOpen = false;
+        showToast('🧠 Modelo cambiado a ' + d.name);
+      }
     });
-  });
+  }
 
-  loadModels();
+  function loadModelUsage() {
+    fetch('/codeopen/model-usage').then(function(r) { return r.json(); }).then(function(d) {
+      if (!d.usage) return;
+      for (var key in d.usage) {
+        var u = d.usage[key];
+        var el = document.getElementById('usage_' + key.replace(/[^a-zA-Z0-9]/g, '_'));
+        if (el) {
+          var bar = el.querySelector('div');
+          if (bar) {
+            var pct = u.percent || 0;
+            bar.style.width = pct + '%';
+            bar.style.background = pct > 80 ? '#ef4444' : pct > 50 ? '#f59e0b' : 'var(--accent)';
+          }
+        }
+      }
+    });
+  }
+  setInterval(loadModelUsage, 60000);
+
+  loadModelDropdown();
+  loadModels(); // Old loadModels kept for compatibility
+
+  // Keep loadModels for compatibility
+  function loadModels() {}
 
   // ---- VISTA DE CONTACTOS WHATSAPP ----
   var waContactsView = $('waContactsView');
@@ -673,13 +729,146 @@ body { background:var(--bg-main); color:var(--text); }
     els.emptyState.style.display = 'flex';
   });
 
+  var activeCategoryTab = 'all';
+  var isAnalyzing = false;
+
   function loadWAContacts() {
+    if (isAnalyzing) return; // No recargar durante análisis
     fetch('/codeopen/pending/grouped').then(function(r) { return r.json(); }).then(function(d) {
       if (!d.groups || d.groups.length === 0) {
-        if (waContactsView.style.display !== 'none' && !waContactsView.style.display) return;
+        if (waContactsView.style.display !== 'none') return;
         waContactsView.style.display = 'none';
         return;
       }
+      waContactsView.style.display = 'block';
+      els.emptyState.style.display = 'none';
+      waContactsCount.textContent = d.total + ' mensajes';
+      renderWAContacts(d.groups);
+    });
+  }
+
+  function renderWAContacts(groups) {
+    // Filtrar por categoría activa
+    var filtered = groups;
+    if (activeCategoryTab === 'whatsapp') filtered = groups.filter(function(g) { return g.category === 'whatsapp' || !g.category; });
+    else if (activeCategoryTab === 'email') filtered = groups.filter(function(g) { return g.category === 'email'; });
+    else if (activeCategoryTab === 'altas') {
+      var keywords = ['alta', 'baja', 'instalacion', 'instalación', 'contratar', 'contrato', 'fibra', 'linea', 'línea', 'portabilidad', 'nueva'];
+      filtered = groups.filter(function(g) {
+        return g.messages.some(function(m) { var b = (m.body || '').toLowerCase(); return keywords.some(function(k) { return b.indexOf(k) > -1; }); });
+      });
+    }
+
+    waContactsList.innerHTML = '';
+    // Pestañas de categoría
+    var tabsHtml = '<div style="display:flex;gap:4px;margin-bottom:12px;flex-wrap:wrap;">' +
+      '<button class="cat-tab' + (activeCategoryTab === 'all' ? ' active' : '') + '" data-cat="all" style="padding:4px 12px;border-radius:8px;border:1px solid var(--border);background:' + (activeCategoryTab === 'all' ? 'var(--accent)' : 'transparent') + ';color:' + (activeCategoryTab === 'all' ? '#fff' : 'var(--text-muted)') + ';cursor:pointer;font-size:0.7rem;font-weight:600;">Todos</button>' +
+      '<button class="cat-tab' + (activeCategoryTab === 'whatsapp' ? ' active' : '') + '" data-cat="whatsapp" style="padding:4px 12px;border-radius:8px;border:1px solid var(--border);background:' + (activeCategoryTab === 'whatsapp' ? '#25D366' : 'transparent') + ';color:' + (activeCategoryTab === 'whatsapp' ? '#fff' : '#25D366') + ';cursor:pointer;font-size:0.7rem;font-weight:600;"><i class="ri-whatsapp-line"></i> WhatsApp</button>' +
+      '<button class="cat-tab' + (activeCategoryTab === 'email' ? ' active' : '') + '" data-cat="email" style="padding:4px 12px;border-radius:8px;border:1px solid var(--border);background:' + (activeCategoryTab === 'email' ? '#EA4335' : 'transparent') + ';color:' + (activeCategoryTab === 'email' ? '#fff' : '#EA4335') + ';cursor:pointer;font-size:0.7rem;font-weight:600;"><i class="ri-mail-line"></i> Correo</button>' +
+      '<button class="cat-tab' + (activeCategoryTab === 'altas' ? ' active' : '') + '" data-cat="altas" style="padding:4px 12px;border-radius:8px;border:1px solid var(--border);background:' + (activeCategoryTab === 'altas' ? '#7C3AED' : 'transparent') + ';color:' + (activeCategoryTab === 'altas' ? '#fff' : '#7C3AED') + ';cursor:pointer;font-size:0.7rem;font-weight:600;"><i class="ri-user-add-line"></i> Altas</button>' +
+      '</div>';
+    waContactsList.innerHTML = tabsHtml;
+
+    // Bind tab clicks
+    waContactsList.querySelectorAll('.cat-tab').forEach(function(t) {
+      t.addEventListener('click', function() {
+        activeCategoryTab = this.dataset.cat;
+        loadWAContacts();
+      });
+    });
+
+    if (filtered.length === 0) {
+      waContactsList.innerHTML += '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.85rem;"><i class="ri-inbox-line" style="font-size:1.5rem;display:block;margin-bottom:6px;"></i>No hay mensajes en esta categoría</div>';
+      return;
+    }
+
+    filtered.forEach(function(g) {
+      var unanalyzed = g.messages.filter(function(m) { return !m.proposed_response || m.proposed_response === 'Analizando con IA...' || m.proposed_response === ''; }).length;
+      var isWA = g.category === 'whatsapp' || !g.category;
+      var avatarBg = isWA ? 'linear-gradient(135deg,#25D366,#128C7E)' : 'linear-gradient(135deg,#EA4335,#c5221f)';
+      var avatarLetter = g.contact.charAt(0).toUpperCase();
+      var borderColor = isWA ? '3px solid #25D366' : '3px solid #EA4335';
+
+      var card = document.createElement('div');
+      card.style.cssText = 'background:var(--bg-card);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;overflow:hidden;';
+      card.innerHTML = '<div class="wa-contact-header" style="display:flex;align-items:center;gap:8px;padding:10px 14px;cursor:pointer;" onclick="toggleContactGroup(this)">' +
+        '<div class="contact-avatar" data-address="' + escHtml(g.address) + '" style="width:38px;height:38px;border-radius:50%;background:' + avatarBg + ';display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:0.85rem;flex-shrink:0;overflow:hidden;">' + avatarLetter + '</div>' +
+        '<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:0.85rem;">' + escHtml(g.contact) + ' <span style="font-size:0.6rem;color:var(--text-faint);">' + (isWA ? '📱' : '📧') + '</span></div><div style="font-size:0.7rem;color:var(--text-dim);">' + g.messages.length + ' msj' + (unanalyzed > 0 ? ' · <span style="color:#f59e0b;">' + unanalyzed + ' pendientes</span>' : '') + '</div></div>' +
+        '<button class="btn-chat-history" data-address="' + escHtml(g.address) + '" data-name="' + escHtml(g.contact) + '" style="background:none;border:1px solid var(--border);border-radius:8px;padding:4px 8px;cursor:pointer;font-size:0.7rem;color:var(--text-muted);white-space:nowrap;" title="Ver conversación"><i class="ri-chat-history-line"></i></button>' +
+        '<button class="btn-delete-contact" data-address="' + escHtml(g.address) + '" style="background:none;border:1px solid var(--error);border-radius:8px;padding:4px 8px;cursor:pointer;font-size:0.7rem;color:var(--error);white-space:nowrap;" title="Borrar todos los mensajes de este contacto"><i class="ri-delete-bin-line"></i></button>' +
+        '<i class="ri-arrow-down-s-line" style="font-size:1.2rem;color:var(--text-dim);transition:transform 0.2s;"></i></div>' +
+        '<div class="wa-contact-messages" style="display:none;border-top:1px solid var(--border);padding:6px 14px 10px;"></div>';
+      waContactsList.appendChild(card);
+
+      // Cargar foto de perfil
+      if (isWA && g.address && g.address.indexOf('@') > -1) {
+        fetch('/codeopen/whatsapp/profile-pic/' + encodeURIComponent(g.address)).then(function(r) { return r.json(); }).then(function(p) {
+          if (p && p.url) {
+            var avatar = card.querySelector('.contact-avatar');
+            if (avatar) avatar.innerHTML = '<img src="' + p.url + '" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display=\'none\'">';
+          }
+        });
+      }
+
+      var msgsContainer = card.querySelector('.wa-contact-messages');
+      g.messages.forEach(function(msg) {
+        var hasAnalysis = msg.proposed_response && msg.proposed_response !== 'Analizando con IA...' && msg.proposed_response !== '';
+        var msgCard = document.createElement('div');
+        msgCard.style.cssText = 'padding:8px;margin-bottom:6px;background:var(--bg-main);border-radius:10px;border:1px solid var(--border-light);';
+        var ts = msg.created_at || '';
+        try { var d = new Date(ts + 'Z'); ts = d.toLocaleString('es-ES', {timeZone:'Europe/Madrid', day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}); } catch(e) {}
+        var msgBody = (msg.body || '').substring(0, 300);
+        msgCard.innerHTML = '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;"><span style="font-size:0.65rem;color:var(--text-faint);">#' + msg.id + ' · ' + ts + '</span>' +
+          '<button class="btn-delete-msg" data-id="' + msg.id + '" style="margin-left:auto;background:none;border:0;cursor:pointer;color:var(--text-faint);font-size:0.7rem;padding:2px 4px;" title="Borrar este mensaje"><i class="ri-close-line"></i></button></div>' +
+          '<div style="font-size:0.8rem;margin-bottom:6px;padding:6px 10px;background:var(--bg-card);border-radius:8px;border-left:' + borderColor + ';">' + escHtml(msgBody) + '</div>' +
+          '<div class="wa-msg-actions" data-id="' + msg.id + '">' +
+          (hasAnalysis ? '' : '<button class="btn-analyze" data-id="' + msg.id + '" style="background:var(--accent);color:#fff;border:0;border-radius:8px;padding:5px 12px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-robot-line"></i> Analizar</button>') +
+          '</div>';
+        if (hasAnalysis) {
+          var respDiv = document.createElement('div');
+          respDiv.style.cssText = 'margin-top:4px;padding:6px 10px;background:rgba(34,197,94,0.08);border-radius:8px;border:1px solid rgba(34,197,94,0.2);';
+          respDiv.innerHTML = '<div style="font-size:0.65rem;color:#22c55e;margin-bottom:4px;"><i class="ri-check-line"></i> Analizado</div>' +
+            '<div style="font-size:0.75rem;margin-bottom:6px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">' + escHtml(msg.proposed_response).substring(0, 150) + '</div>' +
+            '<div style="display:flex;gap:4px;flex-wrap:wrap;">' +
+            '<button class="btn-send-with-fwd" data-id="' + msg.id + '" style="flex:1;min-width:70px;background:#25D366;color:#fff;border:0;border-radius:8px;padding:5px 8px;font-size:0.65rem;cursor:pointer;font-weight:600;"><i class="ri-reply-line"></i> C/reenvío</button>' +
+            '<button class="btn-send-no-fwd" data-id="' + msg.id + '" style="flex:1;min-width:70px;background:var(--accent);color:#fff;border:0;border-radius:8px;padding:5px 8px;font-size:0.65rem;cursor:pointer;font-weight:600;"><i class="ri-send-plane-line"></i> Texto</button>' +
+            '<button class="btn-send-audio" data-id="' + msg.id + '" style="flex:1;min-width:60px;background:#8B5CF6;color:#fff;border:0;border-radius:8px;padding:5px 8px;font-size:0.65rem;cursor:pointer;font-weight:600;"><i class="ri-voiceprint-line"></i> Audio</button>' +
+            '<button class="btn-reject" data-id="' + msg.id + '" style="background:var(--error);color:#fff;border:0;border-radius:8px;padding:5px 8px;font-size:0.65rem;cursor:pointer;font-weight:600;"><i class="ri-close-line"></i></button>' +
+            '</div>';
+          msgCard.querySelector('.wa-msg-actions').after(respDiv);
+        }
+        msgsContainer.appendChild(msgCard);
+      });
+
+      // Bind events - mensajes
+      msgsContainer.querySelectorAll('.btn-analyze').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation(); analyzeMessage(this.dataset.id, this); });
+      });
+      msgsContainer.querySelectorAll('.btn-send-with-fwd').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation(); approveMessage(this.dataset.id, 'with_forward', this); });
+      });
+      msgsContainer.querySelectorAll('.btn-send-no-fwd').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation(); approveMessage(this.dataset.id, 'without_forward', this); });
+      });
+      msgsContainer.querySelectorAll('.btn-send-audio').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation(); approveMessage(this.dataset.id, 'without_forward', this, true); });
+      });
+      msgsContainer.querySelectorAll('.btn-reject').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation(); rejectMessage(this.dataset.id, this); });
+      });
+      msgsContainer.querySelectorAll('.btn-delete-msg').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation(); deleteMessage(this.dataset.id, this); });
+      });
+
+      // Bind events - contacto
+      card.querySelectorAll('.btn-chat-history').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation(); openChatHistory(this.dataset.address, this.dataset.name); });
+      });
+      card.querySelectorAll('.btn-delete-contact').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation(); deleteContact(this.dataset.address, this); });
+      });
+    });
+  }
       waContactsView.style.display = 'block';
       els.emptyState.style.display = 'none';
       waContactsCount.textContent = d.total + ' mensajes';
@@ -761,22 +950,42 @@ body { background:var(--bg-main); color:var(--text); }
     }
   };
 
+  function deleteMessage(id, btn) {
+    if (!confirm('¿Borrar este mensaje?')) return;
+    fetch('/codeopen/delete/' + id, { method: 'POST' }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.ok) { loadWAContacts(); loadPendingList(); pollPendingCount(); }
+    });
+  }
+
+  function deleteContact(address, btn) {
+    if (!confirm('¿Borrar TODOS los mensajes de este contacto?')) return;
+    fetch('/codeopen/delete-contact/' + encodeURIComponent(address), { method: 'POST' }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.ok) { loadWAContacts(); loadPendingList(); pollPendingCount(); }
+    });
+  }
+
   function analyzeMessage(id, btn) {
     btn.disabled = true;
+    isAnalyzing = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm" style="width:10px;height:10px;"></span> Analizando...';
     fetch('/codeopen/analyze/' + id, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: currentModelId }) }).then(function(r) { return r.json(); }).then(function(d) {
+      isAnalyzing = false;
       if (d.ok) {
-        loadWAContacts();
+        // Actualizar SOLO este mensaje, no recargar todo
+        var msgDiv = btn.closest('[style*="padding"]');
+        if (msgDiv) msgDiv.style.opacity = '0.5';
         pollPendingCount();
+        setTimeout(function() { loadWAContacts(); }, 3000);
       } else {
         btn.disabled = false;
         btn.innerHTML = '<i class="ri-robot-line"></i> Analizar';
-        alert('Error: ' + (d.error || 'desconocido'));
+        if (d.error) showToast('Error: ' + d.error);
       }
     }).catch(function() {
+      isAnalyzing = false;
       btn.disabled = false;
       btn.innerHTML = '<i class="ri-robot-line"></i> Analizar';
-      alert('Error de red');
+      showToast('Error de red');
     });
   }
 

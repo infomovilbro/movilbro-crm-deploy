@@ -5,6 +5,7 @@ const router = express.Router();
 const { db } = require('../database');
 
 const OPENCODE_API_KEY = process.env.OPENCODE_API_KEY;
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 
 // Modelos disponibles
 const AVAILABLE_MODELS = {
@@ -13,27 +14,60 @@ const AVAILABLE_MODELS = {
     provider: 'opencode',
     apiEndpoint: 'https://opencode.ai/zen/v1/chat/completions',
     key: OPENCODE_API_KEY,
-    description: 'Gratis, model DeepSeek V4 Flash Free',
+    description: 'Gratis, DeepSeek V4 Flash',
     type: 'text',
-    fallbacks: ['nemotron-3-ultra-free', 'nemotron-3-super-free']
+    fallbacks: ['nemotron-3-ultra-free', 'gemini-2.0-flash-openrouter']
   },
   'nemotron-3-ultra-free': {
     name: 'Nemotron 3 Ultra Free',
     provider: 'opencode',
     apiEndpoint: 'https://opencode.ai/zen/v1/chat/completions',
     key: OPENCODE_API_KEY,
-    description: 'Gratis, NVIDIA Nemotron 3 Ultra - respaldo automático',
+    description: 'Gratis, NVIDIA Nemotron 3 Ultra',
     type: 'text',
-    fallbacks: ['nemotron-3-super-free', 'deepseek-v4-flash-free']
+    fallbacks: ['gemini-2.0-flash-openrouter', 'deepseek-v4-flash-free']
   },
   'nemotron-3-super-free': {
     name: 'Nemotron 3 Super Free',
     provider: 'opencode',
     apiEndpoint: 'https://opencode.ai/zen/v1/chat/completions',
     key: OPENCODE_API_KEY,
-    description: 'Gratis, NVIDIA Nemotron 3 Super - respaldo automático',
+    description: 'Gratis, NVIDIA Nemotron 3 Super',
     type: 'text',
     fallbacks: ['deepseek-v4-flash-free', 'nemotron-3-ultra-free']
+  },
+  'gemini-2.0-flash-openrouter': {
+    name: 'Gemini 2.0 Flash',
+    provider: 'openrouter',
+    apiEndpoint: 'https://openrouter.ai/api/v1/chat/completions',
+    key: OPENROUTER_API_KEY,
+    description: 'Gratis via OpenRouter, Google Gemini 2.0 Flash',
+    type: 'text',
+    requiresKey: 'OPENROUTER_API_KEY',
+    keyHint: 'Crea API key gratis en https://openrouter.ai/keys',
+    fallbacks: ['mistral-small-openrouter', 'deepseek-v4-flash-free']
+  },
+  'mistral-small-openrouter': {
+    name: 'Mistral Small',
+    provider: 'openrouter',
+    apiEndpoint: 'https://openrouter.ai/api/v1/chat/completions',
+    key: OPENROUTER_API_KEY,
+    description: 'Gratis via OpenRouter, Mistral Small 24B',
+    type: 'text',
+    requiresKey: 'OPENROUTER_API_KEY',
+    keyHint: 'Crea API key gratis en https://openrouter.ai/keys',
+    fallbacks: ['llama-3.2-openrouter', 'gemini-2.0-flash-openrouter']
+  },
+  'llama-3.2-openrouter': {
+    name: 'Llama 3.2 3B',
+    provider: 'openrouter',
+    apiEndpoint: 'https://openrouter.ai/api/v1/chat/completions',
+    key: OPENROUTER_API_KEY,
+    description: 'Gratis via OpenRouter, Meta Llama 3.2 3B',
+    type: 'text',
+    requiresKey: 'OPENROUTER_API_KEY',
+    keyHint: 'Crea API key gratis en https://openrouter.ai/keys',
+    fallbacks: ['gemini-2.0-flash-openrouter', 'deepseek-v4-flash-free']
   }
 };
 
@@ -394,7 +428,8 @@ router.get('/models', (req, res) => {
   var models = {};
   for (var key in AVAILABLE_MODELS) {
     var m = AVAILABLE_MODELS[key];
-    models[key] = { id: key, name: m.name, description: m.description, type: m.type };
+    var needsKey = m.requiresKey && !m.key;
+    models[key] = { id: key, name: m.name, description: m.description, type: m.type, needsKey: needsKey, keyHint: needsKey ? m.keyHint : null };
   }
   res.json({ models: models, current: getUserModel() });
 });
@@ -409,6 +444,22 @@ router.post('/model/select', (req, res) => {
   setUserModel(modelId);
   console.log('[CodeOpen] Modelo cambiado a:', modelId);
   res.json({ ok: true, model: modelId, name: AVAILABLE_MODELS[modelId].name });
+});
+
+// ---- MODEL USAGE TRACKING ----
+router.get('/model-usage', (req, res) => {
+  try {
+    var usage = {};
+    var models = Object.keys(AVAILABLE_MODELS);
+    var today = new Date().toISOString().split('T')[0];
+    models.forEach(function(m) {
+      var count = (db.prepare("SELECT COUNT(*) as c FROM chat_history WHERE content LIKE ? AND created_at > ?").get('%' + m + '%', today) || {}).c || 0;
+      // Estimar %: asumimos ~200 llamadas/día como límite gratuito
+      var pct = Math.min(Math.round(count / 200 * 100), 100);
+      usage[m] = { name: AVAILABLE_MODELS[m].name, calls: count, percent: pct };
+    });
+    res.json({ usage: usage, date: today });
+  } catch(e) { res.json({ usage: {}, error: e.message }); }
 });
 
 // ---- WEBHOOK WHATSAPP ----
@@ -635,9 +686,9 @@ router.get('/pending/grouped', (req, res) => {
     var groups = {};
     var order = [];
     rows.forEach(function(r) {
-      var key = r.from_address || r.from_name || 'desconocido';
+      var key = r.category === 'email' ? 'email_' + (r.from_address || r.from_name) : (r.from_address || r.from_name || 'desconocido');
       if (!groups[key]) {
-        groups[key] = { contact: r.from_name || key, address: r.from_address || '', messages: [] };
+        groups[key] = { contact: r.from_name || key, address: r.from_address || '', category: r.category || 'whatsapp', messages: [] };
         order.push(key);
       }
       groups[key].messages.push(r);
@@ -657,20 +708,27 @@ router.post('/analyze/:id', async (req, res) => {
     console.log('[CodeOpen] Analizando mensaje #' + row.id, 'de', row.from_name, 'con modelo', modelId);
     var crmCtx = getCRMContext();
     var fullText = row.body || row.subject || '';
-    var ctx = 'Contexto CRM: ' + JSON.stringify(crmCtx) + '\n\nMensaje de ' + row.from_name + ': ' + fullText;
-    var catDef = row.source === 'whatsapp' || row.category === 'whatsapp' ? AGENT_CATEGORIES.whatsapp : AGENT_CATEGORIES.email;
-    var results = {};
-    var agentList = catDef.agents.slice(0, 4);
-    for (var i = 0; i < agentList.length; i++) {
-      if (i > 0) await new Promise(function(r) { setTimeout(r, 2000); });
-      results[agentList[i].id] = await callLLM(agentList[i].prompt, ctx, 0.7, modelId);
-    }
-    var synthesisInput = catDef.agents.slice(0, 4).map(function(a) { return '## ' + a.name + ':\n' + (results[a.id] || ''); }).join('\n\n') + '\n\nSintetiza todo en una respuesta final lista para enviar.';
-    await new Promise(function(r) { setTimeout(r, 2000); });
-    var finalResponse = await callLLM(catDef.agents[4].prompt, synthesisInput, 0.8, modelId);
-    db.prepare("UPDATE pending_messages SET proposed_response=? WHERE id=?").run(finalResponse || '', row.id);
+    var bodyPreview = (row.body || '').substring(0, 300);
+    var ctx = 'Contexto CRM: ' + JSON.stringify(crmCtx) + '\n\nMensaje de ' + row.from_name + ': ' + bodyPreview;
+    
+    // Single-call rápido: pedir todo al LLM de una vez
+    var fastPrompt = 'Eres un asistente CRM experto. Analiza este mensaje de ' + row.from_name + ' y genera una respuesta profesional.\n\n' +
+      'Contexto del CRM: ' + JSON.stringify(crmCtx) + '\n\nMensaje:\n' + bodyPreview + '\n\n' +
+      'Responde en este formato:\n' +
+      'ANÁLISIS: (quién escribe, intención, urgencia)\n' +
+      'CONTEXTO CRM: (qué datos del CRM son relevantes)\n' +
+      'RESPUESTA: (la respuesta profesional lista para enviar)';
+    
+    var finalResponse = await callLLM(fastPrompt, '', 0.7, modelId);
+    
+    // Intentar extraer solo la RESPUESTA para enviar
+    var cleanResponse = finalResponse || '';
+    var respMatch = cleanResponse.match(/RESPUESTA:\s*([\s\S]*)/i);
+    var sendResponse = respMatch ? respMatch[1].trim() : cleanResponse;
+    
+    db.prepare("UPDATE pending_messages SET proposed_response=? WHERE id=?").run(sendResponse || cleanResponse, row.id);
     console.log('[CodeOpen] Mensaje #' + row.id + ' analizado con', modelId);
-    res.json({ ok: true, response: finalResponse || '' });
+    res.json({ ok: true, response: sendResponse || cleanResponse });
   } catch(e) {
     console.error('[CodeOpen] Error analizando #' + req.params.id + ':', e.message);
     res.status(500).json({ error: e.message });
@@ -767,6 +825,21 @@ router.post('/reject/:id', (req, res) => {
     db.prepare("UPDATE pending_messages SET status='rejected', responded_at=CURRENT_TIMESTAMP WHERE id=?").run(req.params.id);
     console.log('[Rechazado] Mensaje #' + req.params.id, row.source, '→', row.from_name);
     res.json({ ok: true, message: 'Respuesta descartada' });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/delete/:id', (req, res) => {
+  try {
+    var info = db.prepare("DELETE FROM pending_messages WHERE id=?").run(req.params.id);
+    res.json({ ok: true, deleted: info.changes });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/delete-contact/:address', (req, res) => {
+  try {
+    var address = req.params.address;
+    var info = db.prepare("DELETE FROM pending_messages WHERE from_address=? AND status='pending'").run(address);
+    res.json({ ok: true, deleted: info.changes });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -923,6 +996,14 @@ router.get('/email/history', (req, res) => {
 });
 
 // ---- WHATSAPP CHAT HISTORY ----
+router.get('/whatsapp/profile-pic/:jid', async (req, res) => {
+  try {
+    var wa = require('../wa-baileys');
+    var url = await wa.getProfilePicture(decodeURIComponent(req.params.jid));
+    res.json({ url: url });
+  } catch(e) { res.json({ url: null }); }
+});
+
 router.get('/whatsapp/chats', async (req, res) => {
   try {
     var wa = require('../wa-baileys');

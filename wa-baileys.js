@@ -290,31 +290,61 @@ async function getChats() {
 async function getChatMessages(jid, count) {
   if (!sock) return { ok: false, error: 'Baileys no iniciado' };
   try {
-    var limit = Math.min(count || 30, 100);
+    var limit = Math.min(count || 50, 200);
     var messages = [];
-    // Intentar cargar mensajes del chat
-    if (typeof sock.loadMessages === 'function') {
-      messages = await sock.loadMessages(jid, limit);
-    } else if (sock.store && typeof sock.store.loadMessages === 'function') {
-      messages = await sock.store.loadMessages(jid, limit);
+    
+    // 1. Intentar desde Baileys en memoria
+    try {
+      if (typeof sock.loadMessages === 'function') {
+        messages = await sock.loadMessages(jid, limit);
+      } else if (sock.store && typeof sock.store.loadMessages === 'function') {
+        messages = await sock.store.loadMessages(jid, limit);
+      }
+    } catch(e) {}
+    
+    // 2. Fallback: cargar desde la DB local
+    if (messages.length === 0) {
+      try {
+        var db = require('./database');
+        var rows = db.db.prepare("SELECT * FROM pending_messages WHERE from_address=? AND source='baileys' ORDER BY created_at ASC LIMIT ?").all(jid, limit);
+        messages = rows.map(function(r) {
+          return {
+            key: { fromMe: false, id: String(r.id) },
+            message: { conversation: r.body || '' },
+            messageTimestamp: r.created_at ? Math.floor(new Date(r.created_at).getTime() / 1000) : null,
+            pushName: r.from_name || ''
+          };
+        });
+      } catch(e) {}
     }
+    
+    // 3. Construir resultado
     var result = messages.map(function(m) {
       var text = m.message?.conversation || m.message?.extendedTextMessage?.text || 
                  m.message?.imageMessage?.caption || m.message?.videoMessage?.caption || '';
       return {
-        id: m.key?.id || '',
+        id: m.key?.id || m.id || '',
         fromMe: m.key?.fromMe || false,
         text: text.substring(0, 500),
-        timestamp: m.messageTimestamp ? new Date(m.messageTimestamp * 1000).toISOString() : null,
+        timestamp: m.messageTimestamp ? new Date(m.messageTimestamp * 1000).toISOString() : (typeof m === 'object' && m.created_at ? m.created_at : null),
         pushName: m.pushName || ''
       };
     });
-    // Ordenar cronológicamente
     result.sort(function(a, b) { return new Date(a.timestamp || 0) - new Date(b.timestamp || 0); });
-    return { ok: true, messages: result };
+    return { ok: true, messages: result, source: messages.length > 0 ? (messages[0].key ? 'baileys' : 'db') : 'none' };
   } catch(e) {
     return { ok: false, error: e.message };
   }
 }
 
-module.exports = { initBaileys, getQRDataURL, getStatus, sendMessage: sendBaileysMessage, transcribeAudioMessage, getChats, getChatMessages };
+async function getProfilePicture(jid) {
+  if (!sock) return null;
+  try {
+    var url = await sock.profilePictureUrl(jid, 'image');
+    return url || null;
+  } catch(e) {
+    return null;
+  }
+}
+
+module.exports = { initBaileys, getQRDataURL, getStatus, sendMessage: sendBaileysMessage, transcribeAudioMessage, getChats, getChatMessages, getProfilePicture };
