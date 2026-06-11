@@ -922,8 +922,8 @@ router.post('/approve/:id', async (req, res) => {
           }
           if (!sent) {
             // If audio failed, still send as text so user gets the response
-            var result = await wa.sendMessage(row.from_address, '🎤 ' + row.proposed_response, opts);
-            if (result.ok) { sent = true; sendInfo += ' (enviado como texto)'; }
+            var textResult = await wa.sendMessage(row.from_address, '🎤 ' + row.proposed_response, opts);
+            if (textResult && textResult.ok) { sent = true; sendInfo += ' (enviado como texto)'; }
           }
         }
 

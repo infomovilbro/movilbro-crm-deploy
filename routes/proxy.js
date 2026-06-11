@@ -73,7 +73,10 @@ router.all('/:target(*)', requireAuth, (req, res) => {
   if (req.headers['content-type']) headers['Content-Type'] = req.headers['content-type'];
   // Forward WhatsApp cookies from browser to WhatsApp server
   if (req.headers['cookie']) {
-    var waCookies = req.headers['cookie'].split(';').filter(function(c) { return c.trim().startsWith('wa_'); }).join(';');
+    var waCookies = req.headers['cookie'].split(';').filter(function(c) { 
+      var t = c.trim(); 
+      return t.startsWith('wa_') || t.startsWith('sb_') || t.indexOf('whatsapp') >= 0; 
+    }).join(';');
     if (waCookies) headers['Cookie'] = waCookies;
   }
 
@@ -126,7 +129,7 @@ router.all('/:target(*)', requireAuth, (req, res) => {
           '/* Force clean state for QR to appear */' +
           'try{localStorage.clear();sessionStorage.clear();}catch(e){}' +
           '/* WS proxy */' +
-          'var OW=window.WebSocket;window.WebSocket=function(u,p){if(typeof u==="string"&&u.indexOf("web.whatsapp.com")>=0){u=u.replace("wss://web.whatsapp.com:5222","wss://"+location.host+"/proxy-ws/5222");u=u.replace("wss://web.whatsapp.com","wss://"+location.host+"/proxy-ws/443")}return new OW(u,p)};window.WebSocket.prototype=OW.prototype;' +
+          'var OW=window.WebSocket;window.WebSocket=function(u,p){if(typeof u==="string"&&u.indexOf("web.whatsapp.com")>=0){u=u.replace(/wss:\\/\\/web\\.whatsapp\\.com(?::\\d+)?(?=\\/)/g,"wss://"+location.host+"/proxy-ws/443");u=u.replace("wss://web.whatsapp.com:5222","wss://"+location.host+"/proxy-ws/5222")}return new OW(u,p)};window.WebSocket.prototype=OW.prototype;' +
           '/* XHR proxy */' +
           'var _XPO=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(m,u){if(typeof u==="string"&&u.indexOf("//web.whatsapp.com")>=0){arguments[1]=u.replace(/https?:\\/\\/web\\.whatsapp\\.com\\/|^\\/\\/web\\.whatsapp\\.com\\//,"")}return _XPO.apply(this,arguments)};' +
           '/* fetch proxy */' +
