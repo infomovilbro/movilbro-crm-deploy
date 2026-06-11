@@ -299,7 +299,12 @@ router.post('/enviar-kyc', requireAuth, async (req, res) => {
 </body>
 </html>`;
 
-    const emailOk = await sendEmailViaMailjet(datos.email, datos.nombre || datos.email, empresaNombre + ' - Verifica tu identidad para completar el alta', html);
+    let emailOk = false;
+    try {
+      emailOk = await sendEmailViaMailjet(datos.email, datos.nombre || datos.email, empresaNombre + ' - Verifica tu identidad para completar el alta', html);
+    } catch(emailErr) {
+      console.error('[KYC] Error enviando email:', emailErr.message);
+    }
 
     if (emailOk) {
       db.prepare('UPDATE altas_ordenes SET email_enviado = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(orden_id);
@@ -309,7 +314,7 @@ router.post('/enviar-kyc', requireAuth, async (req, res) => {
     console.warn('No se pudo enviar el email. Se devuelve la URL de KYC al agente.');
     res.json({
       ok: true,
-      message: 'No se pudo enviar el email automáticamente. Comparte este enlace con el cliente.',
+      message: 'Email no enviado automáticamente. Aquí tienes el enlace KYC para compartir con el cliente.',
       kycUrl,
       email_no_enviado: true
     });

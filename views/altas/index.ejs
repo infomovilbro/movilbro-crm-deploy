@@ -277,7 +277,7 @@
               </div>
               <div class="form-check mb-2">
                 <input class="form-check-input" type="checkbox" id="checkPago">
-                <label class="form-check-label">Acepto las condiciones del servicio y la verificación de identidad (KYC)</label>
+                <label class="form-check-label">He repasado los datos del cliente y del producto, todo es correcto.</label>
               </div>
             </div>
 
@@ -598,13 +598,13 @@ function goWizardStep4() {
       'NINGUNO': 'Ninguno (Pagaré después)'
     })[metodoPago] || metodoPago : 'No seleccionado') + (metodoPago === 'IBAN' && iban ? '<br>IBAN: ' + iban : '') + '</p>';
 
-  var prodText = cart.map(function(c) { return c.name + ' (' + c.price.toFixed(2) + '€)'; }).join(', ');
+  var prodText = cart.map(function(c) { return c.name + ' (' + conIva(c.price).toFixed(2) + '€)'; }).join(', ');
   var lineasResumen = lineasData.map(function(l, i) {
     return '<br><small>Línea ' + (i+1) + ': ' + (l.tipo === 'PORTABILIDAD' ? 'Portar ' + l.numero : 'Nueva línea') + (l.icc ? ' · ICC: ' + l.icc : '') + '</small>';
   }).join('');
   document.getElementById('resumenProducto').innerHTML =
     '<p><strong>Productos:</strong> ' + prodText + '<br>' +
-    '<strong>Total:</strong> ' + cart.reduce(function(s, c) { return s + c.price; }, 0).toFixed(2) + '€' +
+    '<strong>Total (IVA incl.):</strong> ' + cart.reduce(function(s, c) { return s + conIva(c.price); }, 0).toFixed(2) + '€' +
     (lineasData.length > 0 ? lineasResumen : '') +
     '</p>';
 
@@ -639,6 +639,8 @@ var allProducts = <%- JSON.stringify(products || []) %>;
 var allFamilias = <%- JSON.stringify(familias || []) %>;
 var donantesList = <%- JSON.stringify(donantes || []) %>;
 var lineasData = [];
+var IVA = 1.21;
+function conIva(precio) { return (parseFloat(precio || 0) * IVA); }
 
 function goWizardStep2() {
   var nombre = document.getElementById('wNombre').value.trim();
@@ -667,7 +669,7 @@ function selectFamily(family) {
   (fam.items || []).forEach(function(p) {
     var prodId = p.id || p.productId;
     var name = p.productName || p.name;
-    var price = parseFloat(p.price || 0).toFixed(2);
+    var price = conIva(p.price || 0).toFixed(2);
     var inCart = cart.some(function(c) { return c.id === prodId; });
     var card = document.createElement('div');
     card.className = 'col-md-3 col-6';
@@ -723,8 +725,8 @@ function updateCartUI() {
   document.getElementById('btnStep2Next').disabled = false;
   var sum = 0;
   items.innerHTML = cart.map(function(c, i) {
-    sum += c.price;
-    return '<div class="d-flex justify-content-between align-items-center py-1 border-bottom"><span><strong>' + c.name + '</strong> <small class="text-muted">' + c.price.toFixed(2) + '€</small></span><button class="btn btn-sm btn-outline-danger" onclick="removeFromCart(' + i + ')"><i class="bi bi-x"></i></button></div>';
+    sum += conIva(c.price);
+    return '<div class="d-flex justify-content-between align-items-center py-1 border-bottom"><span><strong>' + c.name + '</strong> <small class="text-muted">' + conIva(c.price).toFixed(2) + '€</small></span><button class="btn btn-sm btn-outline-danger" onclick="removeFromCart(' + i + ')"><i class="bi bi-x"></i></button></div>';
   }).join('');
   total.textContent = sum.toFixed(2) + '€';
 }
@@ -961,16 +963,19 @@ async function enviarKYC(ordenId) {
       body: JSON.stringify({ orden_id: ordenId })
     });
     var res = await r.json();
-    if (res.ok) {
-      if (res.kycUrl) {
-        alert(res.message + '\n\nEnlace KYC: ' + res.kycUrl);
-        if (res.email_no_enviado && confirm('¿Abrir el enlace KYC en una nueva pestaña para compartirlo manualmente?')) {
-          window.open(res.kycUrl, '_blank');
+      if (res.ok) {
+        if (res.kycUrl) {
+          if (res.email_no_enviado) {
+            if (confirm('No se pudo enviar el email. ¿Abrir el enlace KYC para copiarlo y compartirlo manualmente?')) {
+              window.open(res.kycUrl, '_blank');
+            }
+          } else {
+            alert(res.message);
+          }
+        } else {
+          alert(res.message);
         }
-      } else {
-        alert(res.message);
-      }
-      location.reload();
+        location.reload();
     } else {
       alert('Error: ' + res.error);
     }

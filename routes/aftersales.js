@@ -46,7 +46,7 @@ router.post('/installations', async (req, res) => {
 router.get('/installations/:id/detail', async (req, res) => {
   try {
     const api = getApiInstance();
-    const data = await api.request('GET', '/installations/' + req.params.id);
+    const data = await api.request('GET', '/installation?installationId=' + encodeURIComponent(req.params.id));
     res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

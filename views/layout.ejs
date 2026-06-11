@@ -238,28 +238,30 @@
               <li data-item-key="tienda_historial"><a class="<%= title === 'Historial del Día' ? 'active' : '' %>" href="/tienda/historial-dia"><span class="emoji-icon">⏰</span>Historial Día</a></li>
               <li data-item-key="tienda_agentes"><a class="<%= title === 'Gestión de Agentes' ? 'active' : '' %>" href="/tienda/agentes"><span class="emoji-icon">👥</span>Agentes</a></li>
               <li data-item-key="tienda_cierres"><a class="<%= title === 'Cierres' ? 'active' : '' %>" href="/tienda/cierres"><span class="emoji-icon">🔒</span>Cierres</a></li>
-              <li data-item-key="tienda_perfil"><a class="<%= title === 'Perfil Tienda' ? 'active' : '' %>" href="/tienda/perfil"><span class="emoji-icon">👤</span>Perfil</a></li>
+              <!-- OCULTO <li data-item-key="tienda_perfil"><a class="<%= title === 'Perfil Tienda' ? 'active' : '' %>" href="/tienda/perfil"><span class="emoji-icon">👤</span>Perfil</a></li> -->
             </ul>
           </li>
           <!-- PANEL CLIENTES (grupo) -->
           <li class="nav-item nav-group <%= ['KPIs','Cobertura','Altas','Clientes','Suscripciones','Productos','Encuestas','Leads','Usuarios','Facturas','Pagos','Remesas','Recursos','Tickets','Configurac'].some(t => title === t || title.includes(t)) ? 'open' : '' %>" data-group="clientes" data-group-key="clientes" data-ui-draggable="group">
             <a class="nav-group-toggle <%= ['KPIs','Cobertura','Altas','Clientes','Suscripciones','Productos','Encuestas','Leads','Usuarios','Facturas','Pagos','Remesas','Recursos','Tickets','Configurac'].some(t => title === t || title.includes(t)) ? 'active' : '' %>" data-toggle="nav-group" href="#"><span class="emoji-icon" data-group-icon>🖥️</span><span class="nav-text" data-group-label>Panel Clientes</span><i class="ri-arrow-down-s-line nav-arrow"></i></a>
             <ul class="nav-submenu">
-              <li data-item-key="clientes_kpis" data-ui-draggable="item"><a class="<%= title === 'KPIs' ? 'active' : '' %>" href="/kpis"><span class="emoji-icon">📈</span>Indicadores</a></li>
+              <!-- OCULTO <li data-item-key="clientes_kpis" data-ui-draggable="item"><a class="<%= title === 'KPIs' ? 'active' : '' %>" href="/kpis"><span class="emoji-icon">📈</span>Indicadores</a></li> -->
               <li data-item-key="clientes_coverage"><a class="<%= title === 'Cobertura' ? 'active' : '' %>" href="/coverage"><span class="emoji-icon">📡</span>Cobertura</a></li>
               <li><a class="<%= title === 'Altas' ? 'active' : '' %>" href="/altas"><span class="emoji-icon">🆕</span><%= ui.moduleName.altas %></a></li>
               <li data-item-key="clientes_customers"><a class="<%= title.includes('Cliente') ? 'active' : '' %>" href="/customers"><span class="emoji-icon">👤</span><%= ui.moduleName.clients %></a></li>
               <li><a class="<%= title === 'Suscripciones' ? 'active' : '' %>" href="/subscriptions"><span class="emoji-icon">📑</span>Suscripciones</a></li>
               <li><a class="<%= title.includes('Producto') ? 'active' : '' %>" href="/products"><span class="emoji-icon">🏷️</span><%= ui.moduleName.products %></a></li>
+              <!-- OCULTOS
               <li><a class="<%= title === 'Encuestas' ? 'active' : '' %>" href="/surveys"><span class="emoji-icon">📝</span>Encuestas</a></li>
               <li><a class="<%= title === 'Leads' ? 'active' : '' %>" href="/leads"><span class="emoji-icon">🎯</span>Leads</a></li>
               <li><a class="<%= title === 'Usuarios' ? 'active' : '' %>" href="/users"><span class="emoji-icon">👨‍💼</span>Usuarios</a></li>
               <li><a class="<%= title.includes('Factura') ? 'active' : '' %>" href="/invoices"><span class="emoji-icon">🧾</span>Facturas</a></li>
+              -->
               <li><a class="<%= title === 'Pagos' ? 'active' : '' %>" href="/payments"><span class="emoji-icon">💳</span>Pagos</a></li>
               <li><a class="<%= title === 'Remesas' ? 'active' : '' %>" href="/remittances"><span class="emoji-icon">🏦</span>Remesas</a></li>
               <li><a class="<%= title === 'Recursos' ? 'active' : '' %>" href="/resources"><span class="emoji-icon">📁</span>Recursos</a></li>
               <li data-item-key="clientes_tickets"><a class="<%= title.includes('Ticket') ? 'active' : '' %>" href="/tickets"><span class="emoji-icon">🎫</span><%= ui.moduleName.tickets %></a></li>
-              <li data-item-key="clientes_settings"><a class="<%= title.includes('Configurac') ? 'active' : '' %>" href="/settings"><span class="emoji-icon">⚙️</span><%= ui.moduleName.settings %></a></li>
+              <!-- OCULTO <li data-item-key="clientes_settings"><a class="<%= title.includes('Configurac') ? 'active' : '' %>" href="/settings"><span class="emoji-icon">⚙️</span><%= ui.moduleName.settings %></a></li> -->
               <li class="nav-subheading">🛠️ PostVenta</li>
               <li data-item-key="postventa_portabilidades" data-ui-draggable="item"><a class="<%= title === 'Portabilidades' ? 'active' : '' %>" href="/aftersales/portabilities"><span class="emoji-icon">🔄</span>Portabilidades</a></li>
               <li><a class="<%= title === 'Instalaciones' ? 'active' : '' %>" href="/aftersales/installations"><span class="emoji-icon">🔧</span>Instalaciones</a></li>
@@ -278,10 +280,12 @@
               <li data-item-key="isp_facturacion"><a class="<%= title === 'Facturación' ? 'active' : '' %>" href="/isp/facturacion"><span class="emoji-icon">🧾</span>Facturación</a></li>
               <li data-item-key="isp_cdrs"><a class="<%= title === 'CDRs y Excedentes' ? 'active' : '' %>" href="/isp/cdrs"><span class="emoji-icon">📊</span>CDRs / Excesos</a></li>
               <li data-item-key="isp_contratos"><a class="<%= title === 'Contratos' ? 'active' : '' %>" href="/isp/contratos"><span class="emoji-icon">📄</span>Contratos</a></li>
+              <!-- OCULTOS
               <li data-item-key="isp_portabilidades"><a class="<%= title === 'Portabilidades' ? 'active' : '' %>" href="/isp/portabilidades"><span class="emoji-icon">🔄</span>Portabilidades</a></li>
               <li data-item-key="isp_incidencias"><a class="<%= title === 'Incidencias' ? 'active' : '' %>" href="/isp/incidencias"><span class="emoji-icon">⚠️</span>Incidencias / Tickets</a></li>
               <li data-item-key="isp_documentos"><a class="<%= title === 'Documentos' ? 'active' : '' %>" href="/isp/documentos"><span class="emoji-icon">📁</span>Documentos</a></li>
               <li data-item-key="isp_eventos"><a class="<%= title === 'Calendario' ? 'active' : '' %>" href="/isp/eventos"><span class="emoji-icon">📅</span>Calendario</a></li>
+              -->
               <li data-item-key="isp_clientes"><a class="<%= title === 'Clientes ISP' ? 'active' : '' %>" href="/isp/clientes"><span class="emoji-icon">👥</span>Clientes ISP</a></li>
               <li data-item-key="isp_nube"><a class="<%= title && title.includes('Nube') ? 'active' : '' %>" href="/isp/nube"><span class="emoji-icon">☁️</span>Nube</a></li>
             </ul>
