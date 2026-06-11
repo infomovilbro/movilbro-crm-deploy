@@ -689,15 +689,25 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
           (item.subject ? '<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;"><strong>Asunto:</strong> ' + escHtml(item.subject) + '</div>' : '') +
           '<div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">' + escHtml(item.body || '').substring(0, 150) + '</div>' +
           '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;"><div style="font-size:0.7rem;color:var(--text-faint);margin-bottom:4px;">Respuesta propuesta:</div><div style="font-size:0.75rem;color:var(--text);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">' + escHtml(item.proposed_response || 'Sin respuesta').substring(0, 200) + '</div></div>' +
-          '<div style="display:flex;gap:4px;">' +
-          '<button class="pending-analyze" data-id="' + item.id + '" style="flex:1;padding:6px;border:0;border-radius:8px;background:var(--accent);color:#fff;font-size:0.75rem;cursor:pointer;font-weight:600;"><i class="ri-robot-line"></i> Analizar</button>' +
-          '<button class="pending-approve" data-id="' + item.id + '" style="flex:1;padding:6px;border:0;border-radius:8px;background:var(--success);color:#fff;font-size:0.75rem;cursor:pointer;font-weight:600;">✓ Aprobar</button>' +
-          '<button class="pending-reject" data-id="' + item.id + '" style="flex:1;padding:6px;border:0;border-radius:8px;background:var(--error);color:#fff;font-size:0.75rem;cursor:pointer;font-weight:600;">✕ Rechazar</button></div>';
+          '<div style="display:flex;gap:4px;flex-wrap:wrap;">' +
+          (item.proposed_response && item.proposed_response !== '' && item.proposed_response !== 'Sin respuesta' ? '' : '<button class="pending-analyze" data-id="' + item.id + '" style="flex:1;min-width:60px;padding:6px;border:0;border-radius:8px;background:var(--accent);color:#fff;font-size:0.75rem;cursor:pointer;font-weight:600;"><i class="ri-robot-line"></i> Analizar</button>') +
+          (item.proposed_response && item.proposed_response !== '' && item.proposed_response !== 'Sin respuesta' ? 
+            '<button class="pending-send" data-id="' + item.id + '" style="flex:1;min-width:50px;padding:6px;border:0;border-radius:8px;background:var(--success);color:#fff;font-size:0.7rem;cursor:pointer;font-weight:600;">✓ Enviar</button>' +
+            '<button class="pending-send-audio pending-send" data-id="' + item.id + '" data-audio="1" style="flex:1;min-width:50px;padding:6px;border:0;border-radius:8px;background:#8B5CF6;color:#fff;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-voiceprint-line"></i></button>' +
+            '<button class="pending-send-doc" data-id="' + item.id + '" style="flex:1;min-width:50px;padding:6px;border:0;border-radius:8px;background:#f59e0b;color:#fff;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-file-pdf-line"></i></button>'
+          : '') +
+          '<button class="pending-reject" data-id="' + item.id + '" style="flex:1;min-width:50px;padding:6px;border:0;border-radius:8px;background:var(--error);color:#fff;font-size:0.7rem;cursor:pointer;font-weight:600;">✕</button></div>';
         pendingList.appendChild(card);
       });
-      // Bind approve/reject/analyze
-      pendingList.querySelectorAll('.pending-approve').forEach(function(b) {
+      // Bind approve/reject/analyze/send
+      pendingList.querySelectorAll('.pending-approve, .pending-send').forEach(function(b) {
         b.addEventListener('click', function(e) { e.stopPropagation(); handlePending(this.dataset.id, 'approve'); });
+      });
+      pendingList.querySelectorAll('.pending-send-audio').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation(); handlePending(this.dataset.id, 'approve', this, true); });
+      });
+      pendingList.querySelectorAll('.pending-send-doc').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation(); sendDocument(this.dataset.id, this); });
       });
       pendingList.querySelectorAll('.pending-reject').forEach(function(b) {
         b.addEventListener('click', function(e) { e.stopPropagation(); handlePending(this.dataset.id, 'reject'); });

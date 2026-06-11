@@ -219,25 +219,22 @@ async function callLLM(systemPrompt, userMessage, temperature, modelId) {
   var allFreeModels = Object.keys(AVAILABLE_MODELS).filter(function(m) { return modelsToTry.indexOf(m) === -1; });
   modelsToTry = modelsToTry.concat(allFreeModels);
 
-  var lastError = '';
-  for (var mi = 0; mi < modelsToTry.length; mi++) {
-    var currentModel = modelsToTry[mi];
-    var currentConfig = getModelConfig(currentModel);
-    if (!currentConfig || !currentConfig.key) continue;
-    
-    var maxRetries = 1;
-    for (var attempt = 1; attempt <= maxRetries; attempt++) {
+    var lastError = '';
+    // Solo intentar el modelo principal, sin fallbacks (más rápido)
+    for (var mi = 0; mi < Math.min(modelsToTry.length, 2); mi++) {
+      var currentModel = modelsToTry[mi];
+      var currentConfig = getModelConfig(currentModel);
+      if (!currentConfig || !currentConfig.key) continue;
+      
       try {
         const r = await axios.post(currentConfig.apiEndpoint, {
           model: currentModel,
           messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }],
-          temperature: temperature || 0.7, max_tokens: 2048
-        }, { timeout: 15000, headers: { 'Authorization': 'Bearer ' + currentConfig.key, 'Content-Type': 'application/json' } });
+          temperature: temperature || 0.7, max_tokens: 1024
+        }, { timeout: 10000, headers: { 'Authorization': 'Bearer ' + currentConfig.key, 'Content-Type': 'application/json' } });
         var text = r?.data?.choices?.[0]?.message?.content;
         if ((text || '').trim()) {
-          if (mi > 0) {
-            console.log('[CodeOpen] Fallback automático: ' + primaryModel + ' → ' + currentModel);
-          }
+          if (mi > 0) console.log('[CodeOpen] Fallback: ' + primaryModel + ' → ' + currentModel);
           try {
             var today = new Date().toISOString().split('T')[0];
             db.prepare("INSERT INTO model_usage (model_id, date, calls) VALUES (?, ?, 1) ON CONFLICT(model_id, date) DO UPDATE SET calls = calls + 1, updated_at = CURRENT_TIMESTAMP").run(currentModel, today);
@@ -245,22 +242,13 @@ async function callLLM(systemPrompt, userMessage, temperature, modelId) {
           return (text || '').trim();
         }
       } catch(e) {
-        var isRateLimit = e.response?.status === 429 || (e.message && e.message.indexOf('429') > -1);
         lastError = e.message;
-        if (isRateLimit) {
-          console.log('[CodeOpen] ' + currentModel + ' rate limit, probando siguiente modelo...');
-          break;
-        } else {
-          console.log('[CodeOpen] Error en ' + currentModel + ':', e.message);
-          break;
-        }
+        console.log('[CodeOpen] Error en ' + currentModel + ':', e.message);
       }
     }
-  }
-  
-  console.error('[CodeOpen] Todos los modelos agotados, último error:', lastError);
-  if (lastError.indexOf('429') > -1) return 'La IA está sobrecargada. Reintentaré en unos segundos.';
-  return 'Error: ' + lastError;
+    
+    console.error('[CodeOpen] Error, último:', lastError);
+    return 'Error: ' + (lastError || 'desconocido');
 }
 
 const AGENT_CATEGORIES = {
