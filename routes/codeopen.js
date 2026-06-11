@@ -659,11 +659,13 @@ function startIMAPPolling() {
   imapRunning = true;
   console.log('[IMAP] Iniciando polling cada 120s para', gmailUser);
 
-  // Clean old UIDs from memory every hour
-  setInterval(function() { processedUIDs = {}; }, 3600000);
-
-  checkMail();
-  imapInterval = setInterval(checkMail, 120000);
+  // Keep UIDs in memory (no limpiar cada hora para evitar duplicados)
+  
+  try { checkMail(); } catch(e) { console.error('[IMAP] Error inicial:', e.message); }
+  imapInterval = setInterval(function() { 
+    try { checkMail(); } 
+    catch(e) { console.error('[IMAP] Error ciclo:', e.message); }
+  }, 120000);
 }
 
 function checkMail() {
@@ -721,7 +723,10 @@ function checkMail() {
                   var uid = attrs.uid;
                   if (uid) {
                     processedUIDs['' + boxName + '_' + uid] = true;
-                    try { db.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES (?, '1')").run('imap_uid_' + boxName.replace(/[^a-zA-Z0-9]/g, '_') + '_' + uid); } catch(e) {}
+                    try { 
+                      var uidKey = 'imap_uid_' + String(boxName).replace(/[^a-zA-Z0-9]/g, '_') + '_' + String(uid);
+                      db.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES (?, '1')").run(uidKey); 
+                    } catch(e) { console.error('[IMAP] UID save error:', e.message); }
                   }
                 });
                 msg.on('end', function() {
