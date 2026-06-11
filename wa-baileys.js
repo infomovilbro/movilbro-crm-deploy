@@ -93,8 +93,11 @@ async function initBaileys() {
       logger: logger,
       printQRInTerminal: false,
       browser: ['Movilbro CRM', 'Chrome', '149.0.0.0'],
-      syncFullHistory: true,
-      shouldSyncHistoryMessage: function() { return true; }
+      syncFullHistory: false,
+      shouldSyncHistoryMessage: function() { return false; },
+      maxMsgRetryCount: 2,
+      qrTimeout: 30000,
+      emitOwnEvents: false
     });
     
     // Persist creds on every update

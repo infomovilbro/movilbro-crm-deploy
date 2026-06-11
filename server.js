@@ -647,6 +647,16 @@ setTimeout(selfPing, 5000);
 setInterval(selfPing, KEEP_AWAKE_INTERVAL);
 console.log(`[KeepAwake] Ping cada ${KEEP_AWAKE_INTERVAL/60000} min (localhost${EXTERNAL_URL ? ' + ' + EXTERNAL_URL : ''})`);
 
+// ---- GLOBAL ERROR HANDLER - Evitar crashes no controlados ----
+process.on('uncaughtException', function(err) {
+  console.error('[FATAL] Uncaught Exception:', err.message);
+  console.error(err.stack);
+  // No morir - mantener el server vivo
+});
+process.on('unhandledRejection', function(reason, promise) {
+  console.error('[FATAL] Unhandled Rejection:', reason);
+});
+
 // ---- GRACEFUL SHUTDOWN - Cerrar conexiones limpiamente ----
 function shutdown(signal) {
   console.log(`\n[${signal}] Cerrando servidor...`);
