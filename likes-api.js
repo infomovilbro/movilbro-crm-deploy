@@ -217,7 +217,7 @@ class LikesAPI {
   }
 
   async checkoutDraftOrder(orderId) {
-    return this.request('PUT', '/draft-order/checkout', { orderId });
+    return this.request('PUT', '/draft-order-v2/checkout', { orderId });
   }
 
   async getDraftOrder(orderId) {

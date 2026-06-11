@@ -188,7 +188,7 @@ router.post('/:token/subir-doc', upload.single('file'), async (req, res) => {
     } catch(driveErr) { console.error('[KYC] Drive upload error:', driveErr.message); }
 
     db.prepare('INSERT INTO altas_kyc_docs (orden_id, tipo, archivo, upload_url, download_url, estado, drive_file_id, drive_folder_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(
-      orden.id, tipo, req.file.filename, docInfo.uploadURL, docInfo.downloadURL || '', 'subido', driveFileId, driveFolderId
+      orden.id, tipo, req.file.filename, uploadUrl, downloadUrl, 'subido', driveFileId, driveFolderId
     );
 
     // Update count
