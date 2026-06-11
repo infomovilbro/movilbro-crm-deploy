@@ -569,18 +569,16 @@ function initDatabase() {
   }
 
   // Gmail desde variables de entorno (para KYC email y envio facturas)
-  var defaultGmail = {
-    gmail_user: process.env.GMAIL_USER || '',
-    gmail_pass: process.env.GMAIL_PASS || ''
-  };
-  for (var _g in defaultGmail) {
-    var gEnv = process.env[_g.toUpperCase()];
-    if (gEnv) {
-      db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(_g, gEnv);
+  var gmailEnvVars = { gmail_user: 'GMAIL_USER', gmail_pass: 'GMAIL_PASS' };
+  for (var _gKey in gmailEnvVars) {
+    var _gEnvVar = gmailEnvVars[_gKey];
+    var _gEnvVal = process.env[_gEnvVar];
+    if (_gEnvVal) {
+      db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(_gKey, _gEnvVal);
     } else {
-      var gExists = db.prepare('SELECT value FROM settings WHERE key=?').get(_g);
-      if (!gExists) {
-        db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)').run(_g, defaultGmail[_g]);
+      var _gExists = db.prepare('SELECT value FROM settings WHERE key=?').get(_gKey);
+      if (!_gExists) {
+        db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)').run(_gKey, '');
       }
     }
   }
