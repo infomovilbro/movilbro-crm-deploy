@@ -555,6 +555,12 @@ function goToStep2() {
 
 let sigCanvas, sigCtx, isDrawing = false;
 
+// Init signature pad on load too
+document.addEventListener('DOMContentLoaded', function() {
+  var sp = document.getElementById('signaturePad');
+  if (sp) initSignaturePad();
+});
+
 function initSignaturePad() {
   sigCanvas = document.getElementById('signaturePad');
   if (!sigCanvas) return;

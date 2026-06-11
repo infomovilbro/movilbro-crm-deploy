@@ -43,12 +43,48 @@ router.post('/installations', async (req, res) => {
   }
 });
 
+function mapInstallation(raw) {
+  if (!raw || typeof raw !== 'object') return raw;
+  const o = raw.data || raw;
+  const pick = (...keys) => {
+    for (const k of keys) {
+      const v = o[k] ?? o[k.toLowerCase()] ?? o[k.toUpperCase()] ?? null;
+      if (v !== null && v !== undefined && v !== '') return v;
+    }
+    return '';
+  };
+  const result = {
+    DNI: pick('dni', 'DNI', 'nif', 'NIF', 'fiscalId', 'fiscal_id', 'documento', 'identificacion'),
+    Cliente: pick('cliente', 'Cliente', 'customer', 'customerName', 'customer_name', 'nombre', 'name'),
+    Dirección: pick('direccion', 'Dirección', 'direccion', 'address', 'Address', 'direccion_instalacion'),
+    Teléfono: pick('telefono', 'Teléfono', 'telephone', 'phone', 'Phone', 'telefono_contacto'),
+    Email: pick('email', 'Email', 'EMAIL', 'mail', 'correo'),
+    Estado: pick('estado', 'Estado', 'status', 'Status'),
+    Producto: pick('producto', 'Producto', 'product', 'Product', 'productName', 'product_name'),
+    'Fecha Instalación': pick('fecha_instalacion', 'fechaInstalacion', 'installationDate', 'installation_date', 'fecha_instalación', 'fecha', 'date'),
+    Router: pick('router', 'Router', 'routerModel', 'router_model'),
+    ONT: pick('ont', 'ONT', 'ontModel', 'ont_model'),
+    CTO: pick('cto', 'CTO', 'ctoId', 'cto_id'),
+    OT: pick('ot', 'OT', 'orderId', 'order_id', 'workOrder', 'work_order'),
+    Contrata: pick('contrata', 'Contrata', 'contract', 'contractId', 'contract_id'),
+    Técnico: pick('tecnico', 'Técnico', 'technician', 'Technician'),
+    Notas: pick('notas', 'Notas', 'notes', 'Notes', 'observaciones'),
+    timeline: o.timeline || o.history || o.events || [],
+  };
+  console.log('[Installation detail] raw API data:', JSON.stringify(raw, null, 2));
+  console.log('[Installation detail] mapped result:', JSON.stringify(result, null, 2));
+  return result;
+}
+
 router.get('/installations/:id/detail', async (req, res) => {
   try {
     const api = getApiInstance();
     const data = await api.request('GET', '/installation?installationId=' + encodeURIComponent(req.params.id));
-    res.json({ success: true, data });
+    console.log('[Installation detail] raw response for id=' + req.params.id + ':', JSON.stringify(data, null, 2));
+    const mapped = mapInstallation(data);
+    res.json({ success: true, data: mapped, raw: data });
   } catch (err) {
+    console.error('[Installation detail] error:', err.message);
     res.status(500).json({ success: false, error: err.message });
   }
 });

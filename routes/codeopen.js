@@ -701,18 +701,28 @@ function checkMail() {
               if (err) { console.error('[IMAP] Error search en', boxName, ':', err.message); imap.end(); resolve(); return; }
               if (!results || results.length === 0) { console.log('[IMAP] Sin resultados en', boxName); imap.end(); resolve(); return; }
 
-              var newResults = results.filter(function(uid) { return !processedUIDs['' + boxName + '_' + uid]; });
+              var newResults = results.filter(function(uid) { 
+                var key = '' + boxName + '_' + uid;
+                if (processedUIDs[key]) return false;
+                // Also check persistent DB cache
+                var cached = db.prepare("SELECT id FROM settings WHERE key='imap_uid_" + key.replace(/[^a-zA-Z0-9]/g, '_') + "'").get();
+                if (cached) { processedUIDs[key] = true; return false; }
+                return true;
+              });
               if (newResults.length === 0) { imap.end(); resolve(); return; }
               console.log('[IMAP]', newResults.length, 'nuevos en', boxName);
 
-              var toFetch = newResults.slice(0, 1);
+              var toFetch = newResults.slice(0, 5);
               var fetch = imap.fetch(toFetch, { bodies: '', markSeen: markSeen });
               fetch.on('message', function(msg, seqno) {
                 var chunks = [];
                 msg.on('body', function(stream) { stream.on('data', function(chunk) { chunks.push(chunk.toString()); }); });
                 msg.on('attributes', function(attrs) {
                   var uid = attrs.uid;
-                  if (uid) processedUIDs['' + boxName + '_' + uid] = true;
+                  if (uid) {
+                    processedUIDs['' + boxName + '_' + uid] = true;
+                    try { db.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES (?, '1')").run('imap_uid_' + boxName.replace(/[^a-zA-Z0-9]/g, '_') + '_' + uid); } catch(e) {}
+                  }
                 });
                 msg.on('end', function() {
                   var raw = chunks.join('');
