@@ -2,7 +2,7 @@
   <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="ri-team-line"></i> <%= ui.moduleName.clients %></h2>
     <div>
-      <a href="/customers/nuevo" class="btn btn-primary"><i class="ri-add-line"></i> Nuevo Cliente</a>
+      <a href="/clientes/nuevo" class="btn btn-primary"><i class="ri-add-line"></i> Nuevo Cliente</a>
     </div>
   </div>
 
@@ -15,7 +15,7 @@
     <div class="input-group">
       <input type="text" name="search" class="form-control" placeholder="Buscar por nombre, teléfono, email o DNI..." value="<%= search %>">
       <button class="btn btn-outline-secondary" type="submit"><i class="ri-search-line"></i></button>
-      <% if (search) { %><a href="/customers" class="btn btn-outline-danger"><i class="ri-close-line"></i></a><% } %>
+      <% if (search) { %><a href="/clientes" class="btn btn-outline-danger"><i class="ri-close-line"></i></a><% } %>
     </div>
   </form>
 
@@ -61,7 +61,7 @@
                 </td>
                 <td>
                   <% if (c.id_local) { %>
-                    <a href="/customers/<%= c.id_local %>" class="fw-bold text-decoration-none"><%= c.nombre %> <%= c.apellidos || '' %></a>
+                    <a href="/clientes/<%= c.id_local %>" class="fw-bold text-decoration-none"><%= c.nombre %> <%= c.apellidos || '' %></a>
                   <% } else { %>
                     <span class="fw-bold"><%= c.nombre %> <%= c.apellidos || '' %></span>
                   <% } %>
@@ -78,8 +78,8 @@
                 </td>
                 <td class="text-end" style="white-space:nowrap;">
                   <% if (c.id_local) { %>
-                    <a href="/customers/<%= c.id_local %>" class="btn btn-sm btn-outline-info" title="Ver"><i class="ri-eye-line"></i></a>
-                    <a href="/customers/<%= c.id_local %>/editar" class="btn btn-sm btn-outline-warning" title="Editar"><i class="ri-pencil-line"></i></a>
+                    <a href="/clientes/<%= c.id_local %>" class="btn btn-sm btn-outline-info" title="Ver"><i class="ri-eye-line"></i></a>
+                    <a href="/clientes/<%= c.id_local %>/editar" class="btn btn-sm btn-outline-warning" title="Editar"><i class="ri-pencil-line"></i></a>
                   <% } %>
                   <% if (phoneClean) { %>
                     <a href="/whatsapp?phone=<%= phoneClean %>" class="btn btn-sm btn-outline-success" target="_blank" title="WhatsApp: <%= c.telefono %>"><i class="ri-whatsapp-line"></i></a>

@@ -271,7 +271,6 @@ app.get('/sync-status', (req, res) => {
 // ---- LIKES TELECOM ROUTES ----
 app.use('/altas', altasRoutes);
 app.use('/kpis', kpiRoutes);
-app.use('/customers', clientRoutes);
 app.use('/clientes', clientRoutes);
 app.use('/products', productRoutes);
 app.use('/productos', productRoutes);

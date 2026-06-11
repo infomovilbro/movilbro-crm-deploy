@@ -30,7 +30,6 @@ router.get('/', requireAuth, async (req, res) => {
     console.error('API customers fetch error:', e.message);
   }
 
-  // Auto-sync: save API customers to local DB
   const insertLocal = db.prepare(`
     INSERT OR IGNORE INTO clients (nombre, apellidos, email, telefono, dni_nif, direccion, ciudad, tipo_cliente, created_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -52,7 +51,6 @@ router.get('/', requireAuth, async (req, res) => {
     }
   }
 
-  // Fetch merged data
   let locales;
   if (search) {
     locales = db.prepare(`
@@ -68,7 +66,6 @@ router.get('/', requireAuth, async (req, res) => {
     `).all();
   }
 
-  // Merge API + local, deduplicate by phone
   const seenPhones = new Set();
   const merged = [];
   locales.forEach(c => {
@@ -106,40 +103,59 @@ router.post('/nuevo', requireAuth, (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(nombre, apellidos, dni_nif, email, telefono, telefono2, direccion, ciudad, provincia, codigo_postal, notas, tipo_cliente);
   db.prepare('INSERT INTO activity_log (tipo, descripcion, client_id) VALUES (?, ?, ?)').run('cliente_creado', 'Cliente ' + nombre + ' ' + (apellidos || '') + ' creado', result.lastInsertRowid);
-  res.redirect('/customers');
+  res.redirect('/clientes');
 });
 
 router.get('/:id', requireAuth, async (req, res) => {
   const cliente = db.prepare('SELECT * FROM clients WHERE id = ?').get(req.params.id);
-  if (!cliente) return res.redirect('/customers');
+  if (!cliente) return res.redirect('/clientes');
   const ordenes = db.prepare('SELECT * FROM orders WHERE client_id = ? ORDER BY created_at DESC').all(req.params.id);
   const suscripciones = db.prepare('SELECT * FROM subscriptions WHERE client_id = ? ORDER BY created_at DESC').all(req.params.id).map(s => ({ ...s, origen: 'local' }));
   const tickets = db.prepare('SELECT * FROM tickets WHERE client_id = ? ORDER BY created_at DESC').all(req.params.id);
+  const contratos = db.prepare("SELECT * FROM isp_contratos WHERE client_id = ? ORDER BY created_at DESC").all(req.params.id);
+  const altasOrdenes = db.prepare('SELECT * FROM altas_ordenes WHERE client_id = ? ORDER BY created_at DESC').all(req.params.id);
+  const documentos = db.prepare('SELECT * FROM isp_documentos WHERE client_id = ? ORDER BY created_at DESC').all(req.params.id);
 
-  // Fetch API subscriptions for this client by phone/fiscalId
+  // KYC docs per alta orden
+  const kycDocsPorOrden = {};
+  if (altasOrdenes.length > 0) {
+    altasOrdenes.forEach(function(o) {
+      const docs = db.prepare('SELECT * FROM altas_kyc_docs WHERE orden_id = ? ORDER BY created_at').all(o.id);
+      kycDocsPorOrden[o.id] = docs;
+    });
+  }
+
+  // Try altas_ordenes by DNI if none found
+  if (altasOrdenes.length === 0 && cliente.dni_nif) {
+    try {
+      const ordenesPorDNI = db.prepare("SELECT * FROM altas_ordenes WHERE datos_cliente LIKE ? ORDER BY created_at DESC LIMIT 5").all('%' + cliente.dni_nif + '%');
+      if (ordenesPorDNI.length > 0) {
+        ordenesPorDNI.forEach(function(o) {
+          altasOrdenes.push(o);
+          const docs = db.prepare('SELECT * FROM altas_kyc_docs WHERE orden_id = ? ORDER BY created_at').all(o.id);
+          kycDocsPorOrden[o.id] = docs;
+        });
+      }
+    } catch(e) {}
+  }
+
   let apiSuscripciones = [];
   try {
     const api = LikesAPI.getApiInstance();
-    if (cliente.telefono) {
-      const raw = await api.getSubscriptions();
+    if (cliente.dni_nif) {
+      const raw = await api.getSubscriptions(cliente.dni_nif);
       const allSubs = Array.isArray(raw) ? raw : [];
-      apiSuscripciones = allSubs
-        .filter(sub => {
-          const subPhone = (sub.phone || sub.line || sub.linea || '').replace(/[^\d]/g, '');
-          const cliPhone = (cliente.telefono || '').replace(/[^\d]/g, '');
-          return subPhone && cliPhone && subPhone === cliPhone;
-        })
-        .map(sub => {
-          var prod = (sub.products && sub.products[0]) || {};
-          return {
-            linea: prod.lineNumber || prod.line || prod.phone || sub.phone || sub.line || '',
-            producto: prod.productName || sub.productName || sub.product || sub.producto || '',
-            estado: (prod.status || sub.status || sub.estado || 'activa').toLowerCase(),
-            fecha_alta: sub.created || sub.sellDate || sub.created_at || sub.fecha_alta || sub.startDate || null,
-            fecha_baja: sub.cancelled_at || sub.fecha_baja || sub.endDate || null,
-            origen: 'api'
-          };
-        });
+      apiSuscripciones = allSubs.map(function(sub) {
+        var prod = (sub.products && sub.products[0]) || {};
+        return {
+          linea: prod.lineNumber || prod.line || prod.phone || sub.phone || sub.line || '',
+          producto: prod.productName || sub.productName || sub.product || sub.producto || '',
+          estado: (prod.status || sub.status || sub.estado || 'activa').toLowerCase(),
+          fecha_alta: sub.created || sub.sellDate || sub.created_at || sub.fecha_alta || sub.startDate || null,
+          fecha_baja: sub.cancelled_at || sub.fecha_baja || sub.endDate || null,
+          origen: 'api'
+        };
+      });
     }
   } catch (e) {
     console.error('Error fetching API subscriptions for client:', e.message);
@@ -152,7 +168,20 @@ router.get('/:id', requireAuth, async (req, res) => {
     return da < db2 ? 1 : da > db2 ? -1 : 0;
   });
 
-  // Compute chart data
+  // Líneas from contratos
+  const lineas = contratos.map(function(c) {
+    return {
+      linea: c.linea || '',
+      producto: c.producto || c.tarifa || '',
+      estado: c.estado || 'desconocido',
+      iccid: c.iccid || '',
+      pin: c.pin || '',
+      puk: c.puk || '',
+      contrato_id: c.id,
+      fecha_alta: c.fecha_alta
+    };
+  });
+
   var linesByStatus = {};
   var lineNumbers = [];
   todasSuscripciones.forEach(function(s) {
@@ -163,14 +192,17 @@ router.get('/:id', requireAuth, async (req, res) => {
     }
   });
 
-  var contratos = db.prepare("SELECT * FROM isp_contratos WHERE client_id = ? ORDER BY created_at DESC").all(req.params.id);
   res.render('clients/view', {
     title: 'Cliente: ' + cliente.nombre,
     cliente,
     ordenes,
     contratos,
+    lineas,
     suscripciones: todasSuscripciones,
     tickets,
+    altasOrdenes,
+    kycDocsPorOrden,
+    documentos,
     apiSubCount: apiSuscripciones.length,
     linesByStatus: JSON.stringify(linesByStatus),
     lineNumbers: JSON.stringify(lineNumbers),
@@ -180,7 +212,7 @@ router.get('/:id', requireAuth, async (req, res) => {
 
 router.get('/:id/editar', requireAuth, (req, res) => {
   const cliente = db.prepare('SELECT * FROM clients WHERE id = ?').get(req.params.id);
-  if (!cliente) return res.redirect('/customers');
+  if (!cliente) return res.redirect('/clientes');
   res.render('clients/edit', { title: 'Editar Cliente', cliente, errors: [] });
 });
 
@@ -191,15 +223,14 @@ router.post('/:id/editar', requireAuth, (req, res) => {
     WHERE id=?
   `).run(nombre, apellidos, dni_nif, email, telefono, telefono2, direccion, ciudad, provincia, codigo_postal, notas, tipo_cliente, req.params.id);
   db.prepare('INSERT INTO activity_log (tipo, descripcion, client_id) VALUES (?, ?, ?)').run('cliente_actualizado', 'Cliente ' + nombre + ' actualizado', req.params.id);
-  res.redirect('/customers/' + req.params.id);
+  res.redirect('/clientes/' + req.params.id);
 });
 
 router.post('/:id/eliminar', requireAuth, (req, res) => {
   db.prepare('DELETE FROM clients WHERE id = ?').run(req.params.id);
-  res.redirect('/customers');
+  res.redirect('/clientes');
 });
 
-// --- API Action Routes ---
 router.post('/:id/line/:lineNumber/block', requireAuth, async (req, res) => {
   try {
     const api = LikesAPI.getApiInstance();
