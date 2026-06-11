@@ -2001,14 +2001,7 @@
     <button onclick="toggleWAOverlay()" style="margin-left:auto;background:none;border:0;color:#fff;cursor:pointer;font-size:1.2rem;padding:2px 6px;">&times;</button>
   </div>
   <div style="flex:1;overflow:hidden;">
-    <div id="waPersistentFrame" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;background:#f5f5f5;">
-      <i class="ri-whatsapp-line" style="font-size:4rem;color:#25D366;"></i>
-      <p style="color:#666;max-width:300px;text-align:center;">WhatsApp Web no puede mostrarse dentro de la CRM por restricciones de seguridad del navegador.</p>
-      <a href="https://web.whatsapp.com" target="_blank" rel="noopener noreferrer" class="btn btn-success btn-lg" style="background:#25D366;border:0;padding:10px 24px;border-radius:8px;color:#fff;text-decoration:none;font-weight:600;">
-        <i class="ri-whatsapp-line"></i> Abrir WhatsApp Web
-      </a>
-      <p style="font-size:0.8rem;color:#999;">Se abrirá en una nueva pestaña. Asegúrate de tener la sesión iniciada.</p>
-    </div>
+    <iframe id="waPersistentFrame" src="/proxy/web.whatsapp.com" style="width:100%;height:100%;border:0;"></iframe>
   </div>
 </div>
 <div id="waOverlayBackdrop" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.3);z-index:9998;" onclick="toggleWAOverlay()"></div>

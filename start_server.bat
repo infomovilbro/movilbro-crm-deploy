@@ -1,14 +1,16 @@
 @echo off
-cd /d "C:\Users\IVAN\Desktop\prueba2servidor\prueba2\movilbro-crm"
-title CRM Movilbro - Servidor Local
-set PORT=3000
+set PORT=3005
 set NODE_ENV=development
-set SESSION_SECRET=test123
-
-where node >nul 2>nul
-if %ERRORLEVEL% NEQ 0 (
-    echo ERROR: Node.js no encontrado. Instalalo desde https://nodejs.org
-    pause
+REM Estas claves se cargan desde las variables de entorno en Render
+REM Para desarrollo local, configúralas en tu sistema o usa el archivo .env
+REM set OPENCODE_API_KEY=<tu-api-key>
+REM set ASSEMBLYAI_API_KEY=<tu-api-key>
+REM set OPENROUTER_API_KEY=<tu-api-key>
+echo.
+echo CRM Local arrancando en http://localhost:3005
+echo.
+node server.js
+pause
     exit /b 1
 )
 

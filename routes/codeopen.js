@@ -784,8 +784,8 @@ router.get('/pending/grouped', (req, res) => {
 // ---- ANÁLISIS MANUAL (solo cuando el usuario hace clic en "Analizar") ----
 router.post('/analyze/:id', async (req, res) => {
   try {
-    var row = db.prepare("SELECT * FROM pending_messages WHERE id=? AND status='pending'").get(req.params.id);
-    if (!row) return res.status(404).json({ error: 'No encontrado o ya procesado' });
+    var row = db.prepare("SELECT * FROM pending_messages WHERE id=?").get(req.params.id);
+    if (!row) return res.status(404).json({ error: 'No encontrado' });
     
     var modelId = req.body.model || getUserModel();
     console.log('[CodeOpen] Analizando mensaje #' + row.id, 'de', row.from_name, 'con modelo', modelId);
@@ -904,7 +904,7 @@ router.post('/approve/:id', async (req, res) => {
         }
 
         // Enviar como audio si se solicita
-        if (!sent && asAudio && row.proposed_response) {
+        if (asAudio && row.proposed_response) {
           try {
             var transcriptionService = require('../services/transcription');
             var ttsResult = await transcriptionService.textToSpeech(row.proposed_response);
@@ -912,17 +912,25 @@ router.post('/approve/:id', async (req, res) => {
               opts.asAudio = true;
               var result = await wa.sendMessage(row.from_address, { audioBuffer: ttsResult.audio, mimeType: 'audio/mp3', text: row.proposed_response }, opts);
               if (result.ok) { sent = true; sendInfo = ' (audio)'; }
-              else { console.log('[CodeOpen] Error al enviar audio:', result.error); }
+              else { sendInfo = ' (error audio: ' + result.error + ')'; }
             } else {
-              sendInfo = ' (TTS falló: ' + (ttsResult.error || '') + ')';
+              sendInfo = ' (TTS falló: ' + (ttsResult.error || 'error desconocido') + ')';
             }
-          } catch(ttsErr) { console.error('[CodeOpen] Error TTS:', ttsErr.message); }
+          } catch(ttsErr) { 
+            console.error('[CodeOpen] Error TTS:', ttsErr.message);
+            sendInfo = ' (error TTS: ' + ttsErr.message + ')';
+          }
+          if (!sent) {
+            // If audio failed, still send as text so user gets the response
+            var result = await wa.sendMessage(row.from_address, '🎤 ' + row.proposed_response, opts);
+            if (result.ok) { sent = true; sendInfo += ' (enviado como texto)'; }
+          }
         }
 
-        // Enviar como texto (default)
-        if (!sent) {
+        // Enviar como texto (default solo si NO es audio)
+        if (!sent && !asAudio) {
           var result = await wa.sendMessage(row.from_address, row.proposed_response, opts);
-          if (result.ok) { sent = true; sendInfo = asAudio ? ' (texto, audio no disponible)' : ''; }
+          if (result.ok) { sent = true; }
           else { console.log('[CodeOpen] Error WhatsApp:', result.error); }
         }
         if (sent) console.log('[CodeOpen] WhatsApp respondido a', row.from_address, sendInfo);

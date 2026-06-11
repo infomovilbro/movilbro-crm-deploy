@@ -4,6 +4,7 @@
   <!-- Top Bar -->
   <div id="catBar" style="padding:12px 20px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex-shrink:0;">
     <span style="font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-right:8px;">Categoría</span>
+
     <div id="categoryPills" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
     <div style="flex-grow:1;"></div>
     <button id="themeToggle" style="background:none;border:1px solid;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:0.85rem;display:flex;align-items:center;gap:4px;">
@@ -244,9 +245,9 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
     { id: 'whatsapp', name: 'WhatsApp', icon: 'ri-whatsapp-line', color: '#25D366' },
     { id: 'email', name: 'Correo', icon: 'ri-mail-send-line', color: '#EA4335' },
     { id: 'altas', name: 'Altas', icon: 'ri-user-add-line', color: '#7C3AED' },
-    { id: 'code', name: 'Código', icon: 'ri-code-line', color: '#0050A1' },
     { id: 'general', name: 'General', icon: 'ri-robot-line', color: '#6366f1' }
   ];
+  var TAB_PENDING = {}; // { tabId: count }
 
   function renderCategoryPills() {
     els.categoryPills.innerHTML = '';
@@ -254,12 +255,34 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
       var pill = document.createElement('div');
       pill.className = 'category-pill' + (idx === 0 ? ' active' : '');
       pill.dataset.cat = tabDef.id;
-      pill.innerHTML = '<i class="' + tabDef.icon + '" style="color:' + tabDef.color + '"></i> ' + tabDef.name;
+      var count = TAB_PENDING[tabDef.id] || 0;
+      pill.innerHTML = '<i class="' + tabDef.icon + '" style="color:' + tabDef.color + '"></i> ' + tabDef.name + (count > 0 ? ' <span style="background:#ef4444;color:#fff;font-size:0.6rem;border-radius:50%;min-width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;padding:0 4px;">' + (count > 99 ? '99+' : count) + '</span>' : '');
       pill.addEventListener('click', function() { selectCategory(this.dataset.cat); });
       els.categoryPills.appendChild(pill);
     });
     currentCategory = 'todos';
     selectCategory('todos');
+  }
+
+  function updateTabBadges() {
+    fetch('/codeopen/pending/grouped').then(function(r) { return r.json(); }).then(function(d) {
+      var groups = d.groups || [];
+      TAB_PENDING = { todos: d.total || 0, whatsapp: 0, email: 0, altas: 0 };
+      groups.forEach(function(g) {
+        if (g.category === 'whatsapp') {
+          var kw = ['alta', 'contratar', 'contrataci', 'nuevo servicio', 'nueva linea', 'portabilida', 'fibra', 'movil', 'precio', 'tarifa', 'me interesa', 'quiero contrat', 'darme de alta', 'nuevo producto', 'presupuesto'];
+          var isAltas = g.messages.some(function(m) { return kw.some(function(k) { return (m.body || '').toLowerCase().indexOf(k) >= 0; }); });
+          if (isAltas) TAB_PENDING.altas += g.messages.length;
+          else TAB_PENDING.whatsapp += g.messages.length;
+        } else if (g.category === 'email') {
+          TAB_PENDING.email += g.messages.length;
+        } else {
+          TAB_PENDING.whatsapp += g.messages.length;
+        }
+      });
+      // Re-render pills to update badges
+      renderCategoryPills();
+    });
   }
 
   var LIST_CATEGORIES = ['whatsapp', 'email', 'altas', 'todos'];
@@ -666,15 +689,21 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
           (item.subject ? '<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;"><strong>Asunto:</strong> ' + escHtml(item.subject) + '</div>' : '') +
           '<div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">' + escHtml(item.body || '').substring(0, 150) + '</div>' +
           '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;"><div style="font-size:0.7rem;color:var(--text-faint);margin-bottom:4px;">Respuesta propuesta:</div><div style="font-size:0.75rem;color:var(--text);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">' + escHtml(item.proposed_response || 'Sin respuesta').substring(0, 200) + '</div></div>' +
-          '<div style="display:flex;gap:6px;"><button class="pending-approve" data-id="' + item.id + '" style="flex:1;padding:8px;border:0;border-radius:8px;background:var(--success);color:#fff;font-size:0.8rem;cursor:pointer;font-weight:600;">✓ Aprobar</button><button class="pending-reject" data-id="' + item.id + '" style="flex:1;padding:8px;border:0;border-radius:8px;background:var(--error);color:#fff;font-size:0.8rem;cursor:pointer;font-weight:600;">✕ Rechazar</button></div>';
+          '<div style="display:flex;gap:4px;">' +
+          '<button class="pending-analyze" data-id="' + item.id + '" style="flex:1;padding:6px;border:0;border-radius:8px;background:var(--accent);color:#fff;font-size:0.75rem;cursor:pointer;font-weight:600;"><i class="ri-robot-line"></i> Analizar</button>' +
+          '<button class="pending-approve" data-id="' + item.id + '" style="flex:1;padding:6px;border:0;border-radius:8px;background:var(--success);color:#fff;font-size:0.75rem;cursor:pointer;font-weight:600;">✓ Aprobar</button>' +
+          '<button class="pending-reject" data-id="' + item.id + '" style="flex:1;padding:6px;border:0;border-radius:8px;background:var(--error);color:#fff;font-size:0.75rem;cursor:pointer;font-weight:600;">✕ Rechazar</button></div>';
         pendingList.appendChild(card);
       });
-      // Bind approve/reject
+      // Bind approve/reject/analyze
       pendingList.querySelectorAll('.pending-approve').forEach(function(b) {
         b.addEventListener('click', function(e) { e.stopPropagation(); handlePending(this.dataset.id, 'approve'); });
       });
       pendingList.querySelectorAll('.pending-reject').forEach(function(b) {
         b.addEventListener('click', function(e) { e.stopPropagation(); handlePending(this.dataset.id, 'reject'); });
+      });
+      pendingList.querySelectorAll('.pending-analyze').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation(); analyzeMessage(this.dataset.id, this); });
       });
     }).catch(function() {
       pendingList.innerHTML = '<div style="text-align:center;padding:30px;color:var(--error);">Error al cargar pendientes</div>';
@@ -889,7 +918,7 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
       waContactsList.appendChild(card);
       var msgsContainer = card.querySelector('.wa-contact-messages');
       g.messages.forEach(function(msg) {
-        var hasAnalysis = msg.proposed_response && msg.proposed_response !== 'Analizando con IA...' && msg.proposed_response !== '';
+        var hasAnalysis = msg.proposed_response && msg.proposed_response !== 'Analizando con IA...' && msg.proposed_response !== '' && msg.status !== 'pending';
         var msgCard = document.createElement('div');
         msgCard.style.cssText = 'background:var(--bg-main);border:1px solid var(--border-light);border-radius:10px;padding:10px;margin-bottom:8px;';
         var ts = msg.created_at || '';
@@ -898,7 +927,7 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
           ' <button class="btn-delete-msg" data-id="' + msg.id + '" style="background:none;border:0;color:var(--error);cursor:pointer;font-size:0.7rem;float:right;" title="Borrar este mensaje"><i class="ri-delete-bin-6-line"></i></button></div>' +
           '<div style="font-size:0.8rem;color:var(--text);margin-bottom:8px;padding:6px 10px;background:var(--bg-card);border-radius:8px;border-left:3px solid #25D366;">' + escHtml(msg.body || '').substring(0, 300) + '</div>' +
           '<div class="wa-msg-actions" data-id="' + msg.id + '">' +
-          (hasAnalysis ? '' : '<button class="btn-analyze" data-id="' + msg.id + '" style="background:var(--accent);color:#fff;border:0;border-radius:8px;padding:6px 14px;font-size:0.75rem;cursor:pointer;font-weight:600;"><i class="ri-robot-line"></i> Analizar</button>') +
+          '<button class="btn-analyze" data-id="' + msg.id + '" style="background:var(--accent);color:#fff;border:0;border-radius:8px;padding:6px 10px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-robot-line"></i>' + (hasAnalysis ? ' Re-analizar' : ' Analizar') + '</button>' +
           '</div>';
         if (hasAnalysis) {
           var respDiv = document.createElement('div');
@@ -1209,16 +1238,20 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
     }
   });
 
-  // Refresh pending count periodically
-  setInterval(function() { try { pollPendingCount(); } catch(e) {} }, 15000);
-
-  // Refresh current view periodically if it's a list category
-  setInterval(function() {
-    try {
-      if (LIST_CATEGORIES.indexOf(currentCategory) >= 0) {
-        loadFilteredContacts(currentCategory === 'todos' ? 'all' : currentCategory);
-      }
-    } catch(e) {}
-  }, 20000);
+  var refreshTimer = null;
+  function startPeriodicRefresh() {
+    if (refreshTimer) clearInterval(refreshTimer);
+    refreshTimer = setInterval(function() {
+      try {
+        if (isAnalyzing) return; // No refrescar mientras se analiza
+        pollPendingCount();
+        updateTabBadges();
+        if (LIST_CATEGORIES.indexOf(currentCategory) >= 0 && !isAnalyzing) {
+          loadFilteredContacts(currentCategory === 'todos' ? 'all' : currentCategory);
+        }
+      } catch(e) {}
+    }, 20000);
+  }
+  startPeriodicRefresh();
 })();
 </script>
