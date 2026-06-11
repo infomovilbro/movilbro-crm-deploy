@@ -45,33 +45,56 @@ router.post('/installations', async (req, res) => {
 
 function mapInstallation(raw) {
   if (!raw || typeof raw !== 'object') return raw;
-  const o = raw.data || raw;
+  const o = raw.data || raw.installation || raw;
+  // Log ALL keys from the raw object for debugging
+  console.log('[Installation detail] RAW keys:', Object.keys(o).join(', '), '| nested:', Object.keys(raw).join(', '));
+  
+  // Auto-detect: busca el primer valor no vacío para cada campo usando múltiples estrategias
   const pick = (...keys) => {
     for (const k of keys) {
-      const v = o[k] ?? o[k.toLowerCase()] ?? o[k.toUpperCase()] ?? null;
-      if (v !== null && v !== undefined && v !== '') return v;
+      const v = o[k];
+      if (v !== null && v !== undefined && v !== '') return String(v);
+      // Try camelCase variations
+      const camel = k.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+      const v2 = o[camel];
+      if (v2 !== null && v2 !== undefined && v2 !== '') return String(v2);
+      // Try snake_case variations
+      const snake = k.replace(/([A-Z])/g, '_$1').toLowerCase();
+      const v3 = o[snake];
+      if (v3 !== null && v3 !== undefined && v3 !== '') return String(v3);
+    }
+    // If nothing found, try to find ANY key that contains the field name
+    const allKeys = Object.keys(o);
+    for (const k of keys) {
+      const lower = k.toLowerCase();
+      const found = allKeys.find(ak => ak.toLowerCase().includes(lower));
+      if (found && o[found] !== null && o[found] !== undefined && o[found] !== '') return String(o[found]);
     }
     return '';
   };
+
   const result = {
-    DNI: pick('dni', 'DNI', 'nif', 'NIF', 'fiscalId', 'fiscal_id', 'documento', 'identificacion'),
-    Cliente: pick('cliente', 'Cliente', 'customer', 'customerName', 'customer_name', 'nombre', 'name'),
-    Dirección: pick('direccion', 'Dirección', 'direccion', 'address', 'Address', 'direccion_instalacion'),
-    Teléfono: pick('telefono', 'Teléfono', 'telephone', 'phone', 'Phone', 'telefono_contacto'),
-    Email: pick('email', 'Email', 'EMAIL', 'mail', 'correo'),
-    Estado: pick('estado', 'Estado', 'status', 'Status'),
-    Producto: pick('producto', 'Producto', 'product', 'Product', 'productName', 'product_name'),
-    'Fecha Instalación': pick('fecha_instalacion', 'fechaInstalacion', 'installationDate', 'installation_date', 'fecha_instalación', 'fecha', 'date'),
-    Router: pick('router', 'Router', 'routerModel', 'router_model'),
-    ONT: pick('ont', 'ONT', 'ontModel', 'ont_model'),
-    CTO: pick('cto', 'CTO', 'ctoId', 'cto_id'),
-    OT: pick('ot', 'OT', 'orderId', 'order_id', 'workOrder', 'work_order'),
-    Contrata: pick('contrata', 'Contrata', 'contract', 'contractId', 'contract_id'),
-    Técnico: pick('tecnico', 'Técnico', 'technician', 'Technician'),
-    Notas: pick('notas', 'Notas', 'notes', 'Notes', 'observaciones'),
-    timeline: o.timeline || o.history || o.events || [],
+    DNI: pick('dni', 'nif', 'fiscalId', 'fiscal_id', 'documento', 'identificacion'),
+    Cliente: pick('cliente', 'customer', 'customerName', 'customer_name', 'nombre', 'name', 'fullName', 'full_name'),
+    Dirección: pick('direccion', 'address', 'street', 'calle', 'direccion_instalacion', 'installationAddress', 'installation_address'),
+    Teléfono: pick('telefono', 'phone', 'telephone', 'contactPhone', 'contact_phone', 'movil'),
+    Email: pick('email', 'mail', 'correo_electronico', 'customerEmail', 'customer_email'),
+    Estado: pick('estado', 'status', 'state', 'situacion'),
+    Producto: pick('producto', 'product', 'productName', 'product_name', 'tarifa', 'service'),
+    'Fecha Instalación': pick('fecha_instalacion', 'fechaInstalacion', 'installationDate', 'installation_date', 'fecha', 'date', 'scheduleDate', 'schedule_date', 'startDate', 'start_date'),
+    'Fecha Programada': pick('fecha_programada', 'scheduledDate', 'scheduled_date', 'programmedDate'),
+    'Fecha Compleción': pick('fecha_complecion', 'completionDate', 'completion_date', 'endDate', 'end_date', 'finishedAt'),
+    Creado: pick('created', 'createdAt', 'created_at', 'fecha_creacion', 'creationDate'),
+    Actualizado: pick('modified', 'updatedAt', 'updated_at', 'lastModified', 'last_modified'),
+    Router: pick('router', 'routerModel', 'router_model', 'equipo', 'device'),
+    ONT: pick('ont', 'ontModel', 'ont_model', 'ontId', 'ont_id'),
+    CTO: pick('cto', 'ctoId', 'cto_id', 'ctoName', 'cto_name'),
+    OT: pick('ot', 'orderId', 'order_id', 'workOrder', 'work_order', 'orden_trabajo'),
+    Contrata: pick('contrata', 'contract', 'contractId', 'contract_id', 'contratista', 'proveedor'),
+    Técnico: pick('tecnico', 'technician', 'instalador', 'installer', 'worker'),
+    Notas: pick('notas', 'notes', 'observaciones', 'comentarios', 'comments', 'description'),
+    timeline: o.timeline || o.history || o.events || o.statusHistory || o.status_history || [],
   };
-  console.log('[Installation detail] raw API data:', JSON.stringify(raw, null, 2));
   console.log('[Installation detail] mapped result:', JSON.stringify(result, null, 2));
   return result;
 }

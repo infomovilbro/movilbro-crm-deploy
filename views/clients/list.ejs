@@ -53,8 +53,10 @@
               %>
               <tr>
                 <td>
-                  <% if (c.origen === 'API') { %>
+                  <% if (c.origen === 'API' && c.id_local) { %>
                     <span class="badge bg-info"><i class="ri-cloud-line"></i> API</span>
+                  <% } else if (c.origen === 'API') { %>
+                    <span class="badge bg-secondary"><i class="ri-cloud-line"></i> API only</span>
                   <% } else { %>
                     <span class="badge bg-success"><i class="ri-database-line"></i> Local</span>
                   <% } %>

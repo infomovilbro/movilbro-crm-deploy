@@ -625,7 +625,7 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
   }
 
   try { pollPendingCount(); } catch(e) { console.error('[Init] pollPendingCount:', e); }
-  setInterval(function() { try { pollPendingCount(); } catch(e) {} }, 15000);
+  // SIN AUTO-REFRESH - Solo actualización manual
 
   pendingBtn.addEventListener('click', function() {
     pendingPanel.style.right = '0';
@@ -1238,20 +1238,6 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
     }
   });
 
-  var refreshTimer = null;
-  function startPeriodicRefresh() {
-    if (refreshTimer) clearInterval(refreshTimer);
-    refreshTimer = setInterval(function() {
-      try {
-        if (isAnalyzing) return; // No refrescar mientras se analiza
-        pollPendingCount();
-        updateTabBadges();
-        if (LIST_CATEGORIES.indexOf(currentCategory) >= 0 && !isAnalyzing) {
-          loadFilteredContacts(currentCategory === 'todos' ? 'all' : currentCategory);
-        }
-      } catch(e) {}
-    }, 60000);
-  }
-  startPeriodicRefresh();
+  // SIN AUTO-REFRESH - el usuario actualiza manualmente
 })();
 </script>

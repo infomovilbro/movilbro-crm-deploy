@@ -10,8 +10,7 @@ router.get('/', requireAuth, async (req, res) => {
   let apiClientes = [];
   try {
     const api = LikesAPI.getApiInstance();
-    const raw = await api.request('GET', '/customers?brand_id=' + api.brandId);
-    const customers = Array.isArray(raw) ? raw : raw.customers || raw.data || [];
+    const customers = await api.getCustomers();
     apiClientes = customers.map(c => ({
       origen: 'API',
       id_api: c.id,
@@ -30,62 +29,85 @@ router.get('/', requireAuth, async (req, res) => {
     console.error('API customers fetch error:', e.message);
   }
 
-  const insertLocal = db.prepare(`
-    INSERT OR IGNORE INTO clients (nombre, apellidos, email, telefono, dni_nif, direccion, ciudad, tipo_cliente, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-  const findExisting = db.prepare('SELECT id FROM clients WHERE telefono = ? OR dni_nif = ?');
-  const updateLocal = db.prepare(`
-    UPDATE clients SET nombre=?, apellidos=?, email=?, telefono=?, dni_nif=?, direccion=?, ciudad=?, tipo_cliente=?, updated_at=CURRENT_TIMESTAMP
-    WHERE id=?
-  `);
-
-  for (const api of apiClientes) {
-    if (!api.telefono && !api.dni_nif) continue;
-    const existing = api.telefono ? findExisting.get(api.telefono, '') : 
-                     api.dni_nif ? findExisting.get('', api.dni_nif) : null;
-    if (existing) {
-      updateLocal.run(api.nombre, api.apellidos, api.email, api.telefono, api.dni_nif, api.direccion, api.ciudad, api.tipo, existing.id);
-    } else {
-      insertLocal.run(api.nombre, api.apellidos, api.email, api.telefono, api.dni_nif, api.direccion, api.ciudad, api.tipo, api.created_at);
+  const locales = db.prepare('SELECT id, nombre, apellidos, email, telefono, dni_nif, direccion, ciudad, tipo_cliente, created_at FROM clients ORDER BY created_at DESC').all();
+  const localByPhone = {};
+  const localByDni = {};
+  locales.forEach(l => {
+    if (l.telefono) {
+      const p = l.telefono.replace(/[^\d]/g, '');
+      if (p) localByPhone[p] = l;
     }
-  }
-
-  let locales;
-  if (search) {
-    locales = db.prepare(`
-      SELECT id as id_local, nombre, apellidos, email, telefono, dni_nif, direccion, ciudad, tipo_cliente as tipo, '' as estado, created_at
-      FROM clients 
-      WHERE nombre LIKE ? OR apellidos LIKE ? OR email LIKE ? OR telefono LIKE ? OR dni_nif LIKE ?
-      ORDER BY created_at DESC
-    `).all(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
-  } else {
-    locales = db.prepare(`
-      SELECT id as id_local, nombre, apellidos, email, telefono, dni_nif, direccion, ciudad, tipo_cliente as tipo, '' as estado, created_at
-      FROM clients ORDER BY created_at DESC
-    `).all();
-  }
-
-  const seenPhones = new Set();
-  const merged = [];
-  locales.forEach(c => {
-    if (c.telefono) seenPhones.add(c.telefono.replace(/[^\d]/g, ''));
-    merged.push({ ...c, origen: 'LOCAL' });
+    if (l.dni_nif) localByDni[l.dni_nif.toUpperCase()] = l;
   });
+
+  const seenLocalIds = new Set();
+  const merged = [];
+
   apiClientes.forEach(api => {
-    const phoneClean = api.telefono ? api.telefono.replace(/[^\d]/g, '') : '';
-    if (!phoneClean || !seenPhones.has(phoneClean)) {
-      if (phoneClean) seenPhones.add(phoneClean);
+    const apiPhone = api.telefono ? api.telefono.replace(/[^\d]/g, '') : '';
+    const apiDni = api.dni_nif ? api.dni_nif.toUpperCase() : '';
+    let match = null;
+    if (apiDni && localByDni[apiDni]) match = localByDni[apiDni];
+    else if (apiPhone && localByPhone[apiPhone]) match = localByPhone[apiPhone];
+
+    if (match) {
+      seenLocalIds.add(match.id);
+      merged.push({
+        ...api,
+        id_local: match.id,
+        nombre: api.nombre || match.nombre,
+        apellidos: api.apellidos || match.apellidos,
+        email: api.email || match.email,
+        telefono: api.telefono || match.telefono,
+        dni_nif: api.dni_nif || match.dni_nif,
+        direccion: api.direccion || match.direccion,
+        ciudad: api.ciudad || match.ciudad
+      });
+    } else {
       merged.push({ ...api, id_local: null });
     }
   });
 
-  res.render('clients/list', { 
-    title: 'Clientes', 
-    clientes: merged, 
-    search, 
-    apiCount: apiClientes.length, 
-    localCount: locales.length 
+  locales.forEach(l => {
+    if (!seenLocalIds.has(l.id)) {
+      merged.push({
+        origen: 'LOCAL',
+        id_local: l.id,
+        nombre: l.nombre,
+        apellidos: l.apellidos || '',
+        email: l.email || '',
+        telefono: l.telefono || '',
+        dni_nif: l.dni_nif || '',
+        direccion: l.direccion || '',
+        ciudad: l.ciudad || '',
+        tipo: l.tipo_cliente || 'particular',
+        estado: '',
+        created_at: l.created_at
+      });
+    }
+  });
+
+  merged.sort((a, b) => {
+    const da = a.created_at || '';
+    const db2 = b.created_at || '';
+    return da < db2 ? 1 : da > db2 ? -1 : 0;
+  });
+
+  const filtered = search ? merged.filter(c => {
+    const s = search.toLowerCase();
+    return (c.nombre && c.nombre.toLowerCase().includes(s)) ||
+           (c.apellidos && c.apellidos.toLowerCase().includes(s)) ||
+           (c.email && c.email.toLowerCase().includes(s)) ||
+           (c.telefono && c.telefono.includes(search)) ||
+           (c.dni_nif && c.dni_nif.toLowerCase().includes(s));
+  }) : merged;
+
+  res.render('clients/list', {
+    title: 'Clientes',
+    clientes: filtered,
+    search,
+    apiCount: apiClientes.length,
+    localCount: locales.length
   });
 });
 
@@ -109,101 +131,121 @@ router.post('/nuevo', requireAuth, (req, res) => {
 router.get('/:id', requireAuth, async (req, res) => {
   const cliente = db.prepare('SELECT * FROM clients WHERE id = ?').get(req.params.id);
   if (!cliente) return res.redirect('/clientes');
-  const ordenes = db.prepare('SELECT * FROM orders WHERE client_id = ? ORDER BY created_at DESC').all(req.params.id);
-  const suscripciones = db.prepare('SELECT * FROM subscriptions WHERE client_id = ? ORDER BY created_at DESC').all(req.params.id).map(s => ({ ...s, origen: 'local' }));
+
+  let apiOverview = {};
+  let apiCustomer = {};
+  let apiSubscriptions = [];
+  let apiOrders = [];
+  let apiInvoices = [];
+  let apiInstallations = [];
+  let apiPortabilities = [];
+  let apiPayments = [];
+
+  if (cliente.dni_nif) {
+    try {
+      const api = LikesAPI.getApiInstance();
+      const raw = await api.request('GET', '/customer/overview?fiscalId=' + encodeURIComponent(cliente.dni_nif) +
+        '&includeCustomer=true&includeSubscriptions=true&includeOrders=true&includePortabilities=true&includeInstallations=true&includeInvoices=true&includePayments=true');
+      const data = raw && raw.data ? raw.data : raw;
+      apiOverview = data;
+      if (data.customer) {
+        apiCustomer = data.customer;
+      } else if (data.name || data.fiscalId || data.firstName) {
+        apiCustomer = data;
+      }
+      if (Array.isArray(data.subscriptions)) apiSubscriptions = data.subscriptions;
+      if (Array.isArray(data.orders)) apiOrders = data.orders;
+      if (Array.isArray(data.invoices)) apiInvoices = data.invoices;
+      if (Array.isArray(data.installations)) apiInstallations = data.installations;
+      if (Array.isArray(data.portabilities)) apiPortabilities = data.portabilities;
+      if (Array.isArray(data.payments)) apiPayments = data.payments;
+    } catch (e) {
+      console.error('Error fetching API overview for client:', e.message);
+    }
+  }
+
   const tickets = db.prepare('SELECT * FROM tickets WHERE client_id = ? ORDER BY created_at DESC').all(req.params.id);
   const contratos = db.prepare("SELECT * FROM isp_contratos WHERE client_id = ? ORDER BY created_at DESC").all(req.params.id);
   const altasOrdenes = db.prepare('SELECT * FROM altas_ordenes WHERE client_id = ? ORDER BY created_at DESC').all(req.params.id);
   const documentos = db.prepare('SELECT * FROM isp_documentos WHERE client_id = ? ORDER BY created_at DESC').all(req.params.id);
 
-  // KYC docs per alta orden
   const kycDocsPorOrden = {};
-  if (altasOrdenes.length > 0) {
-    altasOrdenes.forEach(function(o) {
-      const docs = db.prepare('SELECT * FROM altas_kyc_docs WHERE orden_id = ? ORDER BY created_at').all(o.id);
-      kycDocsPorOrden[o.id] = docs;
-    });
-  }
+  altasOrdenes.forEach(o => {
+    const docs = db.prepare('SELECT * FROM altas_kyc_docs WHERE orden_id = ? ORDER BY created_at').all(o.id);
+    kycDocsPorOrden[o.id] = docs;
+  });
 
-  // Try altas_ordenes by DNI if none found
   if (altasOrdenes.length === 0 && cliente.dni_nif) {
     try {
       const ordenesPorDNI = db.prepare("SELECT * FROM altas_ordenes WHERE datos_cliente LIKE ? ORDER BY created_at DESC LIMIT 5").all('%' + cliente.dni_nif + '%');
-      if (ordenesPorDNI.length > 0) {
-        ordenesPorDNI.forEach(function(o) {
-          altasOrdenes.push(o);
-          const docs = db.prepare('SELECT * FROM altas_kyc_docs WHERE orden_id = ? ORDER BY created_at').all(o.id);
-          kycDocsPorOrden[o.id] = docs;
-        });
-      }
+      ordenesPorDNI.forEach(o => {
+        altasOrdenes.push(o);
+        const docs = db.prepare('SELECT * FROM altas_kyc_docs WHERE orden_id = ? ORDER BY created_at').all(o.id);
+        kycDocsPorOrden[o.id] = docs;
+      });
     } catch(e) {}
   }
 
-  let apiSuscripciones = [];
-  try {
-    const api = LikesAPI.getApiInstance();
-    if (cliente.dni_nif) {
-      const raw = await api.getSubscriptions(cliente.dni_nif);
-      const allSubs = Array.isArray(raw) ? raw : [];
-      apiSuscripciones = allSubs.map(function(sub) {
-        var prod = (sub.products && sub.products[0]) || {};
-        return {
-          linea: prod.lineNumber || prod.line || prod.phone || sub.phone || sub.line || '',
-          producto: prod.productName || sub.productName || sub.product || sub.producto || '',
-          estado: (prod.status || sub.status || sub.estado || 'activa').toLowerCase(),
-          fecha_alta: sub.created || sub.sellDate || sub.created_at || sub.fecha_alta || sub.startDate || null,
-          fecha_baja: sub.cancelled_at || sub.fecha_baja || sub.endDate || null,
-          origen: 'api'
-        };
-      });
-    }
-  } catch (e) {
-    console.error('Error fetching API subscriptions for client:', e.message);
-  }
+  const lineas = contratos.map(c => ({
+    linea: c.linea || '',
+    producto: c.producto || c.tarifa || '',
+    estado: c.estado || 'desconocido',
+    iccid: c.iccid || '',
+    pin: c.pin || '',
+    puk: c.puk || '',
+    contrato_id: c.id,
+    fecha_alta: c.fecha_alta
+  }));
 
-  const todasSuscripciones = [...suscripciones, ...apiSuscripciones];
-  todasSuscripciones.sort((a, b) => {
-    const da = a.fecha_alta || '';
-    const db2 = b.fecha_alta || '';
-    return da < db2 ? 1 : da > db2 ? -1 : 0;
+  const allLines = [...lineas];
+  apiSubscriptions.forEach(s => {
+    const prods = s.products || (s.productName ? [s] : []);
+    prods.forEach(p => {
+      const ln = p.lineNumber || p.line || s.phone || s.line || '';
+      if (ln && !allLines.find(l => l.linea === ln)) {
+        allLines.push({
+          linea: ln,
+          producto: p.productName || s.productName || s.product || '',
+          estado: (p.status || s.status || s.estado || 'activa').toLowerCase(),
+          iccid: p.icc || p.iccid || s.icc || '',
+          pin: '',
+          puk: '',
+          contrato_id: null,
+          fecha_alta: s.created || s.sellDate || s.startDate || null
+        });
+      }
+    });
   });
 
-  // Líneas from contratos
-  const lineas = contratos.map(function(c) {
-    return {
-      linea: c.linea || '',
-      producto: c.producto || c.tarifa || '',
-      estado: c.estado || 'desconocido',
-      iccid: c.iccid || '',
-      pin: c.pin || '',
-      puk: c.puk || '',
-      contrato_id: c.id,
-      fecha_alta: c.fecha_alta
-    };
-  });
-
-  var linesByStatus = {};
-  var lineNumbers = [];
-  todasSuscripciones.forEach(function(s) {
-    var estado = s.estado || 'desconocido';
+  const linesByStatus = {};
+  const lineNumbers = [];
+  allLines.forEach(l => {
+    const estado = l.estado || 'desconocido';
     linesByStatus[estado] = (linesByStatus[estado] || 0) + 1;
-    if (s.linea && lineNumbers.indexOf(s.linea) === -1) {
-      lineNumbers.push(s.linea);
+    if (l.linea && !lineNumbers.includes(l.linea)) {
+      lineNumbers.push(l.linea);
     }
   });
+
+  const customerName = apiCustomer.name || apiCustomer.firstName || (apiCustomer.firstName ? apiCustomer.firstName + ' ' + (apiCustomer.lastName || '') : '') || cliente.nombre + ' ' + (cliente.apellidos || '');
 
   res.render('clients/view', {
-    title: 'Cliente: ' + cliente.nombre,
+    title: 'Cliente: ' + customerName,
     cliente,
-    ordenes,
+    apiOverview,
+    apiCustomer,
+    apiSubscriptions,
+    apiOrders,
+    apiInvoices,
+    apiInstallations,
+    apiPortabilities,
+    apiPayments,
     contratos,
-    lineas,
-    suscripciones: todasSuscripciones,
+    lineas: allLines,
     tickets,
     altasOrdenes,
     kycDocsPorOrden,
     documentos,
-    apiSubCount: apiSuscripciones.length,
     linesByStatus: JSON.stringify(linesByStatus),
     lineNumbers: JSON.stringify(lineNumbers),
     apiActions: { canBlock: true, canChangeTariff: true, canDuplicateSim: true, canViewConsumption: true }

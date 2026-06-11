@@ -16,7 +16,6 @@ router.use('/documentos', require('./isp/documentos'));
 router.use('/plantillas', require('./isp/plantillas'));
 router.use('/campanas', require('./isp/campanas'));
 router.use('/eventos', require('./isp/eventos'));
-router.use('/clientes', require('./isp/clientes'));
 router.use('/facturacion', require('./isp/facturacion'));
 router.use('/facturas', require('./isp/facturacion'));
 router.use('/cdrs', require('./isp/cdrs'));
