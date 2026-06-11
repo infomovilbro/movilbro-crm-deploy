@@ -405,25 +405,51 @@ router.post('/completar', requireAuth, async (req, res) => {
     products.push(prodObj);
 
     const orderPayload = {
-      fiscalId: datosCliente.dni,
+      fiscalId: datosCliente.dni || datosCliente.fiscalId,
       digitalSignature: true,
       products: products
     };
+
+    // Añadir dirección de envío si existe
+    if (datosProducto.envioDireccion || datosCliente.direccion) {
+      orderPayload.shippingAddress = {
+        street: datosProducto.envioDireccion || datosCliente.direccion || '',
+        cityName: datosCliente.ciudad || '',
+        postalCode: datosCliente.codigo_postal || '',
+        contactPhone: datosCliente.telefono || '',
+        contactPerson: (datosCliente.nombre || '') + ' ' + (datosCliente.apellidos || '')
+      };
+    }
 
     let apiOrderResult = null;
     let apiOrderId = null;
 
     try {
-      apiOrderResult = await api.createOrder(orderPayload);
-      apiOrderId = apiOrderResult?.id || apiOrderResult?.orderId || null;
+      // Primero crear draft order, luego hacer signup
+      var draftOrder = await api.createDraftOrder(orderPayload);
+      if (draftOrder && draftOrder.orderId) {
+        await api.checkoutDraftOrder(draftOrder.orderId);
+        apiOrderId = draftOrder.orderId;
+      } else {
+        // Fallback directo a signupv2
+        apiOrderResult = await api.createOrder(orderPayload);
+        apiOrderId = apiOrderResult?.id || apiOrderResult?.orderId || null;
+      }
     } catch (apiErr) {
       console.error('Error al crear orden en API:', apiErr.message);
-      // Rollback: marcar la orden con error
-      db.prepare("UPDATE altas_ordenes SET estado = 'error_api', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(orden_id);
-      db.prepare('INSERT INTO activity_log (tipo, descripcion, client_id) VALUES (?, ?, ?)').run(
-        'error_api', 'Error al enviar orden a Likes Telecom: ' + apiErr.message, orden.client_id
-      );
-      return res.status(500).json({ ok: false, error: 'Error al crear orden en API: ' + apiErr.message });
+      // Fallback: intentar signupv2 directo
+      try {
+        apiOrderResult = await api.createOrder(orderPayload);
+        apiOrderId = apiOrderResult?.id || apiOrderResult?.orderId || null;
+        if (!apiOrderId) throw new Error('No se obtuvo ID de orden');
+      } catch (fallbackErr) {
+        console.error('Error en fallback signupv2:', fallbackErr.message);
+        db.prepare("UPDATE altas_ordenes SET estado = 'error_api', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(orden_id);
+        db.prepare('INSERT INTO activity_log (tipo, descripcion, client_id) VALUES (?, ?, ?)').run(
+          'error_api', 'Error al enviar orden a Likes Telecom: ' + apiErr.message, orden.client_id
+        );
+        return res.status(500).json({ ok: false, error: 'Error al crear orden en API: ' + apiErr.message });
+      }
     }
 
     // Transacción atómica para actualizaciones en base de datos

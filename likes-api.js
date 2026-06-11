@@ -200,6 +200,30 @@ class LikesAPI {
     return this.request('POST', '/signupv2', orderData);
   }
 
+  async createDraftOrder(orderData) {
+    return this.request('POST', '/draft-order-v2', orderData);
+  }
+
+  async addDraftOrderCustomer(orderId, customerData) {
+    return this.request('POST', '/draft-order-v2/customer', { orderId, ...customerData });
+  }
+
+  async updateDraftOrderLines(orderId, linesData) {
+    return this.request('PUT', '/draft-order-v2/lines', { orderId, ...linesData });
+  }
+
+  async setDraftOrderShipping(orderId, shippingData) {
+    return this.request('PUT', '/draft-order-v2/shipping-address', { orderId, ...shippingData });
+  }
+
+  async checkoutDraftOrder(orderId) {
+    return this.request('PUT', '/draft-order/checkout', { orderId });
+  }
+
+  async getDraftOrder(orderId) {
+    return this.request('GET', `/draft-order-v2?orderId=${orderId}&withDocumentation=true`);
+  }
+
   async getOrderStatus(orderId) {
     return this.request('GET', `/draft-order-v2/${orderId}`);
   }
