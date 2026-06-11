@@ -427,6 +427,8 @@ function initDatabase() {
   try { db.prepare("ALTER TABLE pending_messages ADD COLUMN document_buffer BLOB").run(); } catch(e) {}
   try { db.prepare("ALTER TABLE isp_cdrs ADD COLUMN factura_id INTEGER").run(); } catch(e) {}
   try { db.prepare("ALTER TABLE isp_cdrs ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP").run(); } catch(e) {}
+  try { db.prepare("ALTER TABLE altas_kyc_docs ADD COLUMN drive_file_id TEXT").run(); } catch(e) {}
+  try { db.prepare("ALTER TABLE altas_kyc_docs ADD COLUMN drive_folder_id TEXT").run(); } catch(e) {}
 
   // Altas ordenes tables for multi-step order flow
   try {

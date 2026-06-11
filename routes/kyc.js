@@ -167,8 +167,24 @@ router.post('/:token/subir-doc', upload.single('file'), async (req, res) => {
     });
 
     // Save record
-    db.prepare('INSERT INTO altas_kyc_docs (orden_id, tipo, archivo, upload_url, download_url, estado) VALUES (?, ?, ?, ?, ?, ?)').run(
-      orden.id, tipo, req.file.filename, docInfo.uploadURL, docInfo.downloadURL || '', 'subido'
+    var driveFileId = null;
+    var driveFolderId = null;
+    // Upload to Drive as backup
+    try {
+      var driveHelper = require('../helpers/drive');
+      if (driveHelper.isAvailable()) {
+        var folderName = 'KYC_' + (datos.nombre || 'cliente').replace(/[^a-zA-Z0-9]/g, '_') + '_' + (orden.id || '');
+        var kycFolder = await driveHelper.ensureFolder('/kyc/' + folderName);
+        if (kycFolder && kycFolder.id) {
+          driveFolderId = kycFolder.id;
+          var fileResult = await driveHelper.uploadToDrive(kycFolder.id, (req.file.originalname || 'doc_' + Date.now() + '.jpg'), fileBuf, req.file.mimetype || 'image/jpeg');
+          if (fileResult && fileResult.id) driveFileId = fileResult.id;
+        }
+      }
+    } catch(driveErr) { console.error('[KYC] Drive upload error:', driveErr.message); }
+
+    db.prepare('INSERT INTO altas_kyc_docs (orden_id, tipo, archivo, upload_url, download_url, estado, drive_file_id, drive_folder_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(
+      orden.id, tipo, req.file.filename, docInfo.uploadURL, docInfo.downloadURL || '', 'subido', driveFileId, driveFolderId
     );
 
     // Update count
