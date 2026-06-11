@@ -602,6 +602,11 @@ function goWizardStep4() {
   var lineasResumen = lineasData.map(function(l, i) {
     return '<br><small>Línea ' + (i+1) + ': ' + (l.tipo === 'PORTABILIDAD' ? 'Portar ' + l.numero : 'Nueva línea') + (l.icc ? ' · ICC: ' + l.icc : '') + '</small>';
   }).join('');
+  // Recoger datos de envío
+  var envioMetodo = document.getElementById('envioMetodo')?.value || 'manual';
+  var envioDireccion = document.getElementById('envioDireccion')?.value || '';
+  var envioContacto = document.getElementById('envioContacto')?.value || '';
+  
   document.getElementById('resumenProducto').innerHTML =
     '<p><strong>Productos:</strong> ' + prodText + '<br>' +
     '<strong>Total (IVA incl.):</strong> ' + cart.reduce(function(s, c) { return s + conIva(c.price); }, 0).toFixed(2) + '€' +
@@ -772,6 +777,8 @@ function goWizardStep3() {
       html += '<div class="col-md-3 linea-porta-group" id="ldon-' + lineaIdx + '" style="display:none;"><label class="form-label small">Operador actual</label><select class="form-select form-select-sm linea-donante" data-linea="' + lineaIdx + '"><option value="">Seleccionar...</option>';
       donantesList.forEach(function(d) { html += '<option value="' + (d.Code || d.code || d.id) + '">' + (d.Name || d.name || d.Code || d.code) + '</option>'; });
       html += '</select></div>';
+      // Cambio de titular (for portability)
+      html += '<div class="col-md-3 linea-porta-group" id="ltit-' + lineaIdx + '" style="display:none;"><label class="form-label small">Titularidad</label><select class="form-select form-select-sm linea-titular" data-linea="' + lineaIdx + '"><option value="mantener">Mantener titular</option><option value="cambiar">Cambiar titular</option></select></div>';
       // SIM type
       html += '<div class="col-md-3"><label class="form-label small">Tipo SIM</label><select class="form-select form-select-sm linea-sim" data-linea="' + lineaIdx + '" onchange="toggleLineaIcc(\'' + lineaIdx + '\')">';
       html += '<option value="fisica">SIM física</option><option value="esim">eSIM</option></select></div>';
@@ -780,6 +787,13 @@ function goWizardStep3() {
       html += '</div></div></div>';
     }
   });
+
+  // SIM shipping section
+  html += '<div class="card mt-2"><div class="card-header py-1"><strong>📦 Envío de SIM</strong></div><div class="card-body py-2"><div class="row g-2">';
+  html += '<div class="col-md-4"><label class="form-label small">Método de envío</label><select class="form-select form-select-sm" id="envioMetodo"><option value="manual">Envío manual</option><option value="MRW">MRW</option><option value="SEUR">SEUR</option><option value="Correos">Correos</option></select></div>';
+  html += '<div class="col-md-4"><label class="form-label small">Dirección de envío</label><input type="text" class="form-control form-control-sm" id="envioDireccion" placeholder="Calle, número, ciudad, CP"></div>';
+  html += '<div class="col-md-4"><label class="form-label small">Contacto</label><input type="text" class="form-control form-control-sm" id="envioContacto" placeholder="Nombre y teléfono"></div>';
+  html += '</div></div></div>';
 
   container.innerHTML = html;
   validarPaso3();
@@ -796,6 +810,7 @@ function toggleLineaTipo(lineaIdx) {
   var tipo = document.querySelector('.linea-tipo[data-linea="' + lineaIdx + '"]').value;
   document.getElementById('lnum-' + lineaIdx).style.display = tipo === 'PORTABILIDAD' ? '' : 'none';
   document.getElementById('ldon-' + lineaIdx).style.display = tipo === 'PORTABILIDAD' ? '' : 'none';
+  document.getElementById('ltit-' + lineaIdx).style.display = tipo === 'PORTABILIDAD' ? '' : 'none';
   validarPaso3();
 }
 
