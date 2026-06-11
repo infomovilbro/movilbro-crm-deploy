@@ -429,6 +429,7 @@ function initDatabase() {
   try { db.prepare("ALTER TABLE isp_cdrs ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP").run(); } catch(e) {}
   try { db.prepare("ALTER TABLE altas_kyc_docs ADD COLUMN drive_file_id TEXT").run(); } catch(e) {}
   try { db.prepare("ALTER TABLE altas_kyc_docs ADD COLUMN drive_folder_id TEXT").run(); } catch(e) {}
+  try { db.exec("CREATE TABLE IF NOT EXISTS altas_envios (id INTEGER PRIMARY KEY AUTOINCREMENT, orden_id INTEGER, metodo TEXT DEFAULT 'manual', destinatario TEXT, direccion TEXT, contacto TEXT, estado TEXT DEFAULT 'pendiente', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)").run(); } catch(e) {}
 
   // Altas ordenes tables for multi-step order flow
   try {

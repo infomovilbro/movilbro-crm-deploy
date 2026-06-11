@@ -681,8 +681,8 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
         card.style.cssText = 'background:var(--bg-main);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;animation:fadeScale 0.3s ease;';
         var icon = item.category === 'whatsapp' ? 'ri-whatsapp-line' : 'ri-mail-line';
         var catColor = item.category === 'whatsapp' ? '#25D366' : '#6366f1';
-        card.style.cursor = 'pointer';
-        card.onclick = function() { toggleWAOverlay(); };
+        card.style.cursor = 'default';
+        card.onclick = null;
         var ts = item.created_at || '';
         try { var d = new Date(ts + 'Z'); ts = d.toLocaleString('es-ES', {timeZone:'Europe/Madrid', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'}); } catch(e) {}
         card.innerHTML = '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><i class="' + icon + '" style="color:' + catColor + ';font-size:1rem;"></i><strong style="font-size:0.8rem;flex:1;">' + escHtml(item.from_name || 'desconocido') + '</strong><span style="font-size:0.65rem;color:var(--text-faint);">' + ts + '</span></div>' +

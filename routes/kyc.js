@@ -148,23 +148,27 @@ router.post('/:token/subir-doc', upload.single('file'), async (req, res) => {
 
     const api = getApi();
     const datos = JSON.parse(orden.datos_cliente || '{}');
-
-    // Re-fetch customer to get upload URLs
-    let customers = await api.getCustomers();
-    let custArr = Array.isArray(customers) ? customers : [];
-    let customer = custArr.find(c => c.fiscalId === datos.dni);
-    if (!customer) return res.status(404).json({ ok: false, error: 'Cliente no encontrado en API' });
-
-    const docs = customer.documentation || customer.documents || [];
-    const docInfo = docs.find(d => d.documentType === tipo || d.type === tipo);
-    if (!docInfo || !docInfo.uploadURL) return res.status(400).json({ ok: false, error: 'No hay URL de subida para ' + tipo });
-
-    // Upload to Likes Telecom API
     const fileBuf = fs.readFileSync(req.file.path);
-    const axios = require('axios');
-    await axios.put(docInfo.uploadURL, fileBuf, {
-      headers: { 'Content-Type': req.file.mimetype || 'image/jpeg' }
-    });
+    var uploadUrl = '', downloadUrl = '';
+
+    // Try to upload to Likes Telecom API (no crítico si falla)
+    try {
+      let customers = await api.getCustomers();
+      let custArr = Array.isArray(customers) ? customers : [];
+      let customer = custArr.find(c => c.fiscalId === datos.dni);
+      if (customer) {
+        const docs = customer.documentation || customer.documents || [];
+        const docInfo = docs.find(d => d.documentType === tipo || d.type === tipo);
+        if (docInfo && docInfo.uploadURL) {
+          const axios = require('axios');
+          await axios.put(docInfo.uploadURL, fileBuf, {
+            headers: { 'Content-Type': req.file.mimetype || 'image/jpeg' }
+          });
+          uploadUrl = docInfo.uploadURL;
+          downloadUrl = docInfo.downloadURL || '';
+        }
+      }
+    } catch(apiErr) { console.error('[KYC] API upload error (no crítico):', apiErr.message); }
 
     // Save record
     var driveFileId = null;
@@ -240,6 +244,19 @@ router.post('/:token/firmar', async (req, res) => {
     } catch (e) {
       console.error('Error al subir firma a API (no crítico):', e.message);
     }
+
+    // Guardar contrato firmado en Drive
+    try {
+      var driveHelper = require('../helpers/drive');
+      if (driveHelper.isAvailable()) {
+        var datos2 = JSON.parse(orden.datos_cliente || '{}');
+        var folderName = 'KYC_' + (datos2.nombre || 'cliente').replace(/[^a-zA-Z0-9]/g, '_') + '_' + (orden.id || '');
+        var contratoFolder = await driveHelper.ensureFolder('/kyc/' + folderName);
+        if (contratoFolder && contratoFolder.id) {
+          await driveHelper.uploadToDrive(contratoFolder.id, 'contrato_firmado_' + orden.token + '.png', sigBuf, 'image/png');
+        }
+      }
+    } catch(driveErr) { console.error('[KYC] Drive contrato error:', driveErr.message); }
 
     db.prepare("UPDATE altas_ordenes SET kyc_contrato_firmado = 1, kyc_completado = 1, estado = 'pendiente_aprobacion', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(orden.id);
 

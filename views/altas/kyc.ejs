@@ -395,7 +395,8 @@ async function submitManualFiles() {
     } catch(e) {}
   }
   if (successCount > 0) {
-    statusEl.innerHTML = '<div class="status-msg success animate-slide"><span class="status-icon-big"><i class="bi bi-check-circle-fill"></i></span><span class="status-text">' + successCount + ' archivo(s) subido(s) correctamente</span></div>';
+    statusEl.innerHTML = '<div class="status-msg success animate-slide"><span class="status-icon-big"><i class="bi bi-check-circle-fill"></i></span><span class="status-text">' + successCount + ' archivo(s) subido(s) correctamente</span></div>' +
+      '<div style="text-align:center;margin-top:16px;"><button class="btn btn-success btn-lg" onclick="document.getElementById(\'step2\').classList.add(\'active\');document.getElementById(\'step1\').classList.remove(\'active\');document.querySelector(\'.step-dot:nth-child(1)\').classList.add(\'done\');document.querySelector(\'.step-dot:nth-child(2)\').classList.add(\'active\')">✓ Siguiente: Firma del contrato</button></div>';
     document.getElementById('manualSubmitBtn').style.display = 'none';
     document.getElementById('manualUploadArea').style.display = 'none';
     document.getElementById('manualPreviews').style.display = 'none';

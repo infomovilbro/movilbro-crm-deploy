@@ -1031,8 +1031,12 @@ router.post('/pending/approve-all', (req, res) => {
 
 function emailExists(fromAddress, subject) {
   try {
-    var existing = db.prepare("SELECT id FROM pending_messages WHERE from_address=? AND subject=? LIMIT 1").get(fromAddress, subject);
-    return !!existing;
+    var existing = db.prepare("SELECT id, subject FROM pending_messages WHERE from_address=? AND subject=? AND created_at > datetime('now', '-2 hours') LIMIT 1").get(fromAddress, subject);
+    if (existing) return true;
+    // También detectar si hay un email muy similar en la última hora (mismo remitente, mismo asunto corto)
+    var subjectShort = (subject || '').substring(0, 30);
+    var similar = db.prepare("SELECT id FROM pending_messages WHERE from_address=? AND substr(subject,1,30)=? AND created_at > datetime('now', '-1 hours') LIMIT 1").get(fromAddress, subjectShort);
+    return !!similar;
   } catch(e) { return false; }
 }
 
