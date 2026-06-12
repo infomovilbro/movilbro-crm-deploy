@@ -919,7 +919,7 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
       card.style.cssText = 'background:var(--bg-card);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;overflow:hidden;animation:fadeScale 0.3s ease;';
       var initial = g.contact.charAt(0).toUpperCase();
       card.innerHTML = '<div class="wa-contact-header" style="display:flex;align-items:center;gap:8px;padding:12px 16px;cursor:pointer;transition:background 0.2s;" onclick="toggleContactGroup(this)">' +
-        '<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#25D366,#128C7E);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:0.85rem;flex-shrink:0;position:relative;overflow:hidden;"><img class="profile-pic" data-address="' + escHtml(g.address) + '" src="" style="width:100%;height:100%;object-fit:cover;display:none;position:absolute;top:0;left:0;" onerror="this.style.display=\'none\'"><span class="profile-initial">' + initial + '</span></div>' +
+        '<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#25D366,#128C7E);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:0.85rem;flex-shrink:0;position:relative;overflow:hidden;"><img class="profile-pic" data-address="' + escHtml(g.address) + '" src="" style="width:100%;height:100%;object-fit:cover;display:none;position:absolute;top:0;left:0;" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'"><span class="profile-initial" style="display:block;">' + initial + '</span></div>' +
         '<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:0.85rem;">' + escHtml(g.contact) + '</div><div style="font-size:0.7rem;color:var(--text-dim);">' + g.messages.length + ' mensaje' + (g.messages.length !== 1 ? 's' : '') + (unanalyzed > 0 ? ' · <span style="color:#f59e0b;">' + unanalyzed + ' sin analizar</span>' : '') + '</div></div>' +
         '<button class="btn-chat-history" data-address="' + escHtml(g.address) + '" data-name="' + escHtml(g.contact) + '" style="background:none;border:1px solid var(--border);border-radius:8px;padding:4px 8px;cursor:pointer;font-size:0.7rem;color:var(--text-muted);white-space:nowrap;" title="Ver historial completo de la conversación"><i class="ri-chat-history-line"></i> Historial</button>' +
         '<button class="btn-delete-contact" data-address="' + escHtml(g.address) + '" style="background:none;border:1px solid var(--error);border-radius:8px;padding:4px 8px;cursor:pointer;font-size:0.7rem;color:var(--error);white-space:nowrap;" title="Borrar todos los mensajes de este contacto"><i class="ri-delete-bin-line"></i></button>' +
@@ -943,7 +943,7 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
           var respDiv = document.createElement('div');
           respDiv.style.cssText = 'margin-top:6px;padding:8px;background:rgba(34,197,94,0.08);border-radius:8px;border:1px solid rgba(34,197,94,0.2);';
           respDiv.innerHTML = '<div style="font-size:0.7rem;color:#22c55e;margin-bottom:4px;"><i class="ri-check-line"></i> Analizado</div>' +
-            '<div style="font-size:0.75rem;color:var(--text);margin-bottom:8px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">' + escHtml(msg.proposed_response).substring(0, 200) + '</div>' +
+            '<textarea class="response-editor" data-id="' + msg.id + '" style="width:100%;background:var(--bg-main);border:1px solid var(--border);border-radius:8px;padding:8px;font-size:0.75rem;color:var(--text);margin-bottom:6px;resize:vertical;min-height:50px;font-family:inherit;">' + escHtml(msg.proposed_response).substring(0, 500) + '</textarea>' +
             '<div style="display:flex;gap:4px;flex-wrap:wrap;">' +
             '<button class="btn-send-with-fwd" data-id="' + msg.id + '" style="flex:1;min-width:80px;background:#25D366;color:#fff;border:0;border-radius:8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-reply-line"></i> Con reenvío</button>' +
             '<button class="btn-send-no-fwd" data-id="' + msg.id + '" style="flex:1;min-width:80px;background:var(--accent);color:#fff;border:0;border-radius:8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-send-plane-line"></i> Sin reenvío</button>' +
@@ -1050,7 +1050,10 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
     btn.disabled = true;
     var label = asAudio ? 'Generando audio...' : mode === 'with_forward' ? 'Enviando con reenvío...' : 'Enviando...';
     btn.innerHTML = '<span class="spinner-border spinner-border-sm" style="width:10px;height:10px;"></span> ' + label;
-    fetch('/codeopen/approve/' + id, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode: mode, asAudio: asAudio || false }) }).then(function(r) { return r.json(); }).then(function(d) {
+    // Leer el texto editado del textarea si existe
+    var editor = document.querySelector('.response-editor[data-id="' + id + '"]');
+    var customText = editor ? editor.value.trim() : '';
+    fetch('/codeopen/approve/' + id, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode: mode, asAudio: asAudio || false, customText: customText }) }).then(function(r) { return r.json(); }).then(function(d) {
       if (d.ok) {
         refreshCurrentView();
         loadPendingList();
@@ -1248,6 +1251,13 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
     }
   });
 
-  // SIN AUTO-REFRESH - el usuario actualiza manualmente
+  // Badges al cargar (una vez, sin auto-refresh)
+  try { updateTabBadges(); } catch(e) {}
+  // Actualizar badges tambien al abrir pendientes
+  if (pendingBtn) {
+    pendingBtn.addEventListener('click', function() { 
+      setTimeout(function() { try { updateTabBadges(); } catch(e) {} }, 200);
+    });
+  }
 })();
 </script>

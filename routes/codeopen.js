@@ -231,7 +231,7 @@ async function callLLM(systemPrompt, userMessage, temperature, modelId) {
           model: currentModel,
           messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }],
           temperature: temperature || 0.7, max_tokens: 1024
-        }, { timeout: 10000, headers: { 'Authorization': 'Bearer ' + currentConfig.key, 'Content-Type': 'application/json' } });
+        }, { timeout: 15000, headers: { 'Authorization': 'Bearer ' + currentConfig.key, 'Content-Type': 'application/json' } });
         var text = r?.data?.choices?.[0]?.message?.content;
         if ((text || '').trim()) {
           if (mi > 0) console.log('[CodeOpen] Fallback: ' + primaryModel + ' → ' + currentModel);
@@ -866,6 +866,8 @@ router.post('/approve/:id', async (req, res) => {
 
     var mode = req.body.mode || 'without_forward';
     var asAudio = req.body.asAudio || false;
+    var customText = (req.body.customText || '').trim();
+    var responseText = customText || row.proposed_response || '';
     var sent = false;
     var sendInfo = '';
 
@@ -880,7 +882,7 @@ router.post('/approve/:id', async (req, res) => {
           opts.quotedData = row.quoted_data;
         }
         if (mode === 'with_forward' && !row.quoted_data) {
-          var textWithQuote = '📩 Mensaje original:\n"' + (row.body || '') + '"\n\n---\n\n' + row.proposed_response;
+          var textWithQuote = '📩 Mensaje original:\n"' + (row.body || '') + '"\n\n---\n\n' + responseText;
           var result = await wa.sendMessage(row.from_address, textWithQuote, opts);
           if (result.ok) { sent = true; sendInfo = ' (con texto original)'; }
           else { console.log('[CodeOpen] Error WhatsApp:', result.error); }
@@ -895,7 +897,7 @@ router.post('/approve/:id', async (req, res) => {
               documentBuffer: row.document_buffer, 
               mimeType: 'application/pdf', 
               fileName: (docInfo && docInfo.archivo ? docInfo.archivo.nombre : 'documento.pdf'),
-              text: row.proposed_response || ''
+              text: responseText
             }, opts);
             if (result.ok) { sent = true; sendInfo = ' (📄 ' + (docInfo && docInfo.archivo ? docInfo.archivo.nombre : 'PDF') + ')'; }
             else { console.log('[CodeOpen] Error al enviar documento:', result.error); }
@@ -903,13 +905,13 @@ router.post('/approve/:id', async (req, res) => {
         }
 
         // Enviar como audio si se solicita
-        if (asAudio && row.proposed_response) {
+        if (asAudio && responseText) {
           try {
             var transcriptionService = require('../services/transcription');
-            var ttsResult = await transcriptionService.textToSpeech(row.proposed_response);
+            var ttsResult = await transcriptionService.textToSpeech(responseText);
             if (ttsResult.audio) {
               opts.asAudio = true;
-              var result = await wa.sendMessage(row.from_address, { audioBuffer: ttsResult.audio, mimeType: 'audio/mp3', text: row.proposed_response }, opts);
+              var result = await wa.sendMessage(row.from_address, { audioBuffer: ttsResult.audio, mimeType: 'audio/mp3', text: responseText }, opts);
               if (result.ok) { sent = true; sendInfo = ' (audio)'; }
               else { sendInfo = ' (error audio: ' + result.error + ')'; }
             } else {
@@ -920,15 +922,14 @@ router.post('/approve/:id', async (req, res) => {
             sendInfo = ' (error TTS: ' + ttsErr.message + ')';
           }
           if (!sent) {
-            // If audio failed, still send as text so user gets the response
-            var textResult = await wa.sendMessage(row.from_address, '🎤 ' + row.proposed_response, opts);
+            var textResult = await wa.sendMessage(row.from_address, '🎤 ' + responseText, opts);
             if (textResult && textResult.ok) { sent = true; sendInfo += ' (enviado como texto)'; }
           }
         }
 
         // Enviar como texto (default solo si NO es audio)
         if (!sent && !asAudio) {
-          var result = await wa.sendMessage(row.from_address, row.proposed_response, opts);
+          var result = await wa.sendMessage(row.from_address, responseText, opts);
           if (result.ok) { sent = true; }
           else { console.log('[CodeOpen] Error WhatsApp:', result.error); }
         }
