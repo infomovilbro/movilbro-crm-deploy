@@ -647,13 +647,9 @@ function startIMAPPolling() {
   imapRunning = true;
   console.log('[IMAP] Iniciando polling cada 120s para', gmailUser);
 
-  // Keep UIDs in memory (no limpiar cada hora para evitar duplicados)
-  
-  try { checkMail(); } catch(e) { console.error('[IMAP] Error inicial:', e.message); }
-  imapInterval = setInterval(function() { 
-    try { checkMail(); } 
-    catch(e) { console.error('[IMAP] Error ciclo:', e.message); }
-  }, 120000);
+  // NO hay IMAP automático - solo se revisa cuando el usuario pulsa "Refrescar" en Pendientes
+  // Esto ahorra ~50-100MB de RAM al no mantener conexión IMAP permanente
+  console.log('[IMAP] Modo bajo demanda activado. Usa el boton Refrescar en Pendientes.');
 }
 
 function checkMail() {

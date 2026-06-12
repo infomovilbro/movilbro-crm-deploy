@@ -197,19 +197,37 @@ app.use(express.static(path.join(__dirname, 'public'), {
   etag: true
 }));
 
-// 5. Sesión segura
-app.use(session({
-  secret: process.env.SESSION_SECRET || process.env.COOKIE_SECRET || 'movilbro-secret',
-  resave: false,
-  saveUninitialized: false,
-  name: 'movilbro.sid',
-  cookie: {
-    httpOnly: true,
-    secure: isProd,
-    sameSite: 'lax',
-    maxAge: 2 * 60 * 60 * 1000
-  }
-}));
+// 5. Sesión segura - usando SQLiteStore para no consumir RAM
+try {
+  var SQLiteStore = require('connect-sqlite3')(session);
+  app.use(session({
+    store: new SQLiteStore({ db: 'sessions.db', dir: __dirname, table: 'sessions' }),
+    secret: process.env.SESSION_SECRET || process.env.COOKIE_SECRET || 'movilbro-secret',
+    resave: false,
+    saveUninitialized: false,
+    name: 'movilbro.sid',
+    cookie: {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: 'lax',
+      maxAge: 2 * 60 * 60 * 1000
+    }
+  }));
+} catch(e) {
+  console.error('[Session] SQLiteStore no disponible, usando MemoryStore:', e.message);
+  app.use(session({
+    secret: process.env.SESSION_SECRET || process.env.COOKIE_SECRET || 'movilbro-secret',
+    resave: false,
+    saveUninitialized: false,
+    name: 'movilbro.sid',
+    cookie: {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: 'lax',
+      maxAge: 2 * 60 * 60 * 1000
+    }
+  }));
+}
 
 // Deshabilitar cache en páginas autenticadas
 app.use((req, res, next) => {
