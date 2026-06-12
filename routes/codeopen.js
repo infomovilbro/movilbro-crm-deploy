@@ -1112,6 +1112,45 @@ router.get('/email-status', async (req, res) => {
   res.json(status);
 });
 
+// ---- WHATSAPP SESSION MANAGEMENT ----
+router.post('/whatsapp/logout', async (req, res) => {
+  try {
+    var wa = require('../wa-baileys');
+    db.prepare("DELETE FROM settings WHERE key='baileys_session'").run();
+    // Reset baileys state
+    try { require('fs').unlinkSync('/tmp/baileys-auth/creds.json'); } catch(e) {}
+    res.json({ ok: true, message: 'Sesion de WhatsApp eliminada. Escanea el QR para reconectar.' });
+  } catch(e) { res.json({ ok: false, error: e.message }); }
+});
+
+router.post('/whatsapp/reconnect', async (req, res) => {
+  try {
+    db.prepare("DELETE FROM settings WHERE key='baileys_session'").run();
+    var wa = require('../wa-baileys');
+    // Force reconnect by deleting session
+    res.json({ ok: true, message: 'Sesion borrada. Recarga la pagina para ver el nuevo QR.' });
+  } catch(e) { res.json({ ok: false, error: e.message }); }
+});
+
+// ---- EMAIL CONFIG ----
+router.post('/email/config', (req, res) => {
+  try {
+    var user = req.body.user;
+    var pass = req.body.pass;
+    if (user) db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('gmail_user', ?)").run(user);
+    if (pass !== undefined) db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('gmail_pass', ?)").run(pass);
+    res.json({ ok: true, message: 'Configuracion de correo guardada' });
+  } catch(e) { res.json({ ok: false, error: e.message }); }
+});
+
+router.get('/email/config', (req, res) => {
+  try {
+    var user = db.prepare("SELECT value FROM settings WHERE key='gmail_user'").get()?.value || '';
+    var pass = db.prepare("SELECT value FROM settings WHERE key='gmail_pass'").get()?.value ? '********' : '';
+    res.json({ user, passConfigured: !!pass });
+  } catch(e) { res.json({ user: '', passConfigured: false }); }
+});
+
 // ---- BAILEYS WHATSAPP INTEGRATION ----
 router.get('/baileys-qr', async (req, res) => {
   try {

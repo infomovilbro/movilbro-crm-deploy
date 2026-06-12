@@ -90,6 +90,10 @@
         <div style="font-size:0.8rem;color:var(--text-muted);margin-top:4px;">Los mensajes entrantes aparecerán en Pendientes</div>
       </div>
       <div id="waQRError" style="display:none;color:var(--error);font-size:0.8rem;"></div>
+      <div id="waSessionActions" style="display:none;margin-top:16px;width:100%;">
+        <button id="waLogoutBtn" style="width:100%;padding:8px;border:1px solid var(--error);border-radius:8px;background:transparent;color:var(--error);cursor:pointer;font-size:0.8rem;font-weight:600;"><i class="ri-logout-circle-r-line"></i> Cerrar sesión WhatsApp</button>
+        <button id="waReconnectBtn" style="width:100%;padding:8px;border:1px solid var(--accent);border-radius:8px;background:transparent;color:var(--accent);cursor:pointer;font-size:0.8rem;font-weight:600;margin-top:6px;"><i class="ri-refresh-line"></i> Reconectar con otro número</button>
+      </div>
     </div>
   </div>
   <div id="waQROverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:999;display:none;"></div>
@@ -755,6 +759,7 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
   function pollWAStatus() {
     fetch('/codeopen/baileys-qr').then(function(r) { return r.json(); }).then(function(d) {
       var st = d.status || {};
+      var waSessionActions = document.getElementById('waSessionActions');
       if (st.connected) {
         waStatusText.textContent = 'Conect.';
         waStatusText.style.color = '#22c55e';
@@ -762,6 +767,7 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
         waQRImageWrap.style.display = 'none';
         waQRConnected.style.display = 'block';
         waQRError.style.display = 'none';
+        if (waSessionActions) waSessionActions.style.display = 'block';
       } else if (st.hasQR) {
         waStatusText.textContent = 'QR';
         waStatusText.style.color = '#f59e0b';
@@ -796,6 +802,20 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
     waQRPanel.style.right = '0';
     waQROverlay.style.display = 'block';
     pollWAStatus();
+  });
+
+  // WhatsApp logout/reconnect buttons
+  document.getElementById('waLogoutBtn')?.addEventListener('click', function() {
+    if (!confirm('¿Cerrar sesión de WhatsApp? Se borrará la sesión actual.')) return;
+    fetch('/codeopen/whatsapp/logout', { method: 'POST' }).then(function(r) { return r.json(); }).then(function(d) {
+      alert(d.message); pollWAStatus();
+    });
+  });
+  document.getElementById('waReconnectBtn')?.addEventListener('click', function() {
+    if (!confirm('¿Reconectar WhatsApp con otro número? Se borrará la sesión actual.')) return;
+    fetch('/codeopen/whatsapp/reconnect', { method: 'POST' }).then(function(r) { return r.json(); }).then(function(d) {
+      alert(d.message); pollWAStatus();
+    });
   });
 
   closeWAQR.addEventListener('click', function() {
