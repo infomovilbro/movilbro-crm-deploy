@@ -212,13 +212,6 @@ async function callLLM(systemPrompt, userMessage, temperature, modelId) {
   if (!modelConfig) return 'Error: Modelo no disponible';
   if (!modelConfig.key) return 'Error: API key para ' + modelConfig.name + ' no configurada';
 
-  // Modelos a probar en orden: primario, fallbacks, luego cualquier otro modelo disponible
-  var modelsToTry = [primaryModel];
-  if (modelConfig.fallbacks) modelsToTry = modelsToTry.concat(modelConfig.fallbacks);
-  // Añadir el resto de modelos gratis como último recurso
-  var allFreeModels = Object.keys(AVAILABLE_MODELS).filter(function(m) { return modelsToTry.indexOf(m) === -1; });
-  modelsToTry = modelsToTry.concat(allFreeModels);
-
     var lastError = '';
     // ULTRA RAPIDO: solo 1 intento, 5s timeout, DeepSeek, respuesta corta
     var fastModel = 'deepseek-v4-flash-free';
