@@ -220,34 +220,39 @@ async function callLLM(systemPrompt, userMessage, temperature, modelId) {
   modelsToTry = modelsToTry.concat(allFreeModels);
 
     var lastError = '';
-    // Solo intentar el modelo principal, sin fallbacks (más rápido)
-    for (var mi = 0; mi < Math.min(modelsToTry.length, 2); mi++) {
-      var currentModel = modelsToTry[mi];
-      var currentConfig = getModelConfig(currentModel);
-      if (!currentConfig || !currentConfig.key) continue;
-      
+    // ULTRA RAPIDO: solo 1 intento, 5s timeout, DeepSeek, respuesta corta
+    var fastModel = 'deepseek-v4-flash-free';
+    var fastConfig = getModelConfig(fastModel);
+    if (fastConfig && fastConfig.key) {
       try {
-        const r = await axios.post(currentConfig.apiEndpoint, {
-          model: currentModel,
-          messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }],
-          temperature: temperature || 0.7, max_tokens: 1024
-        }, { timeout: 15000, headers: { 'Authorization': 'Bearer ' + currentConfig.key, 'Content-Type': 'application/json' } });
+        const r = await axios.post(fastConfig.apiEndpoint, {
+          model: fastModel,
+          messages: [{ role: 'system', content: (systemPrompt || '').substring(0, 300) }, { role: 'user', content: (userMessage || '').substring(0, 300) }],
+          temperature: 0.3, max_tokens: 200
+        }, { timeout: 5000, headers: { 'Authorization': 'Bearer ' + fastConfig.key, 'Content-Type': 'application/json' } });
         var text = r?.data?.choices?.[0]?.message?.content;
         if ((text || '').trim()) {
-          if (mi > 0) console.log('[CodeOpen] Fallback: ' + primaryModel + ' → ' + currentModel);
-          try {
-            var today = new Date().toISOString().split('T')[0];
-            db.prepare("INSERT INTO model_usage (model_id, date, calls) VALUES (?, ?, 1) ON CONFLICT(model_id, date) DO UPDATE SET calls = calls + 1, updated_at = CURRENT_TIMESTAMP").run(currentModel, today);
-          } catch(e) {}
+          try { db.prepare("INSERT INTO model_usage (model_id, date, calls) VALUES (?, ?, 1) ON CONFLICT(model_id, date) DO UPDATE SET calls = calls + 1, updated_at = CURRENT_TIMESTAMP").run(fastModel, 'today'); } catch(e) {}
           return (text || '').trim();
         }
-      } catch(e) {
-        lastError = e.message;
-        console.log('[CodeOpen] Error en ' + currentModel + ':', e.message);
-      }
+      } catch(e) { lastError = e.message; console.log('[CodeOpen] Error rapido:', e.message); }
     }
     
-    console.error('[CodeOpen] Error, último:', lastError);
+    // Fallback: intentar el modelo seleccionado por el usuario
+    try {
+      var userConfig = getModelConfig(primaryModel);
+      if (userConfig && userConfig.key) {
+        const r = await axios.post(userConfig.apiEndpoint, {
+          model: primaryModel,
+          messages: [{ role: 'user', content: ((systemPrompt || '') + '\n' + (userMessage || '')).substring(0, 500) }],
+          temperature: 0.3, max_tokens: 200
+        }, { timeout: 8000, headers: { 'Authorization': 'Bearer ' + userConfig.key, 'Content-Type': 'application/json' } });
+        var text2 = r?.data?.choices?.[0]?.message?.content;
+        if ((text2 || '').trim()) return (text2 || '').trim();
+      }
+    } catch(e) { lastError = e.message; }
+    
+    console.error('[CodeOpen] Error:', lastError);
     return 'Error: ' + (lastError || 'desconocido');
 }
 
@@ -817,10 +822,9 @@ router.post('/analyze/:id', async (req, res) => {
       } catch(e) {}
     }
     
-    // Generar respuesta con IA - ultra rápido: single call directo
-    var ctxDoc = docInfo ? '\n\nDOCUMENTO SOLICITADO: ' + (docInfo.resumen || '') : '';
-    var fastPrompt = 'Analiza este mensaje y genera respuesta profesional.\nCliente: ' + row.from_name + '\nMensaje: ' + bodyPreview + ctxDoc +
-      '\n\nResponde SOLO con:\nRESPUESTA: (texto listo para enviar, max 300 chars)';
+    // Generar respuesta con IA - ultra rápido
+    var ctxDoc = docInfo ? 'DOC: ' + (docInfo.resumen || '') : '';
+    var fastPrompt = 'Mensaje de ' + row.from_name + ': ' + (row.body || '').substring(0, 200) + ' ' + ctxDoc + '\n\nRESPUESTA (max 200 chars, directo y profesional):';
     
     var finalResponse = await callLLM(fastPrompt, '', 0.7, modelId);
     var cleanResponse = finalResponse || '';

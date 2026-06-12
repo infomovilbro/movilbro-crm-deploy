@@ -789,7 +789,8 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
   }
 
   try { pollWAStatus(); } catch(e) { console.error('[Init] pollWAStatus:', e); }
-  setInterval(function() { try { pollWAStatus(); } catch(e) {} }, 5000);
+  // Polling QR cada 30s (antes 5s) para reducir carga
+  setInterval(function() { try { pollWAStatus(); } catch(e) {} }, 30000);
 
   whatsappBtn.addEventListener('click', function() {
     waQRPanel.style.right = '0';
