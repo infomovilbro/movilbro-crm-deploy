@@ -156,7 +156,7 @@ router.get('/fiscal/:fiscalId', requireAuth, async (req, res) => {
     });
   } catch(e) {
     console.error('[Clientes] Error fetching API client:', e.message);
-    res.redirect('/clientes');
+    res.status(500).send('Error al obtener datos del cliente: ' + e.message + '. Verifica que las credenciales de Likes Telecom estén configuradas.');
   }
 });
 

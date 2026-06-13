@@ -16,6 +16,9 @@ class LikesAPI {
     this.brandId = config.brandId;
     this._tokenCache = null;
     this._tokenExpiry = null;
+    if (!this.email || !this.password) {
+      console.error('[LikesAPI] CREDENCIALES FALTANTES: likes_client_id=' + (this.email ? 'OK' : 'VACIO') + ', likes_client_secret=' + (this.password ? 'OK' : 'VACIO') + '. Configúralas en Render como LIKES_CLIENT_ID y LIKES_CLIENT_SECRET');
+    }
   }
 
   async getToken() {
