@@ -69,7 +69,7 @@
                   <% } else if (c.dni_nif) { %>
                     <a href="/clientes/fiscal/<%= encodeURIComponent(c.dni_nif) %>" class="fw-bold text-decoration-none"><%= c.nombre %> <%= c.apellidos || '' %></a>
                   <% } else { %>
-                    <span class="fw-bold"><%= c.nombre %> <%= c.apellidos || '' %></span>
+                    <a href="/clientes?search=<%= encodeURIComponent(c.telefono || c.nombre || '') %>" class="fw-bold text-decoration-none"><%= c.nombre %> <%= c.apellidos || '' %></a>
                   <% } %>
                 </td>
                 <td><%= c.telefono ? '<a href="tel:' + c.telefono + '">' + c.telefono + '</a>' : '-' %></td>

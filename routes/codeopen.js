@@ -228,7 +228,15 @@ async function callLLM(systemPrompt, userMessage, temperature, modelId) {
           try { db.prepare("INSERT INTO model_usage (model_id, date, calls) VALUES (?, ?, 1) ON CONFLICT(model_id, date) DO UPDATE SET calls = calls + 1, updated_at = CURRENT_TIMESTAMP").run(fastModel, 'today'); } catch(e) {}
           return (text || '').trim();
         }
-      } catch(e) { lastError = e.message; console.log('[CodeOpen] Error rapido:', e.message); }
+        } catch(e) {
+          lastError = e.message;
+          if (e.response && e.response.status === 429) {
+            lastError = 'El modelo está saturado. Reintenta en unos segundos.';
+            console.log('[CodeOpen] 429 rate limit detected (fast)');
+          } else {
+            console.log('[CodeOpen] Error rapido:', e.message);
+          }
+        }
     }
     
     // Fallback: intentar el modelo seleccionado por el usuario
@@ -243,7 +251,13 @@ async function callLLM(systemPrompt, userMessage, temperature, modelId) {
         var text2 = r?.data?.choices?.[0]?.message?.content;
         if ((text2 || '').trim()) return (text2 || '').trim();
       }
-    } catch(e) { lastError = e.message; }
+    } catch(e) {
+      lastError = e.message;
+      if (e.response && e.response.status === 429) {
+        lastError = 'El modelo está saturado. Reintenta en unos segundos.';
+        console.log('[CodeOpen] 429 rate limit detected (fallback)');
+      }
+    }
     
     console.error('[CodeOpen] Error:', lastError);
     return 'Error: ' + (lastError || 'desconocido');

@@ -744,9 +744,10 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(function(res) {
           if (res.ok && res.data) {
             var d = res.data;
-            var total = parseFloat(d.totalGB || d.total_gb || d.total || 0);
-            var used = parseFloat(d.usedGB || d.used_gb || d.used || d.consumed || 0);
-            var remaining = parseFloat(d.remainingGB || d.remaining_gb || d.remaining || 0);
+            var payload = d.data || d;
+            var total = parseFloat(payload.totalGB || payload.total_gb || payload.total || payload.totalGb || 0);
+            var used = parseFloat(payload.usedGB || payload.used_gb || payload.used || payload.consumed || payload.consumption || 0);
+            var remaining = parseFloat(payload.remainingGB || payload.remaining_gb || payload.remaining || payload.remainingGb || 0);
             gbChart.data.datasets[0].data = [total, used, remaining];
             gbChart.update();
           }
@@ -755,41 +756,84 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
+  var _consChartInstance = null;
+
+  function parseGBData(payload) {
+    var d = payload.data || payload;
+    return {
+      total: parseFloat(d.totalGB || d.total_gb || d.total || d.totalGb || d.total_gb || d.allowance || 0),
+      used: parseFloat(d.usedGB || d.used_gb || d.used || d.consumed || d.consumption || d.usage || 0),
+      remaining: parseFloat(d.remainingGB || d.remaining_gb || d.remaining || d.remainingGb || d.balance || d.left || 0),
+      roaming: parseFloat(d.roamingGB || d.roaming_gb || d.roaming || d.roaming_used || 0)
+    };
+  }
+
+  function fetchCDRData(line, tbody) {
+    fetch('/clientes/' + clientId + '/line/' + encodeURIComponent(line) + '/cdrs', { method: 'POST' })
+      .then(function(r) { return r.json(); })
+      .then(function(res) {
+        tbody.innerHTML = '';
+        if (res.ok && res.data) {
+          var cdrList = Array.isArray(res.data) ? res.data : (res.data.data || res.data.cdrs || res.data.records || res.data.items || []);
+          if (!Array.isArray(cdrList)) cdrList = [];
+          if (cdrList.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Sin registros de llamadas</td></tr>';
+          } else {
+            cdrList.forEach(function(cdr) {
+              var tr = document.createElement('tr');
+              var fecha = cdr.date || cdr.fecha || cdr.startTime || cdr.start_date || cdr.startDate || '-';
+              var tipo = cdr.type || cdr.tipo || cdr.callType || cdr.direction || '-';
+              var destino = cdr.destination || cdr.destino || cdr.calledNumber || cdr.callee || cdr.phone || '-';
+              var dur = cdr.duration || cdr.duracion || cdr.durationSec || cdr.seconds || cdr.durationSeconds || '-';
+              var cost = cdr.cost || cdr.coste || cdr.price || cdr.amount || '-';
+              if (dur !== '-' && !isNaN(parseFloat(dur))) {
+                var secs = parseInt(dur);
+                dur = Math.floor(secs / 60) + 'm ' + (secs % 60) + 's';
+              }
+              if (cost !== '-' && !isNaN(parseFloat(cost))) cost = parseFloat(cost).toFixed(4) + '€';
+              tr.innerHTML = '<td class="small">' + fecha + '</td><td>' + tipo + '</td><td>' + destino + '</td><td>' + dur + '</td><td>' + cost + '</td>';
+              tbody.appendChild(tr);
+            });
+          }
+        } else {
+          tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Sin registros de llamadas</td></tr>';
+        }
+      })
+      .catch(function(err) {
+        console.error('CDRs error:', err);
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Error al cargar CDRs</td></tr>';
+      });
+  }
+
   document.querySelectorAll('.ver-consumo').forEach(function(btn) {
     btn.addEventListener('click', function() {
       var line = this.dataset.line;
       if (!line) return;
       document.getElementById('consLineNumber').textContent = line;
-      document.getElementById('cdrsBody').innerHTML = '<tr><td colspan="5" class="text-center text-muted">Cargando...</td></tr>';
+      var cdrBody = document.getElementById('cdrsBody');
+      cdrBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Cargando...</td></tr>';
 
       fetch('/clientes/' + clientId + '/line/' + encodeURIComponent(line) + '/consumption', { method: 'POST' })
         .then(function(r) { return r.json(); })
         .then(function(res) {
           if (res.ok && res.data) {
-            var d = res.data;
-            var total = parseFloat(d.totalGB || d.total_gb || d.total || 0);
-            var used = parseFloat(d.usedGB || d.used_gb || d.used || d.consumed || 0);
-            var remaining = parseFloat(d.remainingGB || d.remaining_gb || d.remaining || 0);
-            var roaming = parseFloat(d.roamingGB || d.roaming_gb || d.roaming || 0);
-            document.getElementById('consTotalGB').textContent = total.toFixed(2);
-            document.getElementById('consUsedGB').textContent = used.toFixed(2);
-            document.getElementById('consRemainingGB').textContent = remaining.toFixed(2);
-            document.getElementById('consRoamingGB').textContent = roaming.toFixed(2);
+            var gb = parseGBData(res.data);
+            document.getElementById('consTotalGB').textContent = gb.total.toFixed(2);
+            document.getElementById('consUsedGB').textContent = gb.used.toFixed(2);
+            document.getElementById('consRemainingGB').textContent = gb.remaining.toFixed(2);
+            document.getElementById('consRoamingGB').textContent = gb.roaming.toFixed(2);
             if (gbChart) {
-              gbChart.data.datasets[0].data = [total, used, remaining];
+              gbChart.data.datasets[0].data = [gb.total, gb.used, gb.remaining];
               gbChart.update();
             }
             var consCtx = document.getElementById('consGBChart');
             if (consCtx) {
-              new Chart(consCtx, {
+              if (_consChartInstance) { _consChartInstance.destroy(); }
+              _consChartInstance = new Chart(consCtx, {
                 type: 'bar',
                 data: {
                   labels: ['Totales', 'Usados', 'Restantes'],
-                  datasets: [{
-                    label: 'GB',
-                    data: [total, used, remaining],
-                    backgroundColor: ['#17a2b8', '#ffc107', '#28a745']
-                  }]
+                  datasets: [{ label: 'GB', data: [gb.total, gb.used, gb.remaining], backgroundColor: ['#17a2b8', '#ffc107', '#28a745'] }]
                 },
                 options: {
                   animation: false, resizeDelay: 0,
@@ -811,34 +855,7 @@ document.addEventListener('DOMContentLoaded', function() {
           document.getElementById('consTotalGB').textContent = 'Error';
         });
 
-      fetch('/clientes/' + clientId + '/line/' + encodeURIComponent(line) + '/cdrs', { method: 'POST' })
-        .then(function(r) { return r.json(); })
-        .then(function(res) {
-          var tbody = document.getElementById('cdrsBody');
-          tbody.innerHTML = '';
-          if (res.ok && Array.isArray(res.data)) {
-            if (res.data.length === 0) {
-              tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Sin registros de llamadas</td></tr>';
-            } else {
-              res.data.forEach(function(cdr) {
-                var tr = document.createElement('tr');
-                tr.innerHTML = '<td class="small">' + (cdr.date || cdr.fecha || cdr.startTime || cdr.start_date || '-') + '</td>' +
-                  '<td>' + (cdr.type || cdr.tipo || cdr.callType || cdr.direction || '-') + '</td>' +
-                  '<td>' + (cdr.destination || cdr.destino || cdr.calledNumber || cdr.callee || '-') + '</td>' +
-                  '<td>' + (cdr.duration || cdr.duracion || cdr.durationSec || cdr.seconds || '-') + '</td>' +
-                  '<td>' + (cdr.cost || cdr.coste || cdr.price || cdr.amount || '-') + '</td>';
-                tbody.appendChild(tr);
-              });
-            }
-          } else {
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Sin registros de llamadas</td></tr>';
-          }
-        })
-        .catch(function(err) {
-          console.error('CDRs error:', err);
-          document.getElementById('cdrsBody').innerHTML = '<tr><td colspan="5" class="text-center text-muted">Error al cargar CDRs</td></tr>';
-        });
-
+      fetchCDRData(line, cdrBody);
       new bootstrap.Modal(document.getElementById('consumptionModal')).show();
     });
   });

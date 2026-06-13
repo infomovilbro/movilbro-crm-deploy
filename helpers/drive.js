@@ -13,24 +13,56 @@ let _drive = null;
 function getKey() {
   try {
     if (process.env.DRIVE_KEY_JSON) {
-      return JSON.parse(Buffer.from(process.env.DRIVE_KEY_JSON, 'base64').toString());
+      const raw = process.env.DRIVE_KEY_JSON;
+      const decoded = Buffer.from(raw, 'base64').toString();
+      console.log('[Drive] DRIVE_KEY_JSON found, decoded length:', decoded.length);
+      return JSON.parse(decoded);
     }
     if (fs.existsSync(KEY_PATH)) {
+      console.log('[Drive] Using key file:', KEY_PATH);
       return JSON.parse(fs.readFileSync(KEY_PATH, 'utf8'));
     }
-  } catch (e) { console.error('Drive key error:', e.message); }
+  } catch (e) { console.error('[Drive] Key error:', e.message); }
   return null;
 }
 
 function getOAuthConfig() {
   try {
     if (process.env.DRIVE_OAUTH_JSON) {
-      return JSON.parse(Buffer.from(process.env.DRIVE_OAUTH_JSON, 'base64').toString());
+      const raw = process.env.DRIVE_OAUTH_JSON;
+      console.log('[Drive] DRIVE_OAUTH_JSON env var found, length:', raw.length, 'starts with:', raw.substring(0, 20));
+      const decoded = Buffer.from(raw, 'base64').toString();
+      console.log('[Drive] DRIVE_OAUTH_JSON decoded, length:', decoded.length, 'starts with:', decoded.substring(0, 40));
+      const parsed = JSON.parse(decoded);
+      console.log('[Drive] OAuth config keys:', Object.keys(parsed).join(', '));
+      console.log('[Drive] Has refresh_token:', !!parsed.refresh_token, 'has client_id:', !!parsed.client_id, 'has client_secret:', !!parsed.client_secret);
+      return parsed;
+    }
+    // Try DRIVE_KEY_JSON as fallback for OAuth if DRIVE_OAUTH_JSON not set
+    if (process.env.DRIVE_KEY_JSON) {
+      console.log('[Drive] DRIVE_OAUTH_JSON not found, checking DRIVE_KEY_JSON for OAuth config...');
+      const raw = process.env.DRIVE_KEY_JSON;
+      const decoded = Buffer.from(raw, 'base64').toString();
+      const parsed = JSON.parse(decoded);
+      if (parsed.refresh_token || parsed.client_id) {
+        console.log('[Drive] DRIVE_KEY_JSON contains OAuth fields, using it as fallback');
+        return parsed;
+      }
     }
     if (fs.existsSync(OAUTH_CONFIG_PATH)) {
+      console.log('[Drive] Using OAuth config file:', OAUTH_CONFIG_PATH);
       return JSON.parse(fs.readFileSync(OAUTH_CONFIG_PATH, 'utf8'));
     }
-  } catch (e) { console.error('OAuth config error:', e.message); }
+    if (fs.existsSync(KEY_PATH)) {
+      console.log('[Drive] No OAuth config found, checking key file for OAuth fields...');
+      const parsed = JSON.parse(fs.readFileSync(KEY_PATH, 'utf8'));
+      if (parsed.refresh_token || parsed.client_id) {
+        console.log('[Drive] Key file contains OAuth fields, using it');
+        return parsed;
+      }
+    }
+    console.log('[Drive] No OAuth credentials found anywhere');
+  } catch (e) { console.error('[Drive] OAuth config error:', e.message); }
   return null;
 }
 
@@ -39,11 +71,12 @@ function isOAuthAvailable() {
   return !!(cfg && cfg.refresh_token);
 }
 
+let _oauthExpiryWarning = false;
+
 function getAuth() {
-  // Diagnostic logging for Drive auth
   const oauthCfg = getOAuthConfig();
   const keyFile = getKey();
-  if (oauthCfg) console.log('[Drive] OAuth config found, has refresh_token:', !!oauthCfg.refresh_token, 'has client_id:', !!oauthCfg.client_id);
+  if (oauthCfg) console.log('[Drive] OAuth config found, has refresh_token:', !!oauthCfg.refresh_token, 'has client_id:', !!oauthCfg.client_id, 'has client_secret:', !!oauthCfg.client_secret);
   if (keyFile) console.log('[Drive] Service account key found, has client_email:', !!keyFile.client_email);
   if (!oauthCfg && !keyFile) console.log('[Drive] No auth credentials found - check DRIVE_OAUTH_JSON or DRIVE_KEY_JSON env vars');
   const cfg = getOAuthConfig();
@@ -51,21 +84,38 @@ function getAuth() {
     try {
       const oauth2Client = new google.auth.OAuth2(cfg.client_id, cfg.client_secret, 'urn:ietf:wg:oauth:2.0:oob');
       oauth2Client.setCredentials({ refresh_token: cfg.refresh_token });
+      // Check if token might be expired by testing expiry_date
+      if (cfg.expiry_date) {
+        const expiresAt = new Date(cfg.expiry_date);
+        const now = new Date();
+        const diffMs = expiresAt - now;
+        if (diffMs < 0 && !_oauthExpiryWarning) {
+          console.log('[Drive] WARNING: Token expired on', expiresAt.toISOString(), 'Refresh will happen automatically via googleapis');
+          _oauthExpiryWarning = true;
+        } else if (diffMs > 0 && diffMs < 3600000) {
+          console.log('[Drive] Token expires in', Math.round(diffMs / 1000 / 60), 'minutes');
+        }
+      }
       return oauth2Client;
     } catch (e) {
-      console.error('OAuth auth error:', e.message);
+      console.error('[Drive] OAuth auth error:', e.message);
     }
   }
+  // If OAuth failed, try service account
   try {
     const key = getKey();
-    if (!key) return null;
+    if (!key) {
+      console.log('[Drive] No service account key available either');
+      return null;
+    }
+    console.log('[Drive] Using service account auth with email:', key.client_email);
     const auth = new google.auth.GoogleAuth({
       credentials: key,
       scopes: ['https://www.googleapis.com/auth/drive']
     });
     return auth;
   } catch (e) {
-    console.error('Drive auth error:', e.message);
+    console.error('[Drive] Service account auth error:', e.message);
     return null;
   }
 }

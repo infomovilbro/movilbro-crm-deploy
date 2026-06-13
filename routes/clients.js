@@ -18,7 +18,7 @@ router.get('/', requireAuth, async (req, res) => {
       apellidos: c.lastName || c.surname || '',
       email: c.email || c.contactInfo?.email || '',
       telefono: c.phone || c.contactInfo?.phone || '',
-      dni_nif: c.fiscalId || c.fiscalNumber || '',
+      dni_nif: c.fiscalId || c.fiscalNumber || c.fiscal_id || '',
       direccion: (c.billingAddress?.street || '') + ' ' + (c.billingAddress?.cityName || ''),
       ciudad: c.billingAddress?.cityName || c.address?.city || '',
       tipo: c.customerType || 'Residential',
@@ -148,7 +148,7 @@ router.get('/fiscal/:fiscalId', requireAuth, async (req, res) => {
       apiActions: { canBlock: true, canChangeTariff: true, canDuplicateSim: true, canViewConsumption: true },
       apiCustomer: data,
       apiSubscriptions: Array.isArray(apiCustomer.subscriptions) ? apiCustomer.subscriptions : [],
-      apiOrders: Array.isArray(apiCustomer.orders) ? apiCustomer.orders : [],
+      apiOrders: Array.isArray(apiCustomer.orders) ? apiCustomer.orders.map(function(o) { return { id: o.id || o.orderId || o.order_id, status: o.status || o.estado || o.state || 'desconocido', productName: o.productName || o.product || o.description || o.service || '-', lineNumber: o.lineNumber || o.line || o.phone || o.numero || '-', total: o.total || o.amount || o.price || o.importe || 0, created: o.created || o.created_at || o.createdAt || o.date, updated: o.updated || o.updated_at || o.updatedAt }; }) : [],
       apiInvoices: Array.isArray(apiCustomer.invoices) ? apiCustomer.invoices : [],
       apiInstallations: Array.isArray(apiCustomer.installations) ? apiCustomer.installations : [],
       apiPortabilities: [],
@@ -185,8 +185,36 @@ router.get('/:id', requireAuth, async (req, res) => {
       } else if (data.name || data.fiscalId || data.firstName) {
         apiCustomer = data;
       }
-      if (Array.isArray(data.subscriptions)) apiSubscriptions = data.subscriptions;
-      if (Array.isArray(data.orders)) apiOrders = data.orders;
+      if (Array.isArray(data.subscriptions)) {
+        apiSubscriptions = data.subscriptions.map(function(s) {
+          return {
+            id: s.id || s.subscriptionId,
+            productName: s.productName || s.product || s.tarifa || s.service || '-',
+            lineNumber: s.lineNumber || s.line || s.phone || s.msisdn || s.numero || '',
+            status: s.status || s.estado || s.state || 'activa',
+            created: s.created || s.created_at || s.sellDate || s.startDate || s.fecha_alta,
+            cancelled_at: s.cancelled_at || s.endDate || s.fecha_baja || s.cancelledAt,
+            products: s.products || [],
+            phone: s.phone || s.line || s.lineNumber || '',
+            icc: s.icc || s.iccid || '',
+            ict: s.ict || ''
+          };
+        });
+      }
+      if (Array.isArray(data.orders)) {
+        apiOrders = data.orders.map(function(o) {
+          // Normalize order fields for template
+          return {
+            id: o.id || o.orderId || o.order_id,
+            status: o.status || o.estado || o.state || 'desconocido',
+            productName: o.productName || o.product || o.description || o.service || o.tarifa || '-',
+            lineNumber: o.lineNumber || o.line || o.phone || o.numero || o.msisdn || '-',
+            total: o.total || o.amount || o.price || o.importe || 0,
+            created: o.created || o.created_at || o.createdAt || o.date || o.fecha || o.fecha_creacion,
+            updated: o.updated || o.updated_at || o.updatedAt || o.modified || o.lastUpdated
+          };
+        });
+      }
       if (Array.isArray(data.invoices)) apiInvoices = data.invoices;
       if (Array.isArray(data.installations)) apiInstallations = data.installations;
       if (Array.isArray(data.portabilities)) apiPortabilities = data.portabilities;
@@ -319,7 +347,9 @@ router.post('/:id/line/:lineNumber/consumption', requireAuth, async (req, res) =
   try {
     const api = LikesAPI.getApiInstance();
     const result = await api.getLineGB(req.params.lineNumber);
-    res.json({ ok: true, data: result });
+    // Normalize - unwrap nested wrappers
+    const payload = result.data || result;
+    res.json({ ok: true, data: payload });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }
@@ -339,7 +369,10 @@ router.post('/:id/line/:lineNumber/cdrs', requireAuth, async (req, res) => {
   try {
     const api = LikesAPI.getApiInstance();
     const result = await api.getLineCDRs(req.params.lineNumber);
-    res.json({ ok: true, data: result });
+    // Normalize CDR data - unwrap nested wrappers
+    let cdrs = Array.isArray(result) ? result : (result.data || result.cdrs || result.records || result.items || result.calls || []);
+    if (!Array.isArray(cdrs)) cdrs = [];
+    res.json({ ok: true, data: cdrs });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }
