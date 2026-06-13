@@ -67,17 +67,17 @@
                     <tr><th style="width:100px;">Nombre</th><td><%= nom %> <%= ape %></td></tr>
                     <tr><th>DNI/NIF</th><td><strong><%= apiCustomer.fiscalId || cliente.dni_nif || '-' %></strong></td></tr>
                     <tr><th>Email</th><td>
-                      <% var em = apiCustomer.email || apiCustomer.contactInfo?.email || cliente.email; %>
+                      <% var em = apiCustomer.email || cliente.email; %>
                       <% if (em) { %><a href="mailto:<%= em %>"><%= em %></a><% } else { %>-<% } %>
                     </td></tr>
                     <tr><th>Tel&eacute;fono</th><td>
-                      <% var tf = apiCustomer.phone || apiCustomer.contactInfo?.phone || cliente.telefono; %>
+                      <% var tf = apiCustomer.phone || cliente.telefono; %>
                       <% if (tf) { %><a href="tel:<%= tf %>"><%= tf %></a><% } else { %>-<% } %>
                     </td></tr>
                     <tr><th>Tel&eacute;fono 2</th><td><%= cliente.telefono2 || '-' %></td></tr>
                     <tr><th>Tipo</th><td>
                       <% var t = apiCustomer.customerType || cliente.tipo_cliente || 'particular'; %>
-                      <span class="badge bg-<%= t === 'empresa' || t === 'Business' ? 'secondary' : 'primary' %>"><%= t %></span>
+                      <span class="badge bg-<%= t === 'empresa' || t === 'Business' || t === 'business' ? 'secondary' : 'primary' %>"><%= t %></span>
                     </td></tr>
                     <% if (cliente.likes_customer_id) { %><tr><th>ID Likes</th><td><code><%= cliente.likes_customer_id %></code></td></tr><% } %>
                     <tr><th>Cliente desde</th><td>
@@ -92,7 +92,7 @@
                 <div class="card-header fw-semibold"><i class="bi bi-geo-alt"></i> Direcci&oacute;n y pago</div>
                 <div class="card-body">
                   <table class="table table-sm mb-0">
-                    <% var addr = apiCustomer.billingAddress || apiCustomer.address || {}; %>
+                    <% var addr = apiCustomer.billingAddress || {}; %>
                     <tr><th style="width:100px;">Direcci&oacute;n</th><td>
                       <%= addr.street || cliente.direccion || '-' %>
                       <%= addr.cityName || addr.city || cliente.ciudad ? ', ' + (addr.cityName || addr.city || cliente.ciudad) : '' %>
@@ -100,10 +100,10 @@
                       <%= addr.zipCode || addr.zip || cliente.codigo_postal ? ' (' + (addr.zipCode || addr.zip || cliente.codigo_postal) + ')' : '' %>
                     </td></tr>
                     <tr><th>M&eacute;todo pago</th><td>
-                      <% var pm = apiCustomer.paymentMethod || apiCustomer.paymentInfo?.method || cliente.metodo_pago; %>
+                      <% var pm = apiCustomer.paymentMethod || cliente.metodo_pago; %>
                       <% if (pm) { %><span class="badge bg-info"><i class="bi bi-credit-card"></i> <%= pm %></span><% } else { %>-<% } %>
                     </td></tr>
-                    <tr><th>IBAN</th><td><% if (cliente.iban) { %><code><%= cliente.iban %></code><% } else { %>-<% } %></td></tr>
+                    <tr><th>IBAN</th><td><% if (apiCustomer.iban || cliente.iban) { %><code><%= apiCustomer.iban || cliente.iban %></code><% } else { %>-<% } %></td></tr>
                     <% if (cliente.stripe_payment_method) { %>
                     <tr><th>Stripe PM</th><td><small class="text-muted"><%= cliente.stripe_payment_method %></small></td></tr>
                     <% } %>
@@ -111,31 +111,29 @@
                 </div>
               </div>
             </div>
-            <% if (apiCustomer.aeatStatus || apiCustomer.aeat_status || apiCustomer.scoring || apiCustomer.score || apiCustomer.scoring) { %>
             <div class="col-md-6">
               <div class="card h-100 border">
                 <div class="card-header fw-semibold"><i class="bi bi-shield-check"></i> AEAT &amp; Scoring</div>
                 <div class="card-body">
                   <table class="table table-sm mb-0">
                     <tr><th style="width:120px;">Estado AEAT</th><td>
-                      <% var ae = apiCustomer.aeatStatus || apiCustomer.aeat_status || ''; %>
-                      <% if (ae) { %><span class="badge bg-<%= ae === 'ok' || ae === 'verified' || ae === 'valido' ? 'success' : ae === 'pending' || ae === 'pendiente' ? 'warning' : 'danger' %>"><%= ae %></span><% } else { %><span class="text-muted">-</span><% } %>
+                      <% var ae = apiCustomer.aeatStatus || ''; %>
+                      <% if (ae) { %><span class="badge bg-<%= ae === 'ok' || ae === 'verified' || ae === 'valido' || ae === 'valid' ? 'success' : ae === 'pending' || ae === 'pendiente' ? 'warning' : 'danger' %>"><%= ae %></span><% } else { %><span class="text-muted">-</span><% } %>
                     </td></tr>
                     <tr><th>Scoring</th><td>
-                      <% var sc = apiCustomer.scoring || apiCustomer.score || apiCustomer.rating || ''; %>
+                      <% var sc = apiCustomer.scoring || ''; %>
                       <% if (sc) { %>
                         <span class="badge bg-<%= parseFloat(sc) >= 7 ? 'success' : parseFloat(sc) >= 4 ? 'warning' : 'danger' %> fs-6"><%= sc %></span>
                       <% } else { %><span class="text-muted">-</span><% } %>
                     </td></tr>
                     <tr><th>Riesgo</th><td>
-                      <% var rk = apiCustomer.riskLevel || apiCustomer.risk || apiCustomer.risk_level || ''; %>
+                      <% var rk = apiCustomer.riskLevel || ''; %>
                       <% if (rk) { %><span class="badge bg-<%= rk === 'bajo' || rk === 'low' ? 'success' : rk === 'medio' || rk === 'medium' ? 'warning' : 'danger' %>"><%= rk %></span><% } else { %><span class="text-muted">-</span><% } %>
                     </td></tr>
                   </table>
                 </div>
               </div>
             </div>
-            <% } %>
             <% if (cliente.notas) { %>
             <div class="col-12">
               <div class="card border">
@@ -177,46 +175,39 @@
                   <th>Producto / Tarifa</th>
                   <th>Estado</th>
                   <th>ICC / ICCID</th>
-                  <th>PIN / PUK</th>
-                  <th>Alta</th>
-                  <th>Baja</th>
+                  <th>Fecha Alta</th>
                   <th>Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 <% apiSubscriptions.forEach(function(s) { %>
-                <% var prods = s.products && s.products.length ? s.products : (s.productName ? [s] : []); %>
+                <% var prods = s.products && s.products.length ? s.products : [{productName: s.productName, lineNumber: s.lineNumber, status: s.status, icc: s.icc}]; %>
                 <% prods.forEach(function(p) { %>
-                <% var linea = p.lineNumber || p.line || s.phone || s.line || ''; %>
+                <% var linea = p.lineNumber || s.lineNumber || ''; %>
                 <tr>
                   <td><strong><%= linea || '-' %></strong></td>
-                  <td><%= p.productName || s.productName || s.product || '-' %></td>
+                  <td><%= p.productName || s.productName || '-' %></td>
                   <td>
-                    <% var est = (p.status || s.status || s.estado || 'activa').toLowerCase(); %>
-                    <span class="badge bg-<%= est === 'activa' || est === 'activo' || est === 'active' ? 'success' : est === 'suspendida' || est === 'suspended' ? 'warning' : est === 'baja' || est === 'cancelled' ? 'secondary' : 'danger' %> fs-6">
+                    <% var est = (p.status || s.status || 'activa').toLowerCase(); %>
+                    <span class="badge bg-<%= est === 'activa' || est === 'activo' || est === 'active' ? 'success' : est === 'suspendida' || est === 'suspended' ? 'warning' : est === 'baja' || est === 'cancelled' || est === 'cancelada' ? 'secondary' : 'danger' %> fs-6">
                       <%= est %>
                     </span>
                   </td>
-                  <td><small class="text-muted"><%= p.icc || p.iccid || s.icc || s.iccid || '-' %></small></td>
-                  <td>
-                    <% var ctr = lineas.find(function(l) { return l.linea === linea; }); %>
-                    <% if (ctr && (ctr.pin || ctr.puk)) { %>
-                    <button class="btn btn-sm btn-outline-secondary" onclick="mostrarPinPuk('<%= linea %>', '<%= ctr.pin %>', '<%= ctr.puk %>')">
-                      <i class="bi bi-key"></i> PIN/PUK
-                    </button>
-                    <% } else { %>
-                    <span class="text-muted">-</span>
-                    <% } %>
-                  </td>
-                  <td><small><%= (s.created || s.sellDate || s.startDate || s.fecha_alta) ? new Date(s.created || s.sellDate || s.startDate || s.fecha_alta).toLocaleDateString('es-ES') : '-' %></small></td>
-                  <td><small><%= (s.cancelled_at || s.endDate || s.fecha_baja) ? new Date(s.cancelled_at || s.endDate || s.fecha_baja).toLocaleDateString('es-ES') : '-' %></small></td>
+                  <td><small class="text-muted"><%= p.icc || s.icc || '-' %></small></td>
+                  <td><small><%= (s.startDate || s.created) ? new Date(s.startDate || s.created).toLocaleDateString('es-ES') : '-' %></small></td>
                   <td>
                     <div class="d-flex gap-1 flex-wrap">
-                      <button class="btn btn-sm btn-outline-info ver-consumo" data-line="<%= linea %>" data-client="<%= cliente.id %>" <%= linea ? '' : 'disabled' %>>
+                      <button class="btn btn-sm btn-outline-info ver-consumo" data-line="<%= linea %>" data-client="<%= cliente.id %>" <%= linea ? '' : 'disabled' %> title="Consumo">
                         <i class="bi bi-graph-up"></i>
                       </button>
-                      <button class="btn btn-sm btn-outline-warning toggle-block" data-line="<%= linea %>" data-client="<%= cliente.id %>" data-blocked="<%= est !== 'activa' && est !== 'active' %>" <%= linea ? '' : 'disabled' %>>
+                      <button class="btn btn-sm btn-outline-warning toggle-block" data-line="<%= linea %>" data-client="<%= cliente.id %>" data-blocked="<%= est !== 'activa' && est !== 'active' %>" <%= linea ? '' : 'disabled' %> title="<%= (est === 'activa' || est === 'active') ? 'Bloquear' : 'Desbloquear' %>">
                         <i class="bi <%= (est === 'activa' || est === 'active') ? 'bi-lock' : 'bi-unlock' %>"></i>
+                      </button>
+                      <button class="btn btn-sm btn-outline-primary cambiar-tarifa-btn" data-line="<%= linea %>" title="Cambiar tarifa">
+                        <i class="bi bi-arrow-left-right"></i>
+                      </button>
+                      <button class="btn btn-sm btn-outline-secondary duplicar-sim-btn" data-line="<%= linea %>" title="Duplicar SIM">
+                        <i class="bi bi-sd-card"></i>
                       </button>
                     </div>
                   </td>
@@ -224,7 +215,7 @@
                 <% }); %>
                 <% }); %>
                 <% lineas.forEach(function(l) { %>
-                <% if (!apiSubscriptions.some(function(s) { var prods = s.products && s.products.length ? s.products : (s.productName ? [s] : []); return prods.some(function(p) { return (p.lineNumber || p.line || s.phone || s.line) === l.linea; }); })) { %>
+                <% if (!apiSubscriptions.some(function(s) { var prods = s.products && s.products.length ? s.products : [{productName: s.productName, lineNumber: s.lineNumber, status: s.status, icc: s.icc}]; return prods.some(function(p) { return p.lineNumber === l.linea; }); })) { %>
                 <tr class="table-secondary">
                   <td><strong><%= l.linea || '-' %></strong></td>
                   <td><%= l.producto || '-' %> <small class="text-muted">(local)</small></td>
@@ -232,22 +223,20 @@
                     <span class="badge bg-<%= l.estado === 'activo' ? 'success' : l.estado === 'pendiente' ? 'warning' : l.estado === 'baja' ? 'secondary' : 'danger' %> fs-6"><%= l.estado %></span>
                   </td>
                   <td><small class="text-muted"><%= l.iccid || '-' %></small></td>
-                  <td>
-                    <% if (l.pin || l.puk) { %>
-                    <button class="btn btn-sm btn-outline-secondary" onclick="mostrarPinPuk('<%= l.linea %>', '<%= l.pin %>', '<%= l.puk %>')">
-                      <i class="bi bi-key"></i> PIN/PUK
-                    </button>
-                    <% } else { %><span class="text-muted">-</span><% } %>
-                  </td>
                   <td><small><%= l.fecha_alta ? new Date(l.fecha_alta).toLocaleDateString('es-ES') : '-' %></small></td>
-                  <td><small>-</small></td>
                   <td>
                     <div class="d-flex gap-1 flex-wrap">
-                      <button class="btn btn-sm btn-outline-info ver-consumo" data-line="<%= l.linea %>" data-client="<%= cliente.id %>" <%= l.linea ? '' : 'disabled' %>>
+                      <button class="btn btn-sm btn-outline-info ver-consumo" data-line="<%= l.linea %>" data-client="<%= cliente.id %>" <%= l.linea ? '' : 'disabled' %> title="Consumo">
                         <i class="bi bi-graph-up"></i>
                       </button>
-                      <button class="btn btn-sm btn-outline-warning toggle-block" data-line="<%= l.linea %>" data-client="<%= cliente.id %>" data-blocked="<%= l.estado !== 'activo' %>" <%= l.linea ? '' : 'disabled' %>>
+                      <button class="btn btn-sm btn-outline-warning toggle-block" data-line="<%= l.linea %>" data-client="<%= cliente.id %>" data-blocked="<%= l.estado !== 'activo' %>" <%= l.linea ? '' : 'disabled' %> title="<%= l.estado === 'activo' ? 'Bloquear' : 'Desbloquear' %>">
                         <i class="bi <%= l.estado === 'activo' ? 'bi-lock' : 'bi-unlock' %>"></i>
+                      </button>
+                      <button class="btn btn-sm btn-outline-primary cambiar-tarifa-btn" data-line="<%= l.linea %>" title="Cambiar tarifa">
+                        <i class="bi bi-arrow-left-right"></i>
+                      </button>
+                      <button class="btn btn-sm btn-outline-secondary duplicar-sim-btn" data-line="<%= l.linea %>" title="Duplicar SIM">
+                        <i class="bi bi-sd-card"></i>
                       </button>
                     </div>
                   </td>
@@ -278,29 +267,38 @@
             <table class="table table-hover align-middle mb-0">
               <thead class="table-dark">
                 <tr>
-                  <th>#</th>
+                  <th># ID</th>
                   <th>Estado</th>
                   <th>Producto</th>
                   <th>L&iacute;nea</th>
                   <th>Total</th>
-                  <th>Creaci&oacute;n</th>
-                  <th>Actualizaci&oacute;n</th>
+                  <th>Fecha Creaci&oacute;n</th>
+                  <th>Historial</th>
                 </tr>
               </thead>
               <tbody>
                 <% apiOrders.forEach(function(o) { %>
                 <tr>
-                  <td><strong>#<%= o.id || o.orderId || o.order_id || '-' %></strong></td>
+                  <td><strong>#<%= o.id || '-' %></strong></td>
                   <td>
-                    <span class="badge bg-<%= (o.status || o.estado || '').toLowerCase() === 'completed' || (o.status || o.estado || '').toLowerCase() === 'completada' ? 'success' : (o.status || o.estado || '').toLowerCase() === 'pending' || (o.status || o.estado || '').toLowerCase() === 'pendiente' ? 'warning' : (o.status || o.estado || '').toLowerCase() === 'cancelled' || (o.status || o.estado || '').toLowerCase() === 'cancelada' ? 'danger' : 'info' %> fs-6">
-                      <%= o.status || o.estado || o.state || 'desconocido' %>
+                    <% var os = (o.status || '').toLowerCase(); %>
+                    <span class="badge bg-<%= os === 'completed' || os === 'completada' || os === 'delivered' ? 'success' : os === 'pending' || os === 'pendiente' || os === 'processing' ? 'warning' : os === 'cancelled' || os === 'cancelada' || os === 'rejected' ? 'danger' : os === 'shipped' || os === 'enviado' ? 'info' : 'secondary' %> fs-6">
+                      <%= o.status %>
                     </span>
                   </td>
-                  <td><%= o.productName || o.product || o.description || '-' %></td>
-                  <td><%= o.lineNumber || o.line || '-' %></td>
-                  <td><%= o.total || o.amount || o.price ? (o.total || o.amount || o.price) + '€' : '-' %></td>
-                  <td><small><%= (o.created || o.created_at || o.createdAt || o.date) ? new Date(o.created || o.created_at || o.createdAt || o.date).toLocaleDateString('es-ES') : '-' %></small></td>
-                  <td><small><%= (o.updated || o.updated_at || o.updatedAt) ? new Date(o.updated || o.updated_at || o.updatedAt).toLocaleDateString('es-ES') : '-' %></small></td>
+                  <td><%= o.productName || '-' %></td>
+                  <td><%= o.lineNumber || '-' %></td>
+                  <td><strong><%= o.total ? parseFloat(o.total).toFixed(2) + '€' : '-' %></strong></td>
+                  <td><small><%= o.created ? new Date(o.created).toLocaleDateString('es-ES') : '-' %></small></td>
+                  <td>
+                    <% if (o.statusHistory && o.statusHistory.length > 0) { %>
+                    <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="popover" data-bs-html="true" data-bs-trigger="focus" tabindex="0" title="Historial de estado" data-bs-content="<%= o.statusHistory.map(function(h){ var hd = h.date || h.created || h.timestamp || ''; var hs = h.status || h.estado || h.state || ''; var hn = h.note || h.nota || h.comment || ''; return '<div><small>' + (hd ? new Date(hd).toLocaleDateString('es-ES') : '?') + '</small> <span class=\"badge bg-info\">' + hs + '</span>' + (hn ? '<br><em>' + hn + '</em>' : '') + '</div>'; }).join('<hr class=\"my-1\">') %>">
+                        <i class="bi bi-clock-history"></i> <%= o.statusHistory.length %>
+                      </button>
+                    <% } else { %>
+                    <span class="text-muted">-</span>
+                    <% } %>
+                  </td>
                 </tr>
                 <% }); %>
               </tbody>
@@ -321,29 +319,51 @@
             <table class="table table-hover align-middle mb-0">
               <thead class="table-dark">
                 <tr>
-                  <th>#</th>
+                  <th>Periodo</th>
                   <th>Concepto</th>
                   <th>Importe</th>
-                  <th>Emisi&oacute;n</th>
-                  <th>Vencimiento</th>
                   <th>Estado</th>
+                  <th>Fecha Emisi&oacute;n</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
                 <% apiInvoices.forEach(function(f) { %>
                 <tr>
-                  <td><strong>#<%= f.id || f.invoiceId || f.invoice_id || f.number || '-' %></strong></td>
-                  <td><%= f.concept || f.concepto || f.description || f.descripcion || '-' %></td>
-                  <td><strong><%= (f.amount || f.importe || f.total || f.amountDue || 0).toFixed(2) %>€</strong></td>
-                  <td><small><%= (f.issuedDate || f.issued_date || f.fecha_emision || f.date || f.created) ? new Date(f.issuedDate || f.issued_date || f.fecha_emision || f.date || f.created).toLocaleDateString('es-ES') : '-' %></small></td>
-                  <td><small><%= (f.dueDate || f.due_date || f.fecha_vencimiento) ? new Date(f.dueDate || f.due_date || f.fecha_vencimiento).toLocaleDateString('es-ES') : '-' %></small></td>
+                  <td><strong><%= f.period || '-' %></strong></td>
+                  <td><%= f.concept || '-' %></td>
+                  <td><strong><%= f.amount.toFixed(2) %>€</strong></td>
                   <td>
-                    <% var fs = (f.status || f.estado || 'pending').toLowerCase(); %>
+                    <% var fs = (f.status || '').toLowerCase(); %>
                     <span class="badge bg-<%= fs === 'paid' || fs === 'pagada' || fs === 'completada' ? 'success' : fs === 'pending' || fs === 'pendiente' ? 'warning' : fs === 'overdue' || fs === 'vencida' ? 'danger' : fs === 'cancelled' || fs === 'cancelada' ? 'secondary' : 'info' %>">
-                      <%= f.status || f.estado || 'pendiente' %>
+                      <%= f.status %>
                     </span>
                   </td>
+                  <td><small><%= f.issuedDate ? new Date(f.issuedDate).toLocaleDateString('es-ES') : '-' %></small></td>
+                  <td>
+                    <% if (f.id) { %>
+                    <a href="/isp/facturacion/facturas/<%= f.id %>" target="_blank" class="btn btn-sm btn-outline-primary">
+                      <i class="bi bi-eye"></i>
+                    </a>
+                    <% } %>
+                  </td>
                 </tr>
+                <% if (f.fees && f.fees.length > 0) { %>
+                <tr class="table-light">
+                  <td colspan="6" class="p-0">
+                    <table class="table table-sm table-borderless mb-0 ms-4" style="width:auto;">
+                      <% f.fees.forEach(function(fee) { %>
+                      <tr>
+                        <td style="width:80px;"></td>
+                        <td style="min-width:120px;"><small class="text-muted"><%= fee.productName %></small></td>
+                        <td style="min-width:100px;"><% if (fee.lineNumber) { %><small class="text-muted"><%= fee.lineNumber %></small><% } %></td>
+                        <td style="min-width:80px;text-align:right;"><small><%= fee.price.toFixed(2) %>€</small></td>
+                      </tr>
+                      <% }); %>
+                    </table>
+                  </td>
+                </tr>
+                <% } %>
                 <% }); %>
               </tbody>
             </table>
@@ -363,30 +383,31 @@
             <table class="table table-hover align-middle mb-0">
               <thead class="table-dark">
                 <tr>
-                  <th>#</th>
                   <th>Direcci&oacute;n</th>
                   <th>Producto</th>
                   <th>Estado</th>
-                  <th>Fecha programada</th>
-                  <th>Fecha real</th>
+                  <th>Fecha Programada</th>
+                  <th>Fecha Real</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
                 <% apiInstallations.forEach(function(i) { %>
                 <tr>
-                  <td><strong>#<%= i.id || i.installationId || '-' %></strong></td>
+                  <td><%= i.address || '-' %></td>
+                  <td><%= i.productName || '-' %></td>
                   <td>
-                    <%= i.address || i.direccion || (i.address?.street || '') %>
-                    <%= (i.address?.cityName || i.address?.city || i.ciudad) ? ', ' + (i.address?.cityName || i.address?.city || i.ciudad) : '' %>
-                  </td>
-                  <td><%= i.productName || i.product || '-' %></td>
-                  <td>
-                    <span class="badge bg-<%= (i.status || i.estado || '').toLowerCase() === 'completed' || (i.status || i.estado || '').toLowerCase() === 'completada' ? 'success' : (i.status || i.estado || '').toLowerCase() === 'scheduled' || (i.status || i.estado || '').toLowerCase() === 'programada' ? 'info' : (i.status || i.estado || '').toLowerCase() === 'pending' || (i.status || i.estado || '').toLowerCase() === 'pendiente' ? 'warning' : 'secondary' %>">
-                      <%= i.status || i.estado || 'desconocido' %>
+                    <span class="badge bg-<%= (i.status || '').toLowerCase() === 'completed' || (i.status || '').toLowerCase() === 'completada' ? 'success' : (i.status || '').toLowerCase() === 'scheduled' || (i.status || '').toLowerCase() === 'programada' ? 'info' : (i.status || '').toLowerCase() === 'pending' || (i.status || '').toLowerCase() === 'pendiente' ? 'warning' : 'secondary' %>">
+                      <%= i.status %>
                     </span>
                   </td>
-                  <td><small><%= (i.scheduledDate || i.scheduled_date || i.fecha_programada || i.date) ? new Date(i.scheduledDate || i.scheduled_date || i.fecha_programada || i.date).toLocaleDateString('es-ES') : '-' %></small></td>
-                  <td><small><%= (i.completedDate || i.completed_date || i.fecha_real || i.installationDate) ? new Date(i.completedDate || i.completed_date || i.fecha_real || i.installationDate).toLocaleDateString('es-ES') : '-' %></small></td>
+                  <td><small><%= i.scheduledDate ? new Date(i.scheduledDate).toLocaleDateString('es-ES') : '-' %></small></td>
+                  <td><small><%= i.completedDate ? new Date(i.completedDate).toLocaleDateString('es-ES') : '-' %></small></td>
+                  <td>
+                    <button class="btn btn-sm btn-outline-info ver-instalacion" data-id="<%= i.id %>" data-address="<%= i.address %>" data-city="<%= i.city %>" data-product="<%= i.productName %>" data-status="<%= i.status %>" data-scheduled="<%= i.scheduledDate %>" data-completed="<%= i.completedDate %>" data-notes="<%= i.notes || '' %>" data-technician="<%= i.technician || '' %>">
+                      <i class="bi bi-eye"></i> Ver Detalle
+                    </button>
+                  </td>
                 </tr>
                 <% }); %>
               </tbody>
@@ -400,7 +421,7 @@
           <% if (altasOrdenes.length === 0 && (!documentos || documentos.length === 0)) { %>
           <div class="text-center text-muted py-5">
             <i class="bi bi-file-earmark-text" style="font-size:3rem;"></i>
-            <p class="mt-2">No hay documentos KYC ni documentos ISP</p>
+            <p class="mt-2">Sin documentos KYC</p>
           </div>
           <% } else { %>
             <% if (altasOrdenes.length > 0) { %>
@@ -413,7 +434,7 @@
                     <i class="bi bi-cart"></i> Orden #<%= o.id %>
                     <span class="badge bg-<%= o.estado === 'completada' ? 'success' : o.estado === 'pendiente_kyc' ? 'warning' : o.estado === 'pendiente_aprobacion' ? 'info' : o.estado === 'cancelada' ? 'danger' : 'secondary' %> ms-2"><%= o.estado %></span>
                   </span>
-                  <small class="text-muted"><%= new Date(o.created_at).toLocaleDateString('es-ES') %></small>
+                  <small class="text-muted"><%= o.created_at ? new Date(o.created_at).toLocaleDateString('es-ES') : '-' %></small>
                 </div>
                 <div class="card-body">
                   <div class="row g-3">
@@ -507,6 +528,33 @@
     </div>
   </div>
 </section>
+
+<!-- Installation Detail Modal -->
+<div class="modal fade" id="instalacionDetailModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-wrench"></i> Detalle de Instalaci&oacute;n</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <table class="table table-sm mb-0">
+          <tr><th style="width:140px;">ID</th><td id="instDetId">-</td></tr>
+          <tr><th>Direcci&oacute;n</th><td id="instDetAddress">-</td></tr>
+          <tr><th>Producto</th><td id="instDetProduct">-</td></tr>
+          <tr><th>Estado</th><td id="instDetStatus">-</td></tr>
+          <tr><th>Fecha Programada</th><td id="instDetScheduled">-</td></tr>
+          <tr><th>Fecha Real</th><td id="instDetCompleted">-</td></tr>
+          <tr><th>T&eacute;cnico</th><td id="instDetTechnician">-</td></tr>
+          <tr><th>Notas</th><td id="instDetNotes">-</td></tr>
+        </table>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- PIN/PUK Modal -->
 <div class="modal fade" id="pinPukModal" tabindex="-1">
@@ -699,6 +747,32 @@ document.addEventListener('DOMContentLoaded', function() {
   var linesArr = <%- lineNumbers || '[]' %>;
   var clientId = <%= cliente.id %>;
 
+  function formatDate(d) {
+    if (!d) return '-';
+    try { return new Date(d).toLocaleDateString('es-ES'); } catch(e) { return d; }
+  }
+
+  // ========== INSTALLATION DETAIL ==========
+  document.querySelectorAll('.ver-instalacion').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      document.getElementById('instDetId').textContent = this.dataset.id || '-';
+      document.getElementById('instDetAddress').textContent = (this.dataset.address || '') + (this.dataset.city ? ', ' + this.dataset.city : '');
+      document.getElementById('instDetProduct').textContent = this.dataset.product || '-';
+      var st = this.dataset.status || '';
+      var badge = 'secondary';
+      if (st.toLowerCase() === 'completed' || st.toLowerCase() === 'completada') badge = 'success';
+      else if (st.toLowerCase() === 'scheduled' || st.toLowerCase() === 'programada') badge = 'info';
+      else if (st.toLowerCase() === 'pending' || st.toLowerCase() === 'pendiente') badge = 'warning';
+      document.getElementById('instDetStatus').innerHTML = '<span class="badge bg-' + badge + '">' + st + '</span>';
+      document.getElementById('instDetScheduled').textContent = formatDate(this.dataset.scheduled);
+      document.getElementById('instDetCompleted').textContent = formatDate(this.dataset.completed);
+      document.getElementById('instDetTechnician').textContent = this.dataset.technician || '-';
+      document.getElementById('instDetNotes').textContent = this.dataset.notes || '-';
+      new bootstrap.Modal(document.getElementById('instalacionDetailModal')).show();
+    });
+  });
+
+  // ========== STATUS CHART ==========
   var statusCtx = document.getElementById('statusChart');
   if (statusCtx && Object.keys(statusData).length > 0) {
     new Chart(statusCtx, {
@@ -720,6 +794,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
+  // ========== GB CHART ==========
   var gbCtx = document.getElementById('gbChart');
   var gbChart = null;
   if (gbCtx) {
@@ -736,7 +811,6 @@ document.addEventListener('DOMContentLoaded', function() {
         plugins: { legend: { display: false } }
       }
     });
-    // Auto-fetch consumption for first available line
     if (linesArr.length > 0) {
       var firstLine = linesArr[0];
       fetch('/clientes/' + clientId + '/line/' + encodeURIComponent(firstLine) + '/consumption', { method: 'POST' })
@@ -756,12 +830,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
+  // ========== CONSUMPTION MODAL ==========
   var _consChartInstance = null;
 
   function parseGBData(payload) {
     var d = payload.data || payload;
     return {
-      total: parseFloat(d.totalGB || d.total_gb || d.total || d.totalGb || d.total_gb || d.allowance || 0),
+      total: parseFloat(d.totalGB || d.total_gb || d.total || d.totalGb || d.allowance || 0),
       used: parseFloat(d.usedGB || d.used_gb || d.used || d.consumed || d.consumption || d.usage || 0),
       remaining: parseFloat(d.remainingGB || d.remaining_gb || d.remaining || d.remainingGb || d.balance || d.left || 0),
       roaming: parseFloat(d.roamingGB || d.roaming_gb || d.roaming || d.roaming_used || 0)
@@ -860,6 +935,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
+  // ========== BLOCK TOGGLE (inline buttons) ==========
   document.querySelectorAll('.toggle-block').forEach(function(btn) {
     btn.addEventListener('click', function() {
       var line = this.dataset.line;
@@ -880,6 +956,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
+  // ========== POPULATE SELECTS ==========
   function populateSelect(id) {
     var sel = document.getElementById(id);
     if (!sel) return;
@@ -895,6 +972,29 @@ document.addEventListener('DOMContentLoaded', function() {
   populateSelect('blockLineSelect');
   populateSelect('simLine');
 
+  // ========== CAMBIAR TARIFA FROM INLINE BUTTON ==========
+  document.querySelectorAll('.cambiar-tarifa-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var line = this.dataset.line;
+      if (!line) return;
+      var sel = document.getElementById('tariffLine');
+      if (sel) { sel.value = line; }
+      new bootstrap.Modal(document.getElementById('changeTariffModal')).show();
+    });
+  });
+
+  // ========== DUPLICAR SIM FROM INLINE BUTTON ==========
+  document.querySelectorAll('.duplicar-sim-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var line = this.dataset.line;
+      if (!line) return;
+      var sel = document.getElementById('simLine');
+      if (sel) { sel.value = line; }
+      new bootstrap.Modal(document.getElementById('duplicateSimModal')).show();
+    });
+  });
+
+  // ========== CHANGE TARIFF MODAL ==========
   document.getElementById('changeTariffModal').addEventListener('show.bs.modal', function() {
     var sel = document.getElementById('tariffProduct');
     sel.innerHTML = '<option>Cargando productos...</option>';
@@ -943,6 +1043,7 @@ document.addEventListener('DOMContentLoaded', function() {
       .catch(function(err) { alert('Error: ' + err.message); });
   });
 
+  // ========== BLOCK LINE MODAL ==========
   document.getElementById('submitBlockLine').addEventListener('click', function() {
     var line = document.getElementById('blockLineSelect').value;
     var blocked = document.querySelector('input[name="blockAction"]:checked').value === 'block';
@@ -965,6 +1066,7 @@ document.addEventListener('DOMContentLoaded', function() {
       .catch(function(err) { alert('Error: ' + err.message); });
   });
 
+  // ========== DUPLICATE SIM MODAL ==========
   document.getElementById('submitDuplicateSim').addEventListener('click', function() {
     var line = document.getElementById('simLine').value;
     var reason = document.getElementById('simReason').value;
@@ -985,6 +1087,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       })
       .catch(function(err) { alert('Error: ' + err.message); });
+  });
+
+  // ========== INIT POPOVERS ==========
+  var popoverList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+  popoverList.forEach(function(el) {
+    new bootstrap.Popover(el);
   });
 });
 </script>
