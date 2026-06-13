@@ -212,7 +212,17 @@ async function getNubeFolderId() {
 }
 
 function isAvailable() {
-  try { return getAuth() !== null; } catch(e) { return false; }
+  if (process.env.DRIVE_OAUTH_JSON) return true;
+  if (process.env.DRIVE_KEY_JSON) return true;
+  if (fs.existsSync(OAUTH_CONFIG_PATH)) return true;
+  if (fs.existsSync(KEY_PATH)) return true;
+  const missing = [];
+  if (!process.env.DRIVE_OAUTH_JSON && !fs.existsSync(OAUTH_CONFIG_PATH)) missing.push('DRIVE_OAUTH_JSON env var or ' + OAUTH_CONFIG_PATH);
+  if (!process.env.DRIVE_KEY_JSON && !fs.existsSync(KEY_PATH)) missing.push('DRIVE_KEY_JSON env var or ' + KEY_PATH);
+  if (missing.length > 0) {
+    console.log('[Drive] No disponible - falta:', missing.join(', '));
+  }
+  try { return getAuth() !== null; } catch(e) { console.error('[Drive] isAvailable error:', e.message); return false; }
 }
 
 async function findMonthlyZip(year, month) {

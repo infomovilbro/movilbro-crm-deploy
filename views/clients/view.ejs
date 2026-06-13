@@ -736,6 +736,23 @@ document.addEventListener('DOMContentLoaded', function() {
         plugins: { legend: { display: false } }
       }
     });
+    // Auto-fetch consumption for first available line
+    if (linesArr.length > 0) {
+      var firstLine = linesArr[0];
+      fetch('/clientes/' + clientId + '/line/' + encodeURIComponent(firstLine) + '/consumption', { method: 'POST' })
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+          if (res.ok && res.data) {
+            var d = res.data;
+            var total = parseFloat(d.totalGB || d.total_gb || d.total || 0);
+            var used = parseFloat(d.usedGB || d.used_gb || d.used || d.consumed || 0);
+            var remaining = parseFloat(d.remainingGB || d.remaining_gb || d.remaining || 0);
+            gbChart.data.datasets[0].data = [total, used, remaining];
+            gbChart.update();
+          }
+        })
+        .catch(function(err) { console.error('Auto-fetch consumption error:', err); });
+    }
   }
 
   document.querySelectorAll('.ver-consumo').forEach(function(btn) {

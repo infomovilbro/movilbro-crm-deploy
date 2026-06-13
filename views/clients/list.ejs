@@ -64,8 +64,10 @@
                 <td>
                   <% if (c.id_local) { %>
                     <a href="/clientes/<%= c.id_local %>" class="fw-bold text-decoration-none"><%= c.nombre %> <%= c.apellidos || '' %></a>
-                  <% } else if (c.fiscal_id) { %>
-                    <a href="/clientes/fiscal/<%= encodeURIComponent(c.fiscal_id) %>" class="fw-bold text-decoration-none"><%= c.nombre %> <%= c.apellidos || '' %></a>
+                  <% } else if (c.id_api) { %>
+                    <a href="/clientes/fiscal/<%= encodeURIComponent(c.dni_nif || c.id_api) %>" class="fw-bold text-decoration-none"><%= c.nombre %> <%= c.apellidos || '' %></a>
+                  <% } else if (c.dni_nif) { %>
+                    <a href="/clientes/fiscal/<%= encodeURIComponent(c.dni_nif) %>" class="fw-bold text-decoration-none"><%= c.nombre %> <%= c.apellidos || '' %></a>
                   <% } else { %>
                     <span class="fw-bold"><%= c.nombre %> <%= c.apellidos || '' %></span>
                   <% } %>

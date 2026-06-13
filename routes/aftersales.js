@@ -43,11 +43,30 @@ router.post('/installations', async (req, res) => {
   }
 });
 
+function grabAllValues(obj, prefix) {
+  if (!obj || typeof obj !== 'object') return {};
+  const result = {};
+  for (const [k, v] of Object.entries(obj)) {
+    const key = prefix ? prefix + '.' + k : k;
+    if (v !== null && v !== undefined && typeof v !== 'object') {
+      result[key] = String(v);
+    } else if (v !== null && typeof v === 'object' && !Array.isArray(v)) {
+      Object.assign(result, grabAllValues(v, key));
+    } else if (Array.isArray(v) && v.length > 0 && typeof v[0] !== 'object') {
+      result[key] = String(v[0]);
+    }
+  }
+  return result;
+}
+
 function mapInstallation(raw) {
   if (!raw || typeof raw !== 'object') return raw;
   const o = raw.data || raw.installation || raw;
   // Log ALL keys from the raw object for debugging
   console.log('[Installation detail] RAW keys:', Object.keys(o).join(', '), '| nested:', Object.keys(raw).join(', '));
+  // Log all scalar key-value pairs from raw, including nested
+  const allValues = grabAllValues(raw, '');
+  console.log('[Installation detail] ALL scalar values:', JSON.stringify(allValues, null, 2));
   
   // Auto-detect: busca el primer valor no vacío para cada campo usando múltiples estrategias
   const pick = (...keys) => {
@@ -69,6 +88,12 @@ function mapInstallation(raw) {
       const lower = k.toLowerCase();
       const found = allKeys.find(ak => ak.toLowerCase().includes(lower));
       if (found && o[found] !== null && o[found] !== undefined && o[found] !== '') return String(o[found]);
+    }
+    // Try the flattened allValues as last resort
+    for (const k of keys) {
+      const lower = k.toLowerCase();
+      const found = Object.keys(allValues).find(ak => ak.toLowerCase().includes(lower) || ak.endsWith('.' + k) || ak.endsWith('.' + k.toLowerCase()));
+      if (found && allValues[found] !== null && allValues[found] !== undefined && allValues[found] !== '') return String(allValues[found]);
     }
     return '';
   };

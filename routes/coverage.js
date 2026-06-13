@@ -14,7 +14,12 @@ router.post('/search', requireAuth, async (req, res) => {
   }
   try {
     const api = LikesAPI.getApiInstance();
-    const data = await api.request('GET', '/coverage/address?label=' + encodeURIComponent(direccion));
+    let data;
+    try {
+      data = await api.request('GET', '/coverage/address?label=' + encodeURIComponent(direccion));
+    } catch (e) {
+      data = await api.request('GET', '/coverage/address?q=' + encodeURIComponent(direccion));
+    }
     const addresses = Array.isArray(data) ? data : (data.data || data.results || []);
     res.render('coverage/index', { title: 'Consultar Cobertura', error: addresses.length === 0 ? 'No se encontraron direcciones' : null, direccion, addresses, selectedAddress: null, coverage: null, products: null });
   } catch (err) {
