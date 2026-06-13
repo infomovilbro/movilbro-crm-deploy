@@ -139,11 +139,23 @@ async function textToSpeech(text, voice) {
     }
   }
 
+  // Fallback: Google TTS (gratuito, sin API key)
+  try {
+    var googleTts = 'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=es&q=' + encodeURIComponent(text.substring(0, 200));
+    var resp = await axios.get(googleTts, { responseType: 'arraybuffer', timeout: 15000, headers: { 'User-Agent': 'Mozilla/5.0' } });
+    if (resp.data && resp.data.length > 1000) {
+      console.log('[TTS] Audio generado con Google TTS,', resp.data.length, 'bytes');
+      return { audio: Buffer.from(resp.data), format: 'mp3' };
+    }
+  } catch(e) {
+    console.log('[TTS] Google TTS falló:', e.message);
+  }
+
   // Fallback: OpenRouter TTS si está disponible
   var openRouterKey = process.env.OPENROUTER_API_KEY || '';
   if (openRouterKey) {
     try {
-      var resp = await axios.post('https://openrouter.ai/api/v1/chat/completions', {
+      var resp = await axios.post('https://openrouter.ai/api/v1/audio/speech', {
         model: 'openai/tts-1',
         input: text.substring(0, 500),
         voice: 'alloy',

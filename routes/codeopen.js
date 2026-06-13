@@ -212,55 +212,41 @@ async function callLLM(systemPrompt, userMessage, temperature, modelId) {
   if (!modelConfig) return 'Error: Modelo no disponible';
   if (!modelConfig.key) return 'Error: API key para ' + modelConfig.name + ' no configurada';
 
+    // Intentar TODOS los modelos disponibles hasta encontrar uno que funcione
+    var modelsToTry = [primaryModel, 'deepseek-v4-flash-free', 'nemotron-3-ultra-free', 'nemotron-3-super-free', 'gemini-2.0-flash-openrouter', 'mistral-small-openrouter', 'llama-3.2-openrouter'];
     var lastError = '';
-    // ULTRA RAPIDO: solo 1 intento, 5s timeout, DeepSeek, respuesta corta
-    var fastModel = 'deepseek-v4-flash-free';
-    var fastConfig = getModelConfig(fastModel);
-    if (fastConfig && fastConfig.key) {
-      try {
-        const r = await axios.post(fastConfig.apiEndpoint, {
-          model: fastModel,
-          messages: [{ role: 'system', content: (systemPrompt || '').substring(0, 300) }, { role: 'user', content: (userMessage || '').substring(0, 300) }],
-          temperature: 0.3, max_tokens: 200
-        }, { timeout: 5000, headers: { 'Authorization': 'Bearer ' + fastConfig.key, 'Content-Type': 'application/json' } });
-        var text = r?.data?.choices?.[0]?.message?.content;
-        if ((text || '').trim()) {
-          try { db.prepare("INSERT INTO model_usage (model_id, date, calls) VALUES (?, ?, 1) ON CONFLICT(model_id, date) DO UPDATE SET calls = calls + 1, updated_at = CURRENT_TIMESTAMP").run(fastModel, 'today'); } catch(e) {}
-          return (text || '').trim();
-        }
-        } catch(e) {
-          lastError = e.message;
-          if (e.response && e.response.status === 429) {
-            lastError = 'El modelo está saturado. Reintenta en unos segundos.';
-            console.log('[CodeOpen] 429 rate limit detected (fast)');
-          } else {
-            console.log('[CodeOpen] Error rapido:', e.message);
-          }
-        }
-    }
     
-    // Fallback: intentar el modelo seleccionado por el usuario
-    try {
-      var userConfig = getModelConfig(primaryModel);
-      if (userConfig && userConfig.key) {
-        const r = await axios.post(userConfig.apiEndpoint, {
-          model: primaryModel,
+    for (var mi = 0; mi < modelsToTry.length; mi++) {
+      var tryModel = modelsToTry[mi];
+      var tryConfig = getModelConfig(tryModel);
+      if (!tryConfig || !tryConfig.key) continue;
+      
+      try {
+        const r = await axios.post(tryConfig.apiEndpoint, {
+          model: tryModel,
           messages: [{ role: 'user', content: ((systemPrompt || '') + '\n' + (userMessage || '')).substring(0, 500) }],
           temperature: 0.3, max_tokens: 200
-        }, { timeout: 8000, headers: { 'Authorization': 'Bearer ' + userConfig.key, 'Content-Type': 'application/json' } });
-        var text2 = r?.data?.choices?.[0]?.message?.content;
-        if ((text2 || '').trim()) return (text2 || '').trim();
-      }
-    } catch(e) {
-      lastError = e.message;
-      if (e.response && e.response.status === 429) {
-        lastError = 'El modelo está saturado. Reintenta en unos segundos.';
-        console.log('[CodeOpen] 429 rate limit detected (fallback)');
+        }, { timeout: 5000, headers: { 'Authorization': 'Bearer ' + tryConfig.key, 'Content-Type': 'application/json' } });
+        var text = r?.data?.choices?.[0]?.message?.content;
+        if ((text || '').trim()) {
+          try { db.prepare("INSERT INTO model_usage (model_id, date, calls) VALUES (?, ?, 1) ON CONFLICT(model_id, date) DO UPDATE SET calls = calls + 1, updated_at = CURRENT_TIMESTAMP").run(tryModel, new Date().toISOString().split('T')[0]); } catch(e) {}
+          return (text || '').trim();
+        }
+      } catch(e) {
+        var is429 = e.response && e.response.status === 429;
+        lastError = is429 ? ('Modelo ' + tryModel + ' saturado') : e.message;
+        if (is429) {
+          console.log('[CodeOpen] 429 en ' + tryModel + ', probando siguiente...');
+          continue; // Probar siguiente modelo
+        } else {
+          console.log('[CodeOpen] Error en ' + tryModel + ':', e.message);
+          continue;
+        }
       }
     }
     
-    console.error('[CodeOpen] Error:', lastError);
-    return 'Error: ' + (lastError || 'desconocido');
+    console.error('[CodeOpen] Todos los modelos fallaron:', lastError);
+    return 'Error: Inténtalo de nuevo en unos segundos. (' + lastError + ')';
 }
 
 const AGENT_CATEGORIES = {
