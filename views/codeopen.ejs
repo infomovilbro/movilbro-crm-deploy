@@ -959,6 +959,7 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
           '<div style="font-size:0.8rem;color:var(--text);margin-bottom:8px;padding:6px 10px;background:var(--bg-card);border-radius:8px;border-left:3px solid #25D366;">' + escHtml(msg.body || '').substring(0, 300) + '</div>' +
           '<div class="wa-msg-actions" data-id="' + msg.id + '">' +
           '<button class="btn-analyze" data-id="' + msg.id + '" style="background:var(--accent);color:#fff;border:0;border-radius:8px;padding:6px 10px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-robot-line"></i>' + (hasAnalysis ? ' Re-analizar' : ' Analizar') + '</button>' +
+          '<div id="progress_' + msg.id + '" style="display:none;height:3px;background:var(--border);border-radius:2px;margin-top:4px;overflow:hidden;"><div style="width:0%;height:100%;background:var(--accent);border-radius:2px;transition:width 0.5s;"></div></div>' +
           '</div>';
         // Siempre mostrar editor si hay analisis (aunque sea error)
         if (hasAnalysis || (msg.proposed_response && msg.proposed_response !== '')) {
@@ -1048,8 +1049,16 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
     btn.disabled = true;
     isAnalyzing = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm" style="width:10px;height:10px;"></span> Analizando...';
+    // Mostrar barra de progreso
+    var progBar = document.getElementById('progress_' + id);
+    if (progBar) {
+      progBar.style.display = 'block';
+      var fill = progBar.querySelector('div');
+      if (fill) { fill.style.width = '10%'; setTimeout(function() { fill.style.width = '50%'; }, 500); setTimeout(function() { fill.style.width = '80%'; }, 1500); }
+    }
     fetch('/codeopen/analyze/' + id, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: currentModelId }) }).then(function(r) { return r.json(); }).then(function(d) {
       isAnalyzing = false;
+      if (progBar) { var fill = progBar.querySelector('div'); if (fill) fill.style.width = '100%'; setTimeout(function() { if (progBar) progBar.style.display = 'none'; }, 500); }
       if (d.ok) {
         // NO recargar toda la vista - solo actualizar este mensaje
         var msgDiv = btn.closest('[style*="padding"]');

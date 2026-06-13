@@ -40,6 +40,12 @@ function isOAuthAvailable() {
 }
 
 function getAuth() {
+  // Diagnostic logging for Drive auth
+  const oauthCfg = getOAuthConfig();
+  const keyFile = getKey();
+  if (oauthCfg) console.log('[Drive] OAuth config found, has refresh_token:', !!oauthCfg.refresh_token, 'has client_id:', !!oauthCfg.client_id);
+  if (keyFile) console.log('[Drive] Service account key found, has client_email:', !!keyFile.client_email);
+  if (!oauthCfg && !keyFile) console.log('[Drive] No auth credentials found - check DRIVE_OAUTH_JSON or DRIVE_KEY_JSON env vars');
   const cfg = getOAuthConfig();
   if (cfg && cfg.refresh_token && cfg.client_id && cfg.client_secret) {
     try {
