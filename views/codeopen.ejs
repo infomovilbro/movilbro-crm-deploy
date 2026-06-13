@@ -960,14 +960,15 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
           '<div class="wa-msg-actions" data-id="' + msg.id + '">' +
           '<button class="btn-analyze" data-id="' + msg.id + '" style="background:var(--accent);color:#fff;border:0;border-radius:8px;padding:6px 10px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-robot-line"></i>' + (hasAnalysis ? ' Re-analizar' : ' Analizar') + '</button>' +
           '</div>';
-        if (hasAnalysis) {
+        // Siempre mostrar editor si hay analisis (aunque sea error)
+        if (hasAnalysis || (msg.proposed_response && msg.proposed_response !== '')) {
+          var isError = (msg.proposed_response || '').indexOf('Error:') === 0;
           var respDiv = document.createElement('div');
-          respDiv.style.cssText = 'margin-top:6px;padding:8px;background:rgba(34,197,94,0.08);border-radius:8px;border:1px solid rgba(34,197,94,0.2);';
-          respDiv.innerHTML = '<div style="font-size:0.7rem;color:#22c55e;margin-bottom:4px;"><i class="ri-check-line"></i> Analizado</div>' +
-            '<textarea class="response-editor" data-id="' + msg.id + '" style="width:100%;background:var(--bg-main);border:1px solid var(--border);border-radius:8px;padding:8px;font-size:0.75rem;color:var(--text);margin-bottom:6px;resize:vertical;min-height:50px;font-family:inherit;">' + escHtml(msg.proposed_response).substring(0, 500) + '</textarea>' +
+          respDiv.style.cssText = 'margin-top:6px;padding:8px;border-radius:8px;border:1px solid ' + (isError ? 'var(--error)' : 'rgba(34,197,94,0.2)') + ';background:' + (isError ? 'rgba(239,68,68,0.05)' : 'rgba(34,197,94,0.08)') + ';';
+          respDiv.innerHTML = '<div style="font-size:0.7rem;color:' + (isError ? 'var(--error)' : '#22c55e') + ';margin-bottom:4px;"><i class="ri-' + (isError ? 'close' : 'check') + '-line"></i> ' + (isError ? 'Error al analizar - escribe tu respuesta:' : 'Respuesta lista - puedes editarla:') + '</div>' +
+            '<textarea class="response-editor" data-id="' + msg.id + '" style="width:100%;background:var(--bg-main);border:1px solid var(--border);border-radius:8px;padding:8px;font-size:0.75rem;color:var(--text);margin-bottom:6px;resize:vertical;min-height:50px;font-family:inherit;">' + (isError ? '' : escHtml(msg.proposed_response || '').substring(0, 500)) + '</textarea>' +
             '<div style="display:flex;gap:4px;flex-wrap:wrap;">' +
-            '<button class="btn-send-with-fwd" data-id="' + msg.id + '" style="flex:1;min-width:80px;background:#25D366;color:#fff;border:0;border-radius:8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-reply-line"></i> Con reenvío</button>' +
-            '<button class="btn-send-no-fwd" data-id="' + msg.id + '" style="flex:1;min-width:80px;background:var(--accent);color:#fff;border:0;border-radius:8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-send-plane-line"></i> Sin reenvío</button>' +
+            '<button class="btn-send-no-fwd" data-id="' + msg.id + '" style="flex:1;min-width:80px;background:var(--accent);color:#fff;border:0;border-radius:8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-send-plane-line"></i> Enviar</button>' +
             '<button class="btn-send-audio" data-id="' + msg.id + '" style="flex:1;min-width:70px;background:#8B5CF6;color:#fff;border:0;border-radius:8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-voiceprint-line"></i> Audio</button>' +
             '<button class="btn-send-doc" data-id="' + msg.id + '" style="flex:1;min-width:70px;background:#f59e0b;color:#fff;border:0;border-radius:8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-file-pdf-line"></i> Doc</button>' +
             '<button class="btn-reject" data-id="' + msg.id + '" style="background:var(--error);color:#fff;border:0;border-radius:8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-close-line"></i></button>' +
@@ -1038,9 +1039,9 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
   }
 
   function refreshCurrentView() {
-    if (LIST_CATEGORIES.indexOf(currentCategory) >= 0) {
-      loadFilteredContacts(currentCategory === 'todos' ? 'all' : currentCategory);
-    }
+    // No recargar contactos - solo actualizar badges y pendientes
+    try { pollPendingCount(); } catch(e) {}
+    try { updateTabBadges(); } catch(e) {}
   }
 
   function analyzeMessage(id, btn) {
@@ -1050,10 +1051,12 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
     fetch('/codeopen/analyze/' + id, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: currentModelId }) }).then(function(r) { return r.json(); }).then(function(d) {
       isAnalyzing = false;
       if (d.ok) {
+        // NO recargar toda la vista - solo actualizar este mensaje
         var msgDiv = btn.closest('[style*="padding"]');
-        if (msgDiv) msgDiv.style.opacity = '0.5';
+        if (msgDiv) {
+          msgDiv.innerHTML = '<div style="padding:10px;text-align:center;color:var(--success);font-size:0.8rem;"><i class="ri-check-line"></i> Analizado. Despliega el contacto para ver la respuesta.</div>';
+        }
         pollPendingCount();
-        setTimeout(function() { refreshCurrentView(); }, 3000);
       } else {
         btn.disabled = false;
         btn.innerHTML = '<i class="ri-robot-line"></i> Analizar';

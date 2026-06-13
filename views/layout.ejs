@@ -37,6 +37,14 @@
         }
       } catch(e) { console.error('openNavGroup error:', e); }
     }
+    function toggleSubGroup(el) {
+      var submenu = el.nextElementSibling;
+      var arrow = el.querySelector('.ri-arrow-down-s-line');
+      if (submenu) {
+        submenu.style.display = submenu.style.display === 'none' ? 'block' : 'none';
+        if (arrow) arrow.style.transform = submenu.style.display === 'none' ? 'rotate(0deg)' : 'rotate(180deg)';
+      }
+    }
     function aplicarGradiente(val) {
       var nav = document.getElementById('bottomNav');
       if (nav) nav.style.background = 'linear-gradient(' + val + ')';
@@ -262,14 +270,18 @@
               <li><a class="<%= title === 'Recursos' ? 'active' : '' %>" href="/resources"><span class="emoji-icon">📁</span>Recursos</a></li>
               <li data-item-key="clientes_tickets"><a class="<%= title.includes('Ticket') ? 'active' : '' %>" href="/tickets"><span class="emoji-icon">🎫</span><%= ui.moduleName.tickets %></a></li>
               <!-- OCULTO <li data-item-key="clientes_settings"><a class="<%= title.includes('Configurac') ? 'active' : '' %>" href="/settings"><span class="emoji-icon">⚙️</span><%= ui.moduleName.settings %></a></li> -->
-              <li class="nav-subheading">🛠️ PostVenta</li>
-              <li data-item-key="postventa_portabilidades" data-ui-draggable="item"><a class="<%= title === 'Portabilidades' ? 'active' : '' %>" href="/aftersales/portabilities"><span class="emoji-icon">🔄</span>Portabilidades</a></li>
-              <li><a class="<%= title === 'Instalaciones' ? 'active' : '' %>" href="/aftersales/installations"><span class="emoji-icon">🔧</span>Instalaciones</a></li>
-              <li><a class="<%= title === 'Órdenes' ? 'active' : '' %>" href="/aftersales/orders"><span class="emoji-icon">📄</span>Órdenes</a></li>
-              <li><a class="<%= title === 'Envíos' ? 'active' : '' %>" href="/aftersales/shipments"><span class="emoji-icon">🚚</span>Envíos</a></li>
-              <li><a class="<%= title === 'Penalizaciones' ? 'active' : '' %>" href="/aftersales/router-penalties"><span class="emoji-icon">⚠️</span>Penalizaciones Router</a></li>
-              <li><a class="<%= title === 'Procesos' ? 'active' : '' %>" href="/aftersales/processes"><span class="emoji-icon">✅</span>Procesos Indiv.</a></li>
-              <li data-item-key="postventa_masivos"><a class="<%= title === 'Masivos' ? 'active' : '' %>" href="/massive-processes"><span class="emoji-icon">🗄️</span>Procesos Masivos</a></li>
+              <li class="nav-item nav-subgroup" data-subgroup="postventa" style="list-style:none;padding:0;">
+                <a class="nav-subgroup-toggle" style="display:flex;align-items:center;gap:6px;padding:6px 12px;cursor:pointer;font-size:0.8rem;color:var(--text-dim);border-radius:6px;transition:background 0.2s;" onclick="toggleSubGroup(this)"><span style="flex:1;">🛠️ PostVenta</span><i class="ri-arrow-down-s-line" style="transition:transform 0.2s;"></i></a>
+                <ul class="nav-submenu" style="display:none;padding-left:8px;">
+                  <li data-item-key="postventa_portabilidades" data-ui-draggable="item"><a class="<%= title === 'Portabilidades' ? 'active' : '' %>" href="/aftersales/portabilities"><span class="emoji-icon">🔄</span>Portabilidades</a></li>
+                  <li><a class="<%= title === 'Instalaciones' ? 'active' : '' %>" href="/aftersales/installations"><span class="emoji-icon">🔧</span>Instalaciones</a></li>
+                  <li><a class="<%= title === 'Órdenes' ? 'active' : '' %>" href="/aftersales/orders"><span class="emoji-icon">📄</span>Órdenes</a></li>
+                  <li><a class="<%= title === 'Envíos' ? 'active' : '' %>" href="/aftersales/shipments"><span class="emoji-icon">🚚</span>Envíos</a></li>
+                  <li><a class="<%= title === 'Penalizaciones' ? 'active' : '' %>" href="/aftersales/router-penalties"><span class="emoji-icon">⚠️</span>Penalizaciones Router</a></li>
+                  <li><a class="<%= title === 'Procesos' ? 'active' : '' %>" href="/aftersales/processes"><span class="emoji-icon">✅</span>Procesos Indiv.</a></li>
+                  <li data-item-key="postventa_masivos"><a class="<%= title === 'Masivos' ? 'active' : '' %>" href="/massive-processes"><span class="emoji-icon">🗄️</span>Procesos Masivos</a></li>
+                </ul>
+              </li>
             </ul>
           </li>
           <!-- PANEL ISP (grupo) -->
@@ -286,7 +298,7 @@
               <li data-item-key="isp_documentos"><a class="<%= title === 'Documentos' ? 'active' : '' %>" href="/isp/documentos"><span class="emoji-icon">📁</span>Documentos</a></li>
               <li data-item-key="isp_eventos"><a class="<%= title === 'Calendario' ? 'active' : '' %>" href="/isp/eventos"><span class="emoji-icon">📅</span>Calendario</a></li>
               -->
-              <li data-item-key="isp_clientes"><a class="<%= title === 'Clientes ISP' ? 'active' : '' %>" href="/isp/clientes"><span class="emoji-icon">👥</span>Clientes ISP</a></li>
+              <!-- OCULTO <li data-item-key="isp_clientes"><a class="<%= title === 'Clientes ISP' ? 'active' : '' %>" href="/isp/clientes"><span class="emoji-icon">👥</span>Clientes ISP</a></li> -->
               <li data-item-key="isp_nube"><a class="<%= title && title.includes('Nube') ? 'active' : '' %>" href="/isp/nube"><span class="emoji-icon">☁️</span>Nube</a></li>
             </ul>
           </li>

@@ -128,6 +128,38 @@ router.post('/nuevo', requireAuth, (req, res) => {
   res.redirect('/clientes');
 });
 
+// Ruta para ver cliente por fiscalId (API-only)
+router.get('/fiscal/:fiscalId', requireAuth, async (req, res) => {
+  try {
+    const api = LikesAPI.getApiInstance();
+    const data = await api.request('GET', '/customer/overview?fiscalId=' + encodeURIComponent(req.params.fiscalId) + '&includeCustomer=true&includeSubscriptions=true&includeOrders=true&includeInstallations=true&includeInvoices=true&includePayments=true');
+    const apiCustomer = data.customer || data.data || {};
+    const fiscalId = req.params.fiscalId;
+    res.render('clients/view', {
+      title: 'Cliente: ' + (apiCustomer.name || fiscalId),
+      cliente: { id: null, nombre: apiCustomer.name || '', apellidos: apiCustomer.firstSurname || '', dni_nif: fiscalId, telefono: apiCustomer.contactPhone || '', email: apiCustomer.email || '', direccion: '', ciudad: '', provincia: '', codigo_postal: '', created_at: apiCustomer.created || '', likes_customer_id: fiscalId, notas: '', metodo_pago: apiCustomer.paymentMethod || '', iban: '' },
+      ordenes: Array.isArray(apiCustomer.subscriptions) ? apiCustomer.subscriptions : [],
+      contratos: [],
+      suscripciones: Array.isArray(apiCustomer.subscriptions) ? apiCustomer.subscriptions.map(s => ({ ...s, origen: 'api' })) : [],
+      tickets: [],
+      apiSubCount: 0,
+      linesByStatus: '{}',
+      lineNumbers: '[]',
+      apiActions: { canBlock: true, canChangeTariff: true, canDuplicateSim: true, canViewConsumption: true },
+      apiCustomer: data,
+      apiSubscriptions: Array.isArray(apiCustomer.subscriptions) ? apiCustomer.subscriptions : [],
+      apiOrders: Array.isArray(apiCustomer.orders) ? apiCustomer.orders : [],
+      apiInvoices: Array.isArray(apiCustomer.invoices) ? apiCustomer.invoices : [],
+      apiInstallations: Array.isArray(apiCustomer.installations) ? apiCustomer.installations : [],
+      apiPortabilities: [],
+      apiPayments: []
+    });
+  } catch(e) {
+    console.error('[Clientes] Error fetching API client:', e.message);
+    res.redirect('/clientes');
+  }
+});
+
 router.get('/:id', requireAuth, async (req, res) => {
   const cliente = db.prepare('SELECT * FROM clients WHERE id = ?').get(req.params.id);
   if (!cliente) return res.redirect('/clientes');
