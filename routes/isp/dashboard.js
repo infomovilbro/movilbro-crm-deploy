@@ -92,12 +92,6 @@ router.get('/', async (req, res) => {
     var incLocal = db.prepare('SELECT COUNT(*) as c FROM isp_incidencias').get();
     var incAbiertasLocal = db.prepare("SELECT COUNT(*) as c FROM isp_incidencias WHERE estado='abierta'").get();
 
-    // Morosidad: clientes con facturas vencidas
-    var morosos = [];
-    try {
-      morosos = db.prepare("SELECT cliente_nombre, fiscal_id, SUM(importe_total) as total_adeudado, COUNT(*) as numero_facturas_vencidas, MIN(periodo) as periodo_mas_antiguo FROM isp_facturas WHERE estado='pendiente' AND fecha_vencimiento < date('now') GROUP BY fiscal_id, cliente_nombre ORDER BY total_adeudado DESC").all();
-    } catch(e) { console.error('Morosidad query error:', e.message); }
-
     res.render('isp/dashboard', {
       title: 'Panel ISP',
       stats: {
@@ -114,8 +108,7 @@ router.get('/', async (req, res) => {
       ultimosContratos: ultimosContratos.length > 0 ? ultimosContratos : [],
       ultimasIncidencias: ultimasIncidencias.length > 0 ? ultimasIncidencias : [],
       campanasActivas: campanasActivas.c,
-      totalClientes: totalClientesApi,
-      morosos: morosos
+      totalClientes: totalClientesApi
     });
   } catch (e) { console.error(e); res.status(500).send('Error: ' + e.message); }
 });

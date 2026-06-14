@@ -773,7 +773,6 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
   var waQRError = $('waQRError');
   var waStatusText = $('waStatusText');
 
-  var _qrPollTimer = null;
   function pollWAStatus() {
     fetch('/codeopen/baileys-qr').then(function(r) { return r.json(); }).then(function(d) {
       var st = d.status || {};
@@ -789,8 +788,6 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
       } else if (st.hasQR) {
         waStatusText.textContent = 'QR';
         waStatusText.style.color = '#f59e0b';
-        waQRLoading.style.display = 'block';
-        waQRLoading.innerHTML = '<div class="spinner-border spinner-border-sm"></div> QR disponible';
         waQRImage.src = '/codeopen/baileys-qr-image?' + Date.now();
         waQRImage.onload = function() {
           waQRLoading.style.display = 'none';
@@ -807,22 +804,16 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
         waQRError.textContent = 'Error: ' + st.error;
         waQRError.style.display = 'block';
         waQRLoading.style.display = 'none';
-        waQRImageWrap.style.display = 'none';
       } else {
         waStatusText.textContent = 'Descon.';
         waStatusText.style.color = '#888';
-        waQRLoading.style.display = 'block';
-        waQRLoading.innerHTML = '<div class="spinner-border spinner-border-sm"></div> Generando QR...';
-        waQRImageWrap.style.display = 'none';
-        waQRConnected.style.display = 'none';
-        waQRError.style.display = 'none';
       }
     });
   }
 
   try { pollWAStatus(); } catch(e) { console.error('[Init] pollWAStatus:', e); }
-  // Polling QR cada 5s para respuesta rápida
-  _qrPollTimer = setInterval(function() { try { pollWAStatus(); } catch(e) {} }, 5000);
+  // Polling QR cada 30s (antes 5s) para reducir carga
+  setInterval(function() { try { pollWAStatus(); } catch(e) {} }, 30000);
 
   whatsappBtn.addEventListener('click', function() {
     waQRPanel.style.right = '0';

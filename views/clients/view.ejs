@@ -1,16 +1,10 @@
 <section>
-  <% if (typeof apiError !== 'undefined' && apiError) { %>
-  <div class="alert alert-warning alert-dismissible fade show" role="alert">
-    <i class="bi bi-exclamation-triangle"></i> <strong>Aviso:</strong> <%= apiError %>
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-  </div>
-  <% } %>
   <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
       <h4 class="mb-1"><i class="bi bi-person-circle text-primary"></i>
-        <%= (apiCustomer.name || apiCustomer.firstName || cliente.nombre || 'Cliente') %> <%= (apiCustomer.lastName || apiCustomer.surname || cliente.apellidos || '') %>
+        <%= (apiCustomer.name || apiCustomer.firstName || cliente.nombre) %> <%= (apiCustomer.lastName || apiCustomer.surname || cliente.apellidos || '') %>
       </h4>
-      <small class="text-muted"><%= apiCustomer.fiscalId || cliente.dni_nif || '' %> <% if (cliente.id) { %>&middot; #<%= cliente.id %><% } %></small>
+      <small class="text-muted"><%= apiCustomer.fiscalId || cliente.dni_nif || '' %> &middot; #<%= cliente.id %></small>
     </div>
     <div class="d-flex gap-2 flex-wrap">
       <a href="/clientes/<%= cliente.id %>/editar" class="btn btn-warning"><i class="bi bi-pencil"></i> Editar</a>
@@ -53,13 +47,6 @@
         <li class="nav-item" role="presentation">
           <button class="nav-link" id="kyc-tab" data-bs-toggle="tab" data-bs-target="#kyc" type="button" role="tab" aria-controls="kyc" aria-selected="false">
             <i class="bi bi-file-earmark-text"></i> Documentos KYC
-          </button>
-        </li>
-        <li class="nav-item" role="presentation">
-          <button class="nav-link" id="contrato-tab" data-bs-toggle="tab" data-bs-target="#contrato" type="button" role="tab" aria-controls="contrato" aria-selected="false">
-            <i class="bi bi-file-text"></i> Contrato
-            <% var totalContratos = (contratos ? contratos.length : 0) + (apiContractDocs ? apiContractDocs.length : 0); %>
-            <% if (totalContratos > 0) { %><span class="badge bg-secondary ms-1"><%= totalContratos %></span><% } %>
           </button>
         </li>
       </ul>
@@ -197,11 +184,9 @@
                 <% var prods = s.products && s.products.length ? s.products : [{productName: s.productName, lineNumber: s.lineNumber, status: s.status, icc: s.icc}]; %>
                 <% prods.forEach(function(p) { %>
                 <% var linea = p.lineNumber || s.lineNumber || ''; %>
-                <% var prodName = p.productName || s.productName || ''; %>
-                <% var famIcon = prodName.toLowerCase().indexOf('fibra') >= 0 || prodName.toLowerCase().indexOf('ftth') >= 0 ? '🌐' : prodName.toLowerCase().indexOf('tv') >= 0 || prodName.toLowerCase().indexOf('television') >= 0 ? '📺' : prodName.toLowerCase().indexOf('fijo') >= 0 || prodName.toLowerCase().indexOf('voip') >= 0 ? '📞' : prodName.toLowerCase().indexOf('movil') >= 0 || prodName.toLowerCase().indexOf('mobile') >= 0 || prodName.toLowerCase().indexOf('smartphone') >= 0 || prodName.toLowerCase().indexOf('tarifa') >= 0 || prodName.toLowerCase().indexOf('linea') >= 0 ? '📱' : '📡'; %>
                 <tr>
-                  <td><strong><%= famIcon %> <%= linea || '-' %></strong></td>
-                  <td><%= prodName || '-' %></td>
+                  <td><strong><%= linea || '-' %></strong></td>
+                  <td><%= p.productName || s.productName || '-' %></td>
                   <td>
                     <% var est = (p.status || s.status || 'activa').toLowerCase(); %>
                     <span class="badge bg-<%= est === 'activa' || est === 'activo' || est === 'active' ? 'success' : est === 'suspendida' || est === 'suspended' ? 'warning' : est === 'baja' || est === 'cancelled' || est === 'cancelada' ? 'secondary' : 'danger' %> fs-6">
@@ -231,10 +216,8 @@
                 <% }); %>
                 <% lineas.forEach(function(l) { %>
                 <% if (!apiSubscriptions.some(function(s) { var prods = s.products && s.products.length ? s.products : [{productName: s.productName, lineNumber: s.lineNumber, status: s.status, icc: s.icc}]; return prods.some(function(p) { return p.lineNumber === l.linea; }); })) { %>
-                <% var lProd = l.producto || ''; %>
-                <% var lIcon = lProd.toLowerCase().indexOf('fibra') >= 0 || lProd.toLowerCase().indexOf('ftth') >= 0 ? '🌐' : lProd.toLowerCase().indexOf('tv') >= 0 || lProd.toLowerCase().indexOf('television') >= 0 ? '📺' : lProd.toLowerCase().indexOf('fijo') >= 0 || lProd.toLowerCase().indexOf('voip') >= 0 ? '📞' : lProd.toLowerCase().indexOf('movil') >= 0 || lProd.toLowerCase().indexOf('mobile') >= 0 || lProd.toLowerCase().indexOf('smartphone') >= 0 || lProd.toLowerCase().indexOf('tarifa') >= 0 || lProd.toLowerCase().indexOf('linea') >= 0 ? '📱' : '📡'; %>
                 <tr class="table-secondary">
-                  <td><strong><%= lIcon %> <%= l.linea || '-' %></strong></td>
+                  <td><strong><%= l.linea || '-' %></strong></td>
                   <td><%= l.producto || '-' %> <small class="text-muted">(local)</small></td>
                   <td>
                     <span class="badge bg-<%= l.estado === 'activo' ? 'success' : l.estado === 'pendiente' ? 'warning' : l.estado === 'baja' ? 'secondary' : 'danger' %> fs-6"><%= l.estado %></span>
@@ -405,14 +388,11 @@
                   <th>Estado</th>
                   <th>Fecha Programada</th>
                   <th>Fecha Real</th>
-                  <th>T&eacute;cnico</th>
-                  <th>Documentos</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody>
                 <% apiInstallations.forEach(function(i) { %>
-                <% var iDocs = i.documents || []; %>
                 <tr>
                   <td><%= i.address || '-' %></td>
                   <td><%= i.productName || '-' %></td>
@@ -423,18 +403,8 @@
                   </td>
                   <td><small><%= i.scheduledDate ? new Date(i.scheduledDate).toLocaleDateString('es-ES') : '-' %></small></td>
                   <td><small><%= i.completedDate ? new Date(i.completedDate).toLocaleDateString('es-ES') : '-' %></small></td>
-                  <td><%= i.technician || '-' %></td>
                   <td>
-                    <% if (iDocs.length > 0) { %>
-                      <% iDocs.forEach(function(d) { %>
-                        <a href="<%= d.url %>" class="btn btn-sm btn-outline-success me-1 mb-1" target="_blank" download><i class="bi bi-download"></i> <%= d.name %></a>
-                      <% }); %>
-                    <% } else { %>
-                      <span class="text-muted small">Sin documentos</span>
-                    <% } %>
-                  </td>
-                  <td>
-                    <button class="btn btn-sm btn-outline-info ver-instalacion" data-id="<%= i.id %>" data-address="<%= i.address %>" data-city="<%= i.city %>" data-product="<%= i.productName %>" data-status="<%= i.status %>" data-scheduled="<%= i.scheduledDate %>" data-completed="<%= i.completedDate %>" data-notes="<%= i.notes || '' %>" data-technician="<%= i.technician || '' %>" data-documents='<%- JSON.stringify(iDocs).replace(/'/g,"&#39;") %>'>
+                    <button class="btn btn-sm btn-outline-info ver-instalacion" data-id="<%= i.id %>" data-address="<%= i.address %>" data-city="<%= i.city %>" data-product="<%= i.productName %>" data-status="<%= i.status %>" data-scheduled="<%= i.scheduledDate %>" data-completed="<%= i.completedDate %>" data-notes="<%= i.notes || '' %>" data-technician="<%= i.technician || '' %>">
                       <i class="bi bi-eye"></i> Ver Detalle
                     </button>
                   </td>
@@ -554,114 +524,6 @@
           <% } %>
         </div>
 
-        <!-- ==================== TAB 7: CONTRATO ==================== -->
-        <div class="tab-pane fade" id="contrato" role="tabpanel" aria-labelledby="contrato-tab">
-          <% var hasContratos = (contratos && contratos.length > 0) || (apiContractDocs && apiContractDocs.length > 0) || (altasOrdenes && altasOrdenes.length > 0); %>
-          <% if (!hasContratos) { %>
-          <div class="text-center text-muted py-5">
-            <i class="bi bi-file-text" style="font-size:3rem;"></i>
-            <p class="mt-2">No hay contratos para este cliente</p>
-          </div>
-          <% } else { %>
-
-            <% if (altasOrdenes && altasOrdenes.length > 0) { %>
-            <h6 class="mb-2"><i class="bi bi-file-earmark-check"></i> Contratos de altas (KYC)</h6>
-            <div class="table-responsive mb-4">
-              <table class="table table-sm table-hover">
-                <thead class="table-light">
-                  <tr><th># Orden</th><th>Producto</th><th>Firmado</th><th>Fecha</th><th>Acciones</th></tr>
-                </thead>
-                <tbody>
-                  <% altasOrdenes.forEach(function(o) { %>
-                  <% var datosProducto = o.datos_producto ? JSON.parse(o.datos_producto) : {}; %>
-                  <tr>
-                    <td>#<%= o.id %></td>
-                    <td><%= datosProducto.producto_id || o.likes_order_id || '-' %></td>
-                    <td>
-                      <% if (o.kyc_contrato_firmado) { %>
-                      <span class="text-success"><i class="bi bi-check-circle"></i> Firmado</span>
-                      <% } else { %>
-                      <span class="text-warning"><i class="bi bi-clock"></i> Pendiente</span>
-                      <% } %>
-                    </td>
-                    <td><small><%= o.created_at ? new Date(o.created_at).toLocaleDateString('es-ES') : '-' %></small></td>
-                    <td>
-                      <a href="/kyc/contrato/<%= o.token %>" target="_blank" class="btn btn-sm btn-outline-primary">
-                        <i class="bi bi-eye"></i> Ver
-                      </a>
-                      <a href="/kyc/contrato/<%= o.token %>" target="_blank" class="btn btn-sm btn-outline-success" download>
-                        <i class="bi bi-download"></i> PDF
-                      </a>
-                    </td>
-                  </tr>
-                  <% }) %>
-                </tbody>
-              </table>
-            </div>
-            <% } %>
-
-            <% if (apiContractDocs && apiContractDocs.length > 0) { %>
-            <h6 class="mb-2"><i class="bi bi-cloud-download"></i> Contratos de API Likes Telecom</h6>
-            <div class="table-responsive mb-4">
-              <table class="table table-sm table-hover">
-                <thead class="table-light">
-                  <tr><th>Orden</th><th>Nombre</th><th>Tipo</th><th>Acciones</th></tr>
-                </thead>
-                <tbody>
-                  <% apiContractDocs.forEach(function(c) { %>
-                  <tr>
-                    <td>#<%= c.orderId || '-' %></td>
-                    <td><%= c.name || 'Contrato' %></td>
-                    <td><span class="badge bg-secondary"><%= c.type || 'PDF' %></span></td>
-                    <td>
-                      <% if (c.url) { %>
-                      <a href="<%= c.url %>" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i> Ver</a>
-                      <a href="<%= c.url %>" target="_blank" class="btn btn-sm btn-outline-success" download><i class="bi bi-download"></i> Descargar</a>
-                      <% } else { %>
-                      <span class="text-muted">No disponible</span>
-                      <% } %>
-                    </td>
-                  </tr>
-                  <% }) %>
-                </tbody>
-              </table>
-            </div>
-            <% } %>
-
-            <% if (contratos && contratos.length > 0) { %>
-            <h6 class="mb-2"><i class="bi bi-folder"></i> Contratos locales (ISP)</h6>
-            <div class="table-responsive">
-              <table class="table table-sm table-hover">
-                <thead class="table-light">
-                  <tr><th>#</th><th>Tipo</th><th>Producto</th><th>Estado</th><th>L&iacute;nea</th><th>Fecha Alta</th><th>Acciones</th></tr>
-                </thead>
-                <tbody>
-                  <% contratos.forEach(function(c) { %>
-                  <tr>
-                    <td><a href="/isp/contratos/<%= c.id %>">#<%= c.id %></a></td>
-                    <td><span class="badge bg-secondary"><%= c.tipo || '-' %></span></td>
-                    <td><%= c.producto || c.tarifa || '-' %></td>
-                    <td>
-                      <span class="badge bg-<%= c.estado === 'activo' ? 'success' : c.estado === 'pendiente' ? 'warning' : 'secondary' %>">
-                        <%= c.estado %>
-                      </span>
-                    </td>
-                    <td><%= c.linea || '-' %></td>
-                    <td><small><%= c.fecha_alta ? new Date(c.fecha_alta).toLocaleDateString('es-ES') : '-' %></small></td>
-                    <td>
-                      <a href="/isp/contratos/<%= c.id %>" class="btn btn-sm btn-outline-info"><i class="bi bi-eye"></i></a>
-                      <a href="/isp/contratos/<%= c.id %>/pdf" target="_blank" class="btn btn-sm btn-outline-success"><i class="bi bi-file-pdf"></i></a>
-                    </td>
-                  </tr>
-                  <% }) %>
-                </tbody>
-              </table>
-            </div>
-            <% } %>
-
-          <% } %>
-        </div>
-
       </div>
     </div>
   </div>
@@ -686,11 +548,6 @@
           <tr><th>T&eacute;cnico</th><td id="instDetTechnician">-</td></tr>
           <tr><th>Notas</th><td id="instDetNotes">-</td></tr>
         </table>
-        <hr>
-        <h6 class="fw-bold"><i class="bi bi-paperclip"></i> Documentos</h6>
-        <div id="instDetDocuments">
-          <span class="text-muted small">Sin documentos</span>
-        </div>
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
@@ -754,32 +611,12 @@
           </div>
         </div>
         <hr>
-        <h6 class="mt-3"><i class="bi bi-calendar-month"></i> Consumo Mensual</h6>
-        <div class="row mb-2">
-          <div class="col-auto">
-            <select id="monthSelector" class="form-select form-select-sm">
-              <option value="">Todos los meses</option>
-            </select>
-          </div>
-        </div>
-        <div style="max-height:200px;overflow-y:auto">
+        <h6 class="mt-3"><i class="bi bi-telephone"></i> Llamadas recientes (CDRs)</h6>
+        <div style="max-height:300px;overflow:auto">
           <table class="table table-sm table-striped mb-0">
-            <thead><tr><th>Mes</th><th>GB Consumidos</th><th>L&iacute;mite</th></tr></thead>
-            <tbody id="monthlyBody"><tr><td colspan="3" class="text-center text-muted">Esperando datos...</td></tr></tbody>
+            <thead><tr><th>Fecha</th><th>Tipo</th><th>Destino</th><th>Duraci&oacute;n</th><th>Coste</th></tr></thead>
+            <tbody id="cdrsBody"><tr><td colspan="5" class="text-center text-muted">Cargando...</td></tr></tbody>
           </table>
-        </div>
-        <hr>
-        <h6 class="mt-3"><i class="bi bi-telephone"></i> Llamadas (CDRs)</h6>
-        <div class="mb-2 d-flex align-items-center gap-2">
-          <label class="form-label mb-0 small">Filtrar mes:</label>
-          <select id="cdrMonthFilter" class="form-select form-select-sm" style="width:auto;">
-            <option value="">Todos</option>
-          </select>
-          <span id="cdrCount" class="small text-muted"></span>
-        </div>
-        <div style="max-height:350px;overflow-y:auto">
-          <div class="accordion accordion-flush" id="cdrsAccordion"></div>
-          <div id="cdrsBody" class="text-center text-muted py-3 small">Cargando...</div>
         </div>
       </div>
     </div>
@@ -788,7 +625,7 @@
 
 <!-- Change Tariff Modal -->
 <div class="modal fade" id="changeTariffModal" tabindex="-1">
-  <div class="modal-dialog modal-lg">
+  <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title"><i class="bi bi-arrow-left-right"></i> Cambiar tarifa</h5>
@@ -800,14 +637,8 @@
           <select id="tariffLine" class="form-select"><option value="">Seleccione l&iacute;nea...</option></select>
         </div>
         <div class="mb-3">
-          <label class="form-label">Categor&iacute;a de producto</label>
-          <div id="tariffFamilyGrid" class="row g-1"></div>
-          <input type="hidden" id="tariffSelectedFamily" value="">
-        </div>
-        <div class="mb-3" id="tariffProductsWrap" style="display:none;">
-          <label class="form-label">Producto</label>
-          <div style="max-height:250px;overflow-y:auto;" id="tariffProductList" class="border rounded p-2"></div>
-          <input type="hidden" id="tariffProduct" value="">
+          <label class="form-label">Nuevo producto</label>
+          <select id="tariffProduct" class="form-select"><option value="">Cargando productos...</option></select>
         </div>
         <div class="mb-3">
           <label class="form-label">Ejecutar</label>
@@ -816,7 +647,6 @@
             <option value="next_billing">Pr&oacute;xima facturaci&oacute;n</option>
           </select>
         </div>
-        <div id="tariffSelectedInfo" class="alert alert-info py-2 small" style="display:none;"></div>
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -938,22 +768,6 @@ document.addEventListener('DOMContentLoaded', function() {
       document.getElementById('instDetCompleted').textContent = formatDate(this.dataset.completed);
       document.getElementById('instDetTechnician').textContent = this.dataset.technician || '-';
       document.getElementById('instDetNotes').textContent = this.dataset.notes || '-';
-      var docsEl = document.getElementById('instDetDocuments');
-      try {
-        var docs = JSON.parse(this.dataset.documents || '[]');
-        if (docs.length > 0) {
-          var html = '<div class="d-flex flex-wrap gap-2">';
-          docs.forEach(function(d) {
-            html += '<a href="' + (d.url || '#') + '" class="btn btn-sm btn-outline-success" target="_blank" download><i class="bi bi-download"></i> ' + (d.name || 'Documento') + '</a>';
-          });
-          html += '</div>';
-          docsEl.innerHTML = html;
-        } else {
-          docsEl.innerHTML = '<span class="text-muted small">Sin documentos</span>';
-        }
-      } catch(e) {
-        docsEl.innerHTML = '<span class="text-muted small">Sin documentos</span>';
-      }
       new bootstrap.Modal(document.getElementById('instalacionDetailModal')).show();
     });
   });
@@ -1004,7 +818,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(function(res) {
           if (res.ok && res.data) {
             var d = res.data;
-            var payload = d.gb || d.data || d;
+            var payload = d.data || d;
             var total = parseFloat(payload.totalGB || payload.total_gb || payload.total || payload.totalGb || 0);
             var used = parseFloat(payload.usedGB || payload.used_gb || payload.used || payload.consumed || payload.consumption || 0);
             var remaining = parseFloat(payload.remainingGB || payload.remaining_gb || payload.remaining || payload.remainingGb || 0);
@@ -1020,7 +834,7 @@ document.addEventListener('DOMContentLoaded', function() {
   var _consChartInstance = null;
 
   function parseGBData(payload) {
-    var d = payload.gb || payload.data || payload;
+    var d = payload.data || payload;
     return {
       total: parseFloat(d.totalGB || d.total_gb || d.total || d.totalGb || d.allowance || 0),
       used: parseFloat(d.usedGB || d.used_gb || d.used || d.consumed || d.consumption || d.usage || 0),
@@ -1029,177 +843,50 @@ document.addEventListener('DOMContentLoaded', function() {
     };
   }
 
-  function formatDuration(secs) {
-    if (secs === '-' || secs === undefined || secs === null) return '-';
-    var n = parseInt(secs);
-    if (isNaN(n)) return secs;
-    if (n < 60) return n + 's';
-    return Math.floor(n / 60) + 'm ' + (n % 60) + 's';
-  }
-
-  function formatCost(val) {
-    if (val === '-' || val === undefined || val === null) return '-';
-    var n = parseFloat(val);
-    if (isNaN(n)) return val;
-    return n.toFixed(4) + '€';
-  }
-
-  function extractDateStr(cdr) {
-    return cdr.date || cdr.fecha || cdr.startTime || cdr.start_date || cdr.startDate || '';
-  }
-
-  function extractDestino(cdr) {
-    return cdr.destination || cdr.destino || cdr.calledNumber || cdr.callee || cdr.phone || '-';
-  }
-
-  function extractDuration(cdr) {
-    return cdr.duration || cdr.duracion || cdr.durationSec || cdr.seconds || cdr.durationSeconds || '-';
-  }
-
-  function extractCost(cdr) {
-    return cdr.cost || cdr.coste || cdr.price || cdr.amount || '-';
-  }
-
-  var _allCdrs = [];
-  var _cdrLine = '';
-
-  function renderCdrAccordion(filterMonth) {
-    var accordion = document.getElementById('cdrsAccordion');
-    var emptyMsg = document.getElementById('cdrsBody');
-    var filterSel = document.getElementById('cdrMonthFilter');
-    var countSpan = document.getElementById('cdrCount');
-
-    if (!_allCdrs.length) {
-      accordion.innerHTML = '';
-      emptyMsg.innerHTML = 'Sin registros de llamadas';
-      countSpan.textContent = '';
-      return;
-    }
-
-    // Group by month, then by day
-    var months = {};
-    _allCdrs.forEach(function(cdr) {
-      var ds = extractDateStr(cdr);
-      if (!ds) return;
-      var d = new Date(ds);
-      if (isNaN(d.getTime())) return;
-      var monthKey = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-      var dayKey = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-      if (!months[monthKey]) months[monthKey] = {};
-      if (!months[monthKey][dayKey]) months[monthKey][dayKey] = [];
-      months[monthKey][dayKey].push(cdr);
-    });
-
-    var sortedMonths = Object.keys(months).sort().reverse();
-    var totalCount = 0;
-    var html = '';
-
-    sortedMonths.forEach(function(monthKey, mi) {
-      if (filterMonth && filterMonth !== monthKey) return;
-      var days = months[monthKey];
-      var sortedDays = Object.keys(days).sort().reverse();
-      var monthCount = 0;
-      sortedDays.forEach(function(dayKey) { monthCount += days[dayKey].length; });
-      totalCount += monthCount;
-
-      var parts = monthKey.split('-');
-      var monthLabel = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
-      monthLabel = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
-
-      html += '<div class="accordion-item"><h2 class="accordion-header"><button class="accordion-button collapsed py-2" type="button" data-bs-toggle="collapse" data-bs-target="#cdrMonth' + mi + '" aria-expanded="false"><strong>' + monthLabel + '</strong> <span class="badge bg-secondary ms-2">' + monthCount + '</span></button></h2>';
-      html += '<div id="cdrMonth' + mi + '" class="accordion-collapse collapse" data-bs-parent="#cdrsAccordion"><div class="accordion-body p-0">';
-
-      sortedDays.forEach(function(dayKey) {
-        var cdrs = days[dayKey];
-        var dd = new Date(dayKey);
-        var dayLabel = dd.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
-        dayLabel = dayLabel.charAt(0).toUpperCase() + dayLabel.slice(1);
-        html += '<div class="px-2 pt-2"><small class="text-muted fw-semibold">' + dayLabel + ' <span class="badge bg-light text-dark">' + cdrs.length + '</span></small></div>';
-        html += '<table class="table table-sm table-borderless mb-0"><tbody>';
-        cdrs.forEach(function(cdr) {
-          var ds = extractDateStr(cdr);
-          var timeStr = '';
-          if (ds) { var td = new Date(ds); if (!isNaN(td.getTime())) timeStr = td.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }); }
-          var destino = extractDestino(cdr);
-          var dur = formatDuration(extractDuration(cdr));
-          var cost = formatCost(extractCost(cdr));
-          html += '<tr><td class="small text-nowrap ps-3" style="width:75px;">' + timeStr + '</td><td class="small">' + destino + '</td><td class="small text-nowrap" style="width:80px;">' + dur + '</td><td class="small text-nowrap text-end" style="width:90px;">' + cost + '</td></tr>';
-        });
-        html += '</tbody></table>';
-      });
-
-      html += '</div></div></div>';
-    });
-
-    accordion.innerHTML = html;
-    emptyMsg.innerHTML = '';
-    countSpan.textContent = totalCount + ' registros';
-
-    // Mark months not matching filter
-    if (filterMonth) {
-      accordion.querySelectorAll('.accordion-collapse').forEach(function(el) { el.classList.add('show'); });
-    }
-  }
-
-  function populateMonthFilter() {
-    var sel = document.getElementById('cdrMonthFilter');
-    var months = {};
-    _allCdrs.forEach(function(cdr) {
-      var ds = extractDateStr(cdr);
-      if (!ds) return;
-      var d = new Date(ds);
-      if (isNaN(d.getTime())) return;
-      var mk = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-      months[mk] = (months[mk] || 0) + 1;
-    });
-    var sorted = Object.keys(months).sort().reverse();
-    sel.innerHTML = '<option value="">Todos</option>';
-    sorted.forEach(function(mk) {
-      var parts = mk.split('-');
-      var label = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
-      label = label.charAt(0).toUpperCase() + label.slice(1);
-      var opt = document.createElement('option');
-      opt.value = mk;
-      opt.textContent = label + ' (' + months[mk] + ')';
-      sel.appendChild(opt);
-    });
-  }
-
-  function fetchCDRData(line) {
-    _cdrLine = line;
-    var accordion = document.getElementById('cdrsAccordion');
-    var emptyMsg = document.getElementById('cdrsBody');
-    accordion.innerHTML = '';
-    emptyMsg.innerHTML = 'Cargando...';
-
+  function fetchCDRData(line, tbody) {
     fetch('/clientes/' + clientId + '/line/' + encodeURIComponent(line) + '/cdrs', { method: 'POST' })
       .then(function(r) { return r.json(); })
       .then(function(res) {
+        tbody.innerHTML = '';
         if (res.ok && res.data) {
-          _allCdrs = Array.isArray(res.data) ? res.data : (res.data.data || res.data.cdrs || res.data.records || res.data.items || []);
-          if (!Array.isArray(_allCdrs)) _allCdrs = [];
+          var cdrList = Array.isArray(res.data) ? res.data : (res.data.data || res.data.cdrs || res.data.records || res.data.items || []);
+          if (!Array.isArray(cdrList)) cdrList = [];
+          if (cdrList.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Sin registros de llamadas</td></tr>';
+          } else {
+            cdrList.forEach(function(cdr) {
+              var tr = document.createElement('tr');
+              var fecha = cdr.date || cdr.fecha || cdr.startTime || cdr.start_date || cdr.startDate || '-';
+              var tipo = cdr.type || cdr.tipo || cdr.callType || cdr.direction || '-';
+              var destino = cdr.destination || cdr.destino || cdr.calledNumber || cdr.callee || cdr.phone || '-';
+              var dur = cdr.duration || cdr.duracion || cdr.durationSec || cdr.seconds || cdr.durationSeconds || '-';
+              var cost = cdr.cost || cdr.coste || cdr.price || cdr.amount || '-';
+              if (dur !== '-' && !isNaN(parseFloat(dur))) {
+                var secs = parseInt(dur);
+                dur = Math.floor(secs / 60) + 'm ' + (secs % 60) + 's';
+              }
+              if (cost !== '-' && !isNaN(parseFloat(cost))) cost = parseFloat(cost).toFixed(4) + '€';
+              tr.innerHTML = '<td class="small">' + fecha + '</td><td>' + tipo + '</td><td>' + destino + '</td><td>' + dur + '</td><td>' + cost + '</td>';
+              tbody.appendChild(tr);
+            });
+          }
         } else {
-          _allCdrs = [];
+          tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Sin registros de llamadas</td></tr>';
         }
-        populateMonthFilter();
-        renderCdrAccordion('');
       })
       .catch(function(err) {
         console.error('CDRs error:', err);
-        accordion.innerHTML = '';
-        emptyMsg.innerHTML = 'Error al cargar CDRs';
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Error al cargar CDRs</td></tr>';
       });
   }
-
-  document.getElementById('cdrMonthFilter').addEventListener('change', function() {
-    renderCdrAccordion(this.value);
-  });
 
   document.querySelectorAll('.ver-consumo').forEach(function(btn) {
     btn.addEventListener('click', function() {
       var line = this.dataset.line;
       if (!line) return;
       document.getElementById('consLineNumber').textContent = line;
+      var cdrBody = document.getElementById('cdrsBody');
+      cdrBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Cargando...</td></tr>';
 
       fetch('/clientes/' + clientId + '/line/' + encodeURIComponent(line) + '/consumption', { method: 'POST' })
         .then(function(r) { return r.json(); })
@@ -1231,32 +918,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
               });
             }
-            // Populate monthly consumption
-            var monthly = res.data.monthly || [];
-            var monthlyBody = document.getElementById('monthlyBody');
-            var monthSel = document.getElementById('monthSelector');
-            if (monthly.length > 0) {
-              monthlyBody.innerHTML = '';
-              monthSel.innerHTML = '<option value="">Todos los meses</option>';
-              monthly.forEach(function(m) {
-                var tr = document.createElement('tr');
-                tr.innerHTML = '<td>' + m.mes + '</td><td>' + m.gbUsados.toFixed(2) + ' GB</td><td>' + (m.gbTotales ? m.gbTotales.toFixed(2) + ' GB' : '-') + '</td>';
-                monthlyBody.appendChild(tr);
-                var opt = document.createElement('option');
-                opt.value = m.mes;
-                opt.textContent = m.mes;
-                monthSel.appendChild(opt);
-              });
-              monthSel.onchange = function() {
-                var val = this.value;
-                var rows = monthlyBody.querySelectorAll('tr');
-                rows.forEach(function(row) {
-                  row.style.display = (!val || row.cells[0].textContent === val) ? '' : 'none';
-                });
-              };
-            } else {
-              monthlyBody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">Sin datos mensuales</td></tr>';
-            }
           } else {
             document.getElementById('consTotalGB').textContent = 'Error';
             document.getElementById('consUsedGB').textContent = '-';
@@ -1269,7 +930,7 @@ document.addEventListener('DOMContentLoaded', function() {
           document.getElementById('consTotalGB').textContent = 'Error';
         });
 
-      fetchCDRData(line);
+      fetchCDRData(line, cdrBody);
       new bootstrap.Modal(document.getElementById('consumptionModal')).show();
     });
   });
@@ -1334,90 +995,30 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   // ========== CHANGE TARIFF MODAL ==========
-  var _allTariffProducts = [];
-  function renderFamilyGrid(products) {
-    var grid = document.getElementById('tariffFamilyGrid');
-    var families = {};
-    products.forEach(function(p) {
-      var fam = p.family || 'Otras';
-      if (!families[fam]) families[fam] = [];
-      families[fam].push(p);
-    });
-    var palette = {Mobile:'📱',Fiber:'🌐',TV:'📺',Device:'📟',International:'🌍',Energy:'🔋',Satellite:'📡',Fixed:'📞'};
-    var labels = {Mobile:'Móvil',Fiber:'Fibra',TV:'TV',Device:'Dispositivo',International:'Internacional',Energy:'Energía',Satellite:'Satélite',Fixed:'Fijo'};
-    grid.innerHTML = '';
-    var allCount = products.length;
-    var allCard = document.createElement('div');
-    allCard.className = 'col-4 col-md-2';
-    allCard.innerHTML = '<div class="card family-card text-center p-1 border-primary" data-family="all" style="cursor:pointer;" onclick="selectTariffFamily(\'all\')"><div class="fs-5">📋</div><small>Todas</small><span class="badge bg-secondary" style="font-size:0.6rem;">' + allCount + '</span></div>';
-    grid.appendChild(allCard);
-    Object.keys(families).forEach(function(fam) {
-      var icon = palette[fam] || '📦';
-      var label = labels[fam] || fam;
-      var count = families[fam].length;
-      var card = document.createElement('div');
-      card.className = 'col-4 col-md-2';
-      card.innerHTML = '<div class="card family-card text-center p-1" data-family="' + fam + '" style="cursor:pointer;" onclick="selectTariffFamily(\'' + fam + '\')"><div class="fs-5">' + icon + '</div><small>' + label + '</small><span class="badge bg-secondary" style="font-size:0.6rem;">' + count + '</span></div>';
-      grid.appendChild(card);
-    });
-    window._tariffFamilies = families;
-  }
-  window.selectTariffFamily = function(fam) {
-    var list = document.getElementById('tariffProductList');
-    var wrap = document.getElementById('tariffProductsWrap');
-    document.getElementById('tariffSelectedFamily').value = fam;
-    document.querySelectorAll('#tariffFamilyGrid .family-card').forEach(function(c) { c.classList.remove('border-primary'); });
-    var cards = document.querySelectorAll('#tariffFamilyGrid .family-card');
-    cards.forEach(function(c) { if (c.dataset.family === fam) c.classList.add('border-primary'); });
-    var families = window._tariffFamilies || {};
-    var products = fam === 'all' ? _allTariffProducts : (families[fam] || []);
-    list.innerHTML = '';
-    if (products.length === 0) {
-      list.innerHTML = '<div class="text-muted small p-2">Sin productos en esta categor&iacute;a</div>';
-      wrap.style.display = 'none';
-      return;
-    }
-    products.forEach(function(p) {
-      var name = p.name || p.productName || p.description || p.product || '';
-      var price = p.price ? parseFloat(p.price).toFixed(2) + '\u20AC' : '';
-      var item = document.createElement('div');
-      item.className = 'd-flex justify-content-between align-items-center p-2 border-bottom tariff-item';
-      item.style.cursor = 'pointer';
-      item.innerHTML = '<span><strong>' + name + '</strong>' + (price ? ' <span class="text-muted">(' + price + ')</span>' : '') + '</span><span><button class="btn btn-sm btn-outline-primary seleccionar-tarifa" data-value="' + (p.id || p.code || name) + '" data-name="' + name.replace(/'/g, '') + '"><i class="bi bi-check"></i> Seleccionar</button></span>';
-      list.appendChild(item);
-    });
-    wrap.style.display = 'block';
-  };
   document.getElementById('changeTariffModal').addEventListener('show.bs.modal', function() {
-    var wrap = document.getElementById('tariffProductsWrap');
-    wrap.style.display = 'none';
-    document.getElementById('tariffSelectedInfo').style.display = 'none';
-    document.getElementById('tariffFamilyGrid').innerHTML = '<div class="col-12 text-center py-3"><div class="spinner-border spinner-border-sm"></div> Cargando productos...</div>';
+    var sel = document.getElementById('tariffProduct');
+    sel.innerHTML = '<option>Cargando productos...</option>';
+    sel.disabled = true;
     fetch('/clientes/' + clientId + '/compatible-products')
       .then(function(r) { return r.json(); })
       .then(function(res) {
+        sel.innerHTML = '';
         if (res.ok && Array.isArray(res.data) && res.data.length > 0) {
-          _allTariffProducts = res.data;
-          renderFamilyGrid(res.data);
+          sel.appendChild(new Option('Seleccione producto...', ''));
+          res.data.forEach(function(p) {
+            var name = p.name || p.productName || p.product || p.description || '';
+            var val = p.id || p.code || name;
+            sel.appendChild(new Option(name, val));
+          });
         } else {
-          document.getElementById('tariffFamilyGrid').innerHTML = '<div class="col-12 text-muted small">No hay productos disponibles</div>';
+          sel.innerHTML = '<option>No hay productos disponibles</option>';
         }
+        sel.disabled = false;
       })
       .catch(function() {
-        document.getElementById('tariffFamilyGrid').innerHTML = '<div class="col-12 text-muted small">Error al cargar productos</div>';
+        sel.innerHTML = '<option>Error al cargar</option>';
+        sel.disabled = false;
       });
-  });
-  document.addEventListener('click', function(e) {
-    var btn = e.target.closest('.seleccionar-tarifa');
-    if (!btn) return;
-    var val = btn.dataset.value;
-    var name = btn.dataset.name;
-    document.getElementById('tariffProduct').value = val;
-    document.getElementById('tariffSelectedInfo').style.display = 'block';
-    document.getElementById('tariffSelectedInfo').innerHTML = '<i class="bi bi-check-circle text-success"></i> Producto seleccionado: <strong>' + name + '</strong>';
-    document.querySelectorAll('.seleccionar-tarifa').forEach(function(b) { b.className = 'btn btn-sm btn-outline-secondary'; b.innerHTML = '<i class="bi bi-check"></i>'; });
-    btn.className = 'btn btn-sm btn-success';
-    btn.innerHTML = '<i class="bi bi-check-circle"></i> Seleccionado';
   });
 
   document.getElementById('submitChangeTariff').addEventListener('click', function() {

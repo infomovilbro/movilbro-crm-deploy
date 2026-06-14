@@ -50,8 +50,7 @@ class LikesAPI {
     const config = {
       method,
       url: `${this.apiUrl}${endpoint}`,
-      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-      timeout: 20000
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
     };
     if (data) config.data = data;
     try {
@@ -132,12 +131,6 @@ class LikesAPI {
       const data = await this.request('GET', `/installations?brand_id=${this.brandId}`);
       return this.extractData(data);
     } catch { return []; }
-  }
-
-  async getInstallationDetail(installationId) {
-    try {
-      return await this.request('GET', '/installation?installationId=' + encodeURIComponent(installationId));
-    } catch { return null; }
   }
 
   async getOrders() {

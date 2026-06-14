@@ -1,52 +1,16 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "agent": {
-    "build": {
-      "permission": {
-        "edit": "allow",
-        "bash": "allow"
-      }
-    },
-    "plan": {
-      "permission": {
-        "edit": "deny",
-        "bash": "deny"
-      }
-    },
-    "db-schema": {
-      "description": "Experto en el esquema de BD SQLite del CRM — tablas, columnas, relaciones, migraciones",
-      "mode": "subagent"
-    },
-    "isp-module": {
-      "description": "Especialista en módulo ISP — contratos, facturación ISP, CDRs, incidencias, portabilidades",
-      "mode": "subagent"
-    },
-    "tienda-module": {
-      "description": "Especialista en Panel Tienda — caja, agenda, inventario, presupuestos, prepago, cierres",
-      "mode": "subagent"
-    },
-    "likes-api": {
-      "description": "Especialista en API Likes Telecom — endpoints, auth, CDRs, integración",
-      "mode": "subagent"
-    },
-    "codeopen-ai": {
-      "description": "Especialista en CodeOpen AI — webhooks, multi-agente, modelos, pending_messages",
-      "mode": "subagent"
-    },
-    "debug": {
-      "description": "Experto en debugging del CRM — Render, BD, APIs, WhatsApp, errores comunes",
-      "mode": "subagent"
-    },
-    "crm-routes": {
-      "description": "Mapa completo de rutas del CRM — conoce cada endpoint, archivo y función",
-      "mode": "subagent"
-    },
     "deploy": {
       "description": "Expert in deploying to Render and managing production",
       "mode": "subagent"
     },
     "security": {
-      "description": "Security auditor — reviews code for vulnerabilities",
+      "description": "Security auditor - reviews code for vulnerabilities",
+      "mode": "subagent"
+    },
+    "crm-api": {
+      "description": "Analyzes the Likes Telecom CRM API and data structures",
       "mode": "subagent"
     }
   }

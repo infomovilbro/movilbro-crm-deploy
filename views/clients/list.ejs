@@ -7,8 +7,8 @@
   </div>
 
   <div class="alert alert-info d-flex justify-content-between align-items-center">
-    <span><i class="ri-cloud-line"></i> <strong><%= apiCount %></strong> clientes sincronizados vía API Likes Telecom</span>
-    <small class="text-muted"><i class="ri-refresh-line"></i> Datos en tiempo real desde API</small>
+    <span><i class="ri-cloud-line"></i> <strong><%= apiCount %></strong> clientes remotos · <strong><%= localCount %></strong> en base de datos local</span>
+    <small class="text-muted"><i class="ri-refresh-line"></i> Sincronización automática desde API</small>
   </div>
 
   <form method="GET" class="mb-3">
@@ -20,7 +20,13 @@
   </form>
 
   <div class="row g-3 mb-4">
-    <div class="col-md-12">
+    <div class="col-md-6">
+      <div class="card"><div class="card-body">
+        <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Origen de Clientes</h6>
+        <div style="height:150px;overflow:hidden;position:relative;"><canvas id="chartOrigen"></canvas></div>
+      </div></div>
+    </div>
+    <div class="col-md-6">
       <div class="card"><div class="card-body">
         <h6 class="card-title"><span style="font-size:1.2rem;">📊</span> Clientes por Tipo</h6>
         <div style="height:150px;overflow:hidden;position:relative;"><canvas id="chartTipo"></canvas></div>
@@ -47,7 +53,13 @@
               %>
               <tr>
                 <td>
-                  <span class="badge bg-info"><i class="ri-cloud-line"></i> API Likes</span>
+                  <% if (c.origen === 'API' && c.id_local) { %>
+                    <span class="badge bg-info"><i class="ri-cloud-line"></i> API</span>
+                  <% } else if (c.origen === 'API') { %>
+                    <span class="badge bg-secondary"><i class="ri-cloud-line"></i> API only</span>
+                  <% } else { %>
+                    <span class="badge bg-success"><i class="ri-database-line"></i> Local</span>
+                  <% } %>
                 </td>
                 <td>
                   <% if (c.id_local) { %>
@@ -106,6 +118,39 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+  var chartOrigen = new Chart(document.getElementById('chartOrigen'), {
+    type: 'bar',
+    data: {
+      labels: ['API', 'Local'],
+      datasets: [{
+        label: 'Clientes',
+        data: [<%= apiCount %>, <%= localCount %>],
+        backgroundColor: ['#0d6efd', '#198754'],
+        borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      animation: false, resizeDelay: 0,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
+      onClick: function(e) {
+        var active = chartOrigen.getElementsAtEventForMode(e, 'index', {intersect: true});
+        if (active.length) {
+          var idx = active[0].index;
+          var label = chartOrigen.data.labels[idx];
+          var value = chartOrigen.data.datasets[0].data[idx];
+          var total = chartOrigen.data.datasets[0].data[0] + chartOrigen.data.datasets[0].data[1];
+          var pct = ((value / total) * 100).toFixed(1);
+          document.getElementById('chartDetailTitle').textContent = 'Origen de Clientes';
+          document.getElementById('chartDetailBody').innerHTML = '<strong>' + label + '</strong>: ' + value + ' clientes (' + pct + '%)';
+          var modal = new bootstrap.Modal(document.getElementById('chartDetailModal'));
+          modal.show();
+        }
+      }
+    }
+  });
+
   var tipos = {};
   <% clientes.forEach(function(c) { %>
     var t = '<%= (c.tipo || c.tipo_cliente || "Sin tipo").replace(/'/g, "\\'") %>';

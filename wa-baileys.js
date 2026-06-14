@@ -91,12 +91,12 @@ async function initBaileys() {
     sock = makeWASocket({
       auth: state,
       logger: logger,
-      printQRInTerminal: true,
+      printQRInTerminal: false,
       browser: ['Movilbro CRM', 'Chrome', '149.0.0.0'],
       syncFullHistory: false,
       shouldSyncHistoryMessage: function() { return false; },
       maxMsgRetryCount: 2,
-      qrTimeout: 120000,
+      qrTimeout: 30000,
       emitOwnEvents: false
     });
     
@@ -201,19 +201,6 @@ async function getQRDataURL() {
 
 function getStatus() {
   return { connected: isConnected, state: connectionState, hasQR: !!qrCodeData, error: lastError };
-}
-
-async function reconnect() {
-  try {
-    db.prepare("DELETE FROM settings WHERE key = 'baileys_session'").run();
-    try { if (fs.existsSync(authDir)) fs.rmSync(authDir, { recursive: true }); } catch(e) {}
-    qrCodeData = null;
-    isConnected = false;
-    connectionState = 'idle';
-    lastError = '';
-    sock = null;
-    await initBaileys();
-  } catch(e) { lastError = 'Reconnect: ' + e.message; }
 }
 
 async function sendBaileysMessage(jid, content, options) {
@@ -373,4 +360,4 @@ async function getProfilePicture(jid) {
   }
 }
 
-module.exports = { initBaileys, getQRDataURL, getStatus, reconnect, sendMessage: sendBaileysMessage, transcribeAudioMessage, getChats, getChatMessages, getProfilePicture };
+module.exports = { initBaileys, getQRDataURL, getStatus, sendMessage: sendBaileysMessage, transcribeAudioMessage, getChats, getChatMessages, getProfilePicture };

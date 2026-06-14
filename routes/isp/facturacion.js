@@ -21,13 +21,7 @@ router.get('/', async (req, res) => {
     } catch(e) {}
     
     var facturas = [];
-    try {
-      if (req.query.fiscalId) {
-        facturas = db.prepare('SELECT * FROM isp_facturas WHERE fiscal_id=? ORDER BY created_at DESC').all(req.query.fiscalId);
-      } else {
-        facturas = db.prepare('SELECT * FROM isp_facturas ORDER BY created_at DESC LIMIT 20').all();
-      }
-    } catch(e) {}
+    try { facturas = db.prepare('SELECT * FROM isp_facturas ORDER BY created_at DESC LIMIT 20').all(); } catch(e) {}
     
     res.render('isp/facturacion/index', {
       title: 'Facturación',

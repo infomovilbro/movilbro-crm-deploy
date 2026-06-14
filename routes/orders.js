@@ -38,8 +38,6 @@ router.get('/', requireAuth, async (req, res) => {
         cliente_nombre: o.customer_name || o.customerName || (o.customer && o.customer.name) || o.name || o.client_name || 'API',
         tipo: o.type || o.tipo || o.product_type || 'general',
         producto: o.product_name || o.productName || (o.product && o.product.name) || o.producto || o.product || '',
-        linea: o.lineNumber || o.line_number || o.line || o.phone || o.numero || o.msisdn || '',
-        total: parseFloat(o.total || o.amount || o.price || o.importe || 0),
         estado: o.status || o.estado || 'pendiente',
         detalles: o.details || o.detalles || o.description || '',
         likes_order_id: o.id || o.order_id || o.orderId || '',

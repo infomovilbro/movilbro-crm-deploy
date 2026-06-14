@@ -1,285 +1,180 @@
-# Movilbro CRM — Conocimiento Completo del Proyecto
+# Lecciones Aprendidas
 
-## Reglas ABSOLUTAS del Usuario (obligatorias siempre)
+## Reglas de Oro (Siempre)
+- **🇪🇸 Responder en español siempre** — Nada de inglés.
+- **📊 Mostrar barra de progreso** — Cada paso con `[1/N]`, no trabajar en silencio.
+- **🤫 No preguntar, actuar** — Push, deploy, decisiones: hacer sin consultar. Deploy solo al final de una sesión completa, no cada micro-cambio.
+- **🧪 Probar antes de desplegar** — Cualquier código que escribo, lo pruebo con `node -e` primero. No asumo que funciona. Si uso una API externa, verifico sus métodos con un test rápido antes de integrarlo.
+- **🌐 Verificar en navegador** — Después del deploy, comprobar en la web real que funciona antes de decir que está listo.
+- **🔍 Leer DOCUMENTACIÓN OFICIAL antes de integrar** — No solo el código fuente. Leer docs, guías de migración, ejemplos oficiales. NO asumir. Si hay breaking changes (ej: baileys v7 es ESM, eventos bufferizados), leer la guía de migración completa antes de escribir una línea.
+- **📖 Investigar primero, codificar después** — Ante cualquier problema con una API/lib: buscar en docs oficiales, issues de GitHub, ejemplos. No hacer deploy-tras-deploy esperando que algo funcione. Un ciclo de investigación completa ahorra 15 deploys.
+- **🪟 Sin ventanas nuevas** — Todo en la misma página, nada de `target="_blank"` ni `window.open`.
+- **📦 Menos es más** — No meter librerías pesadas para cosas simples. Soluciones simples y cómodas.
+- **🔄 No releer** — Cuando un proceso termina, no se relee a menos que el admin lo pida.
+- **💬 Mismo hilo** — No reiniciar contexto entre pasos de una misma sesión.
 
-1. **Control remoto con CDP** — Cuando diga "control remoto", abro Microsoft Edge con `--remote-debugging-port=9222`, conecto via CDP, y uso su navegador real con sus pestañas logueadas. Veo lo que él ve, uso su mouse/teclado para previsualizar, detectar errores visuales, y corregir en tiempo real. No asumo nada por código.
+## Menos es Más — No Sobredimensionar
+- **NO** instalar librerías pesadas (baileys, puppeteer, playwright) para funciones simples.
+- Antes de añadir una dependencia, pensar: ¿se puede hacer más simple? ¿con menos?
+- Cada librería nueva es un punto de fallo, tiempo de build, y complejidad extra.
+- Priorizar soluciones simples sobre potentes. Lo simple funciona, lo complejo se rompe.
 
-2. **NUNCA hacer deploy sin orden explícita** — Solo cuando él diga exactamente "haz deploy ahora". Jamás antes.
+## PowerShell + Node -e
+- **NUNCA** usar `node -e "..."` con `\"` dentro de comillas dobles en PowerShell — el escapado de PowerShell rompe el código.
+- **SIEMPRE** escribir scripts Playwright/Node en archivos `.js` y ejecutarlos con `node archivo.js`.
 
-3. **No preguntar "continuo?"** — Ejecuto TODO lo que pide hasta el final sin pausas ni confirmaciones intermedias.
+## Render Deploy Flow
+1. Después de `git push`, **NUNCA** asumir que el deploy se hizo solo.
+2. Ir a dashboard.render.com → Manual Deploy.
+3. Esperar 3-5 minutos a que el build termine (ver el log "deploy complete").
+4. **Verificar en el navegador** antes de decirle al usuario que está listo.
+5. El build en Render puede tardar más si hay descargas pesadas (Chromium ~300MB).
 
-4. **Ciclo completo antes del deploy**: construir → revisar → detectar errores → corregir errores → volver a comprobar → construir de nuevo → verificar que funciona. Antes del deploy, revisar push y código por errores. Un deploy solo se hace si va a funcionar.
+## Playwright en Render
+- `npx playwright install --with-deps` intenta `sudo apt-get` que FALLA en Render.
+- La instalación de Chromium en Render es problemática. Mejor evitar Playwright para PDF en producción.
+- Alternativa: generar HTML y redirigir a vista HTML (el usuario usa Ctrl+P → PDF).
 
-5. **No dar la razón por defecto** — Si pide algo mejorable, decírselo directamente. No asentir sin mejorar.
+## Postinstall Silencioso
+- `2>/dev/null || true` OCULTA errores — NUNCA usar esto.
+- Siempre mostrar errores: `2>&1 || echo 'falló pero no fatal'`
 
-6. **Analizar el fondo** — Si pide "crea un alta", entender que necesita crear cliente con sus datos, no solo una pantalla. Interpretar la intención real.
-
-7. **Rapidez + enfoque** — No revisar mensajes antiguos ni cosas ya arregladas. Solo lo que pide en el momento.
-
-8. **Ser proactivo** — Ayudarlo a hacer cosas que él no sabe o no puede hacer solo para mejorar el CRM.
-
-9. **Mejoras automáticas sin preguntar** — Cuando pida una mejora, la implemento directamente en el código. Si veo mejoras relacionadas obvias que deberían acompañar a lo que pide, las hago también sin consultar. No documentar para después — ejecutar ahora. Así cada sesión deja el CRM mejor que antes, sin tener que repetir carencias.
-
-## Reglas de Oro
-- Responder en español siempre
-- Mostrar progreso con [1/N] en cada paso
-- No preguntar, actuar (push, deploy, decisiones sin consultar)
-- Probar con `node -e` o archivo .js antes de integrar
-- Verificar en navegador real después del deploy
-- Leer documentación oficial antes de integrar APIs/libs
-- Nada de `target="_blank"` ni `window.open`
-- No instalar librerías pesadas para cosas simples
-- NO usar PC local — todo en servidor Render
-- NUNCA usar `node -e "..."` con `\"` en PowerShell; siempre archivos .js
-
-## Stack
-- **Backend**: Node.js + Express + EJS (layouts: express-ejs-layouts)
-- **BD**: SQLite via better-sqlite3 (WAL mode, foreign_keys ON)
-- **Auth**: express-session + connect-sqlite3 + bcryptjs
-- **API externa**: Likes Telecom API (REST + Bearer token)
-- **Hosting**: Render (Node.js)
-- **IA interna**: Chat rule-based + DeepSeek vía OpenCode Zen API
-- **Webhooks**: WhatsApp + Email con aprobación manual en CodeOpen
-- **WhatsApp**: Proxy WebSocket a web.whatsapp.com + iframe overlay
-- **Pagos**: Stripe
-- **Bot**: Telegram (backups diarios, resúmenes)
-- **Email**: IMAP (polling bajo demanda) + Nodemailer + SendGrid
-
-## Estructura del Proyecto
-```
-servidor10062026/
-├── server.js              # Entry point (Express setup, WS, cron)
-├── database.js            # SQLite init + schema
-├── likes-api.js           # Cliente API Likes Telecom
-├── auto-sync.js           # Sync con API Likes
-├── routes/                # 42 rutas Express
-│   ├── auth.js            # Login/logout
-│   ├── dashboard.js       # Dashboard principal
-│   ├── clients.js         # CRUD clientes
-│   ├── orders.js          # Órdenes
-│   ├── subscriptions.js   # Suscripciones
-│   ├── billing.js         # Facturación
-│   ├── tickets.js         # Tickets de soporte
-│   ├── products.js        # Productos
-│   ├── altas.js           # Flujo de altas multi-paso
-│   ├── tienda.js          # Panel Tienda (caja, agenda, inventario, etc)
-│   ├── chat.js            # IA rule-based interna
-│   ├── codeopen.js        # CodeOpen AI (webhooks, multi-agente, modelos)
-│   ├── isp-core.js        # Módulo ISP (contratos, incidencias, etc)
-│   ├── whatsapp.js        # WhatsApp overlay
-│   ├── email.js           # Correo
-│   ├── stripe.js          # Stripe
-│   ├── telegram-bot.js    # Bot Telegram
-│   ├── camera.js          # Cámara relay
-│   ├── kpis.js            # KPIs y gráficos
-│   ├── analytics.js       # Analítica
-│   ├── backup.js          # Backups
-│   ├── api.js             # API REST
-│   └── ...                # +20 rutas más
-├── views/                 # Plantillas EJS
-│   ├── layout.ejs         # Layout principal (incluye WhatsApp overlay)
-│   ├── dashboard.ejs
-│   ├── login.ejs
-│   ├── codeopen.ejs       # CodeOpen AI interfaz
-│   └── ...                # ~37 carpetas/archivos de vistas
-├── helpers/
-│   ├── drive.js           # Google Drive integration
-│   └── nube.js            # CDR/factura PDF generation
-├── services/
-│   ├── email.js           # Gmail creds
-│   ├── whatsapp.js        # WhatsApp service
-│   ├── transcription.js   # AssemblyAI TTS
-│   └── wa-listener.js     # WhatsApp listener
-├── middleware/
-│   ├── auth.js            # Auth middleware (requireAuth, loadUserPermissions)
-│   └── settings-loader.js # Carga settings globales
-├── deploy/                # Archivos de deploy
-├── public/                # Archivos estáticos
-├── nube/                  # CDR/nube PDFs
-├── guia/                  # Guías
-└── uploads/               # Uploads
-```
-
-## Mapa de Rutas Completo
-
-| Ruta | Archivo | Función |
-|------|---------|---------|
-| `/` | dashboard.js | Dashboard |
-| `/auth/*` | auth.js | Login/logout |
-| `/clientes` | clients.js | CRUD clientes |
-| `/products` | products.js | Catálogo productos |
-| `/orders` | orders.js | Órdenes |
-| `/subscriptions` | subscriptions.js | Suscripciones |
-| `/invoices` | billing.js | Facturación |
-| `/tickets` | tickets.js | Tickets |
-| `/altas` | altas.js | Flujo altas (multi-step) |
-| `/tienda/*` | tienda.js | Panel Tienda |
-| `/isp/*` | isp-core.js | Módulo ISP |
-| `/kpis` | kpis.js | KPIs gráficos |
-| `/whatsapp` | whatsapp.js | WhatsApp overlay |
-| `/email` | email.js | Correo |
-| `/stripe` | stripe.js | Stripe pagos |
-| `/telegram` | telegram-bot.js | Bot Telegram |
-| `/codeopen` | codeopen.js | CodeOpen AI |
-| `/camera` | camera.js | Cámara relay |
-| `/settings` | settings.js | Configuración |
-| `/users` | users.js | Usuarios |
-| `/backup` | backup.js | Backups |
-| `/api/*` | api.js | API REST |
-| `/api-proxy` | api-proxy.js | Proxy API |
-| `/external-api` | external-api.js | API externa |
-| `/analytics` | analytics.js | Analítica |
-| `/history` | history.js | Historial |
-| `/payments` | payments.js | Pagos |
-| `/remittances` | remittances.js | Remesas |
-| `/leads` | leads.js | Leads/oportunidades |
-| `/surveys` | surveys.js | Encuestas |
-| `/channel` | channel.js | Canales/distribuidores |
-| `/aftersales` | aftersales.js | Postventa |
-| `/massive-processes` | massive-processes.js | Procesos masivos |
-| `/resources` | resources.js | Recursos |
-| `/coverage` | coverage.js | Cobertura |
-| `/google-connections` | google-connections.js | Google Connections |
-| `/neon` | neon.js | Dispositivos Neon |
-| `/chat` | chat.js | AI chat rule-based |
-| `/kyc` | kyc.js | KYC docs |
-
-## Esquema de Base de Datos (SQLite)
-
-### Tablas Core
-- **users**: id, username, password(bcrypt), nombre, email, rol(admin/user), permissions(JSON), created_at
-- **clients**: id, likes_customer_id, nombre, apellidos, dni_nif, email, telefono, telefono2, direccion, ciudad(Def:Antequera), provincia(Def:Málaga), codigo_postal(Def:29200), notas, tipo_cliente(particular), metodo_pago, iban, stripe_payment_method
-- **products**: id, likes_product_id, nombre, tipo, descripcion, precio
-- **orders**: id, client_id(FK), likes_order_id, estado(pendiente), tipo, producto, detalles, fecha_orden
-- **subscriptions**: id, client_id(FK), likes_subscription_id, linea, producto, estado(activa), fecha_alta, fecha_baja
-- **invoices**: id, client_id(FK), concepto, importe, fecha_emision, fecha_vencimiento, estado(pendiente), stripe_payment_id, stripe_payment_link
-- **tickets**: id, client_id(FK), likes_ticket_id, asunto, descripcion, estado(abierto), prioridad(normal), departamento, user_id
-- **activity_log**: id, tipo, descripcion, client_id, user_id
-- **settings**: key(PK), value — Configuración clave-valor
-
-### Tablas Tienda
-- **tienda_agenda**: id, client_id, cliente_nombre, telefono, fecha, hora, tipo, motivo, estado(pendiente), notas, user_id
-- **tienda_caja**: id, fecha, tipo(ingreso/gasto), concepto, importe, metodo_pago(efectivo), categoria, descripcion, user_id
-- **tienda_presupuestos**: id, client_id, cliente_nombre, telefono, email, lineas, total, descuento, estado(pendiente), notas, valido_hasta, mano_obra, pieza_costo, tipo
-- **tienda_inventario**: id, nombre, tipo, cantidad, precio_compra, precio_venta, proveedor, ubicacion, stock_minimo, notas
-- **tienda_prepago**: id, nombre, apellidos, dni_nif, telefono, email, pin, puk, operador(Movilbro), linea, iccid, estado(pendiente_activar)
-- **tienda_historial_dia**: id, fecha, total_ingresos, total_gastos, saldo_final, num_ventas, num_presupuestos, cerrado, user_id
-- **tienda_plantilla**: id, nombre, apellidos, dni_nif, telefono, email, puesto, salario, fecha_contratacion, horario, activo, user_id
-- **tienda_cierres**: id, fecha, ingresos_efectivo, ingresos_tarjeta, ingresos_transferencia, total_ingresos, gastos, saldo, num_operaciones, observaciones, cerrado_por
-- **tienda_notas_diarias**: id, fecha, nota, importe, tipo
-- **tienda_devoluciones**: id, producto_id, producto_nombre, cantidad, estado, motivo, fecha_devolucion, resolucion
-
-### Tablas ISP
-- **isp_contratos**: id, client_id(FK), tipo, estado(borrador), producto, tarifa, precio, descuento, permanencia_meses, fecha_alta, fecha_baja, motivo_baja, linea, iccid, pin, puk, notas
-- **isp_facturas**: id, cliente_nombre, cliente_email, fiscal_id, periodo, fecha_emision, fecha_vencimiento, importe_base, importe_cdrs, importe_total, metodo_pago(stripe), estado(pendiente), stripe_invoice_id, stripe_payment_intent, pagada, cliente_direccion, cliente_poblacion, cliente_provincia, codigo_postal
-- **isp_facturas_lineas**: id, factura_id(FK), concepto, tipo(cuota), importe, linea
-- **isp_cdrs**: id, fiscal_id, linea, concepto, tipo(exceso), importe, unidades, periodo, factura_id
-- **isp_llamadas**: id, fiscal_id, linea, fecha, hora, destino, grupo, duracion, importe, periodo, factura_id
-- **isp_incidencias**: id, categoria, tipo, client_id, asunto, descripcion, estado(abierta), prioridad(normal), user_id, solucion, fecha_resolucion
-- **isp_portabilidades**: id, contrato_id, client_id, linea, operador_origen, operador_destino(Movilbro), estado(pendiente), fecha_solicitud, fecha_portabilidad
-- **isp_tarifas**: id, nombre, tipo, descripcion, precio, precio_instalacion, permanencia_meses, velocidad, datos_gb, minutos, activo
-- **isp_descuentos, isp_permanencias, isp_workflow_tipos, isp_workflows, isp_workflow_tareas**: Gestión de descuentos y workflows
-- **isp_documentos**: id, nombre, tipo, categoria, archivo, ruta, client_id
-- **isp_plantillas**: id, nombre, tipo, contenido, descripcion
-- **isp_campanas**: id, nombre, descripcion, tipo(email), fechas, estado(borrador), presupuesto
-- **isp_noticias, isp_eventos, isp_nodos, isp_equipos**: Noticias, eventos, nodos red, equipos
-- **isp_articulos**: id, codigo, nombre, fabricante, categoria, modelo, precio_compra, precio_venta, stock, stock_minimo
-- **isp_caja, isp_arqueos, isp_listados, isp_tareas, isp_pagos**: Caja ISP, arqueos, listados SQL, tareas, pagos
-
-### Tablas AI/Chat
-- **chat_history**: id, session_id, role(user/assistant/system), content, created_at
-- **shared_context**: id, topic(UNIQUE), content, updated_at — Hechos que la IA conoce
-- **pending_messages**: id, source(whatsapp/email), from_name, from_address, subject, body, proposed_response, status(pending), category(whatsapp/email), quoted_data, document_ready, document_info, document_buffer
-- **model_usage**: id, model_id, date, calls — Tracking de uso de modelos
-
-### Tablas Varias
-- **altas_ordenes**: id, token(UNIQUE), client_id, likes_customer_id, estado(borrador), paso, datos_cliente, datos_pago, datos_producto, datos_cobertura, datos_donante, orden_data, likes_order_id, email_enviado, kyc_completado
-- **altas_kyc_docs**: id, orden_id(FK), tipo, archivo, upload_url, download_url, estado(pendiente), drive_file_id, drive_folder_id
-- **altas_envios**: id, orden_id, metodo, destinatario, direccion, contacto, estado
-- **archivos**: id, nombre, tipo(pdf), ruta, datos(BLOB), tamaño, periodo, drive_id
-- **distributors, distributor_sales**: Distribuidores y comisiones
-- **surveys**: id, cliente_nombre, puntuacion, comentario
-- **instalaciones**: id, client_id, cliente_nombre, direccion, fecha_instalacion, estado
-- **bot_propuestas**: id, chat_id, texto, leido — Propuestas del bot Telegram
-
-## API Likes Telecom
-
-**Base**: `https://api.likestelecom.com`
-**Auth**: POST `/token` con email+password+opcional brandId → Bearer token
-
-### Endpoints principales (en `likes-api.js`):
-- `GET /customers` → Clientes (paginated)
-- `GET /products/brand` → Productos por marca
-- `GET /portabilities` → Portabilidades
-- `GET /tickets` o `/ticket` → Tickets
-- `GET /line` → Líneas
-- `GET /subscriptions?fiscalId=X` → Suscripciones por fiscalId
-- `GET /installations` → Instalaciones
-- `GET /orders` → Órdenes
-- `GET /payments` → Pagos
-- `GET /remittances` → Remesas
-- `GET /line/cdrs?lineNumber=X` → CDRs de línea
-- `GET /coverage/address?q=X` → Cobertura por dirección
-- `POST /customer` → Crear cliente
-- `POST /signupv2` → Crear orden
-- `POST /draft-order-v2` → Draft order multi-step
-- `POST /ticket` → Crear ticket
-- `PUT /line` → Bloquear/desbloquear línea
-- `POST /changeProduct` → Cambio de producto
-- `POST /line/changeSim` → Cambio de SIM
-
-### LikesAPI.fetchCDRsForFiscalId(api, fiscalId, periodo)
-Obtiene todas las suscripciones del fiscalId, extrae líneas, llama getLineCDRs por cada línea, filtra por periodo.
-
-## CodeOpen AI (routes/codeopen.js)
-
-Sistema multi-agente con categorías:
-- **whatsapp**: lector → analizador → redactor → validador → sintetizador
-- **email**: clasificador → extractor → redactor → revisor → sintetizador
-- **altas**: validador → buscador → generador → verificador → sintetizador
-- **code**: orion → nova → kronos → atlas → ether
-- **general**: orion → nova → kronos → atlas → ether
-
-Modelos disponibles: deepseek-v4-flash-free, nemotron-3-ultra-free, gemini-2.0-flash-openrouter, etc.
-
-Flujo de mensajes: webhook WhatsApp/Email → pending_messages → usuario analiza manualmente → IA propone respuesta → usuario aprueba/rechaza → se envía.
-
-## Variables de Entorno (Render)
-ADMIN_PASSWORD, LIKES_CLIENT_ID, LIKES_CLIENT_SECRET, LIKES_BRAND_ID, GMAIL_USER, GMAIL_PASS, LIKES_COGNITO_CLIENT_ID, LIKES_COGNITO_USERNAME, LIKES_COGNITO_PASSWORD, DRIVE_OAUTH_JSON, OPENCODE_API_KEY, SESSION_SECRET, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, STRIPE_SECRET_KEY, STRIPE_PUBLIC_KEY
-
-## Patrón para Añadir Nuevas Rutas
-1. Crear archivo `routes/nueva-ruta.js`
-2. Exportar `router = express.Router()`
-3. En `server.js`: `const nuevaRuta = require('./routes/nueva-ruta'); app.use('/ruta', nuevaRuta);`
-4. Vista EJS en `views/` con layout.ejs
-5. Añadir navegación en layout.ejs
-
-## Patrón para Migraciones BD
-```js
-try { db.prepare("ALTER TABLE tabla ADD COLUMN nueva_columna TEXT DEFAULT ''").run(); } catch(e) {}
-```
-Siempre con try/catch porque SQLite lanza error si la columna ya existe.
-
-## Patrón Likes API
-```js
-const LikesAPI = require('./likes-api');
-const api = LikesAPI.getApiInstance();
-const data = await api.getCustomers(); // getProducts, getTickets, etc
-```
-
-## Deploy Render
-1. `git add . && git commit -m "mensaje" && git push`
-2. Dashboard Render → Manual Deploy (o esperar auto-deploy)
-3. Esperar build (ver logs "deploy complete")
-4. Verificar en https://movilbro-crm.onrender.com
-
-## Errores Repetidos Corregidos
-- [x] PowerShell escapado con -e → usar archivos .js
-- [x] Asumir deploy terminado → verificar dashboard
+## Errores Repetidos que Corregir
+- [x] Usar `-e` con escapado de PowerShell → usar archivos .js
+- [x] Asumir que deploy ya terminó → verificar en dashboard primero
 - [x] Postinstall que esconde errores
-- [x] Formularios sin name+onchange → autofill no dispara validación
-- [x] No tener acceso Render dashboard al inicio
-- [x] baileys messaging-history.set solo se dispara UNA vez
-- [x] shouldSyncHistoryMessage: () => TRUE necesario para FULL sync
-- [x] Drive ZIP bug: zipId guardado como drive_id del PDF individual
-- [x] IMAP: Gmail no entrega correos de sí mismo
+- [x] Formularios sin `name` + sin `onchange` → autofill del navegador no dispara validación → poner `name` y `onchange` además de `oninput`
+- [x] No tener acceso a Render dashboard → pedir contraseña o URL de deploy hook al principio; no esperar a necesitarla
+- [x] Repetir el mismo error de escapado PowerShell 4+ veces → usar SIEMPRE archivo .js, nunca -e
+
+## AssemblyAI (Audio)
+- API key: cadenas hex de 32 caracteres
+- AssemblyAI NO entiende el CRM, solo transcribe audio a texto
+- AssemblyAI TTS: endpoint POST https://api.assemblyai.com/v2/text-to-speech/{voiceId}
+- Configurar env var `ASSEMBLYAI_API_KEY` vía Render API PUT /v1/services/{serviceId}/env-vars
+- Body formato array: `[{"key":"VAR","value":"val"}]`
+- El cambio de env var fuerza redeploy automático
+
+## Regla Absoluta: Todo en Servidor
+- **NADA en local** — Todo el código se ejecuta en Render (servidor). No depender del PC del usuario para nada.
+- No usar CDP local, no asumir navegador local, no leer archivos locales del usuario.
+- Las pruebas se hacen con `node -e` o desplegando al servidor.
+
+## Sesión 2026-06-05 — WhatsApp Overlay + Vigilante + Deploy
+
+### Hecho
+- Eliminado Baileys por completo. WhatsApp ahora es web.whatsapp.com real en iframe via proxy
+- Proxy inyecta `<base href="https://web.whatsapp.com/">`, parchea anti-frame-busting, elimina XFO/CSP
+- CSP del helmet actualizado para permitir `static.whatsapp.net`, `web.whatsapp.com`, `data:`, `blob:`
+- `X-Frame-Options` cambiado de `DENY` a `SAMEORIGIN`
+- Overlay persistente de WhatsApp en layout.ejs (siempre montado, no se desconecta al navegar)
+- Botón "Analizar" para enviar mensajes manualmente a CodeOpen
+- Vigilante automático que escanea el iframe cada 3s y detecta mensajes entrantes
+- Toda la lógica en layout.ejs (sin servidor, sin Baileys)
+
+### Lección: Usar el navegador del usuario con CDP
+- **NO** perder tiempo con deploy hooks que fallan silenciosamente
+- **SI** el usuario tiene el CRM abierto en Edge, levantar Edge con CDP (`--remote-debugging-port=9222`)
+- Usar `chromium.connectOverCDP('http://localhost:9222')` para controlar su navegador
+- Hacer deploy desde el dashboard manualmente con un click, no con APIs
+- Si el deploy hook no funciona, abrir Render dashboard en el Edge del usuario y hacer click
+
+### Lección: Verificar siempre en el navegador real
+- No asumir que el código funciona por tests locales headless
+- WhatsApp cambia su DOM constantemente — los selectores del vigilante pueden obsoletarse
+- Probar siempre con el navegador real del usuario que tiene la sesión activa
+
+## Caso WhatsApp Baileys V4 — Lección Aprendida (2026-06-05)
+**Error:** 15+ deploys arreglando WhatsApp. El problema real NO era `ev.process()` vs `.on()`.
+- `messaging-history.set` SOLO se dispara en el primer pairing al vincular dispositivo
+- En reconexiones con sesión guardada, WhatsApp NO reenvía el historial
+- `chats.upsert` solo trae chats NUEVOS
+- Los chats hay que persistirlos localmente (JSON/DB) porque la fuente remota no los reenvía
+
+**Cómo se arregló:**
+1. Leer la documentación OFICIAL de baileys (baileys.wiki/docs/socket/history-sync)
+2. Entender que `messaging-history.set` es evento de UNA VEZ, no de cada reconexión
+3. Solución: persistir `_chats` en `JSON.parse/fs.writeFileSync` en cada cambio, cargar al reconectar
+4. Registrar `ev.process()` o `.on()` es indiferente — ambos funcionan si se registran antes de que lleguen los eventos
+
+**Regla nueva: Investigar la documentación oficial PRIMERO. NO hacer deploys como método de debugging.**
+
+## Caso WhatsApp Baileys — Lección Aprendida
+**Error:** Asumí que `sock.chats.all()` existía sin verificarlo. Luego asumí que `messaging-history.set` se disparaba sin leer cómo funciona realmente baileys. Perdí horas probando cosas al azar.
+
+**Cómo lo arreglé:**
+1. Leer el código fuente real en `node_modules/` (no asumir la API)
+2. Verificar la versión exacta (`7.0.0-rc13`)
+3. Listar exports disponibles
+4. Leer los `.d.ts` (TypeScript) para conocer la estructura real de eventos y payloads
+5. Leer `DEFAULT_CONNECTION_CONFIG` para conocer valores por defecto
+
+**Causa raíz:** `shouldSyncHistoryMessage` por defecto devuelve `false` para `FULL` sync. WhatsApp envía FULL sync para cuentas con muchos chats, y baileys lo ignoraba silenciosamente. Fix: `shouldSyncHistoryMessage: () => true`.
+
+**Regla nueva: Antes de escribir código que use una API externa, leer su código fuente o documentación oficial primero. No asumir.**
+
+## Auto-Deploy Render
+- Si auto-deploy no funciona, revisar Build Filters en Settings del servicio en Render dashboard.
+- Solución temporal: Manual Deploy desde dashboard.
+- Para evitar depender del dashboard, instalar Render CLI o usar Deploy Hook URL (Settings → Deploy Hook).
+
+## Variables de Entorno Requeridas
+
+Secrets removidos del código fuente. Configurar en Render → Environment:
+
+| Variable | Propósito |
+|----------|-----------|
+| `ADMIN_PASSWORD` | Contraseña admin (si no se setea, se genera aleatoria) |
+| `LIKES_CLIENT_ID` | Email Likes Telecom API |
+| `LIKES_CLIENT_SECRET` | Password Likes Telecom API |
+| `LIKES_BRAND_ID` | Brand ID Likes Telecom |
+| `GMAIL_USER` | `infomovilbro@gmail.com` |
+| `GMAIL_PASS` | App password de Gmail (actual: `nrbo wbln rkmk gbll`) |
+| `LIKES_COGNITO_CLIENT_ID` | ClientId Cognito (`76opnp6ffescubvuuao8am20d`) |
+| `LIKES_COGNITO_USERNAME` | Usuario Cognito (`eloyfuentesbermudez@gmail.com`) |
+| `LIKES_COGNITO_PASSWORD` | Password Cognito (`Teresa88.`) |
+| `DRIVE_OAUTH_JSON` | Refresh token OAuth Drive (base64) |
+| `OPENCODE_API_KEY` | Key DeepSeek V4 Flash Free |
+| `SESSION_SECRET` | Secreto de sesión |
+
+## OPENCODE_API_KEY (DeepSeek V4 Flash Free)
+- La API key de opencode está en `C:\Users\xtptx\.local\share\opencode\auth.json` — campo `opencode.key`
+- La key funciona con `https://opencode.ai/zen/v1/chat/completions` y modelo `deepseek-v4-flash-free`
+- Es **gratis** (cost: "0" en las respuestas)
+- NO hardcodear la key en código fuente si se sube a git — usar `process.env.OPENCODE_API_KEY`
+- En local, la key está en el código como fallback; en Render se configura desde Environment Variables del dashboard
+
+## CDR API Fetch Refactor
+- Lógica duplicada de fetch CDR extraída a `LikesAPI.fetchCDRsForFiscalId(api, fiscalId, periodo)` en `likes-api.js`
+- Reemplaza 5 bloques idénticos en `nube.js` y `facturacion.js`
+
+## Drive ZIP Bugfix
+- `guardarLocal` guardaba `zipId` (ID del ZIP) como `drive_id` del PDF individual
+- `getPDFBuffer` step 1 trataba ese ID como PDF individual → descargaba el ZIP entero como PDF
+- Fix: no pasar `zipId` a `guardarEnDB` (step 2 de `getPDFBuffer` ya busca en ZIP mensual)
+
+## Sesión 2026-06-04 — WhatsApp/Email Webhooks + IMAP + Pendientes
+
+### Hecho
+- Generada App Password Gmail: `nrbo wbln rkmk gbll` → configurada como `GMAIL_PASS` en local (env var usuario) y en Render (vía API interna)
+- `routes/codeopen.js`: webhooks WhatsApp + Email, IMAP polling (120s con filtros + rate limit), endpoints pending/count/approve/reject/history/clear
+- `views/codeopen.ejs`: badge rojo con contador de pendientes + panel deslizante con botones Aprobar/Rechazar
+- `database.js`: tabla `pending_messages` añadida
+- `package.json`: dependencias `imap` + `mailparser`
+- Commit `c208f9e` + push a main + deploy hook lanzado
+- Filtro IMAP bloquea newsletters (linkedin, woocommerce, claude, google, etc.)
+- Rate limit: 1 email/ciclo para evitar error 429 de DeepSeek
+- Carpeta `codeopen-memoria` creada en Drive con resúmenes
+
+### Pendiente
+1. Solucionar rate limit 429 (API DeepSeek saturada)
+2. Probar IMAP con correo real de cliente (enviar desde OTRA cuenta a infomovilbro@gmail.com)
+3. Implementar envío real al aprobar (WhatsApp/Email)
+4. Limpiar scripts temporales
+
+### IMAP debugging
+- IMAP monitorea `infomovilbro@gmail.com` (puerto 993 SSL)
+- Busca UNSEEN en INBOX
+- Gmail NO entrega correos de sí mismo (enviarse a uno mismo no funciona)
+- Error 429 = rate limit de DeepSeek, esperar o cambiar API key
+- Para actualizar env vars en Render: usar CDP + fetch interno PUT /api/v1/services/{serviceId}/env-vars

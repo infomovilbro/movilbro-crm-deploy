@@ -202,12 +202,10 @@ function mapApiOrders(orderArr) {
       status: o.status || o.estado || o.state || 'desconocido',
       productName: o.productName || o.product || o.description || o.service || o.tarifa || '-',
       lineNumber: o.lineNumber || o.line || o.phone || o.numero || o.msisdn || '-',
-      total: parseFloat(o.total || o.amount || o.price || o.importe || 0),
+      total: o.total || o.amount || o.price || o.importe || 0,
       created: o.created || o.created_at || o.createdAt || o.date || o.fecha || o.fecha_creacion,
       updated: o.updated || o.updated_at || o.updatedAt || o.modified || o.lastUpdated,
-      statusHistory: statusHistory,
-      type: o.type || o.tipo || o.order_type || 'general',
-      customerName: o.customer_name || o.customerName || (o.customer && o.customer.name) || o.client_name || ''
+      statusHistory: statusHistory
     };
   });
 }
@@ -256,20 +254,6 @@ function mapApiInvoices(invArr) {
   });
 }
 
-function extractDocsFromRaw(data) {
-  var arr = [];
-  if (Array.isArray(data.documents)) arr = data.documents;
-  else if (Array.isArray(data.files)) arr = data.files;
-  else if (Array.isArray(data.attachments)) arr = data.attachments;
-  return arr.map(function(d) {
-    return {
-      name: d.name || d.fileName || d.filename || d.originalName || 'Documento',
-      url: d.url || d.downloadUrl || d.fileUrl || d.path || '',
-      type: d.type || d.mimeType || d.contentType || d.fileType || 'application/octet-stream'
-    };
-  });
-}
-
 function mapApiInstallations(instArr) {
   if (!Array.isArray(instArr)) return [];
   return instArr.map(function(i) {
@@ -283,46 +267,9 @@ function mapApiInstallations(instArr) {
       completedDate: i.completedDate || i.completed_date || i.fecha_real || i.installationDate || i.actualDate || '',
       notes: i.notes || i.notas || i.comments || '',
       technician: i.technician || i.tecnico || '',
-      addressDetail: i.addressDetail || i.detalle_direccion || i.address,
-      documents: extractDocsFromRaw(i)
+      addressDetail: i.addressDetail || i.detalle_direccion || i.address
     };
   });
-}
-
-async function enrichInstallationsWithDocuments(installations) {
-  if (!installations || !installations.length) return installations;
-  var needsEnrich = installations.filter(function(inst) {
-    return !inst.documents || inst.documents.length === 0;
-  });
-  if (needsEnrich.length === 0) return installations;
-  var api = LikesAPI.getApiInstance();
-  await Promise.allSettled(needsEnrich.map(function(inst) {
-    return api.getInstallationDetail(inst.id).then(function(detail) {
-      if (!detail) return;
-      var rawData = detail && detail.data ? detail.data : (detail || {});
-      var docs = extractDocsFromRaw(rawData);
-      if (docs.length > 0) inst.documents = docs;
-    }).catch(function() {});
-  }));
-  return installations;
-}
-
-async function fetchContractDocsForOrders(apiOrders) {
-  if (!Array.isArray(apiOrders) || !apiOrders.length) return [];
-  var contracts = [];
-  var api = LikesAPI.getApiInstance();
-  var orderIds = apiOrders.filter(function(o) { return o.likes_order_id; }).map(function(o) { return o.likes_order_id; });
-  await Promise.allSettled(orderIds.map(function(oid) {
-    return api.getDraftOrder(oid).then(function(detail) {
-      if (!detail) return;
-      var raw = detail && detail.data ? detail.data : (detail || {});
-      var docs = extractDocsFromRaw(raw);
-      docs.forEach(function(d) {
-        contracts.push({ orderId: oid, name: d.name || ('Contrato #' + oid), url: d.url || d.downloadUrl || '', type: d.type || 'application/pdf' });
-      });
-    }).catch(function() {});
-  }));
-  return contracts;
 }
 
 router.get('/fiscal/:fiscalId', requireAuth, async (req, res) => {
@@ -366,8 +313,7 @@ router.get('/fiscal/:fiscalId', requireAuth, async (req, res) => {
       apiSubscriptions: mapApiSubscriptions(data.subscriptions),
       apiOrders: mapApiOrders(data.orders),
       apiInvoices: mapApiInvoices(data.invoices),
-      apiInstallations: await enrichInstallationsWithDocuments(mapApiInstallations(data.installations)),
-      apiContractDocs: await fetchContractDocsForOrders(data.orders),
+      apiInstallations: mapApiInstallations(data.installations),
       apiPortabilities: Array.isArray(data.portabilities) ? data.portabilities : [],
       apiPayments: Array.isArray(data.payments) ? data.payments : [],
       altasOrdenes: [],
@@ -376,19 +322,7 @@ router.get('/fiscal/:fiscalId', requireAuth, async (req, res) => {
     });
   } catch(e) {
     console.error('[Clientes] Error fetching API client:', e.message);
-    if (e.code === 'ECONNABORTED' || (e.message && e.message.includes('timeout'))) {
-      res.status(504).send('La API de Likes Telecom tardó demasiado en responder. Inténtalo de nuevo más tarde.');
-    } else {
-      res.render('clients/view', {
-        title: 'Cliente: ' + req.params.fiscalId,
-        cliente: { id: null, nombre: req.params.fiscalId, apellidos: '', dni_nif: req.params.fiscalId, telefono: '', telefono2: '', email: '', direccion: '', ciudad: '', provincia: '', codigo_postal: '', created_at: '', likes_customer_id: '', notas: '', metodo_pago: '', iban: '', tipo_cliente: 'particular', stripe_payment_method: '' },
-        contratos: [], suscripciones: [], tickets: [], linesByStatus: '{}', lineNumbers: '[]',
-        apiActions: { canBlock: true, canChangeTariff: true, canDuplicateSim: true, canViewConsumption: true },
-        apiCustomer: {}, apiSubscriptions: [], apiOrders: [], apiInvoices: [], apiInstallations: [], apiPortabilities: [], apiPayments: [],
-        altasOrdenes: [], kycDocsPorOrden: {}, documentos: [], apiContractDocs: [],
-        apiError: 'No se pudieron cargar datos de API Likes: ' + e.message
-      });
-    }
+    res.status(500).send('Error al obtener datos del cliente: ' + e.message + '. Verifica que las credenciales de Likes Telecom estén configuradas.');
   }
 });
 
@@ -418,7 +352,7 @@ router.get('/:id', requireAuth, async (req, res) => {
       apiSubscriptions = mapApiSubscriptions(data.subscriptions);
       apiOrders = mapApiOrders(data.orders);
       apiInvoices = mapApiInvoices(data.invoices);
-      apiInstallations = await enrichInstallationsWithDocuments(mapApiInstallations(data.installations));
+      apiInstallations = mapApiInstallations(data.installations);
       if (Array.isArray(data.portabilities)) apiPortabilities = data.portabilities;
       if (Array.isArray(data.payments)) apiPayments = data.payments;
     } catch (e) {
@@ -426,7 +360,6 @@ router.get('/:id', requireAuth, async (req, res) => {
     }
   }
 
-  const apiContractDocs = await fetchContractDocsForOrders(apiOrders);
   const tickets = db.prepare('SELECT * FROM tickets WHERE client_id = ? ORDER BY created_at DESC').all(req.params.id);
   const contratos = db.prepare("SELECT * FROM isp_contratos WHERE client_id = ? ORDER BY created_at DESC").all(req.params.id);
   const altasOrdenes = db.prepare('SELECT * FROM altas_ordenes WHERE client_id = ? ORDER BY created_at DESC').all(req.params.id);
@@ -508,7 +441,6 @@ router.get('/:id', requireAuth, async (req, res) => {
     apiInstallations,
     apiPortabilities,
     apiPayments,
-    apiContractDocs,
     contratos,
     lineas: allLines,
     tickets,
@@ -555,61 +487,9 @@ router.post('/:id/line/:lineNumber/block', requireAuth, async (req, res) => {
 router.post('/:id/line/:lineNumber/consumption', requireAuth, async (req, res) => {
   try {
     const api = LikesAPI.getApiInstance();
-    const [gbResult, cdrsRaw] = await Promise.all([
-      api.getLineGB(req.params.lineNumber),
-      api.getLineCDRs(req.params.lineNumber).catch(() => null)
-    ]);
-    const gb = gbResult.data || gbResult;
-
-    let monthly = [];
-    if (cdrsRaw) {
-      let cdrs = Array.isArray(cdrsRaw) ? cdrsRaw : (cdrsRaw.data || cdrsRaw.cdrs || cdrsRaw.records || cdrsRaw.items || cdrsRaw.calls || []);
-      if (!Array.isArray(cdrs)) cdrs = [];
-
-      const now = new Date();
-      const monthMap = {};
-
-      cdrs.forEach(cdr => {
-        const dateStr = cdr.fecha || cdr.date || cdr.period || cdr.startDate || cdr.start_date || '';
-        if (!dateStr) return;
-        const month = dateStr.substring(0, 7);
-        if (month < '2025-01') return;
-
-        const tipo = (cdr.tipo || cdr.type || cdr.callType || '').toLowerCase();
-        const concepto = (cdr.concepto || cdr.concept || cdr.description || '').toLowerCase();
-        const isData = tipo === 'exceso' || tipo === 'data' || tipo === 'datos' || tipo === 'gb' ||
-          concepto.includes('gb') || concepto.includes('datos') || concepto.includes('data') ||
-          concepto.includes('exceso');
-
-        const unidades = parseFloat(cdr.unidades || cdr.volume || cdr.gbUsed || cdr.gb || 0);
-        if (!isData || !unidades || unidades <= 0) return;
-
-        monthMap[month] = (monthMap[month] || 0) + unidades;
-      });
-
-      const totalGB = parseFloat(gb.totalGB || gb.total_gb || gb.total || gb.totalGb || gb.allowance || 0);
-
-      monthly = Object.entries(monthMap)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([mes, gbUsados]) => ({
-          mes,
-          gbUsados: Math.round(gbUsados * 100) / 100,
-          gbTotales: totalGB
-        }));
-    }
-
-    res.json({
-      ok: true,
-      data: {
-        gb: {
-          totalGB: parseFloat(gb.totalGB || gb.total_gb || gb.total || gb.totalGb || gb.allowance || 0),
-          usedGB: parseFloat(gb.usedGB || gb.used_gb || gb.used || gb.consumed || gb.consumption || gb.usage || 0),
-          remainingGB: parseFloat(gb.remainingGB || gb.remaining_gb || gb.remaining || gb.remainingGb || gb.balance || gb.left || 0),
-          roamingGB: parseFloat(gb.roamingGB || gb.roaming_gb || gb.roaming || gb.roaming_used || 0)
-        },
-        monthly
-      }
-    });
+    const result = await api.getLineGB(req.params.lineNumber);
+    const payload = result.data || result;
+    res.json({ ok: true, data: payload });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }

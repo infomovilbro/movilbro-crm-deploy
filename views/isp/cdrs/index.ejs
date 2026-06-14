@@ -36,78 +36,44 @@
     <div class="card-body p-0">
       <% if (!groups || groups.length === 0) { %>
       <div class="text-center text-muted py-4"><i class="bi bi-inbox" style="font-size:2rem;"></i><br>No hay CDRs registrados en este periodo.<br>Sube un CSV con los consumos de los operadores o añádelos manualmente.</div>
-      <% } else {
-        // Flatten all CDRs and group by period
-        var allCdrs = [];
-        groups.forEach(function(g) {
-          g.cdrs.forEach(function(c) {
-            c._cliente_nombre = g.cliente;
-            allCdrs.push(c);
-          });
-        });
-        var byPeriod = {};
-        allCdrs.forEach(function(c) {
-          var p = c.periodo || 'sin-periodo';
-          if (!byPeriod[p]) byPeriod[p] = [];
-          byPeriod[p].push(c);
-        });
-        var periods = Object.keys(byPeriod).sort().reverse();
-        var totalRegistros = allCdrs.length;
-      %>
-      <div class="p-2 small text-muted"><%= totalRegistros %> registros en total</div>
-      <div class="accordion accordion-flush" id="cdrsIspAccordion">
-        <% periods.forEach(function(p, pi) {
-          var cdrs = byPeriod[p];
-          var totalMes = 0;
-          cdrs.forEach(function(c) { totalMes += parseFloat(c.importe || 0); });
-          var label = p === 'sin-periodo' ? 'Sin periodo' : p;
-        %>
-        <div class="accordion-item">
-          <h2 class="accordion-header">
-            <button class="accordion-button collapsed py-2" type="button" data-bs-toggle="collapse" data-bs-target="#cdrPeriod<%= pi %>">
-              <strong><%= label %></strong>
-              <span class="badge bg-secondary ms-2"><%= cdrs.length %></span>
-              <span class="badge bg-primary ms-1"><%= totalMes.toFixed(2) %>€</span>
-            </button>
-          </h2>
-          <div id="cdrPeriod<%= pi %>" class="accordion-collapse collapse" data-bs-parent="#cdrsIspAccordion">
-            <div class="accordion-body p-0">
-              <div class="table-responsive">
-                <table class="table table-hover mb-0 table-sm">
-                  <thead class="table-light">
-                    <tr>
-                      <th>Cliente</th>
-                      <th>L&iacute;nea</th>
-                      <th>Concepto</th>
-                      <th>Tipo</th>
-                      <th>Unidades</th>
-                      <th>Importe</th>
-                      <th>Factura</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <% cdrs.forEach(function(c) { %>
-                    <tr>
-                      <td><strong><%= c._cliente_nombre %></strong></td>
-                      <td><code><%= c.linea || '-' %></code></td>
-                      <td><%= c.concepto || '-' %></td>
-                      <td><span class="badge bg-info"><%= c.tipo || '-' %></span></td>
-                      <td><%= c.unidades ? c.unidades + ' ' + (c.tipo === 'exceso' ? 'GB' : c.tipo === 'sms' ? 'SMS' : 'min') : '-' %></td>
-                      <td class="fw-bold"><%= parseFloat(c.importe || 0).toFixed(2) %>€</td>
-                      <td><%= c.factura_id ? '#'+c.factura_id : '<span class="text-warning">Pendiente</span>' %></td>
-                      <td class="text-end">
-                        <button class="btn btn-sm btn-outline-danger" onclick="deleteCDR(<%= c.id %>)"><i class="bi bi-trash"></i></button>
-                      </td>
-                    </tr>
-                    <% }); %>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-        <% }); %>
+      <% } else { %>
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Cliente</th>
+              <th>Línea</th>
+              <th>Concepto</th>
+              <th>Tipo</th>
+              <th>Unidades</th>
+              <th>Importe</th>
+              <th>Periodo</th>
+              <th>Factura</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% groups.forEach(function(g) { %>
+              <% g.cdrs.forEach(function(c, idx) { %>
+            <tr>
+              <% if (idx === 0) { %>
+              <td rowspan="<%= g.cdrs.length %>" style="vertical-align:middle;"><strong><%= g.cliente %></strong><br><small class="text-muted"><%= g.cdrs.length %> registros · <%= g.total.toFixed(2) %>€</small></td>
+              <% } %>
+              <td><code><%= c.linea || '-' %></code></td>
+              <td><%= c.concepto %></td>
+              <td><span class="badge bg-info"><%= c.tipo %></span></td>
+              <td><%= c.unidades ? c.unidades + ' ' + (c.tipo === 'exceso' ? 'GB' : c.tipo === 'sms' ? 'SMS' : 'min') : '-' %></td>
+              <td class="fw-bold"><%= parseFloat(c.importe).toFixed(2) %>€</td>
+              <td><%= c.periodo || '-' %></td>
+              <td><%= c.factura_id ? '#'+c.factura_id : '<span class="text-warning">Pendiente</span>' %></td>
+              <td class="text-end">
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteCDR(<%= c.id %>)"><i class="bi bi-trash"></i></button>
+              </td>
+            </tr>
+              <% }); %>
+            <% }); %>
+          </tbody>
+        </table>
       </div>
       <% } %>
     </div>
