@@ -120,6 +120,16 @@ function mapInstallation(raw) {
     Notas: pick('notas', 'notes', 'observaciones', 'comentarios', 'comments', 'description'),
     timeline: o.timeline || o.history || o.events || o.statusHistory || o.status_history || [],
   };
+  // Extract documents/files/attachments
+  var docs = o.documents || o.files || o.attachments || raw.documents || raw.files || raw.attachments || [];
+  if (!Array.isArray(docs)) docs = [];
+  result.Documentos = docs.map(function(doc) {
+    return {
+      name: doc.name || doc.fileName || doc.filename || doc.originalName || 'Documento',
+      url: doc.url || doc.downloadUrl || doc.fileUrl || doc.path || '',
+      type: doc.type || doc.mimeType || doc.contentType || 'application/octet-stream'
+    };
+  });
   console.log('[Installation detail] mapped result:', JSON.stringify(result, null, 2));
   return result;
 }

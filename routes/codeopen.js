@@ -624,7 +624,7 @@ function setIMAPLastDate(dateStr) {
   } catch(e) {}
 }
 
-var gmailUser = process.env.GMAIL_USER || 'infomovilbro@gmail.com';
+var gmailUser = process.env.GMAIL_USER || '';
 var gmailPass = process.env.GMAIL_PASS || '';
 // Fallback to DB settings if env vars not set
 try {
@@ -1099,7 +1099,7 @@ router.post('/scan-inbox', (req, res) => {
 router.post('/test-email', async (req, res) => {
   try {
     var emailService = require('../services/email');
-    var to = req.body.to || 'infomovilbro@gmail.com';
+    var to = req.body.to || (process.env.GMAIL_USER || '');
     var result = await emailService.sendEmail(to, 'Test', 'Prueba CRM Movilbro', '<h2>Email de prueba</h2><p>Si recibes esto, el email funciona correctamente.</p>');
     res.json({ ok: result, message: result ? 'Email enviado a ' + to : 'Falló el envío' });
   } catch(e) { res.json({ ok: false, error: e.message }); }
@@ -1125,10 +1125,9 @@ router.post('/whatsapp/logout', async (req, res) => {
 
 router.post('/whatsapp/reconnect', async (req, res) => {
   try {
-    db.prepare("DELETE FROM settings WHERE key='baileys_session'").run();
     var wa = require('../wa-baileys');
-    // Force reconnect by deleting session
-    res.json({ ok: true, message: 'Sesion borrada. Recarga la pagina para ver el nuevo QR.' });
+    await wa.reconnect();
+    res.json({ ok: true, message: 'Reconectando... QR generado en breve.', status: wa.getStatus() });
   } catch(e) { res.json({ ok: false, error: e.message }); }
 });
 
@@ -1331,6 +1330,17 @@ router.get('/debug-js', (req, res) => {
   // Extraer solo el script
   var m = html.match(/<script>([\s\S]*?)<\/script>/);
   res.type('text/plain').send('window.onerror = function(m,f,l){alert("JS ERROR: "+m+" at "+f+":"+l);};\n' + (m ? m[1].trim() : 'NO SCRIPT'));
+});
+
+// ---- WA RECONNECT ----
+router.post('/baileys-reconnect', async (req, res) => {
+  try {
+    var wa = require('../wa-baileys');
+    await wa.reconnect();
+    res.json({ ok: true, status: wa.getStatus() });
+  } catch(e) {
+    res.json({ ok: false, error: e.message });
+  }
 });
 
 module.exports = router;

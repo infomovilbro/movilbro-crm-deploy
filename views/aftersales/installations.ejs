@@ -95,10 +95,10 @@
     <div class="card-body p-0">
       <div class="table-responsive">
         <table class="table table-hover">
-          <thead><tr><th>Cliente</th><th>DNI/NIF</th><th>Dirección</th><th>Producto</th><th>Estado</th><th>Fecha Inst.</th><th>Fecha Prog.</th><th>Técnico</th><th>Notas</th><th></th></tr></thead>
+          <thead><tr><th>Cliente</th><th>DNI/NIF</th><th>Dirección</th><th>Producto</th><th>Estado</th><th>Fecha Inst.</th><th>Fecha Prog.</th><th>Técnico</th><th>Notas</th><th>Documentos</th><th></th></tr></thead>
           <tbody>
             <% if (!installations || installations.length === 0) { %>
-            <tr><td colspan="10" class="text-center text-muted py-4">No hay instalaciones</td></tr>
+            <tr><td colspan="11" class="text-center text-muted py-4">No hay instalaciones</td></tr>
             <% } else { installations.forEach(i => { 
               const st = (i.status || i.estado || '').toUpperCase();
               const sc = st === 'COMPLETED' ? 'success' : st === 'SCHEDULED' || st === 'PENDING_SCHEDULE' ? 'info' : st === 'ERRORED' ? 'danger' : st === 'CANCELED' ? 'secondary' : 'warning';
@@ -118,6 +118,15 @@
               <td class="small"><%= i.scheduledDate ? new Date(i.scheduledDate).toLocaleDateString('es-ES') : '-' %></td>
               <td class="small"><%= i.technician || i.tecnico || i.installer || '-' %></td>
               <td class="small text-truncate" style="max-width:120px;"><%= i.notes || i.notas || i.observations || '-' %></td>
+              <td class="small">
+                <% var iDocs = i.documents || i.files || i.attachments || []; %>
+                <% if (!Array.isArray(iDocs)) iDocs = []; %>
+                <% if (iDocs.length > 0) { %>
+                  <a href="javascript:void(0)" class="ver-instalacion" data-id="<%= i.id || i.installationId || '' %>"><%= iDocs.length %> documento(s)</a>
+                <% } else { %>
+                  <span class="text-muted">-</span>
+                <% } %>
+              </td>
               <td><button class="btn btn-sm btn-outline-primary ver-instalacion" data-id="<%= i.id || i.installationId || '' %>">Ver Detalle</button></td>
             </tr>
             <% }); } %>
@@ -211,6 +220,22 @@ document.addEventListener('DOMContentLoaded', function() {
           html += '</tbody></table></div></div>';
           // Notas
           html += '<div class="card mb-3"><div class="card-header py-1 fw-bold"><i class="ri-file-text-line"></i> Notas</div><div class="card-body p-2"><p class="mb-0 small">' + v(d.notes || d.notas || d.observations || d.observaciones || d.comments, 'Sin notas') + '</p></div></div>';
+          // Documentos
+          var docList = d.Documentos || d.documents || d.files || [];
+          if (typeof docList === 'string') { try { docList = JSON.parse(docList); } catch(e) { docList = []; } }
+          html += '<div class="card mb-3"><div class="card-header py-1 fw-bold"><i class="ri-file-paper-line"></i> Documentos</div><div class="card-body p-2">';
+          if (Array.isArray(docList) && docList.length > 0) {
+            html += '<div class="d-flex flex-wrap gap-2">';
+            docList.forEach(function(doc) {
+              var docName = doc.name || doc.fileName || doc.filename || 'Documento';
+              var docUrl = doc.url || doc.downloadUrl || doc.fileUrl || doc.path || '#';
+              html += '<a href="' + docUrl + '" class="btn btn-sm btn-outline-success" target="_blank" download><i class="ri-download-line"></i> ' + docName + '</a>';
+            });
+            html += '</div>';
+          } else {
+            html += '<p class="mb-0 small text-muted">Sin documentos adjuntos</p>';
+          }
+          html += '</div></div>';
           // Timeline
           var timeline = d.statusHistory || d.timeline || d.history || d.estados || d.status_history;
           if (timeline && Array.isArray(timeline) && timeline.length) {

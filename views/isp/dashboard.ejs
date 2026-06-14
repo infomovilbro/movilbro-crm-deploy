@@ -41,4 +41,33 @@
       <% }); } %></tbody></table>
     </div></div></div>
   </div>
+
+  <% if (morosos && morosos.length > 0) { %>
+  <div class="row g-3 mt-2 hideable-section" data-card-id="morosidad">
+    <div class="col-12">
+      <div class="card border-danger">
+        <div class="card-header bg-danger text-white d-flex justify-content-between">
+          <span><i class="bi bi-exclamation-triangle-fill"></i> Morosidad</span>
+          <span class="badge bg-light text-danger"><%= morosos.length %> clientes</span>
+        </div>
+        <div class="card-body p-0">
+          <table class="table table-hover mb-0">
+            <thead><tr><th>Cliente</th><th>Total Adeudado</th><th>Facturas Vencidas</th><th>Periodo más antiguo</th><th></th></tr></thead>
+            <tbody>
+            <% morosos.forEach(function(m) { %>
+              <tr>
+                <td><%= m.cliente_nombre %></td>
+                <td><span class="badge bg-<%= parseFloat(m.total_adeudado) > 50 ? 'danger' : 'warning' %> fs-6"><%= parseFloat(m.total_adeudado).toFixed(2) %>€</span></td>
+                <td><%= m.numero_facturas_vencidas %></td>
+                <td><%= m.periodo_mas_antiguo %></td>
+                <td><a href="/isp/facturacion?fiscalId=<%= encodeURIComponent(m.fiscal_id || '') %>" class="btn btn-sm btn-outline-danger">Ver facturas</a></td>
+              </tr>
+            <% }); %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <% } %>
 </section>

@@ -4,10 +4,10 @@ const { db } = require('../database');
 
 function getGmailCreds() {
   try {
-    var user = db.prepare("SELECT value FROM settings WHERE key='gmail_user'").get()?.value || process.env.GMAIL_USER || 'infomovilbro@gmail.com';
+    var user = db.prepare("SELECT value FROM settings WHERE key='gmail_user'").get()?.value || process.env.GMAIL_USER || '';
     var pass = db.prepare("SELECT value FROM settings WHERE key='gmail_pass'").get()?.value || process.env.GMAIL_PASS || '';
     return { user, pass };
-  } catch(e) { return { user: process.env.GMAIL_USER || 'infomovilbro@gmail.com', pass: process.env.GMAIL_PASS || '' }; }
+  } catch(e) { return { user: process.env.GMAIL_USER || '', pass: process.env.GMAIL_PASS || '' }; }
 }
 
 function getMailjetCreds() {
@@ -47,7 +47,7 @@ async function sendEmail(toEmail, toName, subject, html) {
   if (mj.key && mj.secret) {
     try {
       await axios.post('https://api.mailjet.com/v3.1/send', {
-        Messages: [{ From: { Email: gmail.user || 'infomovilbro@gmail.com', Name: 'CRM Movilbro' }, To: [{ Email: toEmail, Name: toName || toEmail }], Subject: subject, HTMLPart: html }]
+        Messages: [{ From: { Email: gmail.user || process.env.GMAIL_USER || 'crm@movilbro.com', Name: 'CRM Movilbro' }, To: [{ Email: toEmail, Name: toName || toEmail }], Subject: subject, HTMLPart: html }]
       }, { auth: { username: mj.key, password: mj.secret }, timeout: 15000 });
       console.log('[Email] Enviado OK via Mailjet a', toEmail);
       return true;

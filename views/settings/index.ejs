@@ -254,7 +254,7 @@
             <div class="row g-3">
               <div class="col-md-6">
                 <label class="form-label">Direcci&oacute;n Gmail</label>
-                <input type="email" name="gmail_user" class="form-control" value="<%= settings.gmail_user || 'infomovilbro@gmail.com' %>" placeholder="tucuenta@gmail.com">
+                <input type="email" name="gmail_user" class="form-control" value="<%= settings.gmail_user || process.env.GMAIL_USER || '' %>" placeholder="tucuenta@gmail.com">
               </div>
               <div class="col-md-6">
                 <label class="form-label">Contrase&ntilde;a de aplicaci&oacute;n</label>
