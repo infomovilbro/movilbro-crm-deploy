@@ -275,9 +275,6 @@ function mapApiInstallations(instArr) {
 router.get('/fiscal/:fiscalId', requireAuth, async (req, res) => {
   try {
     var fiscalId = req.params.fiscalId;
-    var local = db.prepare('SELECT id FROM clients WHERE dni_nif = ? COLLATE NOCASE').get(fiscalId);
-    if (local) return res.redirect('/clientes/' + local.id);
-
     const api = LikesAPI.getApiInstance();
     const raw = await api.request('GET', '/customer/overview?fiscalId=' + encodeURIComponent(fiscalId) + '&includeCustomer=true&includeSubscriptions=true&includeOrders=true&includeInstallations=true&includeInvoices=true&includePayments=true');
     const data = raw && raw.data ? raw.data : raw;

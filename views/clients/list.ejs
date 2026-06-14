@@ -56,15 +56,8 @@
                   <span class="badge bg-info"><i class="ri-cloud-line"></i> API Likes</span>
                 </td>
                 <td>
-                  <% if (c.id_local) { %>
-                    <a href="/clientes/<%= c.id_local %>" class="fw-bold text-decoration-none"><%= c.nombre %> <%= c.apellidos || '' %></a>
-                  <% } else if (c.id_api) { %>
-                    <a href="/clientes/fiscal/<%= encodeURIComponent(c.dni_nif || c.id_api) %>" class="fw-bold text-decoration-none"><%= c.nombre %> <%= c.apellidos || '' %></a>
-                  <% } else if (c.dni_nif) { %>
-                    <a href="/clientes/fiscal/<%= encodeURIComponent(c.dni_nif) %>" class="fw-bold text-decoration-none"><%= c.nombre %> <%= c.apellidos || '' %></a>
-                  <% } else { %>
-                    <a href="/clientes?search=<%= encodeURIComponent(c.telefono || c.nombre || '') %>" class="fw-bold text-decoration-none"><%= c.nombre %> <%= c.apellidos || '' %></a>
-                  <% } %>
+                  <% var fiscalLink = c.dni_nif ? '/clientes/fiscal/' + encodeURIComponent(c.dni_nif) : (c.id_api ? '/clientes/fiscal/' + encodeURIComponent(c.id_api) : (c.id_local ? '/clientes/' + c.id_local : '#')); %>
+                  <a href="<%= fiscalLink %>" class="fw-bold text-decoration-none"><%= c.nombre %> <%= c.apellidos || '' %></a>
                 </td>
                 <td><%= c.telefono ? '<a href="tel:' + c.telefono + '">' + c.telefono + '</a>' : '-' %></td>
                 <td class="small"><%= c.email || '-' %></td>
@@ -73,14 +66,11 @@
                   <% if (c.estado) { %>
                     <span class="badge bg-<%= c.estado === 'ACTIVE' || c.estado === 'CREATED' ? 'success' : 'warning' %>"><%= c.estado %></span>
                   <% } else { %>
-                    <span class="badge bg-secondary">Local</span>
+                    <span class="badge bg-secondary">API</span>
                   <% } %>
                 </td>
                 <td class="text-end" style="white-space:nowrap;">
-                  <% if (c.id_local) { %>
-                    <a href="/clientes/<%= c.id_local %>" class="btn btn-sm btn-outline-info" title="Ver"><i class="ri-eye-line"></i></a>
-                    <a href="/clientes/<%= c.id_local %>/editar" class="btn btn-sm btn-outline-warning" title="Editar"><i class="ri-pencil-line"></i></a>
-                  <% } %>
+                  <a href="<%= fiscalLink %>" class="btn btn-sm btn-outline-info" title="Ver"><i class="ri-eye-line"></i></a>
                   <% if (phoneClean) { %>
                     <a href="/whatsapp?phone=<%= phoneClean %>" class="btn btn-sm btn-outline-success" target="_blank" title="WhatsApp: <%= c.telefono %>"><i class="ri-whatsapp-line"></i></a>
                   <% } else { %>
