@@ -128,9 +128,12 @@ async function initBaileys() {
         lastError = 'DC: ' + reason;
         console.log('[Baileys] Disconnected:', reason);
         
-        if (reason === 401) {
+        if (reason === 401 || reason === 440) {
           db.prepare("DELETE FROM settings WHERE key = 'baileys_session'").run();
+          try { if (fs.existsSync(authDir)) fs.rmSync(authDir, { recursive: true }); } catch(e) {}
+          qrCodeData = null;
           connectionState = 'idle';
+          setTimeout(initBaileys, 2000);
         } else {
           setTimeout(initBaileys, 5000);
         }
