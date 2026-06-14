@@ -50,7 +50,8 @@ class LikesAPI {
     const config = {
       method,
       url: `${this.apiUrl}${endpoint}`,
-      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      timeout: 20000
     };
     if (data) config.data = data;
     try {

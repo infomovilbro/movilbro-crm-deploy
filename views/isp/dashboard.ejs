@@ -19,6 +19,22 @@
   </div>
   <% } %>
 
+  <% if (typeof morosos !== 'undefined' && morosos.length > 0) { %>
+  <div class="row g-3 mb-4">
+    <div class="col-12"><div class="card border-danger"><div class="card-header bg-danger text-white d-flex justify-content-between"><span><i class="bi bi-exclamation-triangle"></i> Morosidad</span><span class="badge bg-light text-danger"><%= morosos.length %> clientes</span></div><div class="card-body p-0">
+      <table class="table table-hover mb-0"><thead><tr><th>Cliente</th><th>Total Adeudado</th><th>Facturas Vencidas</th><th>Per&iacute;odo m&aacute;s antiguo</th></tr></thead><tbody>
+      <% morosos.forEach(function(m) { %>
+        <tr>
+          <td><a href="/clientes/fiscal/<%= encodeURIComponent(m.fiscal_id) %>"><%= m.cliente_nombre || m.fiscal_id %></a></td>
+          <td><strong class="<%= parseFloat(m.total_adeudado) > 50 ? 'text-danger' : '' %>"><%= parseFloat(m.total_adeudado).toFixed(2) %>€</strong></td>
+          <td><span class="badge bg-<%= m.facturas_vencidas > 3 ? 'danger' : 'warning' %>"><%= m.facturas_vencidas %></span></td>
+          <td class="small"><%= m.periodo_mas_antiguo || '-' %></td>
+        </tr>
+      <% }); %></tbody></table>
+    </div></div></div>
+  </div>
+  <% } %>
+
   <div class="row g-3 hideable-section" data-card-id="ultimos-contratos">
     <div class="col-md-6"><div class="card"><div class="card-header d-flex justify-content-between"><span><i class="bi bi-file-text"></i> Últimos Contratos</span><a href="/isp/contratos" class="btn btn-sm btn-outline-primary">Ver todos</a></div><div class="card-body p-0">
       <table class="table table-hover mb-0"><thead><tr><th>#</th><th>Cliente</th><th>Tipo</th><th>Estado</th><th>Fecha</th></tr></thead><tbody>

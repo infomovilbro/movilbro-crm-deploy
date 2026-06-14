@@ -274,12 +274,15 @@ function mapApiInstallations(instArr) {
 
 router.get('/fiscal/:fiscalId', requireAuth, async (req, res) => {
   try {
+    var fiscalId = req.params.fiscalId;
+    var local = db.prepare('SELECT id FROM clients WHERE dni_nif = ? COLLATE NOCASE').get(fiscalId);
+    if (local) return res.redirect('/clientes/' + local.id);
+
     const api = LikesAPI.getApiInstance();
-    const raw = await api.request('GET', '/customer/overview?fiscalId=' + encodeURIComponent(req.params.fiscalId) + '&includeCustomer=true&includeSubscriptions=true&includeOrders=true&includeInstallations=true&includeInvoices=true&includePayments=true');
+    const raw = await api.request('GET', '/customer/overview?fiscalId=' + encodeURIComponent(fiscalId) + '&includeCustomer=true&includeSubscriptions=true&includeOrders=true&includeInstallations=true&includeInvoices=true&includePayments=true');
     const data = raw && raw.data ? raw.data : raw;
     const cust = data.customer || data;
     const apiCustomer = mapApiCustomer(cust);
-    const fiscalId = req.params.fiscalId;
 
     res.render('clients/view', {
       title: 'Cliente: ' + (apiCustomer.name || fiscalId),
@@ -322,7 +325,15 @@ router.get('/fiscal/:fiscalId', requireAuth, async (req, res) => {
     });
   } catch(e) {
     console.error('[Clientes] Error fetching API client:', e.message);
-    res.status(500).send('Error al obtener datos del cliente: ' + e.message + '. Verifica que las credenciales de Likes Telecom estén configuradas.');
+    res.render('clients/view', {
+      title: 'Cliente: ' + req.params.fiscalId,
+      cliente: { id: null, nombre: req.params.fiscalId, apellidos: '', dni_nif: req.params.fiscalId, telefono: '', telefono2: '', email: '', direccion: '', ciudad: '', provincia: '', codigo_postal: '', created_at: '', likes_customer_id: '', notas: '', metodo_pago: '', iban: '', tipo_cliente: 'particular', stripe_payment_method: '' },
+      contratos: [], suscripciones: [], tickets: [], linesByStatus: '{}', lineNumbers: '[]',
+      apiActions: { canBlock: true, canChangeTariff: true, canDuplicateSim: true, canViewConsumption: true },
+      apiCustomer: {}, apiSubscriptions: [], apiOrders: [], apiInvoices: [], apiInstallations: [], apiPortabilities: [], apiPayments: [],
+      altasOrdenes: [], kycDocsPorOrden: {}, documentos: [],
+      apiError: 'No se pudieron cargar datos de API Likes: ' + e.message
+    });
   }
 });
 

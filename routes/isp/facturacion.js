@@ -11,6 +11,7 @@ router.use(requireAuth);
 // Dashboard de facturación
 router.get('/', async (req, res) => {
   try {
+    var fiscalIdFilter = req.query.fiscalId || '';
     var pendientes = 0, pagadas = 0, vencidas = 0, totalMes = 0;
     try {
       pendientes = db.prepare("SELECT COUNT(*) as c FROM isp_facturas WHERE estado='pendiente'").get().c;
@@ -21,12 +22,19 @@ router.get('/', async (req, res) => {
     } catch(e) {}
     
     var facturas = [];
-    try { facturas = db.prepare('SELECT * FROM isp_facturas ORDER BY created_at DESC LIMIT 20').all(); } catch(e) {}
+    try {
+      if (fiscalIdFilter) {
+        facturas = db.prepare('SELECT * FROM isp_facturas WHERE fiscal_id=? ORDER BY created_at DESC LIMIT 20').all(fiscalIdFilter);
+      } else {
+        facturas = db.prepare('SELECT * FROM isp_facturas ORDER BY created_at DESC LIMIT 20').all();
+      }
+    } catch(e) {}
     
     res.render('isp/facturacion/index', {
       title: 'Facturación',
       stats: { pendientes, pagadas, vencidas, totalMes },
-      facturas
+      facturas,
+      fiscalIdFilter
     });
   } catch(e) { console.error(e); res.status(500).send('Error: ' + e.message); }
 });

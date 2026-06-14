@@ -32,18 +32,28 @@ router.get('/', requireAuth, async (req, res) => {
         try { rawOrders = await api.getOrders(); } catch (e) {}
       }
 
-      apiOrders = (Array.isArray(rawOrders) ? rawOrders : []).map(o => ({
-        id: 'api-' + (o.id || o.order_id || o.orderId || Math.random().toString(36).slice(2, 8)),
-        client_id: null,
-        cliente_nombre: o.customer_name || o.customerName || (o.customer && o.customer.name) || o.name || o.client_name || 'API',
-        tipo: o.type || o.tipo || o.product_type || 'general',
-        producto: o.product_name || o.productName || (o.product && o.product.name) || o.producto || o.product || '',
-        estado: o.status || o.estado || 'pendiente',
-        detalles: o.details || o.detalles || o.description || '',
-        likes_order_id: o.id || o.order_id || o.orderId || '',
-        created_at: o.created_at || o.createdAt || o.date || o.fecha || new Date().toISOString(),
-        source: 'api'
-      }));
+      apiOrders = (Array.isArray(rawOrders) ? rawOrders : []).map(o => {
+        var statusHistory = [];
+        if (Array.isArray(o.statusHistory)) statusHistory = o.statusHistory;
+        else if (Array.isArray(o.status_history)) statusHistory = o.status_history;
+        else if (Array.isArray(o.history)) statusHistory = o.history;
+        return {
+          id: 'api-' + (o.id || o.order_id || o.orderId || Math.random().toString(36).slice(2, 8)),
+          client_id: null,
+          cliente_nombre: o.customer_name || o.customerName || (o.customer && o.customer.name) || o.name || o.client_name || 'API',
+          tipo: o.type || o.tipo || o.product_type || 'general',
+          producto: o.product_name || o.productName || (o.product && o.product.name) || o.producto || o.product || '',
+          estado: o.status || o.estado || 'pendiente',
+          detalles: o.details || o.detalles || o.description || '',
+          likes_order_id: o.id || o.order_id || o.orderId || '',
+          lineNumber: o.lineNumber || o.line || o.phone || o.numero || o.msisdn || '',
+          total: parseFloat(o.total || o.amount || o.price || o.importe || 0),
+          statusHistory: statusHistory,
+          type: o.type || o.tipo || o.product_type || 'general',
+          created_at: o.created_at || o.createdAt || o.date || o.fecha || new Date().toISOString(),
+          source: 'api'
+        };
+      });
     } catch (e) {
       console.error('Error fetching API orders:', e.message);
     }
