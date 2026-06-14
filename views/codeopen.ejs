@@ -1135,10 +1135,10 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
       isAnalyzing = false;
       if (progBar) { var fill = progBar.querySelector('div'); if (fill) fill.style.width = '100%'; setTimeout(function() { if (progBar) progBar.style.display = 'none'; }, 500); }
       if (d.ok) {
-        // NO recargar toda la vista - solo actualizar este mensaje
         var msgDiv = btn.closest('[style*="padding"]');
         if (msgDiv) {
-          msgDiv.innerHTML = '<div style="padding:10px;text-align:center;color:var(--success);font-size:0.8rem;"><i class="ri-check-line"></i> Analizado. Despliega el contacto para ver la respuesta.</div>';
+          var respText = d.response || d.proposed_response || '';
+          msgDiv.innerHTML = '<div style="padding:8px 10px;font-size:0.8rem;color:var(--text);border-left:3px solid var(--success);background:var(--bg-main);border-radius:6px;margin:4px 0;"><div style="font-weight:600;color:var(--success);margin-bottom:4px;"><i class="ri-checkbox-circle-line"></i> Respuesta propuesta:</div><div style="white-space:pre-wrap;word-break:break-word;">' + escHtml(respText) + '</div></div>';
         }
         pollPendingCount();
       } else {
