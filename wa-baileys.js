@@ -217,14 +217,37 @@ async function sendBaileysMessage(jid, content, options) {
       } catch(e) {}
     }
     
-    // Si es audio, enviar como audio
-    if (options && options.asAudio && content.audioBuffer) {
-      await sock.sendMessage(jid, { audio: content.audioBuffer, mimetype: content.mimeType || 'audio/mp3', ptt: true }, opts);
-      return { ok: true, type: 'audio' };
+    // Si es audio, enviar como nota de voz real
+    if (options && options.asAudio) {
+      var audioBuf = content && content.audioBuffer ? content.audioBuffer : (Buffer.isBuffer(content) ? content : null);
+      if (audioBuf && audioBuf.length > 100) {
+        try {
+          await sock.sendMessage(jid, { audio: audioBuf, mimetype: 'audio/mp3', ptt: true }, opts);
+          return { ok: true, type: 'audio' };
+        } catch(audioErr) {
+          console.log('[Baileys] Audio send failed:', audioErr.message);
+          // Si el audio falla, intentar como documento de audio
+          try {
+            await sock.sendMessage(jid, { 
+              document: audioBuf, 
+              mimetype: 'audio/mp3', 
+              fileName: 'mensaje-de-voz.mp3'
+            }, opts);
+            return { ok: true, type: 'audio_document' };
+          } catch(docErr) {
+            return { ok: false, error: 'Audio: ' + audioErr.message + ' / Doc: ' + docErr.message };
+          }
+        }
+      } else {
+        // Sin buffer de audio válido, enviar como texto con indicador
+        var text = (content && content.text) || (typeof content === 'string' ? content : '');
+        await sock.sendMessage(jid, { text: '🎤 ' + text }, opts);
+        return { ok: true, type: 'text_fallback', note: 'audio_no_disponible' };
+      }
     }
     
     // Si es documento (PDF), enviar como archivo
-    if (options && options.asDocument && content.documentBuffer) {
+    if (options && options.asDocument && content && content.documentBuffer) {
       await sock.sendMessage(jid, { 
         document: content.documentBuffer, 
         mimetype: content.mimeType || 'application/pdf', 
@@ -234,7 +257,8 @@ async function sendBaileysMessage(jid, content, options) {
     }
     
     // Por defecto, enviar como texto
-    var text = typeof content === 'string' ? content : (content.text || '');
+    var text = typeof content === 'string' ? content : (content && content.text ? content.text : '');
+    if (!text && content && content.audioBuffer && !options.asAudio) text = '🎵 Audio adjunto';
     await sock.sendMessage(jid, { text: text }, opts);
     return { ok: true, type: 'text' };
   } catch(e) {
@@ -363,4 +387,17 @@ async function getProfilePicture(jid) {
   }
 }
 
-module.exports = { initBaileys, getQRDataURL, getStatus, sendMessage: sendBaileysMessage, transcribeAudioMessage, getChats, getChatMessages, getProfilePicture };
+function end() {
+  try {
+    if (sock) {
+      sock.end();
+      sock = null;
+    }
+    isConnected = false;
+    connectionState = 'idle';
+    qrCodeData = null;
+    console.log('[Baileys] Session ended');
+  } catch(e) { console.log('[Baileys] End error:', e.message); }
+}
+
+module.exports = { initBaileys, getQRDataURL, getStatus, sendMessage: sendBaileysMessage, transcribeAudioMessage, getChats, getChatMessages, getProfilePicture, end };

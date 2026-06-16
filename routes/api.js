@@ -77,14 +77,17 @@ router.get('/search', requireAuth, async (req, res) => {
   if (!q || q.length < 2) { return res.json([]); }
 
   var search = '%' + q + '%';
+  var page = Math.max(1, parseInt(req.query.page) || 1);
+  var limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 10));
+  var offset = (page - 1) * limit;
 
   var locales = db.prepare(`
     SELECT id, nombre, apellidos, telefono, dni_nif, email, 'LOCAL' as origen
     FROM clients
     WHERE nombre LIKE ? OR apellidos LIKE ? OR telefono LIKE ? OR dni_nif LIKE ? OR email LIKE ?
     ORDER BY nombre ASC
-    LIMIT 20
-  `).all(search, search, search, search, search);
+    LIMIT ? OFFSET ?
+  `).all(search, search, search, search, search, limit, offset);
 
   var apiResults = [];
   try {

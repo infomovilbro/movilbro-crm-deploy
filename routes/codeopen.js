@@ -206,47 +206,61 @@ async function detectAndFetchDocument(msgBody, fromName, fromAddress) {
   }
 }
 
-async function callLLM(systemPrompt, userMessage, temperature, modelId) {
-  var primaryModel = modelId || getUserModel();
-  var modelConfig = getModelConfig(primaryModel);
-  if (!modelConfig) return 'Error: Modelo no disponible';
-  if (!modelConfig.key) return 'Error: API key para ' + modelConfig.name + ' no configurada';
+// ---- DETECCIÓN DE ALTAS (nuevas contrataciones) ----
+function detectAltaIntent(msgBody, fromName) {
+  var keywords = ['alta', 'contratar', 'nueva línea', 'nueva linea', 'portabilidad', 'quiero fibra', 'quiero móvil', 'me interesa', 'presupuesto', 'tarifa', 'cuanto cuesta', 'precio', 'contratación', 'contratacion', 'dar de alta', 'nuevo servicio', 'activar', 'instalación', 'instalacion', 'me gustaria', 'me gustaría'];
+  var text = (msgBody + ' ' + fromName).toLowerCase();
+  var matches = keywords.filter(function(k) { return text.indexOf(k) >= 0; });
+  if (matches.length > 0) {
+    var score = Math.min(matches.length, 5) / 5;
+    return { isAlta: score > 0.3, score: score, matches: matches, keywords: matches.slice(0, 3) };
+  }
+  return { isAlta: false, score: 0, matches: [] };
+}
 
-    // Intentar TODOS los modelos disponibles hasta encontrar uno que funcione
-    var modelsToTry = [primaryModel, 'deepseek-v4-flash-free', 'nemotron-3-ultra-free', 'nemotron-3-super-free', 'gemini-2.0-flash-openrouter', 'mistral-small-openrouter', 'llama-3.2-openrouter'];
-    var lastError = '';
-    
-    for (var mi = 0; mi < modelsToTry.length; mi++) {
-      var tryModel = modelsToTry[mi];
-      var tryConfig = getModelConfig(tryModel);
-      if (!tryConfig || !tryConfig.key) continue;
-      
+async function callLLM(systemPrompt, userMessage, temperature, modelId, maxTokens) {
+  maxTokens = maxTokens || 200;
+  var primaryModel = modelId || getUserModel();
+  if (!getModelConfig(primaryModel)) return 'Error: Modelo no disponible';
+
+  var modelsToTry = [primaryModel, 'deepseek-v4-flash-free', 'nemotron-3-ultra-free', 'nemotron-3-super-free'];
+  if (getModelConfig('gemini-2.0-flash-openrouter')?.key) modelsToTry.push('gemini-2.0-flash-openrouter');
+  
+  // Lanzar TODOS los modelos en paralelo, el primero que responda gana
+  var promises = modelsToTry.filter(function(m) { return getModelConfig(m) && getModelConfig(m).key; }).map(function(m) {
+    return (async function() {
+      var cfg = getModelConfig(m);
       try {
-        const r = await axios.post(tryConfig.apiEndpoint, {
-          model: tryModel,
-          messages: [{ role: 'user', content: ((systemPrompt || '') + '\n' + (userMessage || '')).substring(0, 500) }],
-          temperature: 0.3, max_tokens: 200
-        }, { timeout: 5000, headers: { 'Authorization': 'Bearer ' + tryConfig.key, 'Content-Type': 'application/json' } });
-        var text = r?.data?.choices?.[0]?.message?.content;
-        if ((text || '').trim()) {
-          try { db.prepare("INSERT INTO model_usage (model_id, date, calls) VALUES (?, ?, 1) ON CONFLICT(model_id, date) DO UPDATE SET calls = calls + 1, updated_at = CURRENT_TIMESTAMP").run(tryModel, new Date().toISOString().split('T')[0]); } catch(e) {}
-          return (text || '').trim();
+        var resp = await axios.post(cfg.apiEndpoint, {
+          model: m,
+          messages: [{ role: 'user', content: ((systemPrompt || '') + '\n' + (userMessage || '')).substring(0, maxTokens > 200 ? 2000 : 500) }],
+          temperature: temperature || 0.3, max_tokens: maxTokens
+        }, { timeout: maxTokens > 200 ? 15000 : 5000, headers: { 'Authorization': 'Bearer ' + cfg.key, 'Content-Type': 'application/json' } });
+        var text = resp?.data?.choices?.[0]?.message?.content;
+        if (text && text.trim()) {
+          try { db.prepare("INSERT INTO model_usage (model_id, date, calls) VALUES (?, ?, 1) ON CONFLICT(model_id, date) DO UPDATE SET calls = calls + 1, updated_at = CURRENT_TIMESTAMP").run(m, new Date().toISOString().split('T')[0]); } catch(e) {}
+          return { model: m, text: text.trim() };
         }
       } catch(e) {
         var is429 = e.response && e.response.status === 429;
-        lastError = is429 ? ('Modelo ' + tryModel + ' saturado') : e.message;
-        if (is429) {
-          console.log('[CodeOpen] 429 en ' + tryModel + ', probando siguiente...');
-          continue; // Probar siguiente modelo
-        } else {
-          console.log('[CodeOpen] Error en ' + tryModel + ':', e.message);
-          continue;
-        }
+        if (!is429) console.log('[CodeOpen] Error en ' + m + ':', e.message);
       }
+      return null;
+    })();
+  });
+
+  // Promise.race: el primer modelo que responda, gana
+  while (promises.length > 0) {
+    var result = await Promise.race(promises.map(function(p) { return p.then(function(v) { return { idx: promises.indexOf(p), val: v }; }); }));
+    if (result.val && result.val.text) {
+      try { db.prepare("UPDATE model_usage SET calls = calls + 1, updated_at = CURRENT_TIMESTAMP WHERE model_id = ? AND date = ?").run(result.val.model, new Date().toISOString().split('T')[0]); } catch(e) {}
+      return result.val.text;
     }
-    
-    console.error('[CodeOpen] Todos los modelos fallaron:', lastError);
-    return 'Error: Inténtalo de nuevo en unos segundos. (' + lastError + ')';
+    promises.splice(result.idx, 1);
+  }
+  
+  console.error('[CodeOpen] Todos los modelos fallaron');
+  return 'Error: Inténtalo de nuevo en unos segundos.';
 }
 
 const AGENT_CATEGORIES = {
@@ -403,7 +417,13 @@ router.post('/ask', async (req, res) => {
   sseClients.set(taskId, new Set());
   db.prepare("INSERT INTO chat_history (session_id, role, content) VALUES (?, 'user', ?)").run(sessionId, '[' + catDef.name + '] ' + question);
   emitSSE(taskId, 'start', { taskId, question, category, agents: Object.keys(task.agents) });
-  var fullMessage = contextStr + '\n\nConsulta del usuario: ' + question;
+  var sessionIdForContext = req.body.session_id || req.session?.id || 'anon_' + generateTaskId();
+  var recentHistory = [];
+  try {
+    recentHistory = db.prepare("SELECT role, content FROM chat_history WHERE session_id = ? ORDER BY created_at ASC LIMIT 10").all(sessionIdForContext);
+  } catch(e) {}
+  var historyStr = recentHistory.length > 0 ? '\n\nHistorial reciente:\n' + recentHistory.map(function(h) { return h.role + ': ' + h.content.substring(0, 200); }).join('\n') : '';
+  var fullMessage = contextStr + historyStr + '\n\nNueva consulta del usuario: ' + question;
   async function runAgent(agentId, agentDef, index) {
     var ag = task.agents[agentId];
     ag.status = 'working'; ag.progress = 10;
@@ -564,6 +584,11 @@ router.post('/webhook/whatsapp', async (req, res) => {
   
   // SIN auto-análisis: solo guardar pendiente para que el usuario decida
   var id = db.prepare("INSERT INTO pending_messages (source, from_name, from_address, body, proposed_response, status, category) VALUES (?,?,?,?,?,'pending','whatsapp')").run('whatsapp', from, from, message, null);
+  // Detectar si es una solicitud de alta
+  var altaInfo = detectAltaIntent(message, from);
+  if (altaInfo.isAlta) {
+    db.prepare("UPDATE pending_messages SET category='altas', altas_score=? WHERE id=?").run(altaInfo.score, id.lastInsertRowid);
+  }
   whatsappMessages.push({ id: id.lastInsertRowid, from, message, status: 'pending' });
   console.log('[WhatsApp] Mensaje de', from, '→ pendiente #' + id.lastInsertRowid, '→ esperando análisis manual');
   
@@ -599,6 +624,11 @@ router.post('/webhook/email', async (req, res) => {
     var fullText = 'Asunto: ' + subject + '\nDe: ' + from + '\n\n' + body;
     // SIN auto-análisis: solo guardar pendiente para que el usuario decida
     var id = db.prepare("INSERT INTO pending_messages (source, from_name, from_address, subject, body, proposed_response, status, category) VALUES (?,?,?,?,?,?,'pending','email')").run('email', from, from, subject, fullText, null);
+    // Detectar si es una solicitud de alta
+    var altaInfo = detectAltaIntent(body, from);
+    if (altaInfo.isAlta) {
+      db.prepare("UPDATE pending_messages SET category='altas', altas_score=? WHERE id=?").run(altaInfo.score, id.lastInsertRowid);
+    }
     emailMessages.push({ id: id.lastInsertRowid, from, subject, body: fullText, response: null, status: 'pending' });
     console.log('[Email] Correo de', from, '→ pendiente #' + id.lastInsertRowid, '→ esperando análisis manual');
     res.json({ ok: true, pending_id: id.lastInsertRowid, message: 'Correo recibido. Ve a Pendientes para analizarlo manualmente.' });
@@ -768,7 +798,7 @@ router.get('/pending/grouped', (req, res) => {
     rows.forEach(function(r) {
       var key = r.category === 'email' ? 'email_' + (r.from_address || r.from_name) : (r.from_address || r.from_name || 'desconocido');
       if (!groups[key]) {
-        groups[key] = { contact: r.from_name || key, address: r.from_address || '', category: r.category || 'whatsapp', messages: [] };
+        groups[key] = { contact: r.from_name || key, address: r.from_address || '', category: r.category || 'whatsapp', altas_score: r.altas_score || 0, messages: [] };
         order.push(key);
       }
       groups[key].messages.push(r);
@@ -815,29 +845,48 @@ router.post('/analyze/:id', async (req, res) => {
       } catch(e) {}
     }
     
-    // Generar respuesta con IA - ultra rápido
+    // Si el mensaje actual ya tiene un error previo y esta llamada es un reintento, limpiar el error
+    if (row.proposed_response && row.proposed_response.indexOf('Error:') === 0) {
+      db.prepare("UPDATE pending_messages SET proposed_response=null WHERE id=?").run(row.id);
+    }
+
+    // Generar respuesta con IA - ultra rápido (timeout 5s)
     var ctxDoc = docInfo ? 'DOC: ' + (docInfo.resumen || '') : '';
     var fastPrompt = 'Mensaje de ' + row.from_name + ': ' + (row.body || '').substring(0, 200) + ' ' + ctxDoc + '\n\nRESPUESTA (max 200 chars, directo y profesional):';
     
-    var finalResponse = await callLLM(fastPrompt, '', 0.7, modelId);
+    var finalResponse = await callLLM(fastPrompt, '', 0.7, modelId, 300);
     var cleanResponse = finalResponse || '';
     var respMatch = cleanResponse.match(/RESPUESTA:\s*([\s\S]*)/i);
     var sendResponse = respMatch ? respMatch[1].trim() : cleanResponse;
     
-    // Guardar todo
-    if (docReady && docData) {
-      db.prepare("UPDATE pending_messages SET proposed_response=?, document_ready=1, document_info=?, document_buffer=? WHERE id=?").run(
-        sendResponse || cleanResponse, JSON.stringify(docInfo), docData.buffer, row.id
-      );
+    // Solo guardar si NO es error (si es error, no sobreescribir una respuesta previa válida)
+    if (sendResponse && sendResponse.indexOf('Error:') !== 0) {
+      if (docReady && docData) {
+        db.prepare("UPDATE pending_messages SET proposed_response=?, document_ready=1, document_info=?, document_buffer=? WHERE id=?").run(
+          sendResponse, JSON.stringify(docInfo), docData.buffer, row.id
+        );
+      } else {
+        db.prepare("UPDATE pending_messages SET proposed_response=? WHERE id=?").run(sendResponse, row.id);
+      }
+      console.log('[CodeOpen] Mensaje #' + row.id + ' analizado con', modelId, docReady ? '(documento listo)' : '');
+      res.json({ ok: true, response: sendResponse, docReady: docReady, docInfo: docInfo });
     } else {
-      db.prepare("UPDATE pending_messages SET proposed_response=? WHERE id=?").run(sendResponse || cleanResponse, row.id);
+      // Si hay error pero el mensaje ya tenía respuesta previa, devolver la previa
+      if (row.proposed_response && row.proposed_response.indexOf('Error:') !== 0) {
+        res.json({ ok: true, response: row.proposed_response, fromCache: true, docReady: docReady, docInfo: docInfo });
+      } else {
+        res.json({ ok: true, response: sendResponse || 'No se pudo analizar. Intenta de nuevo.', docReady: docReady, docInfo: docInfo });
+      }
     }
-    
-    console.log('[CodeOpen] Mensaje #' + row.id + ' analizado con', modelId, docReady ? '(documento listo)' : '');
-    res.json({ ok: true, response: sendResponse || cleanResponse, docReady: docReady, docInfo: docInfo });
   } catch(e) {
     console.error('[CodeOpen] Error analizando #' + req.params.id + ':', e.message);
-    res.status(500).json({ error: e.message });
+    // Devolver respuesta previa si existe (aunque sea de un análisis anterior exitoso)
+    var prevRow = db.prepare("SELECT proposed_response FROM pending_messages WHERE id=?").get(req.params.id);
+    if (prevRow && prevRow.proposed_response && prevRow.proposed_response.indexOf('Error:') !== 0) {
+      res.json({ ok: true, response: prevRow.proposed_response, fromCache: true });
+    } else {
+      res.status(500).json({ error: e.message });
+    }
   }
 });
 
@@ -901,25 +950,37 @@ router.post('/approve/:id', async (req, res) => {
           } catch(docErr) { console.error('[CodeOpen] Error doc:', docErr.message); }
         }
 
-        // Enviar como audio si se solicita
+        // Enviar como audio si se solicita (TTS directo con Google, más fiable)
         if (asAudio && responseText) {
           try {
-            var transcriptionService = require('../services/transcription');
-            var ttsResult = await transcriptionService.textToSpeech(responseText);
-            if (ttsResult.audio) {
+            var audioBuf = null;
+            var httpLib = require('https');
+            var googleUrl = 'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=es&q=' + encodeURIComponent(responseText.substring(0, 200));
+            audioBuf = await new Promise(function(resolve) {
+              httpLib.get(googleUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } }, function(resp) {
+                var chunks = [];
+                resp.on('data', function(c) { chunks.push(c); });
+                resp.on('end', function() {
+                  var buf = Buffer.concat(chunks);
+                  resolve(buf.length > 1000 ? buf : null);
+                });
+              }).on('error', function() { resolve(null); });
+            });
+            if (audioBuf) {
               opts.asAudio = true;
-              var result = await wa.sendMessage(row.from_address, { audioBuffer: ttsResult.audio, mimeType: 'audio/mp3', text: responseText }, opts);
+              var result = await wa.sendMessage(row.from_address, { audioBuffer: audioBuf, mimeType: 'audio/mp3', text: responseText }, opts);
               if (result.ok) { sent = true; sendInfo = ' (audio)'; }
-              else { sendInfo = ' (error audio: ' + result.error + ')'; }
+              else { sendInfo = ' (error audio: ' + result.error + ')'; console.error('[CodeOpen] Audio send fail:', result.error); }
             } else {
-              sendInfo = ' (TTS falló: ' + (ttsResult.error || 'error desconocido') + ')';
+              sendInfo = ' (TTS no disponible)';
+              console.error('[CodeOpen] Google TTS no generó audio');
             }
           } catch(ttsErr) { 
             console.error('[CodeOpen] Error TTS:', ttsErr.message);
             sendInfo = ' (error TTS: ' + ttsErr.message + ')';
           }
           if (!sent) {
-            var textResult = await wa.sendMessage(row.from_address, '🎤 ' + responseText, opts);
+            var textResult = await wa.sendMessage(row.from_address, responseText, opts);
             if (textResult && textResult.ok) { sent = true; sendInfo += ' (enviado como texto)'; }
           }
         }
@@ -1037,6 +1098,26 @@ function emailExists(fromAddress, subject) {
   } catch(e) { return false; }
 }
 
+// ---- BUSCAR CLIENTE POR TELÉFONO (para botón de acceso rápido en pendientes) ----
+router.get('/lookup-client/:phone', (req, res) => {
+  try {
+    var phone = req.params.phone.replace(/[^0-9]/g, '');
+    if (!phone || phone.length < 6) return res.json({ found: false });
+    var client = db.prepare("SELECT id, nombre, apellidos, dni_nif, telefono, email FROM clients WHERE telefono LIKE ? OR telefono2 LIKE ? LIMIT 1").get('%' + phone + '%', '%' + phone + '%');
+    if (client) {
+      res.json({ found: true, client: { id: client.id, name: client.nombre + ' ' + (client.apellidos || ''), dni: client.dni_nif, telefono: client.telefono, email: client.email, url: '/clientes/' + client.id, fiscalUrl: client.dni_nif ? '/clientes/fiscal/' + encodeURIComponent(client.dni_nif) : '/clientes/' + client.id } });
+    } else {
+      // Buscar también por el DNI si el teléfono se parece a un DNI
+      var asDni = db.prepare("SELECT id, nombre, apellidos, dni_nif, telefono, email FROM clients WHERE dni_nif=? LIMIT 1").get(phone);
+      if (asDni) {
+        res.json({ found: true, client: { id: asDni.id, name: asDni.nombre + ' ' + (asDni.apellidos || ''), dni: asDni.dni_nif, telefono: asDni.telefono, email: asDni.email, url: '/clientes/' + asDni.id, fiscalUrl: asDni.dni_nif ? '/clientes/fiscal/' + encodeURIComponent(asDni.dni_nif) : '/clientes/' + asDni.id } });
+      } else {
+        res.json({ found: false });
+      }
+    }
+  } catch(e) { res.json({ found: false, error: e.message }); }
+});
+
 // Diagnostic: test IMAP polling status
 router.get('/imap-status', (req, res) => {
   var lastDate = getIMAPLastDate();
@@ -1115,20 +1196,52 @@ router.get('/email-status', async (req, res) => {
 // ---- WHATSAPP SESSION MANAGEMENT ----
 router.post('/whatsapp/logout', async (req, res) => {
   try {
-    var wa = require('../wa-baileys');
     db.prepare("DELETE FROM settings WHERE key='baileys_session'").run();
-    // Reset baileys state
-    try { require('fs').unlinkSync('/tmp/baileys-auth/creds.json'); } catch(e) {}
-    res.json({ ok: true, message: 'Sesion de WhatsApp eliminada. Escanea el QR para reconectar.' });
+    // Limpiar archivos de sesion Baileys
+    try {
+      var fs = require('fs');
+      var authDir = '/tmp/baileys-auth';
+      if (fs.existsSync(authDir)) {
+        fs.readdirSync(authDir).forEach(function(f) {
+          var fp = require('path').join(authDir, f);
+          if (fs.lstatSync(fp).isDirectory()) {
+            fs.readdirSync(fp).forEach(function(sf) { try { fs.unlinkSync(require('path').join(fp, sf)); } catch(e) {} });
+          }
+          try { fs.unlinkSync(fp); } catch(e) {}
+        });
+      }
+    } catch(e) { console.log('[WA] Cleanup:', e.message); }
+    // Resetear estado de Baileys
+    try {
+      var wa = require('../wa-baileys');
+      if (wa.end) wa.end();
+    } catch(e) {}
+    // Forzar reinicio en 2s
+    setTimeout(function() {
+      try {
+        var wa = require('../wa-baileys');
+        if (wa.initBaileys) wa.initBaileys().catch(function(e) { console.error('[WA] Reinit:', e.message); });
+      } catch(e) {}
+    }, 2000);
+    res.json({ ok: true, message: 'Sesion de WhatsApp eliminada. Nuevo QR disponible en 2 segundos.' });
   } catch(e) { res.json({ ok: false, error: e.message }); }
 });
 
 router.post('/whatsapp/reconnect', async (req, res) => {
   try {
     db.prepare("DELETE FROM settings WHERE key='baileys_session'").run();
-    var wa = require('../wa-baileys');
     // Force reconnect by deleting session
     res.json({ ok: true, message: 'Sesion borrada. Recarga la pagina para ver el nuevo QR.' });
+  } catch(e) { res.json({ ok: false, error: e.message }); }
+});
+
+router.post('/whatsapp/login-phone', async (req, res) => {
+  try {
+    var phoneNumber = (req.body.phone || '').replace(/[^0-9]/g, '');
+    if (!phoneNumber || phoneNumber.length < 10) return res.json({ ok: false, error: 'Numero invalido. Debe tener al menos 10 digitos.' });
+    // Forzar limpieza de sesion actual
+    db.prepare("DELETE FROM settings WHERE key='baileys_session'").run();
+    res.json({ ok: true, message: 'Sesion reiniciada. Usa el numero ' + phoneNumber + ' en el prompt de WhatsApp Web para conectar.', pairingCode: phoneNumber });
   } catch(e) { res.json({ ok: false, error: e.message }); }
 });
 
@@ -1139,7 +1252,20 @@ router.post('/email/config', (req, res) => {
     var pass = req.body.pass;
     if (user) db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('gmail_user', ?)").run(user);
     if (pass !== undefined) db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('gmail_pass', ?)").run(pass);
+    // Actualizar variables globales para IMAP
+    if (user) gmailUser = user;
+    if (pass !== undefined) gmailPass = pass;
     res.json({ ok: true, message: 'Configuracion de correo guardada' });
+  } catch(e) { res.json({ ok: false, error: e.message }); }
+});
+
+router.post('/email/logout', (req, res) => {
+  try {
+    db.prepare("DELETE FROM settings WHERE key IN ('gmail_user', 'gmail_pass')").run();
+    gmailUser = '';
+    gmailPass = '';
+    console.log('[Email] Sesion de Gmail eliminada');
+    res.json({ ok: true, message: 'Sesion de correo eliminada' });
   } catch(e) { res.json({ ok: false, error: e.message }); }
 });
 
@@ -1228,17 +1354,31 @@ router.post('/whatsapp/send', async (req, res) => {
     
     if (asAudio) {
       try {
-        var transcription = require('../services/transcription');
-        var ttsResult = await transcription.textToSpeech(text);
-        if (ttsResult.audio) {
-          var result = await wa.sendMessage(jid, { audioBuffer: ttsResult.audio, mimeType: 'audio/mp3', text: text }, { asAudio: true });
+        var audioBuf = await new Promise(function(resolve) {
+          var httpLib = require('https');
+          var googleUrl = 'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=es&q=' + encodeURIComponent(text.substring(0, 200));
+          httpLib.get(googleUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } }, function(resp) {
+            var chunks = [];
+            resp.on('data', function(c) { chunks.push(c); });
+            resp.on('end', function() {
+              var buf = Buffer.concat(chunks);
+              resolve(buf.length > 1000 ? buf : null);
+            });
+          }).on('error', function() { resolve(null); });
+        });
+        if (audioBuf) {
+          opts.asAudio = true;
+          var result = await wa.sendMessage(jid, { audioBuffer: audioBuf, mimeType: 'audio/mp3', text: text }, opts);
           return res.json(result);
         }
-      } catch(e) {}
+      } catch(e) { console.error('[Audio] TTS error:', e.message); }
     }
     
-    var result = await wa.sendMessage(jid, text, opts);
-    res.json(result);
+    if (!asAudio) {
+      var result = await wa.sendMessage(jid, text, opts);
+      return res.json(result);
+    }
+    res.json({ ok: false, error: 'No se pudo generar audio' });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

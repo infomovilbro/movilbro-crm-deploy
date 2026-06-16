@@ -409,6 +409,8 @@ function initDatabase() {
     CREATE UNIQUE INDEX IF NOT EXISTS idx_model_usage_date ON model_usage(model_id, date);
   `);
 
+  db.exec("CREATE TABLE IF NOT EXISTS trash (id INTEGER PRIMARY KEY AUTOINCREMENT, tipo TEXT, original_id INTEGER, data TEXT, created_at TEXT)");
+
   try { db.prepare("ALTER TABLE users ADD COLUMN permissions TEXT DEFAULT '{}'").run(); } catch(e) {}
   try { db.prepare("ALTER TABLE isp_facturas ADD COLUMN cliente_direccion TEXT DEFAULT ''").run(); } catch(e) {}
   try { db.prepare("ALTER TABLE isp_facturas ADD COLUMN cliente_poblacion TEXT DEFAULT ''").run(); } catch(e) {}

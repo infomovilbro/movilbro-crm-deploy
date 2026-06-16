@@ -646,7 +646,26 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
   }
 
   try { pollPendingCount(); } catch(e) { console.error('[Init] pollPendingCount:', e); }
-  // SIN AUTO-REFRESH - Solo actualización manual
+  // Auto-refresh badge cada 5s sin interrumpir procesos en curso
+  var lastPendingCount = 0;
+  setInterval(function() {
+    fetch('/codeopen/pending/count').then(function(r) { return r.json(); }).then(function(d) {
+      if (d.count > 0) {
+        pendingBadge.style.display = 'flex';
+        pendingBadge.textContent = d.count > 99 ? '99+' : d.count;
+        // Si hay mensajes nuevos (aumentó el contador), hacer un breve destello
+        if (d.count > lastPendingCount && lastPendingCount > 0) {
+          pendingBadge.style.animation = 'none';
+          pendingBadge.offsetHeight;
+          pendingBadge.style.animation = 'pulse-ring 0.6s ease 2';
+        }
+        lastPendingCount = d.count;
+      } else {
+        pendingBadge.style.display = 'none';
+        lastPendingCount = 0;
+      }
+    }).catch(function() {});
+  }, 5000);
 
   pendingBtn.addEventListener('click', function() {
     pendingPanel.style.right = '0';
@@ -706,7 +725,13 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
         card.onclick = null;
         var ts = item.created_at || '';
         try { var d = new Date(ts + 'Z'); ts = d.toLocaleString('es-ES', {timeZone:'Europe/Madrid', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'}); } catch(e) {}
-        card.innerHTML = '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><i class="' + icon + '" style="color:' + catColor + ';font-size:1rem;"></i><strong style="font-size:0.8rem;flex:1;">' + escHtml(item.from_name || 'desconocido') + '</strong><span style="font-size:0.65rem;color:var(--text-faint);">' + ts + '</span></div>' +
+        // Botón de acceso CRM + lookup de cliente
+        var crmAccessHtml = '';
+        var lookupPhone = (item.from_address || item.from_name || '').replace(/[^0-9]/g, '');
+        if (lookupPhone.length >= 6) {
+          crmAccessHtml = '<span class="pending-crm-access" data-phone="' + lookupPhone + '" style="display:none;margin-left:auto;"><button class="crm-access-btn" style="background:var(--accent);color:#fff;border:0;border-radius:6px;padding:3px 8px;font-size:0.65rem;cursor:pointer;font-weight:600;white-space:nowrap;"><i class="ri-external-link-line"></i> CRM</button></span>';
+        }
+        card.innerHTML = '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><i class="' + icon + '" style="color:' + catColor + ';font-size:1rem;"></i><strong style="font-size:0.8rem;flex:1;">' + escHtml(item.from_name || 'desconocido') + '</strong>' + crmAccessHtml + '<span style="font-size:0.65rem;color:var(--text-faint);">' + ts + '</span></div>' +
           (item.subject ? '<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;"><strong>Asunto:</strong> ' + escHtml(item.subject) + '</div>' : '') +
           '<div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">' + escHtml(item.body || '').substring(0, 150) + '</div>' +
           '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;"><div style="font-size:0.7rem;color:var(--text-faint);margin-bottom:4px;">Respuesta propuesta:</div><div style="font-size:0.75rem;color:var(--text);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">' + escHtml(item.proposed_response || 'Sin respuesta').substring(0, 200) + '</div></div>' +
@@ -719,6 +744,39 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
           : '') +
           '<button class="pending-reject" data-id="' + item.id + '" style="flex:1;min-width:50px;padding:6px;border:0;border-radius:8px;background:var(--error);color:#fff;font-size:0.7rem;cursor:pointer;font-weight:600;">✕</button></div>';
         pendingList.appendChild(card);
+      });
+      // Lookup CRM client for each pending item and show access button
+      pendingList.querySelectorAll('.pending-crm-access').forEach(function(el) {
+        var phone = el.dataset.phone;
+        if (!phone) return;
+        fetch('/codeopen/lookup-client/' + phone).then(function(r) { return r.json(); }).then(function(data) {
+          if (data.found && data.client) {
+            el.style.display = 'inline';
+            var btn = el.querySelector('.crm-access-btn');
+            if (btn) {
+              btn.title = 'Ir a ficha de ' + data.client.name;
+              btn.onclick = function(e) {
+                e.stopPropagation();
+                // Mostrar dropdown con opciones
+                var existing = el.querySelector('.crm-dropdown');
+                if (existing) { existing.remove(); return; }
+                var dd = document.createElement('div');
+                dd.className = 'crm-dropdown';
+                dd.style.cssText = 'position:absolute;top:100%;right:0;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;z-index:50;min-width:180px;box-shadow:0 8px 24px rgba(0,0,0,0.4);padding:4px;margin-top:4px;';
+                dd.innerHTML = '<div style="padding:6px 10px;font-size:0.7rem;color:var(--text-faint);border-bottom:1px solid var(--border);margin-bottom:4px;">' + escHtml(data.client.name) + '</div>' +
+                  '<a href="' + data.client.url + '" target="_blank" style="display:block;padding:8px 10px;border-radius:6px;text-decoration:none;color:var(--text);font-size:0.75rem;transition:background 0.2s;" onmouseover="this.style.background=\'var(--border)\'" onmouseout="this.style.background=\'transparent\'"><i class="ri-user-line"></i> 👤 Ficha cliente</a>' +
+                  (data.client.dni ? '<a href="/clientes/fiscal/' + encodeURIComponent(data.client.dni) + '" target="_blank" style="display:block;padding:8px 10px;border-radius:6px;text-decoration:none;color:var(--text);font-size:0.75rem;transition:background 0.2s;" onmouseover="this.style.background=\'var(--border)\'" onmouseout="this.style.background=\'transparent\'"><i class="ri-receipt-line"></i> 💰 Facturas</a>' : '') +
+                  (data.client.telefono ? '<a href="/whatsapp?phone=' + data.client.telefono.replace(/[^0-9]/g, '') + '" target="_blank" style="display:block;padding:8px 10px;border-radius:6px;text-decoration:none;color:var(--text);font-size:0.75rem;transition:background 0.2s;" onmouseover="this.style.background=\'var(--border)\'" onmouseout="this.style.background=\'transparent\'"><i class="ri-whatsapp-line"></i> 💬 WhatsApp</a>' : '') +
+                  '<a href="/subscriptions?search=' + encodeURIComponent(data.client.telefono || '') + '" target="_blank" style="display:block;padding:8px 10px;border-radius:6px;text-decoration:none;color:var(--text);font-size:0.75rem;transition:background 0.2s;" onmouseover="this.style.background=\'var(--border)\'" onmouseout="this.style.background=\'transparent\'"><i class="ri-phone-line"></i> 📱 Líneas</a>';
+                el.style.position = 'relative';
+                el.appendChild(dd);
+                // Cerrar al hacer clic fuera
+                var closeDd = function(ev) { if (!dd.contains(ev.target) && ev.target !== btn) { dd.remove(); document.removeEventListener('click', closeDd); } };
+                setTimeout(function() { document.addEventListener('click', closeDd); }, 10);
+              };
+            }
+          }
+        }).catch(function() {});
       });
       // Bind approve/reject/analyze/send
       pendingList.querySelectorAll('.pending-approve, .pending-send').forEach(function(b) {
@@ -994,14 +1052,14 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
 
   function getProfilePic(address, imgEl) {
     if (profilePicCache[address]) {
-      imgEl.src = profilePicCache[address];
+      imgEl.src = profilePicCache[address] + '?t=' + Date.now();
       imgEl.style.display = 'block';
       return;
     }
     fetch('/codeopen/whatsapp/profile-pic/' + encodeURIComponent(address)).then(function(r) { return r.json(); }).then(function(d) {
       if (d.url) {
         profilePicCache[address] = d.url;
-        imgEl.src = d.url;
+        imgEl.src = d.url + '?t=' + Date.now();
         imgEl.style.display = 'block';
       }
     });

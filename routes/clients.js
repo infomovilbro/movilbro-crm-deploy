@@ -102,10 +102,20 @@ router.get('/', requireAuth, async (req, res) => {
            (c.dni_nif && c.dni_nif.toLowerCase().includes(s));
   }) : merged;
 
+  var page = Math.max(1, parseInt(req.query.page) || 1);
+  var limit = Math.min(100, Math.max(10, parseInt(req.query.limit) || 50));
+  var totalFiltered = filtered.length;
+  var totalPages = Math.ceil(totalFiltered / limit);
+  var paginated = filtered.slice((page - 1) * limit, page * limit);
+
   res.render('clients/list', {
     title: 'Clientes',
-    clientes: filtered,
+    clientes: paginated,
     search,
+    page,
+    limit,
+    totalFiltered,
+    totalPages,
     apiCount: apiClientes.length,
     localCount: locales.length
   });
@@ -272,65 +282,73 @@ function mapApiInstallations(instArr) {
   });
 }
 
-router.get('/fiscal/:fiscalId', requireAuth, async (req, res) => {
+router.get('/fiscal/:fiscalId', requireAuth, async (req, res, next) => {
   try {
     var fiscalId = req.params.fiscalId;
-    const api = LikesAPI.getApiInstance();
-    const raw = await api.request('GET', '/customer/overview?fiscalId=' + encodeURIComponent(fiscalId) + '&includeCustomer=true&includeSubscriptions=true&includeOrders=true&includeInstallations=true&includeInvoices=true&includePayments=true');
-    const data = raw && raw.data ? raw.data : raw;
-    const cust = data.customer || data;
-    const apiCustomer = mapApiCustomer(cust);
+    var api, raw, data, cust, apiCustomer;
+    try {
+      api = LikesAPI.getApiInstance();
+      raw = await api.request('GET', '/customer/overview?fiscalId=' + encodeURIComponent(fiscalId) + '&includeCustomer=true&includeSubscriptions=true&includeOrders=true&includeInstallations=true&includeInvoices=true&includePayments=true');
+      data = raw && raw.data ? raw.data : raw;
+      cust = data.customer || data;
+      apiCustomer = mapApiCustomer(cust);
+    } catch(apiErr) {
+      console.error('[Clientes] API error (non-fatal):', apiErr.message);
+      apiCustomer = {};
+      data = {};
+    }
 
-    res.render('clients/view', {
-      title: 'Cliente: ' + (apiCustomer.name || fiscalId),
-      cliente: {
-        id: null,
-        nombre: apiCustomer.name || apiCustomer.firstName || '',
-        apellidos: apiCustomer.lastName || apiCustomer.surname || '',
-        dni_nif: fiscalId,
-        telefono: apiCustomer.phone || '',
-        telefono2: '',
-        email: apiCustomer.email || '',
-        direccion: apiCustomer.billingAddress?.street || '',
-        ciudad: apiCustomer.billingAddress?.cityName || '',
-        provincia: '',
-        codigo_postal: apiCustomer.billingAddress?.zipCode || '',
-        created_at: apiCustomer.created || '',
-        likes_customer_id: fiscalId,
-        notas: '',
-        metodo_pago: apiCustomer.paymentMethod || '',
-        iban: apiCustomer.iban || '',
-        tipo_cliente: apiCustomer.customerType || 'particular',
-        stripe_payment_method: ''
-      },
-      contratos: [],
-      suscripciones: mapApiSubscriptions(data.subscriptions),
-      tickets: [],
+    // Buscar también en BD local por si existe
+    var localClient = db.prepare("SELECT * FROM clients WHERE dni_nif=? OR likes_customer_id=? LIMIT 1").get(fiscalId, fiscalId);
+
+    var clienteData = {
+      id: localClient ? localClient.id : null,
+      nombre: apiCustomer.name || apiCustomer.firstName || (localClient ? localClient.nombre : ''),
+      apellidos: apiCustomer.lastName || apiCustomer.surname || (localClient ? localClient.apellidos : ''),
+      dni_nif: fiscalId,
+      telefono: apiCustomer.phone || (localClient ? localClient.telefono : ''),
+      telefono2: localClient ? localClient.telefono2 : '',
+      email: apiCustomer.email || (localClient ? localClient.email : ''),
+      direccion: (apiCustomer.billingAddress && apiCustomer.billingAddress.street) || (localClient ? localClient.direccion : ''),
+      ciudad: (apiCustomer.billingAddress && (apiCustomer.billingAddress.cityName || apiCustomer.billingAddress.city)) || (localClient ? localClient.ciudad : ''),
+      provincia: localClient ? localClient.provincia : '',
+      codigo_postal: (apiCustomer.billingAddress && (apiCustomer.billingAddress.zipCode || apiCustomer.billingAddress.zip)) || (localClient ? localClient.codigo_postal : ''),
+      created_at: apiCustomer.created || (localClient ? localClient.created_at : ''),
+      likes_customer_id: fiscalId,
+      notas: localClient ? localClient.notas : '',
+      metodo_pago: apiCustomer.paymentMethod || (localClient ? localClient.metodo_pago : ''),
+      iban: apiCustomer.iban || (localClient ? localClient.iban : ''),
+      tipo_cliente: apiCustomer.customerType || (localClient ? localClient.tipo_cliente : 'particular'),
+      stripe_payment_method: localClient ? localClient.stripe_payment_method : ''
+    };
+
+    var viewData = {
+      title: 'Cliente: ' + (clienteData.nombre || fiscalId),
+      cliente: clienteData,
+      contratos: localClient ? db.prepare("SELECT * FROM isp_contratos WHERE client_id=? ORDER BY created_at DESC").all(localClient.id) : [],
+      suscripciones: mapApiSubscriptions(data && data.subscriptions),
+      tickets: localClient ? db.prepare('SELECT * FROM tickets WHERE client_id=? ORDER BY created_at DESC').all(localClient.id) : [],
       linesByStatus: JSON.stringify({}),
       lineNumbers: JSON.stringify([]),
       apiActions: { canBlock: true, canChangeTariff: true, canDuplicateSim: true, canViewConsumption: true },
       apiCustomer: apiCustomer,
-      apiSubscriptions: mapApiSubscriptions(data.subscriptions),
-      apiOrders: mapApiOrders(data.orders),
-      apiInvoices: mapApiInvoices(data.invoices),
-      apiInstallations: mapApiInstallations(data.installations),
-      apiPortabilities: Array.isArray(data.portabilities) ? data.portabilities : [],
-      apiPayments: Array.isArray(data.payments) ? data.payments : [],
+      apiSubscriptions: mapApiSubscriptions(data && data.subscriptions),
+      apiOrders: mapApiOrders(data && data.orders),
+      apiInvoices: mapApiInvoices(data && data.invoices),
+      apiInstallations: mapApiInstallations(data && data.installations),
+      apiPortabilities: Array.isArray(data && data.portabilities) ? data.portabilities : [],
+      apiPayments: Array.isArray(data && data.payments) ? data.payments : [],
       altasOrdenes: [],
       kycDocsPorOrden: {},
-      documentos: []
-    });
+      documentos: [],
+      apiError: (data && Object.keys(data).length > 0) ? null : 'No se pudieron cargar datos de API Likes. Mostrando datos locales disponibles.'
+    };
+
+    res.render('clients/view', viewData);
   } catch(e) {
-    console.error('[Clientes] Error fetching API client:', e.message);
-    res.render('clients/view', {
-      title: 'Cliente: ' + req.params.fiscalId,
-      cliente: { id: null, nombre: req.params.fiscalId, apellidos: '', dni_nif: req.params.fiscalId, telefono: '', telefono2: '', email: '', direccion: '', ciudad: '', provincia: '', codigo_postal: '', created_at: '', likes_customer_id: '', notas: '', metodo_pago: '', iban: '', tipo_cliente: 'particular', stripe_payment_method: '' },
-      contratos: [], suscripciones: [], tickets: [], linesByStatus: '{}', lineNumbers: '[]',
-      apiActions: { canBlock: true, canChangeTariff: true, canDuplicateSim: true, canViewConsumption: true },
-      apiCustomer: {}, apiSubscriptions: [], apiOrders: [], apiInvoices: [], apiInstallations: [], apiPortabilities: [], apiPayments: [],
-      altasOrdenes: [], kycDocsPorOrden: {}, documentos: [],
-      apiError: 'No se pudieron cargar datos de API Likes: ' + e.message
-    });
+    console.error('[Clientes] FATAL en ruta fiscal:', e.message);
+    console.error(e.stack);
+    res.status(500).render('404', { title: 'Error al cargar cliente' });
   }
 });
 
@@ -478,8 +496,20 @@ router.post('/:id/editar', requireAuth, (req, res) => {
 });
 
 router.post('/:id/eliminar', requireAuth, (req, res) => {
-  db.prepare('DELETE FROM clients WHERE id = ?').run(req.params.id);
-  res.redirect('/clientes');
+  try {
+    var clientData = db.prepare("SELECT * FROM clients WHERE id = ?").get(req.params.id);
+    if (clientData) {
+      var existing = db.prepare("SELECT id FROM trash WHERE original_id = ? AND tipo = 'client'").get(req.params.id);
+      if (!existing) {
+        db.prepare("INSERT INTO trash (tipo, original_id, data, created_at) VALUES ('client', ?, ?, datetime('now'))").run(req.params.id, JSON.stringify(clientData));
+      }
+    }
+    db.prepare("DELETE FROM clients WHERE id = ?").run(req.params.id);
+    db.prepare("INSERT INTO activity_log (tipo, descripcion, client_id) VALUES (?, ?, ?)").run('cliente_eliminado', 'Cliente #' + req.params.id + ' eliminado (con undo)', req.params.id);
+    res.redirect('/clientes?undo=' + req.params.id);
+  } catch(e) {
+    res.status(500).send('Error: ' + e.message);
+  }
 });
 
 router.post('/:id/line/:lineNumber/block', requireAuth, async (req, res) => {
@@ -543,6 +573,73 @@ router.get('/:id/compatible-products', requireAuth, async (req, res) => {
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }
+});
+
+// Undo delete
+router.post('/undo/:id', requireAuth, (req, res) => {
+  try {
+    var trash = db.prepare("SELECT * FROM trash WHERE original_id = ? AND tipo = 'client' ORDER BY created_at DESC LIMIT 1").get(req.params.id);
+    if (!trash) return res.status(404).json({ error: 'No hay backup para deshacer' });
+    var data = JSON.parse(trash.data);
+    var existing = db.prepare("SELECT id FROM clients WHERE id = ?").get(data.id);
+    if (existing) return res.json({ ok: false, message: 'El cliente ya existe' });
+    db.prepare("INSERT INTO clients (id, nombre, apellidos, dni_nif, email, telefono, telefono2, direccion, ciudad, provincia, codigo_postal, notas, tipo_cliente) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)").run(
+      data.id, data.nombre, data.apellidos, data.dni_nif, data.email, data.telefono, data.telefono2, data.direccion, data.ciudad, data.provincia, data.codigo_postal, data.notas, data.tipo_cliente
+    );
+    db.prepare("DELETE FROM trash WHERE id = ?").run(trash.id);
+    db.prepare("INSERT INTO activity_log (tipo, descripcion, client_id) VALUES (?, ?, ?)").run('cliente_recuperado', 'Cliente #' + data.id + ' recuperado de papelera', data.id);
+    res.json({ ok: true, message: 'Cliente recuperado' });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Export clients to CSV
+router.get('/export/csv', requireAuth, (req, res) => {
+  try {
+    var clients = db.prepare("SELECT id, nombre, apellidos, dni_nif, email, telefono, direccion, ciudad, tipo_cliente, created_at FROM clients ORDER BY created_at DESC").all();
+    var csv = '\uFEFF'; // BOM for Excel UTF-8
+    csv += 'ID,Nombre,Apellidos,DNI/NIF,Email,Teléfono,Dirección,Ciudad,Tipo,Fecha Alta\n';
+    clients.forEach(function(c) {
+      var row = [c.id, c.nombre, c.apellidos, c.dni_nif, c.email, c.telefono, c.direccion, c.ciudad, c.tipo_cliente, c.created_at];
+      csv += row.map(function(v) { return '"' + String(v || '').replace(/"/g, '""') + '"'; }).join(',') + '\n';
+    });
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename=clientes_' + getToday() + '.csv');
+    res.send(csv);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Bulk delete clients (by IDs)
+router.post('/bulk/delete', requireAuth, (req, res) => {
+  try {
+    var ids = req.body.ids;
+    if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'Se requiere array de IDs' });
+    var deleted = 0;
+    var stmt = db.prepare("DELETE FROM clients WHERE id = ?");
+    ids.forEach(function(id) {
+      var info = stmt.run(id);
+      if (info.changes > 0) deleted++;
+    });
+    db.prepare("INSERT INTO activity_log (tipo, descripcion) VALUES (?, ?)").run('bulk_delete', 'Eliminados ' + deleted + ' clientes (IDs: ' + ids.join(',') + ')');
+    res.json({ ok: true, deleted: deleted });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Bulk update status (by IDs)
+router.post('/bulk/status', requireAuth, (req, res) => {
+  try {
+    var ids = req.body.ids;
+    var estado = req.body.estado;
+    if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'Se requiere array de IDs' });
+    if (!estado) return res.status(400).json({ error: 'Se requiere estado' });
+    var updated = 0;
+    var stmt = db.prepare("UPDATE clients SET tipo_cliente = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+    ids.forEach(function(id) {
+      var info = stmt.run(estado, id);
+      if (info.changes > 0) updated++;
+    });
+    db.prepare("INSERT INTO activity_log (tipo, descripcion) VALUES (?, ?)").run('bulk_status', 'Actualizados ' + updated + ' clientes a estado ' + estado);
+    res.json({ ok: true, updated: updated });
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 module.exports = router;

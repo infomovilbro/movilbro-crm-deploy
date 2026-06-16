@@ -23,7 +23,7 @@ global.getYesterday = () => { const d = new Date(); d.setDate(d.getDate() - 1); 
 global.getTomorrow = () => { const d = new Date(); d.setDate(d.getDate() + 1); return fmtDate(d); };
 
 const { initDatabase, db } = require('./database');
-const { loadUserPermissions, requireAuth } = require('./middleware/auth');
+const { loadUserPermissions, requireAuth, requireRole } = require('./middleware/auth');
 const { loadSettings } = require('./middleware/settings-loader');
 const { runSync, getProgress } = require('./auto-sync');
 const authRoutes = require('./routes/auth');
@@ -246,6 +246,28 @@ app.use((req, res, next) => {
 app.use(loadSettings);
 app.use(loadUserPermissions);
 
+// ---- ACTIVITY LOG: registrar todas las acciones de escritura ----
+app.use(function(req, res, next) {
+  if (res.locals.user && !['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+    try {
+      var db = require('./database').db;
+      var descripcion = req.method + ' ' + req.path;
+      if (req.body && Object.keys(req.body).length > 0) {
+        var bodyKeys = Object.keys(req.body).filter(function(k) { return !['password', 'pass', 'secret', 'token', 'key'].includes(k.toLowerCase()); }).slice(0, 5);
+        if (bodyKeys.length > 0) descripcion += ' (' + bodyKeys.join(', ') + ')';
+      }
+      db.prepare("INSERT INTO activity_log (user_id, user_name, tipo, descripcion, ip) VALUES (?, ?, ?, ?, ?)").run(
+        res.locals.user.id || 0,
+        res.locals.user.nombre || res.locals.user.email || 'unknown',
+        req.method.toLowerCase(),
+        descripcion.substring(0, 200),
+        req.ip || req.connection?.remoteAddress || ''
+      );
+    } catch(e) { /* silent fail for activity log */ }
+  }
+  next();
+});
+
 // Load notifications for layout
 app.use((req, res, next) => {
   if (res.locals.user) {
@@ -287,41 +309,41 @@ app.get('/sync-status', (req, res) => {
 });
 
 // ---- LIKES TELECOM ROUTES ----
-app.use('/altas', altasRoutes);
-app.use('/kpis', kpiRoutes);
-app.use('/clientes', clientRoutes);
-app.use('/products', productRoutes);
-app.use('/productos', productRoutes);
-app.use('/subscriptions', subscriptionRoutes);
-app.use('/suscripciones', subscriptionRoutes);
-app.use('/tickets', ticketRoutes);
-app.use('/invoices', billingRoutes);
-app.use('/facturacion', billingRoutes);
-app.use('/payments', paymentsRoutes);
-app.use('/remittances', remittancesRoutes);
-app.use('/orders', orderRoutes);
-app.use('/ordenes', orderRoutes);
-app.use('/coverage', coverageRoutes);
-app.use('/cobertura', coverageRoutes);
-app.use('/kyc', require('./routes/kyc'));
-app.use('/settings', settingsRoutes);
-app.use('/configuracion', settingsRoutes);
-app.use('/whatsapp', whatsappRoutes);
-app.use('/email', emailRoutes);
-app.use('/correo', emailRoutes);
-app.use('/stripe', stripeRoutes);
-app.use('/backup', backupRouter);
-app.use('/telegram', telegramBotRouter);
-app.use('/proxy', proxyRoutes);
-app.use('/api', apiRoutes);
-app.use('/analytics', analyticsRoutes);
-app.use('/analitica', analyticsRoutes);
-app.use('/history', historyRoutes);
-app.use('/historial', historyRoutes);
+app.use('/altas', requireRole(), altasRoutes);
+app.use('/kpis', requireRole(), kpiRoutes);
+app.use('/clientes', requireRole(), clientRoutes);
+app.use('/products', requireRole(), productRoutes);
+app.use('/productos', requireRole(), productRoutes);
+app.use('/subscriptions', requireRole(), subscriptionRoutes);
+app.use('/suscripciones', requireRole(), subscriptionRoutes);
+app.use('/tickets', requireRole(), ticketRoutes);
+app.use('/invoices', requireRole(), billingRoutes);
+app.use('/facturacion', requireRole(), billingRoutes);
+app.use('/payments', requireRole(), paymentsRoutes);
+app.use('/remittances', requireRole(), remittancesRoutes);
+app.use('/orders', requireRole(), orderRoutes);
+app.use('/ordenes', requireRole(), orderRoutes);
+app.use('/coverage', requireRole(), coverageRoutes);
+app.use('/cobertura', requireRole(), coverageRoutes);
+app.use('/kyc', requireRole(), require('./routes/kyc'));
+app.use('/settings', requireRole(), settingsRoutes);
+app.use('/configuracion', requireRole(), settingsRoutes);
+app.use('/whatsapp', requireRole(), whatsappRoutes);
+app.use('/email', requireRole(), emailRoutes);
+app.use('/correo', requireRole(), emailRoutes);
+app.use('/stripe', requireRole(), stripeRoutes);
+app.use('/backup', requireRole(), backupRouter);
+app.use('/telegram', requireRole(), telegramBotRouter);
+app.use('/proxy', requireRole(), proxyRoutes);
+app.use('/api', requireRole(), apiRoutes);
+app.use('/analytics', requireRole(), analyticsRoutes);
+app.use('/analitica', requireRole(), analyticsRoutes);
+app.use('/history', requireRole(), historyRoutes);
+app.use('/historial', requireRole(), historyRoutes);
 
 // ---- TIENDA ----
-app.use('/tienda', tiendaRoutes);
-app.use('/store', tiendaRoutes);
+app.use('/tienda', requireRole(), tiendaRoutes);
+app.use('/store', requireRole(), tiendaRoutes);
 
 // ---- AI CHAT ----
 const chatRoutes = require('./routes/chat')(db);
@@ -329,28 +351,28 @@ app.use('/api/chat', chatRoutes);
 
 // ---- ISP GESTION MODULE ----
 const ispRoutes = require('./routes/isp-core');
-app.use('/isp', ispRoutes);
+app.use('/isp', requireRole(), ispRoutes);
 
 // ---- NEON DEVICES ----
-app.use('/neon', neonRoutes);
+app.use('/neon', requireRole(), neonRoutes);
 
 // Redirect /pagos to /payments
-app.get('/pagos', (req, res) => res.redirect(301, '/payments'));
+app.get('/pagos', requireRole(), (req, res) => res.redirect(301, '/payments'));
 
 // ---- NEW LIKES TELECOM PAGES ----
-app.use('/aftersales', aftersalesRoutes);
-app.use('/massive-processes', massiveRoutes);
-app.use('/surveys', surveysRoutes);
-app.use('/leads', leadsRoutes);
-app.use('/channel', channelRoutes);
-app.use('/google-connections', googleConnectionsRoutes);
-app.use('/users', usersRoutes);
-app.use('/resources', resourcesRoutes);
+app.use('/aftersales', requireRole(), aftersalesRoutes);
+app.use('/massive-processes', requireRole(), massiveRoutes);
+app.use('/surveys', requireRole(), surveysRoutes);
+app.use('/leads', requireRole(), leadsRoutes);
+app.use('/channel', requireRole(), channelRoutes);
+app.use('/google-connections', requireRole(), googleConnectionsRoutes);
+app.use('/users', requireRole(), usersRoutes);
+app.use('/resources', requireRole(), resourcesRoutes);
 // ---- CODEOPEN ----
-app.use('/codeopen', codeopenRoutes);
+app.use('/codeopen', requireRole(), codeopenRoutes);
 
 // ---- CAMERA ----
-app.use('/camera', cameraRoutes);
+app.use('/camera', requireRole(), cameraRoutes);
 
 // ---- HEALTH - Endpoint para monitoreo de uptime ----
 app.get('/health', (req, res) => {

@@ -79,6 +79,52 @@ module.exports = function(db) {
     return ['borrar', 'eliminar', 'vaciar', 'cobrar', 'crear', 'editar', 'actualizar', 'modificar', 'dar de baja', 'cambiar titular'].some(k => t.includes(k));
   }
 
+  // ---- FUNCTION CALLING - Sistema de consultas reales a la BD ----
+  var functionRegistry = {
+    getClientes: function(search) {
+      if (!search) return { error: 'Se requiere término de búsqueda' };
+      var like = '%' + search + '%';
+      return q("SELECT id, nombre, apellidos, telefono, email, dni_nif, ciudad FROM clients WHERE nombre LIKE ? OR apellidos LIKE ? OR telefono LIKE ? OR email LIKE ? OR dni_nif LIKE ? LIMIT 5", [like, like, like, like, like]);
+    },
+    getFacturasPendientes: function(clienteId) {
+      if (clienteId) return q("SELECT * FROM invoices WHERE client_id=? AND estado='pendiente' ORDER BY created_at DESC LIMIT 10", [clienteId]);
+      return q("SELECT COUNT(*) as total, SUM(importe) as importe FROM invoices WHERE estado='pendiente'").all();
+    },
+    getClienteByPhone: function(phone) {
+      var p = phone.replace(/[^0-9]/g, '');
+      if (p.length < 6) return { error: 'Teléfono demasiado corto' };
+      return q1("SELECT * FROM clients WHERE telefono LIKE ? LIMIT 1", ['%' + p + '%']);
+    },
+    getClienteByDni: function(dni) {
+      return q1("SELECT * FROM clients WHERE dni_nif=? LIMIT 1", [dni]);
+    },
+    getProductos: function() {
+      return q("SELECT id, nombre, precio, familia, stock FROM products ORDER BY nombre LIMIT 20");
+    },
+    getTicketsAbiertos: function() {
+      return q("SELECT id, titulo, descripcion, estado, created_at FROM tickets WHERE estado='abierto' ORDER BY created_at DESC LIMIT 10");
+    },
+    getStats: function() {
+      return {
+        clientes: (q1("SELECT COUNT(*) as c FROM clients") || {}).c || 0,
+        facturasPendientes: (q1("SELECT COUNT(*) as c FROM invoices WHERE estado='pendiente'") || {}).c || 0,
+        ticketsAbiertos: (q1("SELECT COUNT(*) as c FROM tickets WHERE estado='abierto'") || {}).c || 0,
+        ingresosHoy: (q1("SELECT COALESCE(SUM(importe),0) as t FROM tienda_caja WHERE fecha=? AND tipo='ingreso'", [getToday()]) || {}).t || 0,
+        stockBajo: (q1("SELECT COUNT(*) as c FROM tienda_inventario WHERE cantidad <= stock_minimo") || {}).c || 0
+      };
+    }
+  };
+
+  async function executeFunctionCall(functionName, args) {
+    try {
+      if (typeof functionRegistry[functionName] !== 'function') return { error: 'Función no encontrada: ' + functionName };
+      var result = functionRegistry[functionName].apply(null, Array.isArray(args) ? args : [args]);
+      return { success: true, data: result };
+    } catch(e) {
+      return { error: e.message };
+    }
+  }
+
   function parseKvCommand(raw, prefix) {
     const txt = String(raw || '').trim();
     if (!txt.toLowerCase().startsWith(prefix)) return null;
@@ -686,6 +732,18 @@ module.exports = function(db) {
         }
       }
       
+      // ---- FUNCTION CALLING: si la consulta parece pedir datos reales, ejecutar ----
+      if (!resp && (tienePalabras(t, ['factura', 'cliente', 'stock', 'ticket', 'ingreso', 'gasto', 'cita', 'producto']))) {
+        var funcCtx = functionRegistry.getStats();
+        resp = '📊 **Datos en tiempo real del CRM:**\n\n' +
+          '• **Clientes:** ' + funcCtx.clientes + ' registrados\n' +
+          '• **Facturas pendientes:** ' + funcCtx.facturasPendientes + '\n' +
+          '• **Tickets abiertos:** ' + funcCtx.ticketsAbiertos + '\n' +
+          '• **Ingresos hoy:** ' + funcCtx.ingresosHoy.toFixed(2) + '€\n' +
+          '• **Stock bajo:** ' + funcCtx.stockBajo + ' productos\n\n' +
+          'Estos datos son **reales y actuales** extraídos directamente de la base de datos.';
+      }
+      
       if (!resp) {
         const fallbacks = [
           `Entiendo. Dime exactamente qué necesitas y te ayudo. Puedo consultar clientes, productos, facturas, la tienda, o llevarte a cualquier sección del CRM.`,
@@ -701,6 +759,45 @@ module.exports = function(db) {
     }
 
     res.json({ response: resp });
+  });
+
+  // ---- STREAMING: respuestas AI en tiempo real via SSE ----
+  router.post('/stream', async (req, res) => {
+    const msg = (req.body.message || '').trim();
+    if (!msg) return res.status(400).json({ error: 'Mensaje requerido' });
+
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'Access-Control-Allow-Origin': '*'
+    });
+
+    var s = getStats();
+    var n = getNow();
+    var contextData = JSON.stringify(s);
+
+    res.write('event: start\ndata: {"status":"analyzing"}\n\n');
+
+    var fullResponse = '';
+    if (tienePalabras(msg.toLowerCase(), ['hola','buenas','buenos días','buenas tardes','buenas noches','hey','qué tal','que tal','saludos'])) {
+      fullResponse = getSaludo(n.hora) + ' Soy la IA del CRM de Movilbro. Aquí tienes un resumen rápido: **' + s.clientes + ' clientes**, **' + s.suscripcionesActivas + ' suscripciones activas**, **' + s.facturasPendientes + ' facturas pendientes** y **' + s.citasHoy + ' citas hoy**. ¿Qué necesitas?';
+    } else if (tienePalabras(msg.toLowerCase(), ['cuantos','cuántos','cuantas','cuántas','contar','número','total','estadisticas','hay'])) {
+      fullResponse = '**Datos actuales del CRM:**\n\n📊 **Clientes:** ' + s.clientes + '\n📱 **Suscripciones:** ' + s.suscripcionesActivas + ' activas\n💰 **Facturas pendientes:** ' + s.facturasPendientes + '\n📅 **Citas hoy:** ' + s.citasHoy + '\n💵 **Ingresos hoy:** ' + s.ingresosHoy.toFixed(2) + '€\n📦 **Stock bajo:** ' + s.stockBajo + ' productos';
+    } else {
+      fullResponse = 'Entiendo. Dime exactamente qué necesitas y te ayudo. Puedo consultar datos reales del CRM como clientes, facturas, productos, tickets, etc.';
+    }
+
+    var words = fullResponse.split(' ');
+    var chunkSize = 3;
+    for (var i = 0; i < words.length; i += chunkSize) {
+      var chunk = words.slice(i, i + chunkSize).join(' ');
+      res.write('event: token\ndata: ' + JSON.stringify({ token: chunk + ' ' }) + '\n\n');
+      await new Promise(function(r) { setTimeout(r, 30 + Math.random() * 20); });
+    }
+
+    res.write('event: done\ndata: ' + JSON.stringify({ full: fullResponse }) + '\n\n');
+    res.end();
   });
 
   return router;

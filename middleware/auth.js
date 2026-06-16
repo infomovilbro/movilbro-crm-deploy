@@ -75,4 +75,31 @@ function requireAnySectionPermission(req, res, next) {
   return res.status(403).render('403', { title: 'Acceso denegado' });
 }
 
-module.exports = { requireAuth, requireAdmin, loadUserPermissions, requirePermission, requireTiendaPermission, requireSectionPermission, requireAnySectionPermission };
+// Role-based access control
+var ROLE_PERMISSIONS = {
+  admin: { all: true },
+  comercial: { all: false, routes: ['/clientes', '/altas', '/whatsapp', '/products', '/productos', '/subscriptions', '/suscripciones', '/leads', '/kpis', '/analytics', '/analitica', '/history', '/historial', '/coverage', '/cobertura', '/email', '/correo', '/api', '/codeopen'] },
+  caja: { all: false, routes: ['/tienda', '/store', '/payments', '/pagos', '/invoices', '/facturacion', '/remittances', '/clientes'] }
+};
+
+function requireRole() {
+  return function(req, res, next) {
+    if (!req.session || !req.session.user) {
+      return req.xhr ? res.status(401).json({ error: 'No autorizado' }) : res.redirect('/auth/login');
+    }
+    var user = req.session.user;
+    var rol = user.rol || 'comercial';
+    var perm = ROLE_PERMISSIONS[rol] || ROLE_PERMISSIONS.comercial;
+    if (perm.all) return next();
+
+    var pathMatch = perm.routes.some(function(r) { return req.path.indexOf(r) === 0; });
+    if (pathMatch) return next();
+
+    if (req.xhr || req.headers.accept === 'application/json') {
+      return res.status(403).json({ error: 'No tienes permisos para esta sección' });
+    }
+    res.status(403).render('403', { title: 'Acceso denegado' });
+  };
+}
+
+module.exports = { requireAuth, requireAdmin, loadUserPermissions, requirePermission, requireTiendaPermission, requireSectionPermission, requireAnySectionPermission, requireRole };
