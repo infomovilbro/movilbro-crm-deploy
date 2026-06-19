@@ -5,18 +5,24 @@
 
 ---
 
-## [2026-06-20] Replit Shell — CDP no escribía en el textarea correcto
-**Error:** Al usar `page.keyboard.type()` o `page.keyboard.insertText()` en el textarea `.xterm-helper-textarea`, el texto aparecía pero el Enter no se ejecutaba.
-**Causa:** xterm.js usa un textarea oculto que captura eventos keydown. `keyboard.press('Enter')` no siempre dispara el evento correcto porque el foco se pierde.
-**Solución:**
-1. Primero hacer click en el tab "Shell" explícitamente
-2. Ctrl+C para cancelar cualquier comando corriendo
-3. Focus en `.xterm-helper-textarea`
-4. Escribir con `evaluate()` seteando `ta.value` + dispatchear `new Event('input', {bubbles: true})`
-5. Para Enter: dispatchear `new KeyboardEvent('keydown', {key:'Enter', code:'Enter', keyCode:13, which:13, bubbles: true})`
-6. Verificar que el textarea quedó vacío (señal de que se procesó)
+## [2026-06-20] Replit Shell — CDP typing es poco fiable
+**Error:** Intenté 5+ scripts diferentes para escribir en Replit Shell via CDP (evaluate, keyboard.type, insertText, InputEvent). El texto se escribía pero el comando no se ejecutaba correctamente y el servidor no arrancaba.
+**Causa:** xterm.js en Replit recibe eventos de teclado de forma compleja. La simulación via CDP no es 100% fiable. Además, el force push hace que `git pull` falle (historias divergen).
+**Solución (la real):**
+1. Cambiar el default port en `server.js` de 3005 a **5000** (hecho)
+2. Actualizar `.replit` a formato `[workflows]` para que el botón Run aparezca (hecho)
+3. Pushear a GitHub (hecho)
+4. **Pedir al usuario que ejecute en Replit Shell:**
+   ```
+   git fetch --all && git reset --hard origin/main && node server.js
+   ```
+5. O mejor: no depender del shell. Modificar el código para que funcione sin comandos manuales.
 
-**Lección:** No usar `keyboard.type()` ni `keyboard.press('Enter')` en Replit Shell. Usar `page.evaluate()` con eventos nativos.
+**Lección grabada a fuego: NO usar CDP para escribir en Replit Shell.** Es poco fiable y lento. En su lugar:
+- Modificar el código directamente (default port, .replit correcto)
+- Pushear a GitHub
+- Pedir al usuario que pegue el comando en Shell
+- O usar la API de Replit / botón Run
 
 ---
 

@@ -496,12 +496,12 @@ function initDatabase() {
     db.prepare("INSERT INTO users (username, password, nombre, email, rol) VALUES (?,?,?,?,?)").run('movilbro', movHash, 'Agente Movilbro', 'infomovilbro@gmail.com', 'user');
   }
 
-  // Resetear contraseñas solo para usuarios sin contraseña fija (excluir aaa, movilbro, info, eloy)
-  var protectedUsers = db.prepare("SELECT COUNT(*) as c FROM users WHERE username IN ('aaa','movilbro') OR email IN ('info@movilbro.com','eloyfuentesbermudez@gmail.com','infomovilbro@gmail.com')").get().c;
+  // Resetear contraseñas solo para usuarios sin contraseña fija (excluir aaa, movilbro, info, eloy, aaa1)
+  var protectedUsers = db.prepare("SELECT COUNT(*) as c FROM users WHERE username IN ('aaa','movilbro','aaa1') OR email IN ('info@movilbro.com','eloyfuentesbermudez@gmail.com','infomovilbro@gmail.com','aaa1')").get().c;
   var totalUsers = db.prepare("SELECT COUNT(*) as c FROM users").get().c;
   if (protectedUsers < totalUsers) {
     var randomPass = bcrypt.hashSync(crypto.randomBytes(16).toString('hex'), 10);
-    db.prepare("UPDATE users SET password=? WHERE username NOT IN ('aaa','movilbro') AND email NOT IN ('info@movilbro.com','eloyfuentesbermudez@gmail.com','infomovilbro@gmail.com')").run(randomPass);
+    db.prepare("UPDATE users SET password=? WHERE username NOT IN ('aaa','movilbro','aaa1') AND email NOT IN ('info@movilbro.com','eloyfuentesbermudez@gmail.com','infomovilbro@gmail.com','aaa1')").run(randomPass);
   }
 
   // Crear admin desde env vars, o fallback a usuario por defecto
@@ -516,8 +516,20 @@ function initDatabase() {
     db.prepare('INSERT OR IGNORE INTO users (username, password, nombre, email, rol) VALUES (?,?,?,?,?)').run(uname, hashAdmin, 'Administrador', adminEmail, 'admin');
   }
 
-  // Sustituir aaa -> aaa1/aaa123
-  db.prepare("UPDATE users SET username='aaa1', email='aaa1', password=? WHERE username='aaa' OR email='aaa'").run(bcrypt.hashSync('aaa123', 10));
+  // Crear/asegurar usuario de prueba aaa1/aaa123
+  var aaa1exists = db.prepare("SELECT id FROM users WHERE username='aaa1' OR email='aaa1'").get();
+  if (!aaa1exists) {
+    // Primero intentar renombrar aaa -> aaa1
+    var renamed = db.prepare("UPDATE users SET username='aaa1', email='aaa1', password=? WHERE username='aaa' OR email='aaa'").run(bcrypt.hashSync('aaa123', 10));
+    if (renamed.changes === 0) {
+      // No existia aaa, crear aaa1 directamente
+      db.prepare("INSERT OR IGNORE INTO users (username, password, nombre, email, rol) VALUES (?,?,?,?,?)")
+        .run('aaa1', bcrypt.hashSync('aaa123', 10), 'Usuario Prueba', 'aaa1', 'admin');
+    }
+  } else {
+    // aaa1 ya existe, asegurar password correcta
+    db.prepare("UPDATE users SET password=? WHERE username='aaa1' OR email='aaa1'").run(bcrypt.hashSync('aaa123', 10));
+  }
 
   // Ensure all users have email set
   db.prepare("UPDATE users SET email = username || '@movilbro.com' WHERE email IS NULL OR email = ''").run();
