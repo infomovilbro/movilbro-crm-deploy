@@ -1,0 +1,19 @@
+name: Keep Render Awake
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'  # Cada 5 minutos
+  workflow_dispatch:  # Permitir ejecución manual también
+
+jobs:
+  ping:
+    name: Ping Render
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping CRM health endpoint
+        run: |
+          curl -s -o /dev/null -w "Status: %{http_code}\n" https://movilbro-crm.onrender.com/health || echo "Ping falló (normal si está dormido, lo despertará)"
+      
+      - name: Ping login page (despierta más rápido)
+        run: |
+          curl -s -o /dev/null -w "Login: %{http_code}\n" https://movilbro-crm.onrender.com/auth/login || true

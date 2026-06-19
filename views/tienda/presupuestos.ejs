@@ -1,0 +1,201 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-file-text"></i> Presupuestos</h2>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalPresupuesto"><i class="bi bi-plus-lg"></i> Nuevo Presupuesto</button>
+    <button class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#modalReparacionExterna"><i class="bi bi-wrench"></i> Reparación Externa</button>
+  </div>
+
+  <div class="card mb-4 hideable-section" data-card-id="presupuestos-abiertos">
+    <div class="card-header"><strong><i class="bi bi-clock"></i> Presupuestos Abiertos</strong></div>
+    <div class="card-body p-0">
+      <table class="table table-hover mb-0">
+        <thead><tr><th>#</th><th>Cliente</th><th>Teléfono</th><th>Tipo</th><th>Pieza (sin IVA)</th><th>IVA 21%</th><th>Mano Obra</th><th>Total</th><th>Estado</th><th>Fecha</th><th>Acciones</th></tr></thead>
+        <tbody>
+        <% if (presupuestosAbiertos.length === 0) { %>
+          <tr><td colspan="11" class="text-center text-muted py-4"><i class="bi bi-file-text" style="font-size:2rem;display:block;margin-bottom:8px;"></i>No hay presupuestos abiertos</td></tr>
+        <% } else { presupuestosAbiertos.forEach(p => { %>
+          <tr>
+            <td>#<%= p.id %></td>
+            <td><%= p.cliente_nombre %></td>
+            <td><%= p.telefono || '-' %></td>
+            <td><span class="badge bg-<%= p.tipo === 'reparacion_externa' ? 'warning' : 'primary' %>"><%= p.tipo === 'reparacion_externa' ? 'Rep.Ext' : 'Normal' %></span></td>
+            <td><%= (p.pieza_costo || 0).toFixed(2) %>€</td>
+            <td><%= ((p.pieza_costo || 0) * 0.21).toFixed(2) %>€</td>
+            <td><%= (p.mano_obra || 0).toFixed(2) %>€</td>
+            <td><strong><%= p.total.toFixed(2) %>€</strong></td>
+            <td>
+              <select class="form-select form-select-sm estado-presupuesto" data-id="<%= p.id %>" style="width:auto;display:inline-block;">
+                <option value="pendiente" <%= p.estado === 'pendiente' ? 'selected' : '' %>>Pendiente</option>
+                <option value="aceptado" <%= p.estado === 'aceptado' ? 'selected' : '' %>>Aceptado</option>
+                <option value="rechazado" <%= p.estado === 'rechazado' ? 'selected' : '' %>>Rechazado</option>
+                <option value="vencido" <%= p.estado === 'vencido' ? 'selected' : '' %>>Vencido</option>
+                <option value="reparado y cobrado" <%= p.estado === 'reparado y cobrado' ? 'selected' : '' %>>Reparado y Cobrado</option>
+              </select>
+            </td>
+            <td class="small"><%= new Date(p.created_at).toLocaleDateString('es-ES') %></td>
+            <td><button class="btn btn-sm btn-outline-danger eliminar-presupuesto" data-id="<%= p.id %>"><i class="bi bi-trash"></i></button></td>
+          </tr>
+        <% }) } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card mb-4 hideable-section" data-card-id="presupuestos-historial">
+  <div class="card-header"><i class="bi bi-folder"></i> Historial por Meses</div>
+  <div class="card-body">
+  <div class="row g-1 mb-0">
+  <% meses.forEach((m, idx) => { %>
+  <% var todosOk = m.presupuestos.length > 0 && m.presupuestos.every(p => p.estado === 'reparado y cobrado' || p.estado === 'aceptado'); %>
+  <% var algunPendiente = m.presupuestos.some(p => p.estado !== 'reparado y cobrado' && p.estado !== 'aceptado'); %>
+  <% var color = todosOk ? 'success' : (algunPendiente ? 'danger' : 'secondary') %>
+    <div class="col-md-1 col-2 text-center" style="cursor:pointer;" onclick="toggleMesDetalle(<%= idx %>)">
+      <div class="p-1 rounded bg-<%= color %> text-white small" style="min-height:48px;display:flex;flex-direction:column;justify-content:center;align-items:center;">
+        <div><%= m.label.split(' ')[0].substring(0,3) %></div>
+        <div class="fw-bold"><%= m.presupuestos.length %></div>
+      </div>
+    </div>
+  <% }) %>
+  </div>
+  <div id="mesDetalles">
+  <% meses.forEach((m, idx) => { %>
+  <div id="mesDetail<%= idx %>" class="mes-detail" style="display:none;">
+    <div class="card mb-3"><div class="card-body p-0">
+      <% if (m.presupuestos.length === 0) { %>
+        <div class="text-center text-muted py-3 small">Sin presupuestos este mes</div>
+      <% } else { %>
+      <table class="table table-sm table-hover mb-0">
+        <thead><tr><th>#</th><th>Cliente</th><th>Tipo</th><th>Pieza</th><th>IVA</th><th>Mano Obra</th><th>Total</th><th>Estado</th><th>Fecha</th></tr></thead>
+        <tbody>
+        <% m.presupuestos.forEach(p => { %>
+          <tr>
+            <td>#<%= p.id %></td>
+            <td><%= p.cliente_nombre %></td>
+            <td><span class="badge bg-<%= p.tipo === 'reparacion_externa' ? 'warning' : 'primary' %>" style="font-size:10px;"><%= p.tipo === 'reparacion_externa' ? 'Rep.Ext' : 'Normal' %></span></td>
+            <td><%= (p.pieza_costo || 0).toFixed(2) %>€</td>
+            <td><%= ((p.pieza_costo || 0) * 0.21).toFixed(2) %>€</td>
+            <td><%= (p.mano_obra || 0).toFixed(2) %>€</td>
+            <td><strong><%= p.total.toFixed(2) %>€</strong></td>
+            <td>
+              <span class="badge bg-<%= p.estado === 'reparado y cobrado' ? 'success' : p.estado === 'aceptado' ? 'primary' : p.estado === 'rechazado' ? 'danger' : p.estado === 'vencido' ? 'secondary' : 'warning' %>">
+                <%= p.estado === 'reparado y cobrado' ? 'Reparado y Cobrado' : p.estado.charAt(0).toUpperCase() + p.estado.slice(1) %>
+              </span>
+            </td>
+            <td class="small"><%= new Date(p.created_at).toLocaleDateString('es-ES') %></td>
+          </tr>
+        <% }) %>
+        </tbody>
+      </table>
+      <% } %>
+    </div></div>
+  </div>
+  <% }) %>
+  </div>
+  </div></div>
+</section>
+
+<!-- Modal Nuevo Presupuesto -->
+<div class="modal fade" id="modalPresupuesto" tabindex="-1">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <form method="POST" action="/tienda/presupuestos/crear">
+      <div class="modal-header"><h5><i class="bi bi-file-plus"></i> Nuevo Presupuesto</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="row g-2 mb-2">
+          <div class="col"><label class="form-label">Cliente *</label><input type="text" name="cliente_nombre" class="form-control" required></div>
+          <div class="col"><label class="form-label">Teléfono</label><input type="text" name="telefono" class="form-control"></div>
+        </div>
+        <div class="mb-2"><label class="form-label">Email</label><input type="email" name="email" class="form-control"></div>
+        <div class="mb-2"><label class="form-label">Líneas / Productos</label><textarea name="lineas" class="form-control" rows="3" placeholder="Ej: Fibra 300Mb - 35€/mes&#10;Móvil 20GB - 15€/mes"></textarea></div>
+        <div class="row g-2 mb-2">
+          <div class="col"><label class="form-label">Costo pieza original (sin IVA) *</label><input type="number" step="0.01" name="pieza_costo" id="piezaCosto" class="form-control" required oninput="calcTotal()"></div>
+          <div class="col"><label class="form-label">IVA 21%</label><input type="text" id="ivaCalculado" class="form-control" readonly value="0.00€"></div>
+        </div>
+        <div class="row g-2 mb-2">
+          <div class="col"><label class="form-label">Mano de obra (€)</label><input type="number" step="0.01" name="mano_obra" id="manoObra" class="form-control" value="0" oninput="calcTotal()"></div>
+        </div>
+        <div class="row g-2 mb-2">
+          <div class="col"><label class="form-label"><strong>TOTAL PRESUPUESTO</strong></label><input type="text" id="totalCalculado" class="form-control form-control-lg fw-bold" readonly value="0.00€" style="font-size:1.2rem;"></div>
+        </div>
+        <div class="mb-2"><label class="form-label">Notas</label><textarea name="notas" class="form-control" rows="2"></textarea></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Crear Presupuesto</button>
+      </div>
+    </form>
+  </div></div>
+</div>
+
+<!-- Modal Reparación Externa -->
+<div class="modal fade" id="modalReparacionExterna" tabindex="-1">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <form method="POST" action="/tienda/presupuestos/crear">
+      <input type="hidden" name="tipo" value="reparacion_externa">
+      <div class="modal-header"><h5><i class="bi bi-wrench"></i> Reparación Externa</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="row g-2 mb-2">
+          <div class="col"><label class="form-label">Cliente *</label><input type="text" name="cliente_nombre" class="form-control" required></div>
+          <div class="col"><label class="form-label">Teléfono</label><input type="text" name="telefono" class="form-control"></div>
+        </div>
+        <div class="mb-2"><label class="form-label">Email</label><input type="email" name="email" class="form-control"></div>
+        <div class="mb-2"><label class="form-label">Líneas / Productos</label><textarea name="lineas" class="form-control" rows="3" placeholder="Ej: Reparación de pantalla iPhone 12"></textarea></div>
+        <div class="row g-2 mb-2">
+          <div class="col"><label class="form-label">Costo pieza (sin IVA) *</label><input type="number" step="0.01" name="pieza_costo" class="form-control" required oninput="calcTotalRepExt()"></div>
+          <div class="col"><label class="form-label">IVA 21%</label><input type="text" id="ivaRepExt" class="form-control" readonly value="0.00€"></div>
+        </div>
+        <div class="row g-2 mb-2">
+          <div class="col"><label class="form-label">Mano de obra (€)</label><input type="number" step="0.01" name="mano_obra" class="form-control" value="0" oninput="calcTotalRepExt()"></div>
+        </div>
+        <div class="row g-2 mb-2">
+          <div class="col"><label class="form-label"><strong>TOTAL PRESUPUESTO</strong></label><input type="text" id="totalRepExt" class="form-control form-control-lg fw-bold" readonly value="0.00€" style="font-size:1.2rem;"></div>
+        </div>
+        <div class="mb-2"><label class="form-label">Notas</label><textarea name="notas" class="form-control" rows="2"></textarea></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="submit" class="btn btn-warning"><i class="bi bi-check-lg"></i> Crear Reparación</button>
+      </div>
+    </form>
+  </div></div>
+</div>
+
+<script>
+function calcTotal() {
+  var pieza = parseFloat(document.getElementById('piezaCosto').value) || 0;
+  var iva = pieza * 0.21;
+  var mo = parseFloat(document.getElementById('manoObra').value) || 0;
+  document.getElementById('ivaCalculado').value = iva.toFixed(2) + '€';
+  document.getElementById('totalCalculado').value = (pieza + iva + mo).toFixed(2) + '€';
+}
+function calcTotalRepExt() {
+  var pieza = parseFloat(document.querySelector('#modalReparacionExterna [name="pieza_costo"]').value) || 0;
+  var iva = pieza * 0.21;
+  var mo = parseFloat(document.querySelector('#modalReparacionExterna [name="mano_obra"]').value) || 0;
+  document.getElementById('ivaRepExt').value = iva.toFixed(2) + '€';
+  document.getElementById('totalRepExt').value = (pieza + iva + mo).toFixed(2) + '€';
+}
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.estado-presupuesto').forEach(sel => {
+    sel.addEventListener('change', function() {
+      fetch('/tienda/presupuestos/estado', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ id: this.dataset.id, estado: this.value }) })
+      .then(function() { location.reload(); });
+    });
+  });
+  document.querySelectorAll('.eliminar-presupuesto').forEach(btn => {
+    btn.addEventListener('click', function() {
+      if (confirm('¿Eliminar este presupuesto?')) {
+        fetch('/tienda/presupuestos/eliminar', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ id: this.dataset.id }) })
+        .then(() => location.reload());
+      }
+    });
+  });
+  calcTotal();
+});
+function toggleMesDetalle(idx) {
+  var el = document.getElementById('mesDetail' + idx);
+  if (!el) return;
+  var isVisible = el.style.display !== 'none';
+  document.querySelectorAll('.mes-detail').forEach(function(d) { d.style.display = 'none'; });
+  el.style.display = isVisible ? 'none' : 'block';
+}
+</script>

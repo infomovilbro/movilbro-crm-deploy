@@ -1,0 +1,250 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-receipt"></i> Facturación</h2>
+    <div class="d-flex gap-2 align-items-center">
+      <a href="/isp/facturacion/facturas" class="btn btn-outline-primary btn-sm"><i class="bi bi-list-ul"></i> Ver todas</a>
+      <a href="/isp/facturacion/clientes-pago" class="btn btn-outline-info btn-sm"><i class="bi bi-credit-card"></i> Métodos de pago</a>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-3 col-6 card-item stat-card-item" data-filter="pendientes">
+      <div class="stat-card">
+        <div class="d-flex align-items-center gap-3">
+          <div class="stat-icon-circle warning"><i class="bi bi-hourglass-split"></i></div>
+          <div>
+            <div class="stat-value"><%= stats.pendientes || 0 %></div>
+            <div class="stat-label">Facturas Pendientes</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 col-6 card-item stat-card-item" data-filter="pagadas">
+      <div class="stat-card">
+        <div class="d-flex align-items-center gap-3">
+          <div class="stat-icon-circle success"><i class="bi bi-check-circle"></i></div>
+          <div>
+            <div class="stat-value"><%= stats.pagadas || 0 %></div>
+            <div class="stat-label">Facturas Pagadas</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 col-6 card-item stat-card-item" data-filter="vencidas">
+      <div class="stat-card">
+        <div class="d-flex align-items-center gap-3">
+          <div class="stat-icon-circle danger"><i class="bi bi-exclamation-octagon"></i></div>
+          <div>
+            <div class="stat-value"><%= stats.vencidas || 0 %></div>
+            <div class="stat-label">Facturas Vencidas</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 col-6 card-item stat-card-item" data-filter="totalMes">
+      <div class="stat-card">
+        <div class="d-flex align-items-center gap-3">
+          <div class="stat-icon-circle primary"><i class="bi bi-coin"></i></div>
+          <div>
+            <div class="stat-value"><%= parseFloat(stats.totalMes || 0).toFixed(2) %>€</div>
+            <div class="stat-label">Total del Mes</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="d-flex justify-content-end gap-2 mb-3">
+    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalFacturaManual">
+      <i class="bi bi-plus-circle"></i> Factura Manual
+    </button>
+    <button class="btn btn-primary" id="btnGenerarFacturas">
+      <i class="bi bi-file-earmark-plus"></i> Generar Facturas del Mes
+    </button>
+  </div>
+
+  <div class="alert alert-info py-2 mb-3 small" id="factSyncStatus" style="display:none;">
+    <i class="bi bi-arrow-repeat me-1"></i> <span id="factSyncText">Sincronizando...</span>
+  </div>
+
+  <div class="card">
+    <div class="card-header d-flex justify-content-between">
+      <span><i class="bi bi-clock-history"></i> Últimas Facturas</span>
+      <a href="/isp/facturacion/facturas" class="btn btn-sm btn-outline-primary">Ver todas</a>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-dark">
+            <tr>
+              <th>#</th>
+              <th>Cliente</th>
+              <th>Periodo</th>
+              <th>Importe</th>
+              <th>Estado</th>
+              <th>Emisión</th>
+              <th class="text-end">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (facturas.length === 0) { %>
+            <tr><td colspan="7" class="text-center text-muted py-4"><i class="bi bi-inbox"></i> No hay facturas</td></tr>
+            <% } else { facturas.forEach(function(f) { %>
+            <tr>
+              <td class="fw-bold"><%= (f.serie || 'F') + '-' + String(f.numero_factura || f.id).padStart(5, '0') %></td>
+              <td><%= f.cliente_nombre || '-' %></td>
+              <td><%= f.periodo || '-' %></td>
+              <td class="fw-bold"><%= parseFloat(f.importe_total || 0).toFixed(2) %>€</td>
+              <td>
+                <span class="badge fs-6 bg-<%= f.estado === 'pendiente' ? 'warning' : f.estado === 'pagada' ? 'success' : 'danger' %>">
+                  <%= f.estado %>
+                </span>
+              </td>
+              <td class="small"><%= f.fecha_emision ? new Date(f.fecha_emision).toLocaleDateString('es-ES') : '-' %></td>
+              <td class="text-end">
+                <a href="/isp/facturacion/facturas/<%= f.id %>" class="btn btn-sm btn-outline-info" title="Ver"><i class="bi bi-eye"></i></a>
+                <button class="btn btn-sm btn-outline-primary btn-enviar-email" data-id="<%= f.id %>" title="Enviar email"><i class="bi bi-envelope"></i></button>
+                <% if (f.estado !== 'pagada') { %>
+                <button class="btn btn-sm btn-outline-success btn-pagar" data-id="<%= f.id %>" title="Pagar"><i class="bi bi-check-lg"></i></button>
+                <% } %>
+              </td>
+            </tr>
+            <% }) } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Modal Factura Manual -->
+<div class="modal fade" id="modalFacturaManual" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-plus-circle"></i> Crear Factura Manual</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formFacturaManual">
+          <div class="mb-2">
+            <label class="form-label">Serie</label>
+            <select class="form-select" name="serie">
+              <option value="F">F - Factura</option>
+              <option value="R">R - Recibo</option>
+              <option value="A">A - Abono</option>
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Cliente *</label>
+            <input type="text" class="form-control" name="cliente_nombre" required>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-control" name="cliente_email">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">NIF/CIF</label>
+            <input type="text" class="form-control" name="fiscal_id">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Período</label>
+            <input type="month" class="form-control" name="periodo" value="<%= new Date().toISOString().split('T')[0].substring(0,7) %>">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Concepto</label>
+            <input type="text" class="form-control" name="concepto" value="Cuota servicio mensual">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Línea (opcional)</label>
+            <input type="text" class="form-control" name="linea">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Importe (€) *</label>
+            <input type="number" step="0.01" class="form-control" name="importe" required>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btnGuardarFacturaManual"><i class="bi bi-save"></i> Crear Factura</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>document.addEventListener('DOMContentLoaded',function(){document.getElementById('btnGuardarFacturaManual')?.addEventListener('click',function(){var btn=this;btn.disabled=true;btn.innerHTML='<span class="spinner-border spinner-border-sm"></span> Creando...';var form=document.getElementById('formFacturaManual');var data={};new FormData(form).forEach(function(v,k){data[k]=v;});fetch('/isp/facturacion/facturas/manual',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(function(r){return r.json();}).then(function(d){if(d.ok){alert('Factura '+d.numero+' creada correctamente');location.reload();}else{alert('Error: '+(d.error||'desconocido'));btn.disabled=false;btn.innerHTML='<i class="bi bi-save"></i> Crear Factura';}}).catch(function(){alert('Error de conexión');btn.disabled=false;btn.innerHTML='<i class="bi bi-save"></i> Crear Factura';});});});</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('btnGenerarFacturas')?.addEventListener('click', function() {
+    const btn = this;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Generando...';
+    fetch('/isp/facturacion/generar', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+      .then(r => r.json())
+      .then(d => {
+        if (d.ok) {
+          alert('Generación iniciada en segundo plano. Las facturas se están procesando...');
+          setTimeout(function() { location.reload(); }, 3000);
+        } else {
+          alert('Error: ' + (d.error || 'Error al generar facturas'));
+          btn.disabled = false;
+          btn.innerHTML = '<i class="bi bi-file-earmark-plus"></i> Generar Facturas del Mes';
+        }
+      })
+      .catch(() => {
+        alert('Error de conexión');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-file-earmark-plus"></i> Generar Facturas del Mes';
+      });
+  });
+
+  document.querySelectorAll('.btn-enviar-email').forEach(function(b) {
+    b.addEventListener('click', function() {
+      const id = this.dataset.id;
+      fetch('/isp/facturacion/facturas/' + id + '/enviar', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+        .then(r => r.json())
+        .then(d => { alert(d.ok ? 'Email enviado correctamente' : 'Error: ' + (d.error || 'desconocido')); })
+        .catch(() => { alert('Error de conexión'); });
+    });
+  });
+
+  document.querySelectorAll('.btn-pagar').forEach(function(b) {
+    b.addEventListener('click', function() {
+      if (!confirm('¿Marcar esta factura como pagada?')) return;
+      const id = this.dataset.id;
+      fetch('/isp/facturacion/facturas/' + id + '/pagar', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+        .then(r => r.json())
+        .then(d => {
+          if (d.ok) { location.reload(); }
+          else { alert('Error: ' + (d.error || 'desconocido')); }
+        })
+        .catch(() => { alert('Error de conexión'); });
+    });
+  });
+
+  // Sync status check - solo al cargar
+  var factSyncStatus = document.getElementById('factSyncStatus');
+  var factSyncText = document.getElementById('factSyncText');
+  if (factSyncStatus) {
+    fetch('/sync-status')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.status === 'running') {
+          factSyncStatus.style.display = '';
+          factSyncText.textContent = data.step || 'Sincronizando...';
+        } else {
+          factSyncStatus.style.display = 'none';
+        }
+      })
+      .catch(function() {});
+  }
+        })
+        .catch(function() {});
+    }
+    checkSync();
+    setInterval(checkSync, 5000);
+  }
+});
+</script>

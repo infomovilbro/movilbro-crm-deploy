@@ -1,0 +1,323 @@
+const axios = require('axios');
+const { db } = require('./database');
+
+function getApiInstance() {
+  const s = db.prepare("SELECT key, value FROM settings WHERE key LIKE 'likes_%'").all();
+  const c = {};
+  s.forEach(r => c[r.key] = r.value);
+  return new LikesAPI({ apiUrl: c.likes_api_url, email: c.likes_client_id, password: c.likes_client_secret, brandId: c.likes_brand_id });
+}
+
+class LikesAPI {
+  constructor(config) {
+    this.apiUrl = config.apiUrl || 'https://api.likestelecom.com';
+    this.email = config.email;
+    this.password = config.password;
+    this.brandId = config.brandId;
+    this._tokenCache = null;
+    this._tokenExpiry = null;
+    if (!this.email || !this.password) {
+      console.error('[LikesAPI] CREDENCIALES FALTANTES: likes_client_id=' + (this.email ? 'OK' : 'VACIO') + ', likes_client_secret=' + (this.password ? 'OK' : 'VACIO') + '. Configúralas en Render como LIKES_CLIENT_ID y LIKES_CLIENT_SECRET');
+    }
+  }
+
+  async getToken() {
+    if (this._tokenCache && this._tokenExpiry && Date.now() < this._tokenExpiry) return this._tokenCache;
+    try {
+      const body = { email: this.email, password: this.password };
+      if (this.brandId) body.brand = this.brandId;
+      const response = await axios.post(`${this.apiUrl}/token`, body);
+      var token = response.data.token || response.data.access_token || response.data.auth_token || response.data.id_token;
+      if (!token && response.data.data) token = response.data.data.token || response.data.data.access_token;
+      if (!token && typeof response.data === 'string' && response.data.length > 20) token = response.data;
+      if (token) {
+        this._tokenCache = token;
+        this._tokenExpiry = Date.now() + (response.data.expires_in || 3600) * 1000 - 60000;
+      }
+      return this._tokenCache;
+    } catch (error) {
+      console.error('Error obteniendo token:', error.response?.data || error.message);
+      throw new Error('No se pudo autenticar con Likes Telecom');
+    }
+  }
+
+  async request(method, endpoint, data = null) {
+    var token = await this.getToken();
+    if (!token) {
+      this._tokenCache = null;
+      token = await this.getToken();
+    }
+    const config = {
+      method,
+      url: `${this.apiUrl}${endpoint}`,
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      timeout: 20000
+    };
+    if (data) config.data = data;
+    try {
+      const response = await axios(config);
+      return response.data;
+    } catch (error) {
+      console.error(`Error en API ${method} ${endpoint}:`, error.response?.data || error.message);
+      throw error;
+    }
+  }
+
+  async extractData(raw) {
+    if (Array.isArray(raw)) return raw;
+    if (raw && typeof raw === 'object') {
+      for (const key of ['data', 'customers', 'products', 'portabilities', 'tickets', 'lines', 'subscriptions', 'installations', 'orders', 'shipments', 'surveys', 'leads', 'payments', 'remittances', 'processes', 'channels', 'resources', 'results', 'items', 'records']) {
+        if (Array.isArray(raw[key])) return raw[key];
+      }
+    }
+    return [];
+  }
+
+  async fetchAll(endpoint) {
+    let all = [], page = 1, hasMore = true;
+    while (hasMore && page <= 100) {
+      const sep = endpoint.includes('?') ? '&' : '?';
+      const raw = await this.request('GET', `${endpoint}${sep}page=${page}&limit=500`);
+      const items = await this.extractData(raw);
+      all = all.concat(items);
+      const total = raw.total || raw.totalCount || raw.total_items || (raw.meta && raw.meta.total) || 0;
+      const perPage = raw.per_page || raw.perPage || raw.limit || (raw.meta && raw.meta.per_page) || 500;
+      const lastPage = raw.last_page || raw.pages || raw.totalPages || (raw.meta && raw.meta.last_page) || Math.ceil(total / perPage);
+      hasMore = page < lastPage && items.length > 0;
+      page++;
+    }
+    return all;
+  }
+
+  async getCustomers() {
+    return this.fetchAll(`/customers?brand_id=${this.brandId}`);
+  }
+
+  async getProducts() {
+    return this.fetchAll(`/products/brand?brand_id=${this.brandId}`);
+  }
+
+  async getPortabilities() {
+    return this.fetchAll(`/portabilities?brand_id=${this.brandId}`);
+  }
+
+  async getTickets(params = {}) {
+    const query = Object.entries({ brand_id: this.brandId, ...params }).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&');
+    // Try /tickets first (plural), fallback to /ticket (singular)
+    try {
+      const data = await this.request('GET', `/tickets${query ? '?' + query : ''}`);
+      return this.extractData(data);
+    } catch (e) {
+      if (e.response && e.response.status === 404) {
+        const data = await this.request('GET', `/ticket${query ? '?' + query : ''}`);
+        return this.extractData(data);
+      }
+      throw e;
+    }
+  }
+
+  async getLines() {
+    const data = await this.request('GET', `/line?brand_id=${this.brandId}`);
+    return this.extractData(data);
+  }
+
+  async getSubscriptions(fiscalId) {
+    const query = fiscalId ? `?fiscalId=${encodeURIComponent(fiscalId)}&brand_id=${this.brandId}` : `?brand_id=${this.brandId}`;
+    const data = await this.request('GET', `/subscriptions${query}`);
+    return this.extractData(data);
+  }
+
+  async getInstallations() {
+    try {
+      const data = await this.request('GET', `/installations?brand_id=${this.brandId}`);
+      return this.extractData(data);
+    } catch { return []; }
+  }
+
+  async getOrders() {
+    try {
+      const data = await this.request('GET', `/orders?brand_id=${this.brandId}`);
+      return this.extractData(data);
+    } catch { return []; }
+  }
+
+  async getShipments() {
+    try {
+      const data = await this.request('GET', `/shipments?brand_id=${this.brandId}`);
+      return this.extractData(data);
+    } catch { return []; }
+  }
+
+  async getSurveys() {
+    try {
+      const data = await this.request('GET', `/surveys?brand_id=${this.brandId}`);
+      return this.extractData(data);
+    } catch { return []; }
+  }
+
+  async getLeads() {
+    try {
+      const data = await this.request('GET', `/leads?brand_id=${this.brandId}`);
+      return this.extractData(data);
+    } catch { return []; }
+  }
+
+  async getProcesses() {
+    try {
+      const data = await this.request('GET', `/processes?brand_id=${this.brandId}`);
+      return this.extractData(data);
+    } catch { return []; }
+  }
+
+  async getPayments() {
+    try {
+      const data = await this.request('GET', `/payments?brand_id=${this.brandId}`);
+      return this.extractData(data);
+    } catch { return []; }
+  }
+
+  async getRemittances() {
+    try {
+      const data = await this.request('GET', `/remittances?brand_id=${this.brandId}`);
+      return this.extractData(data);
+    } catch { return []; }
+  }
+
+  async getChannelConfig() {
+    try {
+      return await this.request('GET', '/channel/config');
+    } catch { return {}; }
+  }
+
+  async getRouterPenalties() {
+    try {
+      const data = await this.request('GET', `/router-penalties?brand_id=${this.brandId}`);
+      return this.extractData(data);
+    } catch { return []; }
+  }
+
+  async createCustomer(customerData) {
+    return this.request('POST', '/customer', customerData);
+  }
+
+  async createOrder(orderData) {
+    return this.request('POST', '/signupv2', orderData);
+  }
+
+  async createDraftOrder(orderData) {
+    return this.request('POST', '/draft-order-v2', orderData);
+  }
+
+  async addDraftOrderCustomer(orderId, customerData) {
+    return this.request('POST', '/draft-order-v2/customer', { orderId, ...customerData });
+  }
+
+  async updateDraftOrderLines(orderId, linesData) {
+    return this.request('PUT', '/draft-order-v2/lines', { orderId, ...linesData });
+  }
+
+  async setDraftOrderShipping(orderId, shippingData) {
+    return this.request('PUT', '/draft-order-v2/shipping-address', { orderId, ...shippingData });
+  }
+
+  async checkoutDraftOrder(orderId) {
+    return this.request('PUT', '/draft-order-v2/checkout', { orderId });
+  }
+
+  async getDraftOrder(orderId) {
+    return this.request('GET', `/draft-order-v2?orderId=${orderId}&withDocumentation=true`);
+  }
+
+  async getOrderStatus(orderId) {
+    return this.request('GET', `/draft-order-v2/${orderId}`);
+  }
+
+  async getClientSubscriptions(clientId) {
+    return this.request('GET', `/subscriptions?customer_id=${clientId}`);
+  }
+
+  async getLineInfo(lineNumber) {
+    return this.request('GET', `/line?line=${lineNumber}`);
+  }
+
+  async getLineGB(lineNumber) {
+    return this.request('GET', `/line/gb?line=${encodeURIComponent(lineNumber)}`);
+  }
+
+  async changeProduct(data) {
+    return this.request('POST', '/changeProduct', data);
+  }
+
+  async addOptionalProduct(data) {
+    return this.request('POST', '/addOptionalProduct', data);
+  }
+
+  async lineChangeSim(data) {
+    return this.request('POST', '/line/changeSim', data);
+  }
+
+  async getLineCDRs(lineNumber) {
+    return this.request('GET', `/line/cdrs?lineNumber=${encodeURIComponent(lineNumber)}`);
+  }
+
+  async blockLine(lineNumber, blocked = true) {
+    return this.request('PUT', '/line', { line: lineNumber, blocked });
+  }
+
+  async createTicket(ticketData) {
+    return this.request('POST', '/ticket', ticketData);
+  }
+
+  async getTicketTypologies() {
+    return this.request('GET', '/ticket/typologys');
+  }
+
+  async getDonorOperators() {
+    try {
+      const data = await this.request('GET', '/admin2/donor-operators');
+      return this.extractData(data);
+    } catch { return []; }
+  }
+
+  async checkCoverage(address) {
+    return this.request('GET', `/coverage/address?q=${encodeURIComponent(address)}`);
+  }
+
+  async getCoverageBuildings(addressId) {
+    return this.request('GET', `/coverage/buildings?address_id=${addressId}`);
+  }
+
+  static async fetchCDRsForFiscalId(api, fiscalId, periodo) {
+    if (!fiscalId) return [];
+    try {
+      var subsRaw = await api.request('GET', '/subscriptions?fiscalId=' + encodeURIComponent(fiscalId) + '&brand_id=' + (api.brandId || '264'));
+      var subsItems = Array.isArray(subsRaw) ? subsRaw : (subsRaw.data || subsRaw.subscriptions || []);
+      var lines = [];
+      subsItems.forEach(function(s) {
+        var prods = s.products || (s.productName ? [s] : []);
+        prods.forEach(function(p) { if (p.fixedNumber || p.lineNumber) lines.push(p.fixedNumber || p.lineNumber); });
+      });
+      var lineasUnicas = [];
+      lines.forEach(function(l) { if (lineasUnicas.indexOf(l) === -1) lineasUnicas.push(l); });
+      var apiCdrsResults = await Promise.allSettled(lineasUnicas.map(function(l) { return api.getLineCDRs(l); }));
+      var result = [];
+      apiCdrsResults.forEach(function(resp) {
+        if (resp.status !== 'fulfilled' || !resp.value) return;
+        var raw = resp.value;
+        var items = Array.isArray(raw) ? raw : (raw.data || raw.cdrs || raw.records || raw.items || []);
+        if (Array.isArray(items)) {
+          items.forEach(function(item) {
+            var cdrDate = item.fecha || item.date || '';
+            var cdrPeriodo = cdrDate ? cdrDate.substring(0, 7) : periodo;
+            if (cdrPeriodo !== periodo) return;
+            result.push(item);
+          });
+        }
+      });
+      return result;
+    } catch(e) { console.error('fetchCDRsForFiscalId error:', e.message); return []; }
+  }
+}
+
+module.exports = LikesAPI;
+module.exports.getApiInstance = getApiInstance;

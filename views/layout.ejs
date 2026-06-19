@@ -1,0 +1,2136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> - <%= empresa.nombre %> CRM</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/nprogress@0.2.0/nprogress.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.css" rel="stylesheet">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link href="/css/style.css" rel="stylesheet">
+  <link rel="icon" type="image/jpeg" href="/img/logo.jpg">
+  <script>
+    function toggleSidebar() {
+      var s = document.getElementById('sidebar');
+      var b = document.getElementById('sidebarBackdrop');
+      if (s) s.classList.toggle('show');
+      if (b) b.classList.toggle('show');
+    }
+    function openNavGroup(key) {
+      try {
+        var s = document.getElementById('sidebar');
+        var b = document.getElementById('sidebarBackdrop');
+        if (key) {
+          document.querySelectorAll('.nav-group').forEach(function(g) { g.classList.remove('open'); });
+          var g = document.querySelector('.nav-group[data-group-key="' + key + '"]');
+          if (g) { g.classList.add('open'); setTimeout(function() { g.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 100); }
+        }
+        if (s) { s.classList.add('show'); s.style.display = 'block'; }
+        if (b) b.classList.add('show');
+        document.querySelectorAll('.bottom-nav-item').forEach(function(i) { i.classList.remove('active'); });
+        if (key) {
+          var btn = document.querySelector('.bottom-nav-item[data-nav-group="' + key + '"]');
+          if (btn) btn.classList.add('active');
+        }
+      } catch(e) { console.error('openNavGroup error:', e); }
+    }
+    function toggleSubGroup(el) {
+      var submenu = el.nextElementSibling;
+      var arrow = el.querySelector('.ri-arrow-down-s-line');
+      if (submenu) {
+        submenu.style.display = submenu.style.display === 'none' ? 'block' : 'none';
+        if (arrow) arrow.style.transform = submenu.style.display === 'none' ? 'rotate(0deg)' : 'rotate(180deg)';
+      }
+    }
+    function aplicarGradiente(val) {
+      var nav = document.getElementById('bottomNav');
+      if (nav) nav.style.background = 'linear-gradient(' + val + ')';
+      localStorage.setItem('ui_bottomnav_bg', 'gradient:' + val);
+      var inp = document.getElementById('uiBottomNavBgValue');
+      if (inp) inp.textContent = 'gradiente';
+    }
+    function aplicarGradienteGrupos(val) {
+      var el = document.querySelector('.sidebar-scroll');
+      if (el) el.style.background = 'linear-gradient(' + val + ')';
+      localStorage.setItem('ui_group_bg', 'gradient:' + val);
+      var inp = document.getElementById('uiGroupBgValue');
+      if (inp) inp.textContent = 'gradiente';
+    }
+    function aplicarGradientePagina(val) {
+      var el = document.querySelector('.page-container') || document.body;
+      el.style.background = 'linear-gradient(' + val + ')';
+      localStorage.setItem('ui_page_bg', 'gradient:' + val);
+      var inp = document.getElementById('uiPageBgValue');
+      if (inp) inp.textContent = 'gradiente';
+    }
+    var GRADIENTES = [
+      { val: '135deg,#667eea,#764ba2', label: '💜' },
+      { val: '135deg,#0050A1,#00a8cc', label: '💙' },
+      { val: '135deg,#11998e,#38ef7d', label: '💚' },
+      { val: '135deg,#f093fb,#f5576c', label: '💗' },
+      { val: '135deg,#4facfe,#00f2fe', label: '💠' },
+      { val: '135deg,#fa709a,#fee140', label: '🧡' }
+    ];
+  </script>
+  <style>
+    :root {
+      --sidebar-bg: <%= ui.sidebarBg %>;
+      --sidebar-hover: <%= ui.sidebarHover || '#f5f5f5' %>;
+      --sidebar-active: <%= ui.sidebarActive %>;
+      --primary: <%= ui.primaryColor %>;
+      --primary-gradient: linear-gradient(-72.47deg, <%= ui.primaryColor %> 22.16%, <%= ui.primaryColor %>b3 76.47%);
+      --primary-light: rgba(<%= parseInt(ui.primaryColor.slice(1,3),16) %>, <%= parseInt(ui.primaryColor.slice(3,5),16) %>, <%= parseInt(ui.primaryColor.slice(5,7),16) %>, 0.08);
+      --topbar-bg: <%= ui.topbarBg || '#ffffff' %>;
+      --topbar-border: <%= ui.topbarBorder || '#e8e8e8' %>;
+      --bg-body: <%= ui.bgBody || '#f4f5fa' %>;
+      --card-bg: <%= ui.cardBg || '#ffffff' %>;
+      --text-primary: <%= ui.textPrimary || '#222222' %>;
+      --text-secondary: <%= ui.textSecondary || '#6c757d' %>;
+      --border-color: <%= ui.borderColor || '#e8e8e8' %>;
+      --table-hover-bg: <%= ui.tableHoverBg || '#f8f9ff' %>;
+      --table-stripe: <%= ui.tableStripe || '#fafafa' %>;
+      --input-focus-shadow: <%= ui.inputFocusShadow || '0 0 0 2px rgba(0, 80, 161, 0.15)' %>;
+      --shadow-sm: <%= ui.shadowSm || '0 1px 3px rgba(0, 0, 0, 0.06)' %>;
+      --shadow-md: <%= ui.shadowMd || '0 3px 8px rgba(0, 0, 0, 0.08)' %>;
+      --card-radius: <%= ui.cardRadius || '10px' %>;
+      --font: <%= ui.font || "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" %>;
+      --success: <%= ui.success || '#28a745' %>;
+      --danger: <%= ui.danger || '#dc3545' %>;
+      --warning: <%= ui.warning || '#ffc107' %>;
+      --info: <%= ui.info || '#17a2b8' %>;
+    }
+    /* Bottom navigation (mobile) */
+    .bottom-nav {
+      display: none;
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: #fff; border-top: 1px solid #ddd;
+      z-index: 1050; padding: 4px 0;
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.08);
+      justify-content: space-around;
+    }
+    .bottom-nav-item {
+      background: none; border: none;
+      display: flex; flex-direction: column;
+      align-items: center; gap: 2px;
+      padding: 4px 8px; cursor: pointer;
+      border-radius: 8px; transition: background 0.15s;
+      min-width: 60px;
+    }
+    .bottom-nav-item:active { background: #f0f0f0; }
+    .bottom-nav-icon { font-size: 1.3rem; line-height: 1; }
+    .bottom-nav-label { font-size: 0.6rem; color: #666; white-space: nowrap; }
+    .bottom-nav-item.active .bottom-nav-label { color: var(--primary, #0050A1); font-weight: 600; }
+    .bottom-nav-item.active .bottom-nav-icon { filter: brightness(0.7) sepia(1) hue-rotate(190deg) saturate(3); }
+
+    @media (max-width: 991.98px) {
+      .bottom-nav { display: flex; }
+      .sidebar { padding-bottom: 60px; }
+      #page-content { padding-bottom: 56px; }
+    }
+
+    /* AI Chat Panel */
+    .ai-chat-panel {
+      position: fixed; bottom: 20px; right: 20px; width: 360px; height: 500px;
+      background: #fff; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+      display: flex; flex-direction: column; z-index: 9999;
+      transform: translateY(calc(100% + 30px)); opacity: 0; visibility: hidden;
+      transition: all 0.3s ease; overflow: hidden;
+    }
+    .ai-chat-panel.open { transform: translateY(0); opacity: 1; visibility: visible; }
+    .ai-chat-header {
+      background: var(--primary-gradient, linear-gradient(-72.47deg, #0050A1 22.16%, #0050A1b3 76.47%));
+      color: #fff; padding: 12px 16px; font-weight: 600; display: flex; align-items: center; gap: 8px;
+    }
+    .ai-chat-messages { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+    .ai-message { display: flex; align-items: flex-start; gap: 8px; }
+    .user-message { display: flex; justify-content: flex-end; }
+    .ai-avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: var(--primary-gradient, linear-gradient(-72.47deg, #0050A1 22.16%, #0050A1b3 76.47%));
+      color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .ai-bubble {
+      background: #f0f2f5; padding: 8px 14px; border-radius: 12px 12px 12px 4px;
+      font-size: 0.9rem; max-width: 260px; line-height: 1.4;
+    }
+    .ai-bubble a { color: var(--primary, #0050A1); font-weight: 600; }
+    .user-bubble {
+      background: var(--primary-gradient, linear-gradient(-72.47deg, #0050A1 22.16%, #0050A1b3 76.47%));
+      color: #fff; padding: 8px 14px; border-radius: 12px 12px 4px 12px;
+      font-size: 0.9rem; max-width: 260px; line-height: 1.4;
+    }
+    .ai-chat-input { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid #eee; }
+    .emoji-icon { font-size: 1.1rem; margin-right: 6px; display: inline-block; vertical-align: middle; }
+    /* Sidebar group accent borders (now handled in style.css) */
+    .quick-access-btn { transition: all 0.2s; }
+    .quick-access-btn:hover { transform: scale(1.05); }
+
+    .ui-edit-mode [data-ui-draggable] { outline: 2px dashed rgba(13,110,253,0.35); outline-offset: 2px; }
+    .ui-edit-mode [data-ui-selected] { outline: 2px solid #ff7a00 !important; }
+    .ui-editor-fab {
+      position: fixed;
+      right: 16px;
+      bottom: 90px;
+      z-index: 11000;
+      border-radius: 999px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+    }
+    .ui-editor-panel {
+      position: fixed;
+      right: 16px;
+      bottom: 150px;
+      width: 340px;
+      max-height: 70vh;
+      overflow: auto;
+      z-index: 11000;
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+      border: 1px solid #e8e8e8;
+      display: none;
+    }
+    .ui-editor-panel.open { display: block; }
+    .ui-editor-panel .head { padding: 10px 12px; border-bottom: 1px solid #eee; font-weight: 600; }
+    .ui-editor-panel .body { padding: 10px 12px; }
+    .ui-theme-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .ui-theme-btn { border: 1px solid #ddd; border-radius: 8px; padding: 8px; cursor: pointer; background: #fff; }
+    .ui-theme-btn:hover { border-color: #999; }
+
+    body.sidebar-right #wrapper { grid-template-columns: 1fr var(--sidebar-width); }
+    body.sidebar-right .sidebar { order: 2; }
+    body.sidebar-right #page-content { order: 1; }
+    body.sidebar-bottom #wrapper { display: flex; flex-direction: column-reverse; }
+    body.sidebar-bottom .sidebar { width: 100%; height: auto; position: static; border-right: 0; border-top: 1px solid #ddd; }
+    body.sidebar-bottom .sidebar-scroll { max-height: 280px; }
+    #globalSearchDropdown a { display:block; padding:8px 12px; border-bottom:1px solid #f0f0f0; color:#333; text-decoration:none; font-size:0.85rem; }
+    #globalSearchDropdown a:last-child { border-bottom:0; }
+    #globalSearchDropdown a:hover { background:#f8f9ff; }
+    #globalSearchDropdown .src-badge { font-size:0.6rem; padding:2px 6px; border-radius:4px; }
+    kbd { background:#f0f0f0;border:1px solid #ddd;border-radius:4px;padding:2px 6px;font-size:12px;font-family:monospace; }
+  </style>
+</head>
+<body>
+  <% if (user) { %>
+  <div id="wrapper">
+    <!-- SIDEBAR -->
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-header" style="cursor:pointer;" data-bs-toggle="dropdown">
+        <img src="/img/logo.jpg" style="width:36px;height:36px;border-radius:6px;object-fit:cover;">
+        <div>
+          <div class="app-title"><%= empresa.nombre %></div>
+          <span class="app-badge">CRM</span>
+        </div>
+        <i class="bi bi-chevron-down text-white-50 ms-auto" style="font-size:0.6rem;"></i>
+      </div>
+      <ul class="dropdown-menu shadow-sm" style="margin-left:8px;min-width:180px;">
+        <li class="dropdown-item-text small"><%= user.nombre %> <span class="badge bg-primary"><%= user.rol %></span></li>
+        <li><hr class="dropdown-divider"></li>
+        <li><a class="dropdown-item" href="/settings"><i class="bi bi-gear"></i> Configuración</a></li>
+        <li><a class="dropdown-item" href="/auth/logout"><i class="bi bi-box-arrow-right"></i> Cerrar sesión</a></li>
+      </ul>
+
+      <div class="sidebar-scroll">
+        <ul class="sidebar-nav">
+          <!-- PANEL TIENDA (grupo) - PRIMERO -->
+          <li class="nav-item nav-group <%= title === 'Panel Tienda' || title === 'Agenda Tienda' || title === 'Clientes Prepago' || title === 'Caja y Operaciones' || title === 'Presupuestos' || title === 'Inventario' || title === 'Historial del Día' || title === 'Gestión de Agentes' || title === 'Cierres' || title === 'Perfil Tienda' ? 'open' : '' %>" data-group="tienda" data-group-key="tienda" data-ui-draggable="group">
+            <a class="nav-group-toggle <%= title === 'Panel Tienda' || title === 'Agenda Tienda' || title === 'Clientes Prepago' || title === 'Caja y Operaciones' || title === 'Presupuestos' || title === 'Inventario' || title === 'Historial del Día' || title === 'Gestión de Agentes' || title === 'Cierres' || title === 'Perfil Tienda' ? 'active' : '' %>" data-toggle="nav-group" href="#"><span class="emoji-icon" data-group-icon>🏪</span><span class="nav-text" data-group-label>Panel Tienda</span><i class="ri-arrow-down-s-line nav-arrow"></i></a>
+            <ul class="nav-submenu">
+              <li data-item-key="tienda_dashboard" data-ui-draggable="item"><a class="<%= title === 'Panel Tienda' ? 'active' : '' %>" href="/tienda"><span class="emoji-icon">📊</span>Panel</a></li>
+              <li data-item-key="tienda_agenda"><a class="<%= title === 'Agenda Tienda' ? 'active' : '' %>" href="/tienda/agenda"><span class="emoji-icon">📅</span>Agenda</a></li>
+              <li data-item-key="tienda_prepago"><a class="<%= title === 'Clientes Prepago' ? 'active' : '' %>" href="/tienda/prepago"><span class="emoji-icon">📱</span>Clientes Prepago</a></li>
+              <li data-item-key="tienda_caja"><a class="<%= title === 'Caja y Operaciones' ? 'active' : '' %>" href="/tienda/caja"><span class="emoji-icon">💰</span>Caja / Operaciones</a></li>
+              <li data-item-key="tienda_presupuestos"><a class="<%= title === 'Presupuestos' ? 'active' : '' %>" href="/tienda/presupuestos"><span class="emoji-icon">📋</span>Presupuestos</a></li>
+              <li data-item-key="tienda_inventario"><a class="<%= title === 'Inventario' ? 'active' : '' %>" href="/tienda/inventario"><span class="emoji-icon">📦</span>Inventario</a></li>
+              <li data-item-key="tienda_historial"><a class="<%= title === 'Historial del Día' ? 'active' : '' %>" href="/tienda/historial-dia"><span class="emoji-icon">⏰</span>Historial Día</a></li>
+              <li data-item-key="tienda_agentes"><a class="<%= title === 'Gestión de Agentes' ? 'active' : '' %>" href="/tienda/agentes"><span class="emoji-icon">👥</span>Agentes</a></li>
+              <li data-item-key="tienda_cierres"><a class="<%= title === 'Cierres' ? 'active' : '' %>" href="/tienda/cierres"><span class="emoji-icon">🔒</span>Cierres</a></li>
+              <!-- OCULTO <li data-item-key="tienda_perfil"><a class="<%= title === 'Perfil Tienda' ? 'active' : '' %>" href="/tienda/perfil"><span class="emoji-icon">👤</span>Perfil</a></li> -->
+            </ul>
+          </li>
+          <!-- PANEL CLIENTES (grupo) -->
+          <li class="nav-item nav-group <%= ['KPIs','Cobertura','Altas','Clientes','Suscripciones','Productos','Encuestas','Leads','Usuarios','Facturas','Pagos','Remesas','Recursos','Tickets','Configurac'].some(t => title === t || title.includes(t)) ? 'open' : '' %>" data-group="clientes" data-group-key="clientes" data-ui-draggable="group">
+            <a class="nav-group-toggle <%= ['KPIs','Cobertura','Altas','Clientes','Suscripciones','Productos','Encuestas','Leads','Usuarios','Facturas','Pagos','Remesas','Recursos','Tickets','Configurac'].some(t => title === t || title.includes(t)) ? 'active' : '' %>" data-toggle="nav-group" href="#"><span class="emoji-icon" data-group-icon>🖥️</span><span class="nav-text" data-group-label>Panel Clientes</span><i class="ri-arrow-down-s-line nav-arrow"></i></a>
+            <ul class="nav-submenu">
+              <!-- OCULTO <li data-item-key="clientes_kpis" data-ui-draggable="item"><a class="<%= title === 'KPIs' ? 'active' : '' %>" href="/kpis"><span class="emoji-icon">📈</span>Indicadores</a></li> -->
+              <li data-item-key="clientes_coverage"><a class="<%= title === 'Cobertura' ? 'active' : '' %>" href="/coverage"><span class="emoji-icon">📡</span>Cobertura</a></li>
+              <li><a class="<%= title === 'Altas' ? 'active' : '' %>" href="/altas"><span class="emoji-icon">🆕</span><%= ui.moduleName.altas %></a></li>
+              <li data-item-key="clientes_customers"><a class="<%= title.includes('Cliente') ? 'active' : '' %>" href="/clientes"><span class="emoji-icon">👤</span><%= ui.moduleName.clients %></a></li>
+              <li><a class="<%= title === 'Suscripciones' ? 'active' : '' %>" href="/subscriptions"><span class="emoji-icon">📑</span>Suscripciones</a></li>
+              <li><a class="<%= title.includes('Producto') ? 'active' : '' %>" href="/products"><span class="emoji-icon">🏷️</span><%= ui.moduleName.products %></a></li>
+              <!-- OCULTOS
+              <li><a class="<%= title === 'Encuestas' ? 'active' : '' %>" href="/surveys"><span class="emoji-icon">📝</span>Encuestas</a></li>
+              <li><a class="<%= title === 'Leads' ? 'active' : '' %>" href="/leads"><span class="emoji-icon">🎯</span>Leads</a></li>
+              <li><a class="<%= title === 'Usuarios' ? 'active' : '' %>" href="/users"><span class="emoji-icon">👨‍💼</span>Usuarios</a></li>
+              <li><a class="<%= title.includes('Factura') ? 'active' : '' %>" href="/invoices"><span class="emoji-icon">🧾</span>Facturas</a></li>
+              -->
+              <li><a class="<%= title === 'Pagos' ? 'active' : '' %>" href="/payments"><span class="emoji-icon">💳</span>Pagos</a></li>
+              <li><a class="<%= title === 'Remesas' ? 'active' : '' %>" href="/remittances"><span class="emoji-icon">🏦</span>Remesas</a></li>
+              <li><a class="<%= title === 'Recursos' ? 'active' : '' %>" href="/resources"><span class="emoji-icon">📁</span>Recursos</a></li>
+              <li data-item-key="clientes_tickets"><a class="<%= title.includes('Ticket') ? 'active' : '' %>" href="/tickets"><span class="emoji-icon">🎫</span><%= ui.moduleName.tickets %></a></li>
+              <!-- OCULTO <li data-item-key="clientes_settings"><a class="<%= title.includes('Configurac') ? 'active' : '' %>" href="/settings"><span class="emoji-icon">⚙️</span><%= ui.moduleName.settings %></a></li> -->
+              <li class="nav-item nav-subgroup" data-subgroup="postventa" style="list-style:none;padding:0;">
+                <a class="nav-subgroup-toggle" style="display:flex;align-items:center;gap:6px;padding:6px 12px;cursor:pointer;font-size:0.8rem;color:var(--text-dim);border-radius:6px;transition:background 0.2s;" onclick="toggleSubGroup(this)"><span style="flex:1;">🛠️ PostVenta</span><i class="ri-arrow-down-s-line" style="transition:transform 0.2s;"></i></a>
+                <ul class="nav-submenu" style="display:none;padding-left:8px;">
+                  <li data-item-key="postventa_portabilidades" data-ui-draggable="item"><a class="<%= title === 'Portabilidades' ? 'active' : '' %>" href="/aftersales/portabilities"><span class="emoji-icon">🔄</span>Portabilidades</a></li>
+                  <li><a class="<%= title === 'Instalaciones' ? 'active' : '' %>" href="/aftersales/installations"><span class="emoji-icon">🔧</span>Instalaciones</a></li>
+                  <li><a class="<%= title === 'Órdenes' ? 'active' : '' %>" href="/aftersales/orders"><span class="emoji-icon">📄</span>Órdenes</a></li>
+                  <li><a class="<%= title === 'Envíos' ? 'active' : '' %>" href="/aftersales/shipments"><span class="emoji-icon">🚚</span>Envíos</a></li>
+                  <li><a class="<%= title === 'Penalizaciones' ? 'active' : '' %>" href="/aftersales/router-penalties"><span class="emoji-icon">⚠️</span>Penalizaciones Router</a></li>
+                  <li><a class="<%= title === 'Procesos' ? 'active' : '' %>" href="/aftersales/processes"><span class="emoji-icon">✅</span>Procesos Indiv.</a></li>
+                  <li data-item-key="postventa_masivos"><a class="<%= title === 'Masivos' ? 'active' : '' %>" href="/massive-processes"><span class="emoji-icon">🗄️</span>Procesos Masivos</a></li>
+                </ul>
+              </li>
+            </ul>
+          </li>
+          <!-- PANEL ISP (grupo) -->
+          <li class="nav-item nav-group <%= ['Panel ISP','Contratos','Portabilidades','Incidencias','Tickets ISP','Documentos','Calendario','Clientes ISP','Facturación','CDRs y Excedentes','Nube'].some(t => title === t || title.includes(t)) ? 'open' : '' %>" data-group="isp" data-group-key="isp" data-ui-draggable="group">
+            <a class="nav-group-toggle <%= ['Panel ISP','Contratos','Portabilidades','Incidencias','Tickets ISP','Documentos','Calendario','Clientes ISP','Nube'].some(t => title === t || title.includes(t)) ? 'active' : '' %>" data-toggle="nav-group" href="#"><span class="emoji-icon" data-group-icon>🌐</span><span class="nav-text" data-group-label>Panel ISP</span><i class="ri-arrow-down-s-line nav-arrow"></i></a>
+            <ul class="nav-submenu">
+              <li data-item-key="isp_dashboard"><a class="<%= title === 'Panel ISP' ? 'active' : '' %>" href="/isp/dashboard"><span class="emoji-icon">📊</span>Panel</a></li>
+              <li data-item-key="isp_facturacion"><a class="<%= title === 'Facturación' ? 'active' : '' %>" href="/isp/facturacion"><span class="emoji-icon">🧾</span>Facturación</a></li>
+              <li data-item-key="isp_cdrs"><a class="<%= title === 'CDRs y Excedentes' ? 'active' : '' %>" href="/isp/cdrs"><span class="emoji-icon">📊</span>CDRs / Excesos</a></li>
+              <li data-item-key="isp_contratos"><a class="<%= title === 'Contratos' ? 'active' : '' %>" href="/isp/contratos"><span class="emoji-icon">📄</span>Contratos</a></li>
+              <li data-item-key="isp_portabilidades"><a class="<%= title === 'Portabilidades' ? 'active' : '' %>" href="/isp/portabilidades"><span class="emoji-icon">🔄</span>Portabilidades</a></li>
+              <li data-item-key="isp_incidencias"><a class="<%= title === 'Incidencias' ? 'active' : '' %>" href="/isp/incidencias"><span class="emoji-icon">⚠️</span>Incidencias / Tickets</a></li>
+              <!-- OCULTO (eliminado) -->
+              <li data-item-key="isp_nube"><a class="<%= title && title.includes('Nube') ? 'active' : '' %>" href="/isp/nube"><span class="emoji-icon">☁️</span>Nube</a></li>
+            </ul>
+          </li>
+
+        <ul class="sidebar-nav">
+          <!-- ⌘ CODEOPEN (grupo) - ANTES de Redes y Herramientas -->
+          <li class="nav-item nav-group <%= title === 'CodeOpen Agentes' ? 'open' : '' %>" data-group="codeopen" data-group-key="codeopen" data-ui-draggable="group">
+            <a class="nav-group-toggle <%= title === 'CodeOpen Agentes' ? 'active' : '' %>" data-toggle="nav-group" href="#"><span class="emoji-icon" data-group-icon>⌘</span><span class="nav-text" data-group-label>CodeOpen</span><i class="ri-arrow-down-s-line nav-arrow"></i></a>
+            <ul class="nav-submenu">
+              <li data-item-key="codeopen_agentes"><a class="<%= title === 'CodeOpen Agentes' ? 'active' : '' %>" href="/codeopen"><span class="emoji-icon">🧠</span>Agentes</a></li>
+            </ul>
+          </li>
+          <!-- REDES Y HERRAMIENTAS (grupo) -->
+          <li class="nav-item nav-group <%= ['Canales','Correo','Stripe','WhatsApp','IA','Google'].includes(title) ? 'open' : '' %>" data-group="redes" data-group-key="redes" data-ui-draggable="group">
+            <a class="nav-group-toggle <%= ['Canales','Correo','Stripe','WhatsApp','IA','Google'].includes(title) ? 'active' : '' %>" data-toggle="nav-group" href="#"><span class="emoji-icon" data-group-icon>🔗</span><span class="nav-text" data-group-label>Redes y Herramientas</span><i class="ri-arrow-down-s-line nav-arrow"></i></a>
+            <ul class="nav-submenu">
+              <li data-item-key="redes_canales" data-ui-draggable="item"><a class="<%= title === 'Canales' ? 'active' : '' %>" href="/channel"><span class="emoji-icon">🔗</span>Canales</a></li>
+              <li><a class="<%= title.includes('Correo') ? 'active' : '' %>" href="/email"><span class="emoji-icon">✉️</span><%= ui.moduleName.email %></a></li>
+              <li><a class="<%= title.includes('Stripe') ? 'active' : '' %>" href="/stripe"><span class="emoji-icon">💳</span><%= ui.moduleName.stripe %></a></li>
+              <li><a id="waNavLink" class="<%= title.includes('WhatsApp') ? 'active' : '' %>" href="#" onclick="event.preventDefault();toggleWAOverlay();"><span class="emoji-icon">💬</span><%= ui.moduleName.whatsapp %></a></li>
+              <li class="nav-subheading">💡 Neon</li>
+              <li data-item-key="redes_neon"><a href="/neon/neon"><span class="emoji-icon">💡</span>Neon</a></li>
+              <li data-item-key="redes_regleta"><a href="/neon/regleta"><span class="emoji-icon">🔌</span>Regleta</a></li>
+              <li data-item-key="redes_camara"><a href="/camera" title="Cámara iCam365"><span class="emoji-icon">📹</span>Cámara</a></li>
+              <li data-item-key="redes_portal"><a href="/portal" title="Zona Clientes"><span class="emoji-icon">👤</span>Zona Clientes</a></li>
+              <li data-item-key="redes_codeopen"><a href="/codeopen" title="Asistente de programación con IA"><span class="emoji-icon">🤖</span>CodeOpen AI</a></li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+
+      <div class="sidebar-footer">
+        <a href="/auth/logout" class="btn btn-outline-secondary btn-sm w-100">
+          <i class="bi bi-box-arrow-right"></i> Cerrar sesión
+        </a>
+      </div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="page-content">
+      <div class="topbar">
+        <button class="btn btn-sm btn-outline-secondary d-lg-none me-2" id="sidebarToggle" onclick="toggleSidebar()"><i class="bi bi-list"></i></button>
+        <span class="date-display"><i class="bi bi-calendar3 me-1"></i> <%= new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) %></span>
+        <div class="ms-auto d-flex align-items-center gap-2">
+          <!-- Global Search -->
+          <div class="position-relative" id="globalSearchWrapper">
+            <div class="input-group input-group-sm" style="min-width:180px;">
+              <span class="input-group-text bg-white border-end-0"><i class="ri-search-line text-muted" style="font-size:0.8rem;"></i></span>
+              <input type="text" class="form-control border-start-0 ps-0" id="globalSearchInput" placeholder="Buscar clientes..." autocomplete="off" style="font-size:0.8rem;">
+            </div>
+            <div id="globalSearchDropdown" class="dropdown-menu shadow-sm p-0" style="max-height:350px;overflow-y:auto;display:none;width:320px;position:absolute;top:100%;left:0;z-index:9999;"></div>
+          </div>
+          <!-- AI Chat Widget -->
+          <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" id="aiChatToggle" title="Asistente IA" style="border-radius:20px;padding:4px 12px;">
+            <i class="ri-robot-line"></i>
+            <span class="d-none d-sm-inline">IA</span>
+          </button>
+          <!-- Sync Now -->
+          <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1" id="syncNowBtn" title="Sincronizar ahora con Likes Telecom" style="border-radius:20px;padding:4px 12px;">
+            <i class="ri-refresh-line"></i>
+            <span class="d-none d-sm-inline">Sync</span>
+          </button>
+          <!-- Notification Bell -->
+          <% var _notif = typeof notificaciones !== 'undefined' ? notificaciones : {agenda:[], facturas:[], total:0}; %>
+          <div class="dropdown" id="notifDropdown">
+            <button class="btn btn-sm btn-outline-secondary position-relative d-flex align-items-center gap-1" id="notifBell" data-bs-toggle="dropdown" title="Notificaciones" style="border-radius:20px;padding:4px 12px;">
+              <i class="ri-notification-3-line"></i>
+              <% if (_notif.total > 0) { %>
+              <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:0.6rem;min-width:16px;"><%= _notif.total %></span>
+              <% } %>
+            </button>
+            <div class="dropdown-menu dropdown-menu-end shadow-sm" style="width:300px;" id="notifMenu">
+              <div class="dropdown-header fw-semibold">Notificaciones</div>
+              <% if (_notif.agenda.length === 0 && _notif.facturas.length === 0) { %>
+              <div class="dropdown-item text-muted small text-center">No hay notificaciones</div>
+              <% } else { %>
+                <% (_notif.agenda || []).forEach(function(n) { %>
+                <a class="dropdown-item small" href="/tienda/agenda">
+                  <i class="ri-calendar-event-line text-primary me-1"></i>
+                  <strong><%= n.cliente_nombre %></strong> - <%= n.hora ? n.hora.substring(0,5) : '' %> <%= n.motivo ? '('+n.motivo+')' : '' %>
+                  <br><small class="text-muted"><%= n.fecha %></small>
+                </a>
+                <% }) %>
+                <% (_notif.facturas || []).forEach(function(f) { %>
+                <a class="dropdown-item small" href="/invoices">
+                  <i class="ri-file-list-3-line text-warning me-1"></i>
+                  <strong><%= f.concepto %></strong> - <%= f.importe %>€
+                  <br><small class="text-muted">Vence: <%= f.fecha_vencimiento %></small>
+                </a>
+                <% }) %>
+              <% } %>
+            </div>
+          </div>
+          <% if (user && user.rol === 'admin') { %>
+          <!-- Editar interfaz -->
+          <button id="uiEditorToggle" class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" title="Editar interfaz" style="border-radius:20px;padding:4px 12px;">
+            <i class="bi bi-magic"></i>
+            <span class="d-none d-sm-inline">Editar interfaz</span>
+          </button>
+          <% } %>
+          <!-- Quick Access -->
+          <div id="customTopButtons" class="d-flex align-items-center gap-2"></div>
+          <div class="dropdown">
+            <button class="btn btn-sm btn-outline-info position-relative d-flex align-items-center gap-1" data-bs-toggle="dropdown" title="Accesos rápidos" style="border-radius:20px;padding:4px 12px;">
+              <i class="ri-star-line" id="qaStarIcon"></i>
+              <span class="d-none d-sm-inline">Accesos rápidos</span>
+              <span class="badge bg-info" id="qaBadge" style="font-size:0.6rem;display:none;">0</span>
+            </button>
+            <div class="dropdown-menu dropdown-menu-end shadow-sm" style="width:280px;" id="quickAccessMenu">
+              <div class="dropdown-header fw-semibold"><i class="ri-star-fill text-warning"></i> Accesos Rápidos</div>
+              <div id="quickAccessList" class="dropdown-item text-muted small text-center py-3">Cargando...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="page-container">
+        <!-- Agenda notification banner -->
+        <div id="agendaNotifBanner" class="alert alert-info alert-dismissible fade show mb-2 d-none" role="alert" style="border-left:4px solid #0d6efd;border-radius:8px;">
+          <div class="d-flex align-items-center gap-2">
+            <span style="font-size:1.5rem;">📅</span>
+            <div>
+              <strong>Citas de hoy:</strong>
+              <span id="agendaNotifText"></span>
+            </div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar" onclick="dismissAgendaNotif()"></button>
+        </div>
+        <!-- Sync Progress Bar -->
+        <div id="syncProgressBar" class="alert alert-info alert-dismissible fade show mb-2 d-none py-2" role="alert" style="border-left:4px solid #0d6efd;border-radius:8px;">
+          <div class="d-flex align-items-center gap-2">
+            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+            <div class="flex-grow-1">
+              <strong>Sincronizando datos...</strong>
+              <span id="syncProgressText" class="ms-2 small"></span>
+              <div class="progress mt-1" style="height:6px;">
+                <div id="syncProgressFill" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width:0%"></div>
+              </div>
+            </div>
+            <small id="syncLastSync" class="text-muted"></small>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+        </div>
+        <div class="d-flex justify-content-end mb-2 gap-2">
+          <button class="btn btn-sm btn-outline-secondary" data-toggle-cards title="Mostrar/Ocultar secciones"><i class="bi bi-pencil-square"></i></button>
+          <button class="btn btn-sm btn-outline-warning" data-toggle-qa title="Añadir a Accesos Rápidos"><i class="ri-star-line"></i></button>
+        </div>
+        <%- body %>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom nav bar for mobile -->
+  <div class="bottom-nav" id="bottomNav">
+    <button class="bottom-nav-item" data-nav-group="codeopen" onclick="window.location.href='/codeopen'">
+      <span class="bottom-nav-icon">⌘</span>
+      <span class="bottom-nav-label">CodeOpen</span>
+    </button>
+    <button class="bottom-nav-item" data-nav-group="tienda" onclick="openNavGroup('tienda')">
+      <span class="bottom-nav-icon">🏪</span>
+      <span class="bottom-nav-label">Tienda</span>
+    </button>
+    <button class="bottom-nav-item" data-nav-group="clientes" onclick="openNavGroup('clientes')">
+      <span class="bottom-nav-icon">🖥️</span>
+      <span class="bottom-nav-label">Clientes</span>
+    </button>
+    <button class="bottom-nav-item" data-nav-group="isp" onclick="openNavGroup('isp')">
+      <span class="bottom-nav-icon">🌐</span>
+      <span class="bottom-nav-label">ISP</span>
+    </button>
+    <button class="bottom-nav-item" data-nav-group="redes" onclick="openNavGroup('redes')">
+      <span class="bottom-nav-icon">🔗</span>
+      <span class="bottom-nav-label">Herramientas</span>
+    </button>
+  </div>
+
+  <!-- Sidebar backdrop for mobile -->
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+  <script>
+    window.__UI_NAV_CONFIG = <%- JSON.stringify(ui.navConfig || null) %>;
+    window.__UI_CUSTOM_BUTTONS = <%- JSON.stringify(ui.customButtons || []) %>;
+    window.__UI_LIVE_THEME = <%- JSON.stringify(ui.liveTheme || {}) %>;
+
+    (function applyUiEditorConfig() {
+      // Apply saved theme on page load
+      const savedTheme = window.__UI_LIVE_THEME;
+      if (savedTheme && savedTheme.sidebarBg) {
+        const root = document.documentElement;
+        const themeVars = {
+          '--sidebar-bg': savedTheme.sidebarBg,
+          '--sidebar-hover': savedTheme.sidebarHover,
+          '--sidebar-active': savedTheme.sidebarActive,
+          '--primary': savedTheme.primary,
+          '--primary-light': savedTheme.primaryLight,
+          '--primary-gradient': savedTheme.primaryGradient,
+          '--topbar-bg': savedTheme.topbarBg,
+          '--topbar-border': savedTheme.topbarBorder,
+          '--bg-body': savedTheme.bgBody,
+          '--card-bg': savedTheme.cardBg,
+          '--text-primary': savedTheme.textPrimary,
+          '--text-secondary': savedTheme.textSecondary,
+          '--border-color': savedTheme.borderColor,
+          '--table-hover-bg': savedTheme.tableHoverBg,
+          '--table-stripe': savedTheme.tableStripe,
+          '--input-focus-shadow': savedTheme.inputFocusShadow,
+          '--shadow-sm': savedTheme.shadowSm,
+          '--shadow-md': savedTheme.shadowMd,
+          '--card-radius': savedTheme.cardRadius,
+          '--font': savedTheme.font,
+          '--success': savedTheme.success,
+          '--danger': savedTheme.danger,
+          '--warning': savedTheme.warning,
+          '--info': savedTheme.info
+        };
+        Object.keys(themeVars).forEach(k => { if (themeVars[k]) root.style.setProperty(k, themeVars[k]); });
+      }
+
+      const cfg = window.__UI_NAV_CONFIG;
+      const sidebarNav = document.querySelector('.sidebar-scroll .sidebar-nav');
+      if (cfg && Array.isArray(cfg.groups) && sidebarNav) {
+        const groupMap = {};
+        document.querySelectorAll('.nav-group[data-group-key]').forEach(el => {
+          groupMap[el.getAttribute('data-group-key')] = el;
+        });
+        cfg.groups.forEach(g => {
+          const groupEl = groupMap[g.key];
+          if (!groupEl) return;
+          sidebarNav.appendChild(groupEl);
+          if (g.label) {
+            const labelEl = groupEl.querySelector('[data-group-label]');
+            if (labelEl) labelEl.textContent = g.label;
+          }
+          if (g.icon) {
+            const iconEl = groupEl.querySelector('[data-group-icon]');
+            if (iconEl) iconEl.textContent = g.icon;
+          }
+          if (Array.isArray(g.items)) {
+            const submenu = groupEl.querySelector('.nav-submenu');
+            if (submenu) {
+              const itemMap = {};
+              document.querySelectorAll('.sidebar-scroll li[data-item-key]').forEach(li => {
+                itemMap[li.getAttribute('data-item-key')] = li;
+              });
+              g.items.forEach(key => {
+                const li = itemMap[key];
+                if (li) submenu.appendChild(li);
+              });
+            }
+          }
+          // Apply visibility: hidden groups
+          if (g.hidden) {
+            if (groupEl) groupEl.style.display = 'none';
+          }
+          // Apply visibility: hidden items
+          if (Array.isArray(g.hiddenItems) && g.hiddenItems.length && groupEl) {
+            const submenu = groupEl.querySelector('.nav-submenu');
+            if (submenu) {
+              submenu.querySelectorAll('li[data-item-key]').forEach(function(li) {
+                if (g.hiddenItems.indexOf(li.getAttribute('data-item-key')) !== -1) {
+                  li.style.display = 'none';
+                }
+              });
+            }
+          }
+        });
+      }
+
+      const topButtons = document.getElementById('customTopButtons');
+      const buttons = Array.isArray(window.__UI_CUSTOM_BUTTONS) ? window.__UI_CUSTOM_BUTTONS : [];
+      if (topButtons && buttons.length) {
+        topButtons.innerHTML = '';
+        buttons.forEach(btn => {
+          if (!btn || !btn.label || !btn.url) return;
+          const a = document.createElement('a');
+          a.href = btn.url;
+          a.className = 'btn btn-sm d-flex align-items-center gap-1';
+          a.style.borderRadius = '20px';
+          a.style.padding = '4px 12px';
+          a.classList.add(btn.style || 'btn-outline-primary');
+          a.innerHTML = (btn.icon ? `<i class="${btn.icon}"></i>` : '<i class="bi bi-link"></i>') + `<span class="d-none d-sm-inline">${btn.label}</span>`;
+          topButtons.appendChild(a);
+        });
+      }
+    })();
+
+    // Event delegation for backdrop and AI toggle
+    document.addEventListener('click', function(e) {
+      // Backdrop click - close sidebar
+      if (e.target && e.target.id === 'sidebarBackdrop') {
+        var s = document.getElementById('sidebar');
+        if (s) s.classList.remove('show');
+        e.target.classList.remove('show');
+        document.querySelectorAll('.bottom-nav-item').forEach(function(i) { i.classList.remove('active'); });
+        return;
+      }
+      // Sidebar AI toggle
+      var aiToggle = e.target.closest('#sidebarAiToggle');
+      if (aiToggle) {
+        e.preventDefault();
+        var chatToggle = document.getElementById('aiChatToggle');
+        if (chatToggle) chatToggle.click();
+        return;
+      }
+    });
+
+    // Close sidebar when clicking outside sidebar-content on mobile
+    document.addEventListener('click', function(e) {
+      var sidebar = document.getElementById('sidebar');
+      var backdrop = document.getElementById('sidebarBackdrop');
+      var bottomNav = document.getElementById('bottomNav');
+      if (!sidebar || !sidebar.classList.contains('show')) return;
+      // Only on mobile
+      if (window.innerWidth > 767.98) return;
+      // Don't close if clicking sidebar toggle or its children
+      if (e.target.closest && e.target.closest('#sidebarToggle')) return;
+      if (e.target.id === 'sidebarToggle' || (e.target.parentElement && e.target.parentElement.id === 'sidebarToggle')) return;
+      // Check if click is outside sidebar and not on bottom-nav
+      if (!sidebar.contains(e.target) && bottomNav && !bottomNav.contains(e.target)) {
+        sidebar.classList.remove('show');
+        if (backdrop) backdrop.classList.remove('show');
+        document.querySelectorAll('.bottom-nav-item').forEach(function(i) { i.classList.remove('active'); });
+      }
+    });
+
+    // Toggle nav groups
+    document.querySelectorAll('.nav-group-toggle').forEach(function(toggle) {
+      toggle.addEventListener('click', function(e) {
+        e.preventDefault();
+        var group = this.closest('.nav-group');
+        group.classList.toggle('open');
+      });
+    });
+
+    // Open active submenu parent
+    document.querySelectorAll('.nav-submenu a.active').forEach(function(link) {
+      link.closest('.nav-group')?.classList.add('open');
+    });
+
+    // Close Day button
+    document.getElementById('btnCerrarDia')?.addEventListener('click', function() {
+      if (!confirm('¿Cerrar el día de hoy?')) return;
+      this.disabled = true;
+      this.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Cerrando...';
+      fetch('/tienda/historial-dia/cerrar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      }).then(function(r) { return r.json(); }).then(function(d) {
+        if (d.success) {
+          alert('Día cerrado correctamente');
+          location.href = '/tienda/historial-dia?fecha=' + d.fecha;
+        } else {
+          alert('Error: ' + (d.error || 'desconocido'));
+          location.reload();
+        }
+      }).catch(function() {
+        alert('Error de conexión al cerrar el día');
+        location.reload();
+      });
+    });
+
+    // Agenda notification banner
+    (function() {
+      var agenda = <%- JSON.stringify(notificaciones.agenda || []) %>;
+      var banner = document.getElementById('agendaNotifBanner');
+      if (agenda.length > 0 && banner) {
+        var today = new Date().toISOString().split('T')[0];
+        var dismissed = localStorage.getItem('dismissedNotifDate');
+        if (dismissed !== today) {
+          var text = agenda.map(function(c) {
+            return c.cliente_nombre + (c.hora ? ' a las ' + c.hora.substring(0,5) : '');
+          }).join(', ');
+          document.getElementById('agendaNotifText').textContent = text;
+          banner.classList.remove('d-none');
+        }
+      }
+    })();
+    function dismissAgendaNotif() {
+      localStorage.setItem('dismissedNotifDate', new Date().toISOString().split('T')[0]);
+    }
+    (function() {
+      var pageKey = window.location.pathname.replace(/[^a-z0-9]/gi, '_');
+      var STORAGE_KEY = 'hiddenCards_' + pageKey;
+      var selecting = false;
+
+      function getHidden() {
+        try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch(e) { return []; }
+      }
+      function saveHidden(arr) {
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(arr)); } catch(e) {}
+      }
+      function getCardId(el) {
+        var label = el.querySelector('.stat-label');
+        var header = el.querySelector('.card-header');
+        return el.dataset.cardId || el.dataset.filter || (label ? label.textContent.trim() : '') || (header ? header.textContent.trim().replace(/[★☆]/g,'').trim() : '') || '';
+      }
+      function applyState() {
+        var hidden = getHidden();
+        document.querySelectorAll('.stat-card-item, .hideable-section, .card').forEach(function(el) {
+          el.style.display = hidden.indexOf(getCardId(el)) !== -1 ? 'none' : '';
+        });
+      }
+      function exitSelection() {
+        selecting = false;
+        document.querySelectorAll('.card-checkbox').forEach(function(cb) { cb.remove(); });
+        document.querySelectorAll('.stat-card-item, .hideable-section, .card').forEach(function(el) {
+          el.style.opacity = '';
+        });
+        var bar = document.getElementById('selectionBar');
+        if (bar) bar.remove();
+        document.querySelectorAll('[data-toggle-cards]').forEach(function(btn) {
+          btn.innerHTML = '<i class="bi bi-pencil-square"></i>';
+          btn.classList.remove('btn-primary');
+          btn.classList.add('btn-outline-secondary');
+        });
+        applyState();
+      }
+      function enterSelection() {
+        selecting = true;
+        var hidden = getHidden();
+        document.querySelectorAll('.stat-card-item, .hideable-section, .card').forEach(function(el) {
+          var id = getCardId(el);
+          if (!id) return;
+          el.style.display = '';
+          var cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.className = 'card-checkbox';
+          cb.style.cssText = 'position:absolute;top:4px;left:4px;z-index:3;cursor:pointer;width:16px;height:16px;';
+          cb.checked = hidden.indexOf(id) !== -1;
+          cb.dataset.cardId = id;
+          el.style.position = 'relative';
+          el.prepend(cb);
+          if (hidden.indexOf(id) !== -1) el.style.opacity = '0.5';
+        });
+        var bar = document.createElement('div');
+        bar.id = 'selectionBar';
+        bar.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:2px solid #0050A1;padding:8px 16px;z-index:9999;display:flex;justify-content:center;gap:12px;box-shadow:0 -2px 10px rgba(0,0,0,0.1);';
+        bar.innerHTML = '<button id="acceptSelection" class="btn btn-sm btn-success"><i class="bi bi-check-lg"></i> Aceptar</button><button id="cancelSelection" class="btn btn-sm btn-secondary"><i class="bi bi-x-lg"></i> Cancelar</button>';
+        document.body.appendChild(bar);
+        document.getElementById('acceptSelection').addEventListener('click', function() {
+          var hidden = [];
+          document.querySelectorAll('.card-checkbox:checked').forEach(function(cb) {
+            hidden.push(cb.dataset.cardId);
+          });
+          saveHidden(hidden);
+          applyState();
+          exitSelection();
+        });
+        document.getElementById('cancelSelection').addEventListener('click', exitSelection);
+        document.querySelectorAll('[data-toggle-cards]').forEach(function(btn) {
+          btn.innerHTML = '<i class="bi bi-x-lg"></i>';
+          btn.classList.remove('btn-outline-secondary');
+          btn.classList.add('btn-primary');
+        });
+      }
+      document.querySelectorAll('[data-toggle-cards]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          if (selecting) { exitSelection(); return; }
+          enterSelection();
+        });
+      });
+      applyState();
+    })();
+
+    // Quick Access selection mode (separate)
+    (function() {
+      var pageKey = window.location.pathname.replace(/[^a-z0-9]/gi, '_');
+      var QA_KEY = 'quickAccess_global';
+      var qaSelecting = false;
+
+      function getQA() { try { return JSON.parse(localStorage.getItem(QA_KEY)) || []; } catch(e) { return []; } }
+      function saveQA(arr) { try { localStorage.setItem(QA_KEY, JSON.stringify(arr)); } catch(e) {} }
+
+      function getCardId(el) {
+        var label = el.querySelector('.stat-label');
+        var header = el.querySelector('.card-header');
+        return el.dataset.cardId || el.dataset.filter || (label ? label.textContent.trim() : '') || (header ? header.textContent.trim().replace(/[★☆]/g,'').trim() : '') || '';
+      }
+
+      function renderQA() {
+        var list = document.getElementById('quickAccessList');
+        if (!list) return;
+        var items = getQA();
+        var badge = document.getElementById('qaBadge');
+        var star = document.getElementById('qaStarIcon');
+        if (badge) {
+          if (items.length > 0) { badge.style.display = ''; badge.textContent = items.length; } else { badge.style.display = 'none'; }
+        }
+        if (star) star.className = items.length > 0 ? 'ri-star-fill text-warning' : 'ri-star-line';
+        if (items.length === 0) {
+          list.innerHTML = '<div class="dropdown-item text-muted small text-center py-3"><i class="ri-star-line d-block mb-1" style="font-size:1.2rem;"></i>Pulsa la estrella <i class="ri-star-line"></i> y marca secciones</div>';
+          return;
+        }
+        list.innerHTML = items.map(function(item) {
+          return '<a class="dropdown-item small d-flex align-items-center gap-2 py-1" href="#" data-qa-id="' + item.id + '" data-qa-href="' + item.href + '"><span style="font-size:1.1rem;">' + item.emoji + '</span> <span>' + item.label + '</span></a>';
+        }).join('');
+        list.querySelectorAll('[data-qa-id]').forEach(function(a) {
+          a.addEventListener('click', function(e) {
+            e.preventDefault();
+            var id = this.dataset.qaId;
+            var href = this.dataset.qaHref;
+            var el = document.querySelector('[data-card-id="' + id + '"], .hideable-section[data-card-id="' + id + '"], .card[data-card-id="' + id + '"]');
+            if (el) {
+              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              el.style.boxShadow = '0 0 0 3px #ffc107';
+              setTimeout(function() { el.style.boxShadow = ''; }, 2000);
+            } else if (href && href !== '#') {
+              window.location.href = href;
+            }
+          });
+        });
+      }
+
+      function exitQASelection() {
+        qaSelecting = false;
+        document.querySelectorAll('.qa-wrapper').forEach(function(w) { w.remove(); });
+        document.querySelectorAll('.stat-card-item, .hideable-section, .card').forEach(function(el) {
+          el.style.opacity = '';
+          el.style.position = '';
+        });
+        var bar = document.getElementById('qaSelectionBar');
+        if (bar) bar.remove();
+        document.querySelectorAll('[data-toggle-qa]').forEach(function(btn) {
+          btn.innerHTML = '<i class="ri-star-line"></i>';
+          btn.classList.remove('btn-warning');
+          btn.classList.add('btn-outline-warning');
+        });
+      }
+
+      function enterQASelection() {
+        qaSelecting = true;
+        var qa = getQA();
+        document.querySelectorAll('.stat-card-item, .hideable-section, .card').forEach(function(el) {
+          var id = getCardId(el);
+          if (!id) return;
+          el.style.display = '';
+          var labelEl = el.querySelector('.stat-label');
+          var cardHeader = el.querySelector('.card-header');
+          var label = labelEl ? labelEl.textContent.trim() : (cardHeader ? cardHeader.textContent.trim().replace(/[★☆]/g,'').trim() : el.dataset.cardId || id);
+          var iconEl = el.querySelector('.card-header i, .stat-icon, .data-card-icon');
+          var detectedEmoji = el.dataset.emoji || '';
+          if (!detectedEmoji && iconEl) {
+            var iconClass = iconEl.className;
+            if (iconClass.includes('person-plus')||iconClass.includes('user-plus')) detectedEmoji = '🆕';
+            else if (iconClass.includes('cart-plus')||iconClass.includes('shopping')) detectedEmoji = '🛒';
+            else if (iconClass.includes('clock-history')||iconClass.includes('time')) detectedEmoji = '⏰';
+            else if (iconClass.includes('arrow-left-right')||iconClass.includes('transfer')) detectedEmoji = '🔄';
+            else if (iconClass.includes('cash')||iconClass.includes('wallet')) detectedEmoji = '💰';
+            else if (iconClass.includes('calendar')) detectedEmoji = '📅';
+            else if (iconClass.includes('people')||iconClass.includes('team')||iconClass.includes('person')) detectedEmoji = '👥';
+            else if (iconClass.includes('box')||iconClass.includes('inventory')||iconClass.includes('stack')) detectedEmoji = '📦';
+            else if (iconClass.includes('file')||iconClass.includes('clipboard')||iconClass.includes('journal')) detectedEmoji = '📋';
+            else if (iconClass.includes('chart')||iconClass.includes('bar-chart')||iconClass.includes('graph')) detectedEmoji = '📊';
+            else if (iconClass.includes('cart')||iconClass.includes('shopping')) detectedEmoji = '🛒';
+            else if (iconClass.includes('ticket')||iconClass.includes('support')||iconClass.includes('customer')) detectedEmoji = '🎫';
+            else if (iconClass.includes('lock')||iconClass.includes('secure')) detectedEmoji = '🔒';
+            else detectedEmoji = '📌';
+          }
+          var link = el.tagName === 'A' ? el : el.querySelector('a');
+          var href = link ? link.getAttribute('href') : '#';
+          var isChecked = qa.some(function(q) { return q.id === id; });
+
+          var wrapper = document.createElement('div');
+          wrapper.className = 'qa-wrapper';
+          wrapper.style.cssText = 'position:absolute;top:4px;left:4px;z-index:3;display:flex;align-items:center;gap:4px;background:rgba(255,193,7,0.9);border-radius:4px;padding:2px 4px;';
+          wrapper.innerHTML = '<i class="ri-star-fill" style="color:#856404;font-size:12px;"></i>';
+          var cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.className = 'qa-checkbox';
+          cb.style.cssText = 'width:16px;height:16px;cursor:pointer;accent-color:#ffc107;';
+          cb.checked = isChecked;
+          cb.dataset.cardId = id;
+          cb.dataset.label = label;
+          cb.dataset.emoji = detectedEmoji;
+          cb.dataset.href = href;
+          wrapper.appendChild(cb);
+          el.style.position = 'relative';
+          el.prepend(wrapper);
+          if (isChecked) { wrapper.style.background = 'rgba(255,193,7,1)'; el.style.opacity = '0.85'; }
+        });
+        var bar = document.createElement('div');
+        bar.id = 'qaSelectionBar';
+        bar.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:2px solid #ffc107;padding:8px 16px;z-index:9999;display:flex;justify-content:center;gap:12px;box-shadow:0 -2px 10px rgba(0,0,0,0.1);';
+        bar.innerHTML = '<button id="acceptQA" class="btn btn-sm btn-warning"><i class="bi bi-check-lg"></i> Aceptar</button><button id="cancelQA" class="btn btn-sm btn-secondary"><i class="bi bi-x-lg"></i> Cancelar</button>';
+        document.body.appendChild(bar);
+        document.getElementById('acceptQA').addEventListener('click', function() {
+          var qaNew = [];
+          document.querySelectorAll('.qa-checkbox:checked').forEach(function(cb) {
+            qaNew.push({ id: cb.dataset.cardId, label: cb.dataset.label, href: cb.dataset.href, emoji: cb.dataset.emoji });
+          });
+          saveQA(qaNew);
+          renderQA();
+          exitQASelection();
+        });
+        document.getElementById('cancelQA').addEventListener('click', exitQASelection);
+        document.querySelectorAll('[data-toggle-qa]').forEach(function(btn) {
+          btn.innerHTML = '<i class="bi bi-x-lg"></i>';
+          btn.classList.remove('btn-outline-warning');
+          btn.classList.add('btn-warning');
+        });
+      }
+
+      document.querySelectorAll('[data-toggle-qa]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          if (qaSelecting) { exitQASelection(); return; }
+          enterQASelection();
+        });
+      });
+      renderQA();
+    })();
+  </script>
+
+  <% } else { %>
+  <div class="container-fluid p-0"><%- body %></div>
+  <% } %>
+
+  <!-- AI Chat Panel -->
+  <div id="aiChatPanel" class="ai-chat-panel">
+    <div class="ai-chat-header">
+      <i class="ri-robot-line"></i> Asistente IA
+      <button id="aiChatClose" class="btn btn-sm btn-link text-white ms-auto p-0"><i class="ri-close-line" style="font-size:1.3rem;"></i></button>
+    </div>
+    <div class="ai-chat-messages" id="aiChatMessages">
+      <div class="ai-message">
+        <div class="ai-avatar"><i class="ri-robot-line"></i></div>
+        <div class="ai-bubble">
+          ¡Hola! Soy tu asistente IA del CRM. Puedo ayudarte a consultar clientes, productos, facturas y más. ¿En qué te ayudo?
+        </div>
+      </div>
+    </div>
+    <div class="ai-chat-input">
+      <input type="text" id="aiChatInput" class="form-control form-control-sm" placeholder="Escribe tu consulta..." autocomplete="off">
+      <button id="aiChatSend" class="btn btn-primary btn-sm"><i class="ri-send-plane-2-line"></i></button>
+    </div>
+  </div>
+
+  <% if (user && user.rol === 'admin') { %>
+  <div id="uiEditorPanel" class="ui-editor-panel">
+    <div class="head d-flex justify-content-between align-items-center">
+      <span><i class="bi bi-sliders"></i> Modo diseñador</span>
+      <button id="uiEditorClose" class="btn btn-sm btn-light">×</button>
+    </div>
+    <div class="body">
+      <div class="form-check form-switch mb-2">
+        <input class="form-check-input" type="checkbox" id="uiEditModeSwitch">
+        <label class="form-check-label" for="uiEditModeSwitch">Activar arrastrar y editar</label>
+      </div>
+
+      <div class="mb-2">
+        <label class="form-label small mb-1">Tema moderno</label>
+        <div class="ui-theme-grid" id="uiThemeGrid"></div>
+      </div>
+
+      <div class="mb-2">
+        <label class="form-label small mb-1">Posición barra izquierda</label>
+        <select id="uiSidebarPos" class="form-select form-select-sm">
+          <option value="left">Izquierda</option>
+          <option value="right">Derecha</option>
+          <option value="bottom">Abajo</option>
+        </select>
+      </div>
+
+      <div class="mb-2">
+        <label class="form-label small mb-1">Fondo de grupos</label>
+        <div class="d-flex gap-2 align-items-center mb-1">
+          <input id="uiGroupBgColor" type="color" class="form-control form-control-color" style="width:50px;" title="Color inicio">
+          <input id="uiGroupBgColor2" type="color" class="form-control form-control-color" style="width:50px;" title="Color fin (gradiente)">
+          <span id="uiGroupBgValue" class="small text-muted">#ffffff</span>
+          <button id="uiApplyGroupBg" class="btn btn-outline-dark btn-sm">Aplicar</button>
+        </div>
+        <div class="d-flex gap-1 flex-wrap">
+          <button class="btn btn-sm btn-outline-secondary" style="flex:1;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;" onclick="aplicarGradienteGrupos('135deg,#667eea,#764ba2')">💜</button>
+          <button class="btn btn-sm btn-outline-secondary" style="flex:1;background:linear-gradient(135deg,#0050A1,#00a8cc);color:#fff;border:none;" onclick="aplicarGradienteGrupos('135deg,#0050A1,#00a8cc')">💙</button>
+          <button class="btn btn-sm btn-outline-secondary" style="flex:1;background:linear-gradient(135deg,#11998e,#38ef7d);color:#fff;border:none;" onclick="aplicarGradienteGrupos('135deg,#11998e,#38ef7d')">💚</button>
+          <button class="btn btn-sm btn-outline-secondary" style="flex:1;background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;border:none;" onclick="aplicarGradienteGrupos('135deg,#f093fb,#f5576c')">💗</button>
+          <button class="btn btn-sm btn-outline-secondary" style="flex:1;background:linear-gradient(135deg,#4facfe,#00f2fe);color:#fff;border:none;" onclick="aplicarGradienteGrupos('135deg,#4facfe,#00f2fe')">💠</button>
+          <button class="btn btn-sm btn-outline-secondary" style="flex:1;background:linear-gradient(135deg,#fa709a,#fee140);color:#fff;border:none;" onclick="aplicarGradienteGrupos('135deg,#fa709a,#fee140')">🧡</button>
+        </div>
+      </div>
+
+      <div class="mb-2">
+        <label class="form-label small mb-1">Visibilidad de grupos</label>
+        <div id="uiGroupVisibility" class="d-flex flex-wrap gap-2"></div>
+      </div>
+
+      <div class="mb-2">
+        <label class="form-label small mb-1">Fondo barra inferior</label>
+        <div class="d-flex gap-2 align-items-center mb-1">
+          <input id="uiBottomNavBgColor" type="color" class="form-control form-control-color" style="width:50px;" title="Color inicio">
+          <input id="uiBottomNavBgColor2" type="color" class="form-control form-control-color" style="width:50px;" title="Color fin (gradiente)">
+          <span id="uiBottomNavBgValue" class="small text-muted">#ffffff</span>
+          <button id="uiApplyBottomNavBg" class="btn btn-outline-dark btn-sm">Aplicar</button>
+        </div>
+        <div class="d-flex gap-1 flex-wrap">
+          <button class="btn btn-sm btn-outline-secondary" style="flex:1;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;" onclick="aplicarGradiente('135deg,#667eea,#764ba2')">💜</button>
+          <button class="btn btn-sm btn-outline-secondary" style="flex:1;background:linear-gradient(135deg,#0050A1,#00a8cc);color:#fff;border:none;" onclick="aplicarGradiente('135deg,#0050A1,#00a8cc')">💙</button>
+          <button class="btn btn-sm btn-outline-secondary" style="flex:1;background:linear-gradient(135deg,#11998e,#38ef7d);color:#fff;border:none;" onclick="aplicarGradiente('135deg,#11998e,#38ef7d')">💚</button>
+          <button class="btn btn-sm btn-outline-secondary" style="flex:1;background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;border:none;" onclick="aplicarGradiente('135deg,#f093fb,#f5576c')">💗</button>
+          <button class="btn btn-sm btn-outline-secondary" style="flex:1;background:linear-gradient(135deg,#4facfe,#00f2fe);color:#fff;border:none;" onclick="aplicarGradiente('135deg,#4facfe,#00f2fe')">💠</button>
+          <button class="btn btn-sm btn-outline-secondary" style="flex:1;background:linear-gradient(135deg,#fa709a,#fee140);color:#fff;border:none;" onclick="aplicarGradiente('135deg,#fa709a,#fee140')">🧡</button>
+        </div>
+      </div>
+
+      <div class="mb-2">
+        <label class="form-label small mb-1">Visibilidad barra inferior</label>
+        <div id="uiBottomNavVisibility" class="d-flex flex-wrap gap-2"></div>
+      </div>
+
+      <div class="mb-2">
+        <label class="form-label small mb-1">Fondo de página</label>
+        <div class="d-flex gap-2 align-items-center mb-1">
+          <input id="uiPageBgColor" type="color" class="form-control form-control-color" style="width:50px;" title="Color inicio">
+          <input id="uiPageBgColor2" type="color" class="form-control form-control-color" style="width:50px;" title="Color fin (gradiente)">
+          <span id="uiPageBgValue" class="small text-muted">#f4f5fa</span>
+          <button id="uiApplyPageBg" class="btn btn-outline-dark btn-sm">Aplicar</button>
+        </div>
+        <div class="d-flex gap-1 flex-wrap">
+          <button class="btn btn-sm btn-outline-secondary" style="flex:1;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;" onclick="aplicarGradientePagina('135deg,#667eea,#764ba2')">💜</button>
+          <button class="btn btn-sm btn-outline-secondary" style="flex:1;background:linear-gradient(135deg,#0050A1,#00a8cc);color:#fff;border:none;" onclick="aplicarGradientePagina('135deg,#0050A1,#00a8cc')">💙</button>
+          <button class="btn btn-sm btn-outline-secondary" style="flex:1;background:linear-gradient(135deg,#11998e,#38ef7d);color:#fff;border:none;" onclick="aplicarGradientePagina('135deg,#11998e,#38ef7d')">💚</button>
+          <button class="btn btn-sm btn-outline-secondary" style="flex:1;background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;border:none;" onclick="aplicarGradientePagina('135deg,#f093fb,#f5576c')">💗</button>
+          <button class="btn btn-sm btn-outline-secondary" style="flex:1;background:linear-gradient(135deg,#4facfe,#00f2fe);color:#fff;border:none;" onclick="aplicarGradientePagina('135deg,#4facfe,#00f2fe')">💠</button>
+          <button class="btn btn-sm btn-outline-secondary" style="flex:1;background:linear-gradient(135deg,#fa709a,#fee140);color:#fff;border:none;" onclick="aplicarGradientePagina('135deg,#fa709a,#fee140')">🧡</button>
+        </div>
+      </div>
+
+      <div class="mb-2">
+        <label class="form-label small mb-1">Iconos rápidos</label>
+        <input id="uiIconSearch" class="form-control form-control-sm mb-1" placeholder="buscar icono (home, chart, user, ...)">
+        <div id="uiIconGrid" style="max-height:120px;overflow:auto;border:1px solid #eee;border-radius:8px;padding:6px;display:grid;grid-template-columns:repeat(6,1fr);gap:6px;"></div>
+      </div>
+
+      <div class="d-flex gap-2 mt-3">
+        <button id="uiSaveAll" class="btn btn-primary btn-sm flex-fill">Guardar cambios</button>
+        <button id="uiResetOriginal" class="btn btn-outline-danger btn-sm flex-fill">Restaurar original</button>
+        <button id="uiReloadPage" class="btn btn-outline-secondary btn-sm flex-fill">Recargar</button>
+      </div>
+    </div>
+  </div>
+  <% } %>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+  <script src="/js/themes.js?v=3"></script>
+  <script src="/js/app.js"></script>
+  <% if (user && user.rol === 'admin') { %>
+  <script>
+    (function() {
+      const fab = document.getElementById('uiEditorToggle');
+      const panel = document.getElementById('uiEditorPanel');
+      const closeBtn = document.getElementById('uiEditorClose');
+      const editSwitch = document.getElementById('uiEditModeSwitch');
+      const saveBtn = document.getElementById('uiSaveAll');
+      const resetBtn = document.getElementById('uiResetOriginal');
+      const reloadBtn = document.getElementById('uiReloadPage');
+      if (!fab || !panel || !editSwitch) return;
+
+      const themes = (typeof TEMAS_CRM !== 'undefined' && TEMAS_CRM.length) ? TEMAS_CRM : [
+        { name: 'Movilbro', sidebarBg: '#ffffff', sidebarActive: '#0050a1', primary: '#0050a1' }
+      ];
+
+      let selected = null;
+      let currentTheme = Object.assign({}, window.__UI_LIVE_THEME || {});
+      let liveLayout = Object.assign({ sidebarPosition: 'left', overrides: {} }, <%- JSON.stringify(ui.liveLayout || {}) %> || {});
+
+      const themeGrid = document.getElementById('uiThemeGrid');
+      if (themeGrid) {
+        themes.forEach((t) => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'ui-theme-btn text-start';
+          const preview = t.sidebarBg?.startsWith('#') ? t.sidebarBg : '#e0e0e0';
+          const preview2 = t.primary?.startsWith('#') ? t.primary : '#666';
+          b.innerHTML = `<div class="d-flex align-items-center gap-2 mb-1"><span style="display:inline-block;width:18px;height:18px;border-radius:4px;background:${preview};border:1px solid #ccc"></span><span style="display:inline-block;width:18px;height:18px;border-radius:4px;background:${preview2}"></span><span class="fw-semibold small">${t.name}</span></div><div class="small text-muted" style="font-size:10px">${t.desc || ''}</div>`;
+          b.addEventListener('click', function() { applyTheme(t); });
+          themeGrid.appendChild(b);
+        });
+      }
+
+      function applyTheme(t) {
+        currentTheme = Object.assign({}, t);
+        const root = document.documentElement;
+        const vars = {
+          '--sidebar-bg': t.sidebarBg,
+          '--sidebar-hover': t.sidebarHover,
+          '--sidebar-active': t.sidebarActive,
+          '--primary': t.primary,
+          '--primary-light': t.primaryLight,
+          '--primary-gradient': t.primaryGradient,
+          '--topbar-bg': t.topbarBg,
+          '--topbar-border': t.topbarBorder,
+          '--bg-body': t.bgBody,
+          '--card-bg': t.cardBg,
+          '--text-primary': t.textPrimary,
+          '--text-secondary': t.textSecondary,
+          '--border-color': t.borderColor,
+          '--table-hover-bg': t.tableHoverBg,
+          '--table-stripe': t.tableStripe,
+          '--input-focus-shadow': t.inputFocusShadow,
+          '--shadow-sm': t.shadowSm,
+          '--shadow-md': t.shadowMd,
+          '--card-radius': t.cardRadius,
+          '--font': t.font,
+          '--success': t.success,
+          '--danger': t.danger,
+          '--warning': t.warning,
+          '--info': t.info
+        };
+        Object.keys(vars).forEach(k => root.style.setProperty(k, vars[k]));
+      }
+
+      function applySidebarPosition(pos) {
+        document.body.classList.remove('sidebar-right', 'sidebar-bottom');
+        if (pos === 'right') document.body.classList.add('sidebar-right');
+        if (pos === 'bottom') document.body.classList.add('sidebar-bottom');
+      }
+
+      function applyOverrides() {
+        const ov = (liveLayout && liveLayout.overrides) ? liveLayout.overrides : {};
+        Object.keys(ov).forEach(key => {
+          const el = document.querySelector('[data-ui-key="' + key + '"]');
+          if (!el) return;
+          const cfg = ov[key] || {};
+          const labelEl = el.querySelector('[data-group-label]') || el.querySelector('a');
+          const iconEl = el.querySelector('[data-group-icon]') || el.querySelector('.emoji-icon');
+          if (cfg.label && labelEl) {
+            if (labelEl.matches('a')) {
+              const textNode = Array.from(labelEl.childNodes).find(n => n.nodeType === 3);
+              if (textNode) textNode.nodeValue = ' ' + cfg.label;
+              else labelEl.appendChild(document.createTextNode(' ' + cfg.label));
+            } else labelEl.textContent = cfg.label;
+          }
+          if (cfg.icon && iconEl) iconEl.textContent = cfg.icon;
+          if (cfg.bg) el.style.backgroundColor = cfg.bg;
+          if (cfg.color) el.style.color = cfg.color;
+        });
+        // Apply group background
+        try {
+          var savedGroupBg = localStorage.getItem('ui_group_bg') || '#ffffff';
+          var groupEl = document.querySelector('.sidebar-scroll');
+          if (groupEl) {
+            if (savedGroupBg.startsWith('gradient:')) {
+              groupEl.style.background = 'linear-gradient(' + savedGroupBg.replace('gradient:', '') + ')';
+            } else {
+              groupEl.style.background = savedGroupBg;
+            }
+          }
+        } catch(e) {}
+        // Apply page background
+        try {
+          var savedPageBg = localStorage.getItem('ui_page_bg');
+          if (savedPageBg) {
+            var pageEl = document.querySelector('.page-container') || document.body;
+            if (savedPageBg.startsWith('gradient:')) {
+              pageEl.style.background = 'linear-gradient(' + savedPageBg.replace('gradient:', '') + ')';
+            } else {
+              pageEl.style.background = savedPageBg;
+            }
+          }
+        } catch(e) {}
+        // Apply group visibility from localStorage (designer panel)
+        try {
+          const hiddenGroups = JSON.parse(localStorage.getItem('ui_hidden_groups') || '[]');
+          hiddenGroups.forEach(function(key) {
+            const el = document.querySelector('[data-group-key="' + key + '"]');
+            if (el) el.style.display = 'none';
+          });
+        } catch(e) {}
+        // Apply group/item visibility from server config
+        var cfg = window.__UI_NAV_CONFIG;
+        if (cfg && Array.isArray(cfg.groups)) {
+          cfg.groups.forEach(function(g) {
+            if (g.hidden) {
+              var el = document.querySelector('[data-group-key="' + g.key + '"]');
+              if (el) el.style.display = 'none';
+            }
+            if (Array.isArray(g.hiddenItems) && g.hiddenItems.length) {
+              var groupEl = document.querySelector('[data-group-key="' + g.key + '"]');
+              if (groupEl) {
+                groupEl.querySelectorAll('li[data-item-key]').forEach(function(li) {
+                  if (g.hiddenItems.indexOf(li.getAttribute('data-item-key')) !== -1) {
+                    li.style.display = 'none';
+                  }
+                });
+              }
+            }
+          });
+        }
+        // Apply local hidden items (from designer panel)
+        try {
+          var localHiddenItems = JSON.parse(localStorage.getItem('ui_hidden_items') || '{}');
+          Object.keys(localHiddenItems).forEach(function(gk) {
+            var items = localHiddenItems[gk];
+            if (Array.isArray(items)) {
+              items.forEach(function(ik) {
+                var li = document.querySelector('[data-group-key="' + gk + '"] li[data-item-key="' + ik + '"]');
+                if (li) li.style.display = 'none';
+              });
+            }
+          });
+        } catch(e) {}
+        // Apply bottom nav background
+        try {
+          const savedBottomNavBg = localStorage.getItem('ui_bottomnav_bg');
+          if (savedBottomNavBg) {
+            if (savedBottomNavBg.startsWith('gradient:')) {
+              var grad = savedBottomNavBg.replace('gradient:', '');
+              document.getElementById('bottomNav')?.style.setProperty('background', 'linear-gradient(' + grad + ')', 'important');
+            } else {
+              document.getElementById('bottomNav')?.style.setProperty('background', savedBottomNavBg, 'important');
+            }
+          }
+        } catch(e) {}
+        // Apply bottom nav visibility
+        try {
+          const hiddenBottomNav = JSON.parse(localStorage.getItem('ui_hidden_bottomnav') || '[]');
+          hiddenBottomNav.forEach(function(key) {
+            var btn = document.querySelector('.bottom-nav-item[data-nav-group="' + key + '"]');
+            if (btn) btn.style.display = 'none';
+          });
+        } catch(e) {}
+      }
+
+      function setSelected(el) {
+        document.querySelectorAll('[data-ui-selected]').forEach(n => n.removeAttribute('data-ui-selected'));
+        selected = el;
+        if (!selected) return;
+        selected.setAttribute('data-ui-selected', '1');
+        const labelInput = document.getElementById('uiSelLabel');
+        const iconInput = document.getElementById('uiSelIcon');
+        const labelEl = selected.querySelector('[data-group-label]') || selected.querySelector('a');
+        const iconEl = selected.querySelector('[data-group-icon]') || selected.querySelector('.emoji-icon');
+        const key = selected.getAttribute('data-ui-key') || selected.getAttribute('data-group-key') || selected.getAttribute('data-item-key');
+        if (labelInput) labelInput.value = (labelEl ? labelEl.textContent.trim() : '');
+        if (iconInput) iconInput.value = (iconEl ? iconEl.textContent.trim() : '');
+        const ov = (liveLayout.overrides && key) ? (liveLayout.overrides[key] || {}) : {};
+        const bgInput = document.getElementById('uiSelBg');
+        const textInput = document.getElementById('uiSelText');
+        if (bgInput) bgInput.value = ov.bg || '#ffffff';
+        if (textInput) textInput.value = ov.color || '#111111';
+      }
+
+      function collectConfig() {
+        const sidebarNav = document.querySelector('.sidebar-scroll .sidebar-nav');
+        const groups = [];
+        if (sidebarNav) {
+          sidebarNav.querySelectorAll('.nav-group[data-group-key]').forEach(groupEl => {
+            const key = groupEl.getAttribute('data-group-key');
+            const label = (groupEl.querySelector('[data-group-label]') || {}).textContent || key;
+            const icon = (groupEl.querySelector('[data-group-icon]') || {}).textContent || '•';
+            const hidden = groupEl.style.display === 'none';
+            const items = [];
+            const hiddenItems = [];
+            groupEl.querySelectorAll('.nav-submenu li[data-item-key]').forEach(li => {
+              var itemKey = li.getAttribute('data-item-key');
+              items.push(itemKey);
+              if (li.style.display === 'none') hiddenItems.push(itemKey);
+            });
+            var g = { key, label: label.trim(), icon: icon.trim(), items };
+            if (hidden) g.hidden = true;
+            if (hiddenItems.length) g.hiddenItems = hiddenItems;
+            groups.push(g);
+          });
+        }
+        return { groups };
+      }
+
+      function enableEditMode(on) {
+        document.body.classList.toggle('ui-edit-mode', on);
+        if (!on) {
+          document.querySelectorAll('[data-ui-selected]').forEach(n => n.removeAttribute('data-ui-selected'));
+          selected = null;
+        }
+      }
+
+      fab.addEventListener('click', function() { panel.classList.toggle('open'); });
+      closeBtn && closeBtn.addEventListener('click', function() { panel.classList.remove('open'); });
+      editSwitch.addEventListener('change', function() { enableEditMode(editSwitch.checked); });
+
+      document.getElementById('uiApplySel')?.addEventListener('click', function() {
+        if (!selected) return;
+        const label = (document.getElementById('uiSelLabel').value || '').trim();
+        const icon = (document.getElementById('uiSelIcon').value || '').trim();
+        const labelEl = selected.querySelector('[data-group-label]') || selected.querySelector('a');
+        const iconEl = selected.querySelector('[data-group-icon]') || selected.querySelector('.emoji-icon');
+        const bg = (document.getElementById('uiSelBg').value || '').trim();
+        const color = (document.getElementById('uiSelText').value || '').trim();
+        const key = selected.getAttribute('data-ui-key') || selected.getAttribute('data-group-key') || selected.getAttribute('data-item-key');
+        if (label && labelEl) {
+          if (labelEl.matches('a')) {
+            const textNode = Array.from(labelEl.childNodes).find(n => n.nodeType === 3);
+            if (textNode) textNode.nodeValue = ' ' + label;
+            else labelEl.appendChild(document.createTextNode(' ' + label));
+          } else {
+            labelEl.textContent = label;
+          }
+        }
+        if (icon && iconEl) iconEl.textContent = icon;
+        if (bg) selected.style.backgroundColor = bg;
+        if (color) selected.style.color = color;
+        if (key) {
+          if (!liveLayout.overrides) liveLayout.overrides = {};
+          liveLayout.overrides[key] = Object.assign({}, liveLayout.overrides[key] || {}, { label, icon, bg, color });
+        }
+      });
+
+      const sidebarPosSel = document.getElementById('uiSidebarPos');
+      if (sidebarPosSel) {
+        sidebarPosSel.value = liveLayout.sidebarPosition || 'left';
+        applySidebarPosition(sidebarPosSel.value);
+        sidebarPosSel.addEventListener('change', function() {
+          liveLayout.sidebarPosition = sidebarPosSel.value;
+          applySidebarPosition(sidebarPosSel.value);
+        });
+      }
+
+      const iconSet = [
+        '🏪','🖥️','🛠️','🌐','📡','📈','📦','📅','👥','💬','⚙️','🎫','🧾','💳','🔒','🔗','📋','🎯','🧠','🚀','📊','bi bi-house','bi bi-gear','bi bi-people','bi bi-broadcast','bi bi-tools','bi bi-graph-up','ri-dashboard-line','ri-tools-line','ri-team-line','ri-settings-3-line','ri-customer-service-2-line','ri-store-2-line','ri-bar-chart-box-line','ri-links-line','fa-solid fa-chart-line','fa-solid fa-users','fa-solid fa-wrench','fa-solid fa-satellite-dish','fa-solid fa-cubes','fa-solid fa-money-bill-trend-up','fa-solid fa-headset'
+      ];
+      const iconGrid = document.getElementById('uiIconGrid');
+      const iconSearch = document.getElementById('uiIconSearch');
+      function renderIconGrid(filter) {
+        if (!iconGrid) return;
+        const q = (filter || '').toLowerCase();
+        iconGrid.innerHTML = '';
+        iconSet.filter(i => !q || i.toLowerCase().includes(q)).slice(0, 300).forEach(i => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'btn btn-light btn-sm';
+          b.style.padding = '4px';
+          if (i.includes('bi ') || i.includes('ri-') || i.includes('fa-')) b.innerHTML = `<i class="${i}"></i>`;
+          else b.textContent = i;
+          b.title = i;
+          b.addEventListener('click', function() {
+            document.getElementById('uiSelIcon').value = i;
+          });
+          iconGrid.appendChild(b);
+        });
+      }
+      renderIconGrid('');
+      iconSearch && iconSearch.addEventListener('input', function() { renderIconGrid(iconSearch.value); });
+
+      // Group background color
+      const groupBgInput = document.getElementById('uiGroupBgColor');
+      const groupBgInput2 = document.getElementById('uiGroupBgColor2');
+      const groupBgValue = document.getElementById('uiGroupBgValue');
+      const applyGroupBg = document.getElementById('uiApplyGroupBg');
+      if (groupBgInput) {
+        var savedBg = localStorage.getItem('ui_group_bg') || '#ffffff';
+        if (savedBg.startsWith('gradient:')) {
+          groupBgInput.value = '#ffffff';
+          if (groupBgValue) groupBgValue.textContent = 'gradiente';
+        } else {
+          groupBgInput.value = savedBg;
+          if (groupBgValue) groupBgValue.textContent = savedBg;
+        }
+        if (groupBgInput2) groupBgInput2.value = '#ffffff';
+        groupBgInput.addEventListener('input', function() {
+          if (groupBgValue) groupBgValue.textContent = this.value;
+        });
+      }
+      if (applyGroupBg) {
+        applyGroupBg.addEventListener('click', function() {
+          const c1 = groupBgInput ? groupBgInput.value : '#ffffff';
+          const c2 = groupBgInput2 ? groupBgInput2.value : c1;
+          var el = document.querySelector('.sidebar-scroll');
+          if (c1 !== c2) {
+            var grad = '135deg,' + c1 + ',' + c2;
+            if (el) el.style.background = 'linear-gradient(' + grad + ')';
+            localStorage.setItem('ui_group_bg', 'gradient:' + grad);
+            if (groupBgValue) groupBgValue.textContent = 'gradiente';
+          } else {
+            if (el) el.style.background = c1;
+            localStorage.setItem('ui_group_bg', c1);
+            if (groupBgValue) groupBgValue.textContent = c1;
+          }
+        });
+      }
+
+      // Page background color
+      const pageBgInput = document.getElementById('uiPageBgColor');
+      const pageBgInput2 = document.getElementById('uiPageBgColor2');
+      const pageBgValue = document.getElementById('uiPageBgValue');
+      const applyPageBg = document.getElementById('uiApplyPageBg');
+      if (pageBgInput) {
+        var savedPageBg = localStorage.getItem('ui_page_bg') || '';
+        if (savedPageBg.startsWith('gradient:')) {
+          pageBgInput.value = '#f4f5fa';
+          if (pageBgValue) pageBgValue.textContent = 'gradiente';
+        } else if (savedPageBg) {
+          pageBgInput.value = savedPageBg;
+          if (pageBgValue) pageBgValue.textContent = savedPageBg;
+        }
+        if (pageBgInput2) pageBgInput2.value = '#f4f5fa';
+      }
+      if (applyPageBg) {
+        applyPageBg.addEventListener('click', function() {
+          const c1 = pageBgInput ? pageBgInput.value : '#f4f5fa';
+          const c2 = pageBgInput2 ? pageBgInput2.value : c1;
+          var el = document.querySelector('.page-container') || document.body;
+          if (c1 !== c2) {
+            var grad = '135deg,' + c1 + ',' + c2;
+            el.style.background = 'linear-gradient(' + grad + ')';
+            localStorage.setItem('ui_page_bg', 'gradient:' + grad);
+            if (pageBgValue) pageBgValue.textContent = 'gradiente';
+          } else {
+            el.style.background = c1;
+            localStorage.setItem('ui_page_bg', c1);
+            if (pageBgValue) pageBgValue.textContent = c1;
+          }
+        });
+      }
+
+      // Bottom nav background color
+      const bottomNavBgInput = document.getElementById('uiBottomNavBgColor');
+      const bottomNavBgInput2 = document.getElementById('uiBottomNavBgColor2');
+      const bottomNavBgValue = document.getElementById('uiBottomNavBgValue');
+      const applyBottomNavBg = document.getElementById('uiApplyBottomNavBg');
+      if (bottomNavBgInput) {
+        const savedBg = localStorage.getItem('ui_bottomnav_bg') || '#ffffff';
+        if (savedBg.startsWith('gradient:')) {
+          bottomNavBgInput.value = '#ffffff';
+          if (bottomNavBgValue) bottomNavBgValue.textContent = 'gradiente';
+        } else {
+          bottomNavBgInput.value = savedBg;
+          if (bottomNavBgValue) bottomNavBgValue.textContent = savedBg;
+        }
+        if (bottomNavBgInput2) bottomNavBgInput2.value = '#ffffff';
+        bottomNavBgInput.addEventListener('input', function() {
+          if (bottomNavBgValue && !bottomNavBgInput2) bottomNavBgValue.textContent = this.value;
+        });
+      }
+      if (applyBottomNavBg) {
+        applyBottomNavBg.addEventListener('click', function() {
+          const c1 = bottomNavBgInput ? bottomNavBgInput.value : '#ffffff';
+          const c2 = bottomNavBgInput2 ? bottomNavBgInput2.value : c1;
+          if (c1 !== c2) {
+            var grad = '135deg,' + c1 + ',' + c2;
+            document.getElementById('bottomNav')?.style.setProperty('background', 'linear-gradient(' + grad + ')', 'important');
+            localStorage.setItem('ui_bottomnav_bg', 'gradient:' + grad);
+            if (bottomNavBgValue) bottomNavBgValue.textContent = 'gradiente';
+          } else {
+            document.getElementById('bottomNav')?.style.setProperty('background', c1, 'important');
+            localStorage.setItem('ui_bottomnav_bg', c1);
+            if (bottomNavBgValue) bottomNavBgValue.textContent = c1;
+          }
+        });
+      }
+
+      // Bottom nav visibility
+      function renderBottomNavVisibility() {
+        const container = document.getElementById('uiBottomNavVisibility');
+        if (!container) return;
+        const hidden = (function() { try { return JSON.parse(localStorage.getItem('ui_hidden_bottomnav') || '[]'); } catch(e) { return []; } })();
+        container.innerHTML = '';
+        // Collect ALL bottom nav items (both default groups and user-added items)
+        var items = [
+          { key: 'tienda', label: 'Tienda', icon: '🏪' },
+          { key: 'clientes', label: 'Clientes', icon: '🖥️' },
+          { key: 'isp', label: 'ISP', icon: '🌐' },
+          { key: 'redes', label: 'Herramientas', icon: '🔗' }
+        ];
+        // Add custom items found in the DOM
+        document.querySelectorAll('.bottom-nav-item').forEach(function(el) {
+          var k = el.getAttribute('data-nav-group');
+          if (!k || ['tienda','clientes','isp','redes'].indexOf(k) !== -1) return;
+          var lbl = el.querySelector('.bottom-nav-label');
+          var ico = el.querySelector('.bottom-nav-icon');
+          var exists = items.some(function(i) { return i.key === k; });
+          if (!exists) items.push({ key: k, label: lbl ? lbl.textContent : k, icon: ico ? ico.textContent : '•' });
+        });
+        items.forEach(function(item) {
+          const isHidden = hidden.indexOf(item.key) !== -1;
+          var existingBtn = document.querySelector('.bottom-nav-item[data-nav-group="' + item.key + '"]');
+          
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'btn btn-sm w-100 text-start ' + (isHidden ? 'btn-outline-danger' : 'btn-outline-success');
+          btn.innerHTML = (isHidden ? '<i class="bi bi-eye-slash"></i> ' : '<i class="bi bi-eye"></i> ') + '<strong>' + item.icon + ' ' + item.label + '</strong>';
+          btn.addEventListener('click', function() {
+            let h = (function() { try { return JSON.parse(localStorage.getItem('ui_hidden_bottomnav') || '[]'); } catch(e) { return []; } })();
+            const idx = h.indexOf(item.key);
+            if (idx !== -1) { h.splice(idx, 1); } else { h.push(item.key); }
+            localStorage.setItem('ui_hidden_bottomnav', JSON.stringify(h));
+            renderBottomNavVisibility();
+            var navBtn = document.querySelector('.bottom-nav-item[data-nav-group="' + item.key + '"]');
+            if (navBtn) navBtn.style.display = (idx !== -1) ? '' : 'none';
+          });
+          container.appendChild(btn);
+        });
+        // Añadir items individuales de grupos a la barra inferior
+        function buildItemSelector() {
+          var sel = document.createElement('select');
+          sel.className = 'form-select form-select-sm flex-fill';
+          sel.innerHTML = '<option value="">+ Añadir acceso rápido...</option>';
+          document.querySelectorAll('.nav-group[data-group-key]').forEach(function(g) {
+            var groupKey = g.getAttribute('data-group-key');
+            var groupLabel = (g.querySelector('[data-group-label]') || {}).textContent || groupKey;
+            var groupIcon = (g.querySelector('[data-group-icon]') || {}).textContent || '📌';
+            // Add group itself as option
+            var gOpt = document.createElement('option');
+            gOpt.value = 'group:' + groupKey;
+            gOpt.textContent = '📁 ' + groupLabel + ' (grupo)';
+            sel.appendChild(gOpt);
+            // Add all items within the group
+            g.querySelectorAll('.nav-submenu li a').forEach(function(a) {
+              var href = a.getAttribute('href');
+              var text = a.textContent.trim();
+              var iconSpan = a.querySelector('.emoji-icon');
+              var icon = iconSpan ? iconSpan.textContent : '•';
+              if (text && href) {
+                var opt = document.createElement('option');
+                opt.value = 'item:' + href + ':' + text + ':' + icon;
+                opt.textContent = '  ' + icon + ' ' + text + ' (' + groupLabel + ')';
+                sel.appendChild(opt);
+              }
+            });
+          });
+          return sel;
+        }
+        var addRow = document.createElement('div');
+        addRow.className = 'd-flex gap-1 mt-1';
+        var select = buildItemSelector();
+        select.addEventListener('change', function() {
+          if (!this.value) return;
+          var val = this.value;
+          var nav = document.getElementById('bottomNav');
+          if (!nav) { this.value = ''; return; }
+          if (val.startsWith('group:')) {
+            var key = val.replace('group:', '');
+            var group = document.querySelector('.nav-group[data-group-key="' + key + '"]');
+            var label = (group ? (group.querySelector('[data-group-label]') || {}).textContent : null) || key;
+            var iconEl = group ? group.querySelector('[data-group-icon]') : null;
+            var icon = iconEl ? iconEl.textContent : '📌';
+            var existing = document.querySelector('.bottom-nav-item[data-nav-group="' + key + '"]');
+            if (existing) { existing.style.display = ''; } else {
+              var newBtn = document.createElement('button');
+              newBtn.className = 'bottom-nav-item';
+              newBtn.setAttribute('data-nav-group', key);
+              newBtn.setAttribute('onclick', "openNavGroup('" + key + "')");
+              newBtn.innerHTML = '<span class="bottom-nav-icon">' + icon + '</span><span class="bottom-nav-label">' + label + '</span>';
+              nav.appendChild(newBtn);
+            }
+          } else if (val.startsWith('item:')) {
+            var parts = val.split(':');
+            var href = parts[1];
+            var label = parts[2];
+            var icon = parts[3] || '•';
+            // Generate unique key from href
+            var itemKey = 'item_' + href.replace(/[^a-zA-Z0-9]/g, '_');
+            var existing = document.querySelector('.bottom-nav-item[data-nav-group="' + itemKey + '"]');
+            if (existing) { existing.style.display = ''; } else {
+              var newBtn = document.createElement('button');
+              newBtn.className = 'bottom-nav-item';
+              newBtn.setAttribute('data-nav-group', itemKey);
+              newBtn.setAttribute('onclick', "window.location.href='" + href + "'");
+              newBtn.innerHTML = '<span class="bottom-nav-icon">' + icon + '</span><span class="bottom-nav-label">' + label + '</span>';
+              nav.appendChild(newBtn);
+            }
+          }
+          this.value = '';
+          renderBottomNavVisibility();
+        });
+        addRow.appendChild(select);
+        container.appendChild(addRow);
+        
+        const restoreBtn = document.createElement('button');
+        restoreBtn.type = 'button';
+        restoreBtn.className = 'btn btn-sm btn-outline-warning mt-1 w-100';
+        restoreBtn.innerHTML = '<i class="bi bi-arrow-counterclockwise"></i> Restaurar barra inferior';
+        restoreBtn.addEventListener('click', function() {
+          localStorage.removeItem('ui_hidden_bottomnav');
+          localStorage.removeItem('ui_bottomnav_bg');
+          document.querySelectorAll('.bottom-nav-item').forEach(function(b) { b.style.display = ''; });
+          // Eliminar botones añadidos dinámicamente
+          var nav = document.getElementById('bottomNav');
+          if (nav) {
+            var originalKeys = ['tienda','clientes','isp','redes'];
+            Array.from(nav.children).forEach(function(b) {
+              var k = b.getAttribute('data-nav-group');
+              if (k && originalKeys.indexOf(k) === -1) b.remove();
+            });
+          }
+          document.getElementById('bottomNav')?.style.removeProperty('background');
+          renderBottomNavVisibility();
+          if (bottomNavBgInput) { bottomNavBgInput.value = '#ffffff'; if (bottomNavBgValue) bottomNavBgValue.textContent = '#ffffff'; }
+        });
+        container.appendChild(restoreBtn);
+      }
+      renderBottomNavVisibility();
+
+      // Group visibility
+      function renderGroupVisibility() {
+        const container = document.getElementById('uiGroupVisibility');
+        if (!container) return;
+        var cfg = window.__UI_NAV_CONFIG;
+        var serverHidden = {};
+        var serverHiddenItems = {};
+        if (cfg && Array.isArray(cfg.groups)) {
+          cfg.groups.forEach(function(g) {
+            if (g.hidden) serverHidden[g.key] = true;
+            if (Array.isArray(g.hiddenItems)) serverHiddenItems[g.key] = g.hiddenItems;
+          });
+        }
+        const hidden = (function() { try { return JSON.parse(localStorage.getItem('ui_hidden_groups') || '[]'); } catch(e) { return []; } })();
+        const hiddenItems = (function() { try { return JSON.parse(localStorage.getItem('ui_hidden_items') || '{}'); } catch(e) { return {}; } })();
+        container.innerHTML = '';
+        document.querySelectorAll('.nav-group[data-group-key]').forEach(function(group) {
+          const key = group.getAttribute('data-group-key');
+          const label = (group.querySelector('[data-group-label]') || {}).textContent || key;
+          const isHidden = hidden.indexOf(key) !== -1 || serverHidden[key];
+          var serverHiddenForKey = serverHiddenItems[key] || [];
+          
+          const wrapper = document.createElement('div');
+          wrapper.className = 'w-100 mb-1';
+          
+          // Group toggle button
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'btn btn-sm w-100 text-start ' + (isHidden ? 'btn-outline-danger' : 'btn-outline-success');
+          btn.innerHTML = (isHidden ? '<i class="bi bi-eye-slash"></i> ' : '<i class="bi bi-eye"></i> ') + '<strong>' + label + '</strong>';
+          btn.addEventListener('click', function() {
+            let h = (function() { try { return JSON.parse(localStorage.getItem('ui_hidden_groups') || '[]'); } catch(e) { return []; } })();
+            const idx = h.indexOf(key);
+            if (idx !== -1) { h.splice(idx, 1); } else { h.push(key); }
+            localStorage.setItem('ui_hidden_groups', JSON.stringify(h));
+            renderGroupVisibility();
+            if (idx !== -1) { group.style.display = ''; } else { group.style.display = 'none'; }
+          });
+          wrapper.appendChild(btn);
+          
+          // Item toggles within this group
+          if (!isHidden) {
+            var itemDiv = document.createElement('div');
+            itemDiv.className = 'd-flex flex-wrap gap-1 mt-1 ms-2';
+            group.querySelectorAll('.nav-submenu li[data-item-key]').forEach(function(li) {
+              var itemKey = li.getAttribute('data-item-key');
+              var itemLabel = (li.textContent || '').trim().substring(0, 20);
+              var itemHidden = (hiddenItems[key] && hiddenItems[key].indexOf(itemKey) !== -1) || serverHiddenForKey.indexOf(itemKey) !== -1;
+              var iBtn = document.createElement('button');
+              iBtn.type = 'button';
+              iBtn.className = 'btn btn-sm ' + (itemHidden ? 'btn-outline-secondary' : 'btn-outline-light');
+              iBtn.style.fontSize = '0.65rem';
+              iBtn.style.padding = '1px 6px';
+              iBtn.innerHTML = (itemHidden ? '<i class="bi bi-eye-slash"></i> ' : '<i class="bi bi-eye"></i> ') + itemLabel;
+              iBtn.addEventListener('click', function() {
+                let hi = (function() { try { return JSON.parse(localStorage.getItem('ui_hidden_items') || '{}'); } catch(e) { return {}; } })();
+                if (!hi[key]) hi[key] = [];
+                var idx2 = hi[key].indexOf(itemKey);
+                if (idx2 !== -1) { hi[key].splice(idx2, 1); } else { hi[key].push(itemKey); }
+                if (!hi[key].length) delete hi[key];
+                localStorage.setItem('ui_hidden_items', JSON.stringify(hi));
+                renderGroupVisibility();
+                if (idx2 !== -1) { li.style.display = ''; } else { li.style.display = 'none'; }
+              });
+              itemDiv.appendChild(iBtn);
+            });
+            wrapper.appendChild(itemDiv);
+          }
+          
+          container.appendChild(wrapper);
+        });
+        const restoreBtn = document.createElement('button');
+        restoreBtn.type = 'button';
+        restoreBtn.className = 'btn btn-sm btn-outline-warning mt-1';
+        restoreBtn.innerHTML = '<i class="bi bi-arrow-counterclockwise"></i> Restaurar todo';
+        restoreBtn.addEventListener('click', function() {
+          localStorage.removeItem('ui_hidden_groups');
+          localStorage.removeItem('ui_hidden_items');
+          localStorage.removeItem('ui_page_bg');
+          document.querySelectorAll('.nav-group').forEach(function(g) { g.style.display = ''; });
+          document.querySelectorAll('.nav-submenu li').forEach(function(li) { li.style.display = ''; });
+          document.querySelector('.sidebar-scroll')?.style.removeProperty('background');
+          (document.querySelector('.page-container') || document.body).style.removeProperty('background');
+          renderGroupVisibility();
+          // Also reset bottom nav
+          localStorage.removeItem('ui_hidden_bottomnav');
+          localStorage.removeItem('ui_bottomnav_bg');
+          document.querySelectorAll('.bottom-nav-item').forEach(function(b) { b.style.display = ''; });
+          document.getElementById('bottomNav')?.style.removeProperty('background');
+          renderBottomNavVisibility();
+          if (bottomNavBgInput) { bottomNavBgInput.value = '#ffffff'; if (bottomNavBgValue) bottomNavBgValue.textContent = '#ffffff'; }
+        });
+        container.appendChild(restoreBtn);
+      }
+      renderGroupVisibility();
+
+      document.addEventListener('click', function(e) {
+        if (!editSwitch.checked) return;
+        const target = e.target.closest('[data-ui-draggable]');
+        if (target) {
+          e.preventDefault();
+          e.stopPropagation();
+          setSelected(target);
+        }
+      }, true);
+
+      const allSortables = [];
+
+      function initDragDrop() {
+        if (!window.Sortable) return;
+
+        // Sidebar: reorder groups
+        const groupsContainer = document.querySelector('.sidebar-scroll .sidebar-nav');
+        if (groupsContainer) {
+          allSortables.push(Sortable.create(groupsContainer, {
+            animation: 120,
+            draggable: '.nav-group[data-group-key]',
+            handle: '.nav-group-toggle',
+            disabled: true
+          }));
+          // Sidebar: drag items between groups (all li items)
+          groupsContainer.querySelectorAll('.nav-submenu').forEach(sm => {
+            allSortables.push(Sortable.create(sm, {
+              group: 'sidebar-items',
+              animation: 120,
+              draggable: 'li',
+              disabled: true
+            }));
+          });
+        }
+
+        // Page: stat card rows
+        document.querySelectorAll('.row:has(.stat-card-item)').forEach(row => {
+          allSortables.push(Sortable.create(row, {
+            animation: 120,
+            draggable: '.stat-card-item',
+            disabled: true
+          }));
+        });
+
+        // Page: section rows (movimientos, citas, nota diaria, etc.)
+        const pageEl = document.querySelector('.page-container');
+        if (pageEl) {
+          allSortables.push(Sortable.create(pageEl, {
+            animation: 120,
+            draggable: '.row:has(.card.hideable-section)',
+            disabled: true
+          }));
+        }
+
+        // Toggle all with edit switch
+        editSwitch.removeEventListener('change', toggleDragDrop);
+        editSwitch.addEventListener('change', toggleDragDrop);
+      }
+
+      function toggleDragDrop() {
+        const on = editSwitch.checked;
+        allSortables.forEach(s => s.option('disabled', !on));
+      }
+
+      initDragDrop();
+
+      reloadBtn && reloadBtn.addEventListener('click', function() { window.location.reload(); });
+
+      saveBtn && saveBtn.addEventListener('click', async function() {
+        try {
+          const t = currentTheme;
+          const payload = {
+            navConfig: collectConfig(),
+            customButtons: Array.isArray(window.__UI_CUSTOM_BUTTONS) ? window.__UI_CUSTOM_BUTTONS : [],
+            theme: t,
+            layout: liveLayout,
+            sidebarBg: t.sidebarBg,
+            sidebarActive: t.sidebarActive,
+            primaryColor: t.primary,
+            sidebarHover: t.sidebarHover,
+            topbarBg: t.topbarBg,
+            topbarBorder: t.topbarBorder,
+            bgBody: t.bgBody,
+            cardBg: t.cardBg,
+            textPrimary: t.textPrimary,
+            textSecondary: t.textSecondary,
+            borderColor: t.borderColor,
+            tableHoverBg: t.tableHoverBg,
+            tableStripe: t.tableStripe,
+            inputFocusShadow: t.inputFocusShadow,
+            shadowSm: t.shadowSm,
+            shadowMd: t.shadowMd,
+            cardRadius: t.cardRadius,
+            font: t.font,
+            success: t.success,
+            danger: t.danger,
+            warning: t.warning,
+            info: t.info
+          };
+          const r = await fetch('/configuracion/ui-editor-save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          if (!r.ok) throw new Error('No se pudo guardar');
+          saveBtn.textContent = 'Guardado';
+          setTimeout(() => { saveBtn.textContent = 'Guardar cambios'; }, 1000);
+        } catch (e) {
+          alert('Error guardando cambios de interfaz');
+        }
+      });
+
+      applyOverrides();
+
+      resetBtn && resetBtn.addEventListener('click', async function() {
+        if (!confirm('¿Restaurar diseño original guardado?')) return;
+        try {
+          const r = await fetch('/configuracion/ui-editor-reset', { method: 'POST' });
+          if (!r.ok) throw new Error('No reset');
+          window.location.reload();
+        } catch (e) {
+          alert('No se pudo restaurar.');
+        }
+      });
+    })();
+  </script>
+  <% } %>
+  <script>
+    // AI Chat Widget
+    (function() {
+      const toggle = document.getElementById('aiChatToggle');
+      const panel = document.getElementById('aiChatPanel');
+      const close = document.getElementById('aiChatClose');
+      const input = document.getElementById('aiChatInput');
+      const send = document.getElementById('aiChatSend');
+      const messages = document.getElementById('aiChatMessages');
+
+      if (!toggle || !panel) return;
+
+      toggle.addEventListener('click', function(e) {
+        e.stopPropagation();
+        panel.classList.toggle('open');
+        if (panel.classList.contains('open')) setTimeout(() => input?.focus(), 300);
+      });
+
+      close?.addEventListener('click', function() { panel.classList.remove('open'); });
+
+      document.addEventListener('click', function(e) {
+        if (panel.classList.contains('open') && !panel.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) {
+          panel.classList.remove('open');
+        }
+      });
+
+      function addMessage(text, isUser) {
+        const div = document.createElement('div');
+        div.className = isUser ? 'user-message' : 'ai-message';
+        if (isUser) {
+          div.innerHTML = '<div class="user-bubble">' + text + '</div>';
+        } else {
+          div.innerHTML = '<div class="ai-avatar"><i class="ri-robot-line"></i></div><div class="ai-bubble">' + text + '</div>';
+        }
+        messages.appendChild(div);
+        messages.scrollTop = messages.scrollHeight;
+      }
+
+      function sendMessage() {
+        const text = input.value.trim();
+        if (!text) return;
+        addMessage(text, true);
+        input.value = '';
+
+        fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: text })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          setTimeout(function() { addMessage(data.response, false); }, 300 + Math.random() * 300);
+        })
+        .catch(function() {
+          setTimeout(function() { addMessage('Lo siento, hubo un error de conexión. Inténtalo de nuevo.', false); }, 500);
+        });
+      }
+
+      send?.addEventListener('click', sendMessage);
+      input?.addEventListener('keydown', function(e) { if (e.key === 'Enter') sendMessage(); });
+    })();
+  </script>
+<script>
+(function() {
+  var input = document.getElementById('globalSearchInput');
+  var dropdown = document.getElementById('globalSearchDropdown');
+  if (!input || !dropdown) return;
+  var timer = null;
+  input.addEventListener('keyup', function() {
+    clearTimeout(timer);
+    var q = input.value.trim();
+    if (q.length < 3) {
+      dropdown.style.display = 'none';
+      dropdown.innerHTML = '';
+      return;
+    }
+    timer = setTimeout(function() {
+      fetch('/api/search?q=' + encodeURIComponent(q))
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (!data || data.length === 0) {
+            dropdown.innerHTML = '<div class="text-muted text-center py-3 small" style="pointer-events:none;">Sin resultados</div>';
+          } else {
+            dropdown.innerHTML = data.map(function(r) {
+              var badgeClass = r.origen === 'API' ? 'bg-info' : 'bg-success';
+              var badgeLabel = r.origen === 'API' ? 'API' : 'Local';
+              var href = r.id ? '/customers/' + r.id : '/customers?search=' + encodeURIComponent(r.telefono || r.nombre);
+              return '<a href="' + href + '"><div class="d-flex justify-content-between align-items-start"><strong>' + r.nombre + '</strong> <span class="src-badge badge ' + badgeClass + '">' + badgeLabel + '</span></div><div class="small text-muted">' + (r.telefono ? r.telefono : '') + (r.fiscalId ? ' &middot; ' + r.fiscalId : '') + '</div></a>';
+            }).join('');
+          }
+          dropdown.style.display = 'block';
+        })
+        .catch(function() {
+          dropdown.innerHTML = '<div class="text-muted text-center py-3 small" style="pointer-events:none;">Error de b&uacute;squeda</div>';
+          dropdown.style.display = 'block';
+        });
+    }, 300);
+  });
+  document.addEventListener('click', function(e) {
+    if (!document.getElementById('globalSearchWrapper').contains(e.target)) {
+      dropdown.style.display = 'none';
+    }
+  });
+  input.addEventListener('blur', function() {
+    setTimeout(function() { dropdown.style.display = 'none'; }, 200);
+  });
+  input.addEventListener('focus', function() {
+    if (input.value.trim().length >= 3 && dropdown.innerHTML) {
+      dropdown.style.display = 'block';
+    }
+  });
+})();
+
+// Sync Now button
+(function() {
+  var btn = document.getElementById('syncNowBtn');
+  if (btn) {
+    btn.addEventListener('click', function() {
+      var icon = btn.querySelector('i');
+      icon.className = 'ri-refresh-line spinner';
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Sincro...';
+      fetch('/isp/re-sync', { method: 'POST' })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          if (d.ok) {
+            btn.innerHTML = '<i class="ri-check-line"></i> OK';
+            setTimeout(function() { btn.innerHTML = '<i class="ri-refresh-line"></i><span class="d-none d-sm-inline">Sync</span>'; btn.disabled = false; }, 2000);
+          } else {
+            btn.innerHTML = '<i class="ri-close-line"></i> Error';
+            console.error('Sync error:', d.error);
+            setTimeout(function() { btn.innerHTML = '<i class="ri-refresh-line"></i><span class="d-none d-sm-inline">Sync</span>'; btn.disabled = false; }, 3000);
+          }
+          // Show progress bar
+          var bar = document.getElementById('syncProgressBar');
+          if (bar) bar.classList.remove('d-none');
+        })
+        .catch(function() {
+          btn.innerHTML = '<i class="ri-close-line"></i> Error';
+          setTimeout(function() { btn.innerHTML = '<i class="ri-refresh-line"></i><span class="d-none d-sm-inline">Sync</span>'; btn.disabled = false; }, 3000);
+        });
+    });
+  }
+})();
+
+// Sync progress - solo comprobar al cargar la página, no cada 5s
+(function() {
+  var bar = document.getElementById('syncProgressBar');
+  var text = document.getElementById('syncProgressText');
+  var fill = document.getElementById('syncProgressFill');
+  var lastSync = document.getElementById('syncLastSync');
+
+  function checkSync() {
+    fetch('/sync-status')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.status === 'running') {
+          bar.classList.remove('d-none');
+          text.textContent = data.step || '';
+          if (data.total > 0) {
+            var pct = Math.min(Math.round((data.current / data.total) * 100), 100);
+            fill.style.width = pct + '%';
+          } else {
+            fill.style.width = '50%';
+          }
+          // Si está en ejecución, comprobar de nuevo en 10s
+          setTimeout(checkSync, 10000);
+        } else {
+          bar.classList.add('d-none');
+          if (data.lastSync && lastSync) {
+            var d = new Date(data.lastSync);
+            lastSync.textContent = 'Última sincro: ' + d.toLocaleTimeString('es-ES');
+          }
+          if (data.status === 'error' && data.error) {
+            console.warn('Sync error:', data.error);
+          }
+        }
+      })
+      .catch(function() {});
+  }
+
+  checkSync();
+})();
+</script>
+
+<!-- WhatsApp Persistent Overlay -->
+<div id="waOverlay" style="display:none;position:fixed;top:0;right:0;width:420px;height:100vh;background:#fff;z-index:9999;box-shadow:-4px 0 24px rgba(0,0,0,0.15);flex-direction:column;animation:slideIn 0.2s ease;">
+  <style>
+    @keyframes slideIn { from { transform:translateX(100%); } to { transform:translateX(0); } }
+    @keyframes slideOut { from { transform:translateX(0); } to { transform:translateX(100%); } }
+  </style>
+  <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:#075e54;color:#fff;flex-shrink:0;">
+    <i class="bi bi-whatsapp" style="font-size:1.2rem;"></i>
+    <span style="font-weight:600;font-size:0.85rem;">WhatsApp Web</span>
+    <span style="font-size:0.7rem;opacity:0.7;">vigilando</span>
+    <span id="waLiveDot" style="width:8px;height:8px;border-radius:50%;background:#4ade80;display:inline-block;"></span>
+    <button onclick="enviarACodeOpen()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:6px;color:#fff;cursor:pointer;font-size:0.7rem;padding:4px 10px;white-space:nowrap;" title="Enviar mensaje a CodeOpen (sin auto-análisis)">
+      <i class="bi bi-robot"></i> Enviar a IA
+    </button>
+    <button onclick="toggleWAOverlay()" style="margin-left:auto;background:none;border:0;color:#fff;cursor:pointer;font-size:1.2rem;padding:2px 6px;">&times;</button>
+  </div>
+  <div style="flex:1;overflow:hidden;">
+    <iframe id="waPersistentFrame" src="/proxy/web.whatsapp.com" style="width:100%;height:100%;border:0;"></iframe>
+  </div>
+</div>
+<div id="waOverlayBackdrop" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.3);z-index:9998;" onclick="toggleWAOverlay()"></div>
+
+<style>
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+</style>
+
+<script>
+var waOverlayVisible = false;
+function toggleWAOverlay() {
+  waOverlayVisible = !waOverlayVisible;
+  var overlay = document.getElementById('waOverlay');
+  var backdrop = document.getElementById('waOverlayBackdrop');
+  if (waOverlayVisible) {
+    overlay.style.display = 'flex';
+    backdrop.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+  } else {
+    overlay.style.animation = 'slideOut 0.2s ease';
+    setTimeout(function() {
+      overlay.style.display = 'none';
+      overlay.style.animation = 'slideIn 0.2s ease';
+      backdrop.style.display = 'none';
+      document.body.style.overflow = '';
+    }, 200);
+  }
+}
+
+// Enviar mensaje de WhatsApp a CodeOpen para análisis IA
+function enviarACodeOpen() {
+  var msgTexto = prompt('Pega el mensaje que quieres analizar (o déjalo vacío para cancelar):');
+  if (!msgTexto || !msgTexto.trim()) return;
+  
+  var btn = event.target;
+  if (btn.tagName !== 'BUTTON') btn = btn.closest('button');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm" style="width:10px;height:10px;"></span>';
+  
+  fetch('/codeopen/webhook/whatsapp', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      from: 'WhatsApp Web',
+      message: msgTexto.trim(),
+      timestamp: new Date().toISOString()
+    })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-robot"></i> Analizar';
+    if (d.ok) {
+      alert('Mensaje enviado a CodeOpen para análisis. Ve al panel de Pendientes para aprobar o rechazar la respuesta.\n\nID Pendiente: #' + d.pending_id);
+    } else {
+      alert('Error: ' + (d.error || 'desconocido'));
+    }
+  })
+  .catch(function() {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-robot"></i> Analizar';
+    alert('Error de red');
+  });
+}
+
+// Keep-alive: periodically check if WhatsApp iframe is alive
+setInterval(function() {
+  var dot = document.getElementById('waLiveDot');
+  if (dot) {
+    var frame = document.getElementById('waPersistentFrame');
+    if (frame) {
+      try {
+        var doc = frame.contentDocument || frame.contentWindow?.document;
+        if (doc && doc.body && doc.body.innerHTML.length > 100) {
+          dot.style.background = '#4ade80';
+        } else {
+          dot.style.background = '#f87171';
+        }
+      } catch(e) {
+        dot.style.background = '#fbbf24';
+      }
+    }
+  }
+}, 10000);
+
+// ---- RECIBIR MENSAJES DEL IFRAME VIA postMessage ----
+var waTextosVistos = {};
+window.addEventListener('message', function(event) {
+  if (event.data && event.data.type === 'wa_msg') {
+    var texto = event.data.text;
+    if (!texto || texto.length < 2 || waTextosVistos[texto.substring(0, 50)]) return;
+    waTextosVistos[texto.substring(0, 50)] = Date.now();
+    
+    fetch('/codeopen/webhook/whatsapp', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: 'WhatsApp', message: texto, timestamp: new Date().toISOString() })
+    }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.ok) {
+        var dot = document.getElementById('waLiveDot');
+        if (dot) { dot.style.background = '#f59e0b'; setTimeout(function() { dot.style.background = '#4ade80'; }, 3000); }
+      }
+    }).catch(function() {});
+  }
+});
+
+// Limpiar caché cada hora
+setInterval(function() {
+  var a = Date.now();
+  Object.keys(waTextosVistos).forEach(function(k) { if (a - waTextosVistos[k] > 3600000) delete waTextosVistos[k]; });
+}, 3600000);
+
+// Close on Escape
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape' && waOverlayVisible) toggleWAOverlay();
+});
+</script>
+
+</body>
+</html>

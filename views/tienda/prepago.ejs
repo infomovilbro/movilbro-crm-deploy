@@ -1,0 +1,434 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-sim"></i> Clientes Prepago</h2>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalPrepago"><i class="bi bi-plus-lg"></i> Nuevo Cliente Prepago</button>
+  </div>
+
+  <% var mesNombres = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']; %>
+
+  <!-- Historial por Meses -->
+  <div class="card mb-3 hideable-section" data-card-id="prepago-meses">
+    <div class="card-header"><i class="bi bi-folder"></i> Historial de Pagos por Meses</div>
+    <div class="card-body">
+      <div class="row g-1 mb-0">
+      <% meses.forEach((m) => { %>
+        <% var todosPagados = m.total > 0 && m.pagados === m.total; %>
+        <% var color = todosPagados ? 'success' : (m.pagados > 0 ? 'danger' : 'secondary') %>
+        <div class="col-md-1 col-2 text-center" style="cursor:pointer;" onclick="cambiarMes(<%= m.mes %>)">
+          <div class="p-1 rounded bg-<%= color %> text-white small mes-cuadro <%= m.mes === mesActual ? 'mes-activo' : '' %>" data-mes="<%= m.mes %>" style="min-height:48px;display:flex;flex-direction:column;justify-content:center;align-items:center;">
+            <div><%= m.label.substring(0,3) %></div>
+            <div class="fw-bold"><%= m.pagados %>/<%= m.total %></div>
+          </div>
+        </div>
+      <% }) %>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cobrar Panel -->
+  <div class="card mb-4 border-primary hideable-section" data-card-id="prepago-cobrar">
+    <div class="card-header bg-primary text-white"><i class="bi bi-cash-coin"></i> Cobrar Prepago — <%= mesNombres[mesActual] %> <%= anoActual %></div>
+    <div class="card-body">
+      <div class="row g-2 align-items-end">
+        <div class="col-md-5">
+          <label class="form-label">Cliente</label>
+          <select id="cobrarCliente" class="form-select">
+            <option value="">Seleccionar cliente...</option>
+            <% clientes.forEach(c => { %>
+              <option value="<%= c.id %>" data-importe="<%= c.importe %>"><%= c.nombre %> — <%= (c.importe || 0).toFixed(2) %>€/mes</option>
+            <% }) %>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Importe</label>
+          <input type="text" id="cobrarImporte" class="form-control" readonly>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">Método de pago</label>
+          <select id="cobrarMetodo" class="form-select">
+            <option value="efectivo">Efectivo</option>
+            <option value="tarjeta">Tarjeta</option>
+            <option value="stripe">Stripe</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <button class="btn btn-success w-100" id="btnCobrarPrepago"><i class="bi bi-check-lg"></i> Cobrar</button>
+        </div>
+      </div>
+      <div id="cobrarMensaje" class="mt-2"></div>
+    </div>
+  </div>
+
+  <!-- Estado del Mes -->
+  <div class="card mb-3 hideable-section" data-card-id="prepago-estado">
+    <div class="card-header"><i class="bi bi-check2-square"></i> Estado de Pagos — <span id="tituloMes"><%= mesNombres[mesActual] %></span></div>
+    <div class="card-body p-0">
+      <table class="table table-hover mb-0" id="tablaEstadoPrepago">
+        <thead><tr><th>Nombre</th><th>Importe</th><th>Estado</th><th>Método</th><th>Acción</th></tr></thead>
+        <tbody>
+        <% clientes.forEach(c => { %>
+          <% var pagados = (c.meses_pagados || '').split(',').map(Number); %>
+          <% var pagadoEsteMes = pagados.includes(mesActual); %>
+          <% var metodoPago = ''; %>
+          <% try { var mp = JSON.parse(metodoPorCliente); if (mp[c.nombre] && mp[c.nombre][mesActual]) metodoPago = mp[c.nombre][mesActual]; } catch(e) {} %>
+          <tr class="<%= pagadoEsteMes ? 'table-success' : '' %> prepago-row" data-id="<%= c.id %>" data-importe="<%= c.importe || 0 %>" data-meses-pagados="<%= c.meses_pagados || '' %>" data-metodo-pago="<%= metodoPago %>">
+            <td><%= c.nombre %></td>
+            <td><%= (c.importe || 0).toFixed(2) %>€</td>
+            <td class="estado-cell">
+              <% if (pagadoEsteMes) { %>
+                <span class="badge bg-success"><i class="bi bi-check-circle"></i> Pagado</span>
+              <% } else { %>
+                <span class="badge bg-warning text-dark">Pendiente</span>
+              <% } %>
+            </td>
+            <td class="metodo-cell"><%= metodoPago || '-' %></td>
+            <td class="accion-cell">
+              <% if (!pagadoEsteMes) { %>
+                <button class="btn btn-sm btn-outline-success cobrar-rapido" data-id="<%= c.id %>" data-nombre="<%= c.nombre %>" data-importe="<%= c.importe %>"><i class="bi bi-cash"></i> Cobrar</button>
+              <% } else { %>
+                <button class="btn btn-sm btn-outline-secondary cobrar-rapido" data-id="<%= c.id %>" data-nombre="<%= c.nombre %>" data-importe="<%= c.importe %>"><i class="bi bi-arrow-repeat"></i> Cobrado</button>
+              <% } %>
+            </td>
+          </tr>
+        <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Clientes Finalizados -->
+  <div class="card mb-3">
+    <div class="card-header bg-dark text-white"><i class="bi bi-check-circle"></i> Clientes Finalizados</div>
+    <div class="card-body p-0">
+      <table class="table table-hover mb-0">
+        <thead><tr><th>Nombre</th><th>Teléfono</th><th>Importe</th><th>Acciones</th></tr></thead>
+        <tbody>
+        <% if (finalizados.length === 0) { %>
+          <tr><td colspan="4" class="text-center text-muted py-3">No hay clientes finalizados</td></tr>
+        <% } else { finalizados.forEach(c => { %>
+          <tr class="table-secondary">
+            <td><%= c.nombre %> <%= c.apellidos || '' %></td>
+            <td><%= c.telefono || '-' %></td>
+            <td><%= (c.importe || 0).toFixed(2) %>€</td>
+            <td>
+              <button class="btn btn-sm btn-outline-secondary reactivar-prepago" data-id="<%= c.id %>"><i class="bi bi-arrow-counterclockwise"></i> Reactivar</button>
+            </td>
+          </tr>
+        <% }) } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Todos los clientes -->
+  <div class="card">
+    <div class="card-header" style="cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#collapseTodosPrepago"><i class="bi bi-list"></i> Todos los Clientes Prepago <i class="bi bi-chevron-down float-end"></i></div>
+    <div class="collapse" id="collapseTodosPrepago">
+    <div class="card-body p-0">
+      <table class="table table-hover mb-0" id="tablaPrepago">
+        <thead><tr><th>Nombre</th><th>Teléfono</th><th>DNI/NIF</th><th>Línea</th><th>ICCID</th><th>PIN/PUK</th><th>Operador</th><th>Importe</th><th>Estado</th><th>Acciones</th></tr></thead>
+        <tbody>
+        <% if (clientes.length === 0) { %>
+          <tr><td colspan="10" class="text-center text-muted py-4"><i class="bi bi-sim" style="font-size:2rem;display:block;margin-bottom:8px;"></i>No hay clientes prepago registrados</td></tr>
+        <% } else { clientes.forEach(c => { %>
+          <% var pagados = (c.meses_pagados || '').split(',').map(Number); %>
+          <tr>
+            <td><%= c.nombre %> <%= c.apellidos || '' %></td>
+            <td><%= c.telefono || '-' %></td>
+            <td><%= c.dni_nif || '-' %></td>
+            <td><%= c.linea || '-' %></td>
+            <td class="small"><%= c.iccid ? c.iccid.substring(0,10)+'...' : '-' %></td>
+            <td class="small">PIN: <%= c.pin || '-' %> | PUK: <%= c.puk || '-' %></td>
+            <td><%= c.operador %></td>
+            <td><%= (c.importe || 0).toFixed(2) %>€</td>
+            <td>
+              <span class="badge bg-<%= pagados.includes(mesActual) ? 'success' : 'warning' %>">
+                <%= pagados.includes(mesActual) ? 'Pagado' : 'Pendiente' %>
+              </span>
+            </td>
+            <td>
+              <button class="btn btn-sm btn-outline-primary editar-prepago" data-id="<%= c.id %>" data-nombre="<%= c.nombre %>" data-apellidos="<%= c.apellidos || '' %>" data-dni="<%= c.dni_nif || '' %>" data-tel="<%= c.telefono || '' %>" data-email="<%= c.email || '' %>" data-pin="<%= c.pin || '' %>" data-puk="<%= c.puk || '' %>" data-op="<%= c.operador %>" data-linea="<%= c.linea || '' %>" data-iccid="<%= c.iccid || '' %>" data-importe="<%= c.importe || 0 %>" data-estado="<%= c.estado %>" data-notas="<%= c.notas || '' %>"><i class="bi bi-pencil"></i></button>
+              <button class="btn btn-sm btn-outline-danger eliminar-prepago" data-id="<%= c.id %>"><i class="bi bi-trash"></i></button>
+            </td>
+          </tr>
+        <% }) } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- Modal Nuevo Prepago -->
+<div class="modal fade" id="modalPrepago" tabindex="-1">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <form method="POST" action="/tienda/prepago/crear">
+      <div class="modal-header"><h5><i class="bi bi-sim"></i> Nuevo Cliente Prepago</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="row g-2 mb-2">
+          <div class="col"><label class="form-label">Nombre *</label><input type="text" name="nombre" class="form-control" required></div>
+          <div class="col"><label class="form-label">Apellidos</label><input type="text" name="apellidos" class="form-control"></div>
+        </div>
+        <div class="row g-2 mb-2">
+          <div class="col"><label class="form-label">DNI/NIF</label><input type="text" name="dni_nif" class="form-control"></div>
+          <div class="col"><label class="form-label">Teléfono</label><input type="text" name="telefono" class="form-control"></div>
+          <div class="col"><label class="form-label">Email</label><input type="email" name="email" class="form-control"></div>
+        </div>
+        <div class="row g-2 mb-2">
+          <div class="col"><label class="form-label">PIN</label><input type="text" name="pin" class="form-control"></div>
+          <div class="col"><label class="form-label">PUK</label><input type="text" name="puk" class="form-control"></div>
+          <div class="col"><label class="form-label">Operador</label><select name="operador" class="form-select"><option value="Movilbro">Movilbro</option><option value="Orange">Orange</option><option value="Yoigo">Yoigo</option><option value="MasMovil">MasMovil</option></select></div>
+        </div>
+        <div class="row g-2 mb-2">
+          <div class="col"><label class="form-label">Línea</label><input type="text" name="linea" class="form-control"></div>
+          <div class="col"><label class="form-label">ICCID</label><input type="text" name="iccid" class="form-control"></div>
+          <div class="col"><label class="form-label">Importe (€)</label><input type="number" step="0.01" name="importe" class="form-control" value="0"></div>
+        </div>
+        <div class="mb-2"><label class="form-label">Notas</label><textarea name="notas" class="form-control" rows="2"></textarea></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Guardar</button>
+      </div>
+    </form>
+  </div></div>
+</div>
+
+<!-- Modal Seleccionar Método de Pago (cobro rápido) -->
+<div class="modal fade" id="modalMetodoPago" tabindex="-1">
+  <div class="modal-dialog modal-sm modal-dialog-centered"><div class="modal-content">
+    <div class="modal-header"><h6><i class="bi bi-cash-coin"></i> Método de pago</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body text-center">
+      <p class="mb-3" id="modalMetodoCliente">Cobrar a</p>
+      <div class="d-grid gap-2">
+        <button class="btn btn-outline-success btn-lg metodo-pago-btn" data-metodo="efectivo"><i class="bi bi-cash"></i> Efectivo</button>
+        <button class="btn btn-outline-primary btn-lg metodo-pago-btn" data-metodo="tarjeta"><i class="bi bi-credit-card"></i> Tarjeta</button>
+        <button class="btn btn-outline-info btn-lg metodo-pago-btn" data-metodo="stripe"><i class="bi bi-credit-card-2-front"></i> Stripe</button>
+        <hr class="my-2">
+        <button class="btn btn-outline-warning btn-lg metodo-pago-btn" data-metodo="pendiente"><i class="bi bi-clock"></i> Pendiente</button>
+        <button class="btn btn-outline-danger btn-lg metodo-pago-btn" data-metodo="no_pagado"><i class="bi bi-x-circle"></i> No pagado</button>
+      </div>
+    </div>
+  </div></div>
+</div>
+
+<!-- Modal Editar Prepago -->
+<div class="modal fade" id="modalEditarPrepago" tabindex="-1">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <form method="POST" action="/tienda/prepago/editar">
+      <input type="hidden" name="id" id="edit-id">
+      <div class="modal-header"><h5><i class="bi bi-pencil"></i> Editar Cliente Prepago</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="row g-2 mb-2">
+          <div class="col"><label class="form-label">Nombre *</label><input type="text" name="nombre" id="edit-nombre" class="form-control" required></div>
+          <div class="col"><label class="form-label">Apellidos</label><input type="text" name="apellidos" id="edit-apellidos" class="form-control"></div>
+        </div>
+        <div class="row g-2 mb-2">
+          <div class="col"><label class="form-label">DNI/NIF</label><input type="text" name="dni_nif" id="edit-dni" class="form-control"></div>
+          <div class="col"><label class="form-label">Teléfono</label><input type="text" name="telefono" id="edit-tel" class="form-control"></div>
+          <div class="col"><label class="form-label">Email</label><input type="email" name="email" id="edit-email" class="form-control"></div>
+        </div>
+        <div class="row g-2 mb-2">
+          <div class="col"><label class="form-label">PIN</label><input type="text" name="pin" id="edit-pin" class="form-control"></div>
+          <div class="col"><label class="form-label">PUK</label><input type="text" name="puk" id="edit-puk" class="form-control"></div>
+          <div class="col"><label class="form-label">Operador</label><select name="operador" id="edit-op" class="form-select"><option value="Movilbro">Movilbro</option><option value="Orange">Orange</option><option value="Yoigo">Yoigo</option><option value="MasMovil">MasMovil</option></select></div>
+        </div>
+        <div class="row g-2 mb-2">
+          <div class="col"><label class="form-label">Línea</label><input type="text" name="linea" id="edit-linea" class="form-control"></div>
+          <div class="col"><label class="form-label">ICCID</label><input type="text" name="iccid" id="edit-iccid" class="form-control"></div>
+          <div class="col"><label class="form-label">Importe (€)</label><input type="number" step="0.01" name="importe" id="edit-importe" class="form-control" value="0"></div>
+        </div>
+        <div class="row g-2 mb-2">
+          <div class="col"><label class="form-label">Estado</label><select name="estado" id="edit-estado" class="form-select"><option value="pendiente_activar">Pendiente Activar</option><option value="activo">Activo</option><option value="suspendido">Suspendido</option><option value="cancelado">Cancelado</option></select></div>
+        </div>
+        <div class="mb-2"><label class="form-label">Notas</label><textarea name="notas" id="edit-notas" class="form-control" rows="2"></textarea></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Guardar Cambios</button>
+      </div>
+    </form>
+  </div></div>
+</div>
+
+<script>
+// Global data & helpers (needed by inline onclick and cambiarMes)
+var mesActual = <%= mesActual %>;
+var mesNombres = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+var metodoPorCliente = <%- metodoPorCliente %>;
+var pagosPrepago = <%- JSON.stringify(pagosPrepago) %>;
+
+function cobrarPrepago(id, metodo) {
+  var btn = document.getElementById('btnCobrarPrepago') || (event && event.target);
+  var msg = document.getElementById('cobrarMensaje');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Procesando...';
+  fetch('/tienda/prepago/cobrar', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ id, metodo_pago: metodo, mes: mesActual })
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.success) {
+      msg.innerHTML = '<div class="alert alert-success py-1 mb-0"><i class="bi bi-check-circle"></i> ' + d.message + '</div>';
+      setTimeout(function() { location.href = '/tienda/prepago?mes=' + mesActual; }, 1200);
+    } else {
+      msg.innerHTML = '<div class="alert alert-warning py-1 mb-0"><i class="bi bi-exclamation-triangle"></i> ' + (d.error || 'Error') + '</div>';
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-check-lg"></i> Cobrar';
+    }
+  }).catch(function() {
+    msg.innerHTML = '<div class="alert alert-danger py-1 mb-0">Error de conexi\u00f3n</div>';
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-check-lg"></i> Cobrar';
+  });
+}
+
+function cambiarMes(mes) {
+  mesActual = mes;
+  document.getElementById('tituloMes').textContent = mesNombres[mes];
+  document.querySelectorAll('.mes-cuadro').forEach(function(el) { el.classList.remove('mes-activo'); });
+  document.querySelector('.mes-cuadro[data-mes="' + mes + '"]')?.classList.add('mes-activo');
+
+  // Update Estado de Pagos table
+  document.querySelectorAll('#tablaEstadoPrepago .prepago-row').forEach(function(row) {
+    var pagados = (row.dataset.mesesPagados || '').split(',').map(Number);
+    var pagado = pagados.includes(mes);
+    var nombre = row.querySelector('td:first-child').textContent.trim();
+    var metodo = (metodoPorCliente[nombre] && metodoPorCliente[nombre][mes]) || '';
+    row.className = (pagado ? 'table-success ' : '') + 'prepago-row';
+    row.querySelector('.estado-cell').innerHTML = pagado
+      ? '<span class="badge bg-success"><i class="bi bi-check-circle"></i> Pagado</span>'
+      : '<span class="badge bg-warning text-dark">Pendiente</span>';
+    row.querySelector('.metodo-cell').textContent = metodo || '-';
+    row.querySelector('.accion-cell').innerHTML = pagado
+      ? '<button class="btn btn-sm btn-outline-secondary cobrar-rapido" data-id="' + row.dataset.id + '" data-nombre="' + nombre + '" data-importe="' + (row.dataset.importe || 0) + '"><i class="bi bi-arrow-repeat"></i> Cobrado</button>'
+      : '<button class="btn btn-sm btn-outline-success cobrar-rapido" data-id="' + row.dataset.id + '" data-nombre="' + nombre + '" data-importe="' + (row.dataset.importe || 0) + '"><i class="bi bi-cash"></i> Cobrar</button>';
+    row.querySelectorAll('.cobrar-rapido').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        document.getElementById('modalMetodoCliente').textContent = 'Cobrar a ' + this.dataset.nombre + ' (' + this.dataset.importe + '\u20AC)';
+        document.getElementById('modalMetodoPago').dataset.targetId = this.dataset.id;
+        document.getElementById('modalMetodoPago').dataset.targetNombre = this.dataset.nombre;
+        new bootstrap.Modal(document.getElementById('modalMetodoPago')).show();
+      });
+    });
+  });
+
+  // Show payment transactions for selected month
+  var mesStr = String(mes).padStart(2, '0');
+  var pagos = pagosPrepago.filter(function(p) {
+    return p.fecha && p.fecha.split('-')[1] === mesStr;
+  });
+  var tbody = document.getElementById('pagos-mes-body');
+  if (!tbody) return;
+  if (pagos.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">No hay pagos registrados este mes</td></tr>';
+  } else {
+    tbody.innerHTML = pagos.map(function(p) {
+      return '<tr>' +
+        '<td>' + p.fecha + '</td>' +
+        '<td>' + (p.concepto || '-') + '</td>' +
+        '<td>' + (p.importe ? parseFloat(p.importe).toFixed(2) + '\u20AC' : '-') + '</td>' +
+        '<td>' + (p.metodo_pago || '-') + '</td>' +
+        '</tr>';
+    }).join('');
+  }
+  document.getElementById('pagos-mes-titulo').textContent = 'Pagos — ' + mesNombres[mes];
+
+  // Scroll to Estado de Pagos section
+  var target = document.querySelector('[data-card-id="prepago-estado"]');
+  if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ---- DOM ready initialisation ----
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.editar-prepago').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      document.getElementById('edit-id').value = this.dataset.id;
+      document.getElementById('edit-nombre').value = this.dataset.nombre;
+      document.getElementById('edit-apellidos').value = this.dataset.apellidos;
+      document.getElementById('edit-dni').value = this.dataset.dni;
+      document.getElementById('edit-tel').value = this.dataset.tel;
+      document.getElementById('edit-email').value = this.dataset.email;
+      document.getElementById('edit-pin').value = this.dataset.pin;
+      document.getElementById('edit-puk').value = this.dataset.puk;
+      document.getElementById('edit-op').value = this.dataset.op;
+      document.getElementById('edit-linea').value = this.dataset.linea;
+      document.getElementById('edit-iccid').value = this.dataset.iccid;
+      document.getElementById('edit-importe').value = this.dataset.importe;
+      document.getElementById('edit-estado').value = this.dataset.estado;
+      document.getElementById('edit-notas').value = this.dataset.notas;
+      new bootstrap.Modal(document.getElementById('modalEditarPrepago')).show();
+    });
+  });
+  document.querySelectorAll('.eliminar-prepago').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      if (confirm('\u00BFEliminar este cliente prepago?')) {
+        fetch('/tienda/prepago/eliminar', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ id: this.dataset.id }) })
+        .then(function() { location.reload(); });
+      }
+    });
+  });
+
+  var sel = document.getElementById('cobrarCliente');
+  if (sel) {
+    sel.addEventListener('change', function() {
+      var opt = this.options[this.selectedIndex];
+      document.getElementById('cobrarImporte').value = (parseFloat(opt.dataset.importe) || 0).toFixed(2) + '\u20AC';
+    });
+  }
+
+  document.getElementById('btnCobrarPrepago')?.addEventListener('click', function() {
+    var id = document.getElementById('cobrarCliente').value;
+    var metodo = document.getElementById('cobrarMetodo').value;
+    if (!id) { document.getElementById('cobrarMensaje').innerHTML = '<div class="alert alert-warning py-1 mb-0">Selecciona un cliente</div>'; return; }
+    cobrarPrepago(id, metodo);
+  });
+
+  document.querySelectorAll('.cobrar-rapido').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      document.getElementById('modalMetodoCliente').textContent = 'Cobrar a ' + this.dataset.nombre + ' (' + this.dataset.importe + '\u20AC)';
+      document.getElementById('modalMetodoPago').dataset.targetId = this.dataset.id;
+      document.getElementById('modalMetodoPago').dataset.targetNombre = this.dataset.nombre;
+      new bootstrap.Modal(document.getElementById('modalMetodoPago')).show();
+    });
+  });
+
+  document.querySelectorAll('.finalizar-prepago').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      if (!confirm('\u00BFMarcar ' + this.dataset.nombre + ' como finalizado? Se eliminar\u00e1 del estado de pagos.')) return;
+      fetch('/tienda/prepago/finalizar', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ id: parseInt(this.dataset.id) })
+      }).then(function(r) { return r.json(); }).then(function(d) {
+        if (d.ok) location.reload();
+        else alert(d.error || 'Error');
+      });
+    });
+  });
+
+  document.querySelectorAll('.reactivar-prepago').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      if (!confirm('\u00BFReactivar este cliente prepago?')) return;
+      fetch('/tienda/prepago/reactivar', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ id: parseInt(this.dataset.id) })
+      }).then(function(r) { return r.json(); }).then(function(d) {
+        if (d.ok) location.reload();
+        else alert(d.error || 'Error');
+      });
+    });
+  });
+});
+
+// Payment method selection in modal
+document.querySelectorAll('.metodo-pago-btn').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    var id = document.getElementById('modalMetodoPago').dataset.targetId;
+    var metodo = this.dataset.metodo;
+    bootstrap.Modal.getInstance(document.getElementById('modalMetodoPago')).hide();
+    cobrarPrepago(id, metodo);
+  });
+});
+</script>
+
+<style>
+.mes-cuadro.mes-activo { outline: 3px solid #0050A1; outline-offset: -1px; box-shadow: 0 0 0 1px #0050A1; }
+</style>

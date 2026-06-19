@@ -1,0 +1,112 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-ticket"></i> Tickets ISP</h2>
+    <a href="/isp/tickets/create" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Nuevo Ticket</a>
+  </div>
+  <div class="card mb-3">
+    <div class="card-body py-2">
+      <div class="row g-2 align-items-center">
+        <div class="col-md-4">
+          <input type="text" class="form-control form-control-sm" id="searchTicket" placeholder="Buscar asunto o cliente...">
+        </div>
+        <div class="col-md-2">
+          <select class="form-select form-select-sm" id="filterEstado">
+            <option value="">Todos los estados</option>
+            <option value="abierto">Abierto</option>
+            <option value="en_curso">En curso</option>
+            <option value="cerrado">Cerrado</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <select class="form-select form-select-sm" id="filterPrioridad">
+            <option value="">Todas las prioridades</option>
+            <option value="alta">Alta</option>
+            <option value="normal">Normal</option>
+            <option value="baja">Baja</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <button class="btn btn-outline-secondary btn-sm w-100" id="btnLimpiarFiltros"><i class="bi bi-x-circle"></i> Limpiar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle" id="ticketsTable">
+          <thead class="table-dark">
+            <tr>
+              <th>ID</th>
+              <th>Cliente</th>
+              <th>Asunto</th>
+              <th>Estado</th>
+              <th>Prioridad</th>
+              <th>Usuario</th>
+              <th>Fecha</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (tickets.length === 0) { %>
+            <tr><td colspan="7" class="text-center text-muted py-4"><i class="bi bi-inbox"></i> No hay tickets ISP registrados</td></tr>
+            <% } else { tickets.forEach(t => { %>
+            <tr class="ticket-row">
+              <td class="fw-bold">#<%= t.id %></td>
+              <td><%= t.cliente_nombre || '-' %></td>
+              <td><%= t.asunto %></td>
+              <td>
+                <span class="badge fs-6 bg-<%= t.estado === 'abierto' ? 'danger' : t.estado === 'en_curso' ? 'warning' : t.estado === 'cerrado' ? 'success' : 'secondary' %>">
+                  <%= t.estado %>
+                </span>
+              </td>
+              <td>
+                <span class="badge bg-<%= t.prioridad === 'alta' ? 'danger' : t.prioridad === 'normal' ? 'warning' : 'success' %>">
+                  <%= t.prioridad %>
+                </span>
+              </td>
+              <td><%= t.user_name || '-' %></td>
+              <td class="small"><%= t.created_at ? new Date(t.created_at).toLocaleDateString('es-ES') : '-' %></td>
+            </tr>
+            <% }) } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const searchInput = document.getElementById('searchTicket');
+  const filterEstado = document.getElementById('filterEstado');
+  const filterPrioridad = document.getElementById('filterPrioridad');
+  const btnLimpiar = document.getElementById('btnLimpiarFiltros');
+
+  function filtrar() {
+    const q = searchInput ? searchInput.value.toLowerCase().trim() : '';
+    const est = filterEstado ? filterEstado.value : '';
+    const pri = filterPrioridad ? filterPrioridad.value : '';
+
+    document.querySelectorAll('.ticket-row').forEach(function(row) {
+      const asunto = row.querySelector('td:nth-child(3)')?.textContent.toLowerCase() || '';
+      const cliente = row.querySelector('td:nth-child(2)')?.textContent.toLowerCase() || '';
+      const estado = row.querySelector('td:nth-child(4) .badge')?.textContent.trim().toLowerCase() || '';
+      const prioridad = row.querySelector('td:nth-child(5) .badge')?.textContent.trim().toLowerCase() || '';
+      const matchTexto = !q || asunto.includes(q) || cliente.includes(q);
+      const matchEstado = !est || estado === est;
+      const matchPrioridad = !pri || prioridad === pri;
+      row.style.display = matchTexto && matchEstado && matchPrioridad ? '' : 'none';
+    });
+  }
+
+  if (searchInput) searchInput.addEventListener('input', filtrar);
+  if (filterEstado) filterEstado.addEventListener('change', filtrar);
+  if (filterPrioridad) filterPrioridad.addEventListener('change', filtrar);
+  if (btnLimpiar) btnLimpiar.addEventListener('click', function() {
+    if (searchInput) searchInput.value = '';
+    if (filterEstado) filterEstado.value = '';
+    if (filterPrioridad) filterPrioridad.value = '';
+    filtrar();
+  });
+});
+</script>

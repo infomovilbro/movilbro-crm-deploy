@@ -1,0 +1,1544 @@
+<section>
+  <% if (typeof apiError !== 'undefined' && apiError) { %>
+  <div class="alert alert-warning alert-dismissible fade show" role="alert">
+    <i class="bi bi-exclamation-triangle"></i> <strong>Aviso:</strong> <%= apiError %>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+  <% } %>
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h4 class="mb-1"><i class="bi bi-person-circle text-primary"></i>
+        <%= (apiCustomer.name || apiCustomer.firstName || cliente.nombre) %> <%= (apiCustomer.lastName || apiCustomer.surname || cliente.apellidos || '') %>
+      </h4>
+      <small class="text-muted"><%= apiCustomer.fiscalId || cliente.dni_nif || '' %> &middot; #<%= cliente.id %></small>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="/clientes/<%= cliente.id %>/editar" class="btn btn-warning"><i class="bi bi-pencil"></i> Editar</a>
+      <a href="/clientes" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Volver</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header p-0">
+      <ul class="nav nav-tabs card-header-tabs mx-2 mt-2" id="detalleTab" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="info-tab" data-bs-toggle="tab" data-bs-target="#info" type="button" role="tab" aria-controls="info" aria-selected="true">
+            <i class="bi bi-info-circle"></i> Informaci&oacute;n
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="lineas-tab" data-bs-toggle="tab" data-bs-target="#lineas" type="button" role="tab" aria-controls="lineas" aria-selected="false">
+            <i class="bi bi-phone"></i> L&iacute;neas / Suscripciones
+            <% if (apiSubscriptions.length > 0) { %><span class="badge bg-secondary ms-1"><%= apiSubscriptions.length %></span><% } %>
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="ordenes-tab" data-bs-toggle="tab" data-bs-target="#ordenes" type="button" role="tab" aria-controls="ordenes" aria-selected="false">
+            <i class="bi bi-cart"></i> &Oacute;rdenes
+            <% if (apiOrders.length > 0) { %><span class="badge bg-secondary ms-1"><%= apiOrders.length %></span><% } %>
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="facturas-tab" data-bs-toggle="tab" data-bs-target="#facturas" type="button" role="tab" aria-controls="facturas" aria-selected="false">
+            <i class="bi bi-receipt"></i> Facturas
+            <% if (apiInvoices.length > 0) { %><span class="badge bg-secondary ms-1"><%= apiInvoices.length %></span><% } %>
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="instalaciones-tab" data-bs-toggle="tab" data-bs-target="#instalaciones" type="button" role="tab" aria-controls="instalaciones" aria-selected="false">
+            <i class="bi bi-wrench"></i> Instalaciones
+            <% if (apiInstallations.length > 0) { %><span class="badge bg-secondary ms-1"><%= apiInstallations.length %></span><% } %>
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="kyc-tab" data-bs-toggle="tab" data-bs-target="#kyc" type="button" role="tab" aria-controls="kyc" aria-selected="false">
+            <i class="bi bi-file-earmark-text"></i> Documentos KYC
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="contrato-tab" data-bs-toggle="tab" data-bs-target="#contrato" type="button" role="tab" aria-controls="contrato" aria-selected="false">
+            <i class="bi bi-file-text"></i> Contrato
+            <% if (contratos.length > 0 || altasOrdenes.length > 0) { %><span class="badge bg-secondary ms-1"><%= contratos.length + altasOrdenes.length %></span><% } %>
+          </button>
+        </li>
+      </ul>
+    </div>
+    <div class="card-body">
+      <div class="tab-content" id="detalleTabContent">
+
+        <!-- ==================== TAB 1: INFO ==================== -->
+        <div class="tab-pane fade show active" id="info" role="tabpanel" aria-labelledby="info-tab">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <div class="card h-100 border">
+                <div class="card-header fw-semibold"><i class="bi bi-person"></i> Datos personales</div>
+                <div class="card-body">
+                  <table class="table table-sm mb-0">
+                    <% var nom = apiCustomer.name || apiCustomer.firstName || cliente.nombre; %>
+                    <% var ape = apiCustomer.lastName || apiCustomer.surname || cliente.apellidos || ''; %>
+                    <tr><th style="width:100px;">Nombre</th><td><%= nom %> <%= ape %></td></tr>
+                    <tr><th>DNI/NIF</th><td><strong><%= apiCustomer.fiscalId || cliente.dni_nif || '-' %></strong></td></tr>
+                    <tr><th>Email</th><td>
+                      <% var em = apiCustomer.email || cliente.email; %>
+                      <% if (em) { %><a href="mailto:<%= em %>"><%= em %></a><% } else { %>-<% } %>
+                    </td></tr>
+                    <tr><th>Tel&eacute;fono</th><td>
+                      <% var tf = apiCustomer.phone || cliente.telefono; %>
+                      <% if (tf) { %><a href="tel:<%= tf %>"><%= tf %></a><% } else { %>-<% } %>
+                    </td></tr>
+                    <tr><th>Tel&eacute;fono 2</th><td><%= cliente.telefono2 || '-' %></td></tr>
+                    <tr><th>Tipo</th><td>
+                      <% var t = apiCustomer.customerType || cliente.tipo_cliente || 'particular'; %>
+                      <span class="badge bg-<%= t === 'empresa' || t === 'Business' || t === 'business' ? 'secondary' : 'primary' %>"><%= t %></span>
+                    </td></tr>
+                    <% if (cliente.likes_customer_id) { %><tr><th>ID Likes</th><td><code><%= cliente.likes_customer_id %></code></td></tr><% } %>
+                    <tr><th>Cliente desde</th><td>
+                      <%= apiCustomer.created || cliente.created_at ? new Date(apiCustomer.created || cliente.created_at).toLocaleDateString('es-ES') : '-' %>
+                    </td></tr>
+                  </table>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="card h-100 border">
+                <div class="card-header fw-semibold"><i class="bi bi-geo-alt"></i> Direcci&oacute;n y pago</div>
+                <div class="card-body">
+                  <table class="table table-sm mb-0">
+                    <% var addr = apiCustomer.billingAddress || {}; %>
+                    <tr><th style="width:100px;">Direcci&oacute;n</th><td>
+                      <%= addr.street || cliente.direccion || '-' %>
+                      <%= addr.cityName || addr.city || cliente.ciudad ? ', ' + (addr.cityName || addr.city || cliente.ciudad) : '' %>
+                      <%= addr.state || cliente.provincia ? ', ' + (addr.state || cliente.provincia) : '' %>
+                      <%= addr.zipCode || addr.zip || cliente.codigo_postal ? ' (' + (addr.zipCode || addr.zip || cliente.codigo_postal) + ')' : '' %>
+                    </td></tr>
+                    <tr><th>M&eacute;todo pago</th><td>
+                      <% if (apiSubscriptions.length > 0) { %>
+                        <% apiSubscriptions.forEach(function(s) { %>
+                          <% var prods = s.products && s.products.length ? s.products : [{productName: s.productName, lineNumber: s.lineNumber}]; %>
+                          <% prods.forEach(function(p) { %>
+                          <% var linea = p.lineNumber || s.lineNumber || ''; %>
+                          <div class="d-flex align-items-center justify-content-between mb-1 pb-1 border-bottom">
+                            <small><strong><%= linea || 'Nueva línea' %></strong> - <%= p.productName || s.productName || '' %></small>
+                            <div class="dropdown d-inline-block">
+                              <button class="btn btn-sm btn-outline-secondary dropdown-toggle py-0" data-bs-toggle="dropdown">
+                                <i class="bi bi-credit-card"></i>
+                              </button>
+                              <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="#" onclick="cambiarPagoLinea('<%= linea %>','IBAN')">🏦 IBAN</a></li>
+                                <li><a class="dropdown-item" href="#" onclick="cambiarPagoLinea('<%= linea %>','Stripe')">💳 Stripe</a></li>
+                                <li><a class="dropdown-item" href="#" onclick="cambiarPagoLinea('<%= linea %>','Prepago')">📱 Prepago</a></li>
+                                <li><a class="dropdown-item" href="#" onclick="cambiarPagoLinea('<%= linea %>','Efectivo')">💵 Efectivo</a></li>
+                              </ul>
+                            </div>
+                          </div>
+                          <% }); %>
+                        <% }); %>
+                      <% } else { %>
+                        <% var pm = apiCustomer.paymentMethod || cliente.metodo_pago; %>
+                        <% if (pm) { %><span class="badge bg-info"><i class="bi bi-credit-card"></i> <%= pm %></span><% } else { %>-<% } %>
+                      <% } %>
+                    </td></tr>
+                    <tr><th>IBAN</th><td>
+                      <div class="input-group input-group-sm">
+                        <input type="text" id="clienteIban" class="form-control" value="<%= apiCustomer.iban || cliente.iban || '' %>" placeholder="ES00 0000 0000 00 0000000000">
+                        <button class="btn btn-outline-primary" onclick="guardarIBAN(<%= cliente.id %>)"><i class="bi bi-check"></i></button>
+                      </div>
+                    </td></tr>
+                  </table>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="card h-100 border">
+                <div class="card-header fw-semibold"><i class="bi bi-shield-check"></i> AEAT &amp; Scoring</div>
+                <div class="card-body">
+                  <table class="table table-sm mb-0">
+                    <tr><th style="width:120px;">Estado AEAT</th><td>
+                      <% var ae = apiCustomer.aeatStatus || cliente.aeat_status || ''; %>
+                      <% if (ae) { %><span class="badge bg-<%= ae === 'ok' || ae === 'verified' || ae === 'valido' || ae === 'valid' ? 'success' : ae === 'pending' || ae === 'pendiente' ? 'warning' : 'danger' %>"><%= ae %></span><% } else { %><span class="text-muted">-</span><% } %>
+                      <button class="btn btn-sm btn-outline-primary ms-1" onclick="editarCampo('aeat_status','<%= cliente.id %>')"><i class="bi bi-pencil"></i></button>
+                    </td></tr>
+                    <tr><th>Scoring</th><td>
+                      <% var sc = apiCustomer.scoring || cliente.scoring || ''; %>
+                      <% if (sc) { %>
+                        <span class="badge bg-<%= parseFloat(sc) >= 7 ? 'success' : parseFloat(sc) >= 4 ? 'warning' : 'danger' %> fs-6"><%= sc %></span>
+                      <% } else { %><span class="text-muted">-</span><% } %>
+                      <button class="btn btn-sm btn-outline-primary ms-1" onclick="editarCampo('scoring','<%= cliente.id %>')"><i class="bi bi-pencil"></i></button>
+                    </td></tr>
+                    <tr><th>Riesgo</th><td>
+                      <% var rk = apiCustomer.riskLevel || cliente.riesgo || ''; %>
+                      <% if (rk) { %><span class="badge bg-<%= rk === 'bajo' || rk === 'low' ? 'success' : rk === 'medio' || rk === 'medium' ? 'danger' : 'warning' %>"><%= rk %></span><% } else { %><span class="text-muted">-</span><% } %>
+                      <button class="btn btn-sm btn-outline-primary ms-1" onclick="editarCampo('riesgo','<%= cliente.id %>')"><i class="bi bi-pencil"></i></button>
+                    </td></tr>
+                  </table>
+                </div>
+              </div>
+            </div>
+            <% if (cliente.notas) { %>
+            <div class="col-12">
+              <div class="card border">
+                <div class="card-header fw-semibold"><i class="bi bi-sticky"></i> Notas</div>
+                <div class="card-body">
+                  <p class="mb-0 text-muted"><%= cliente.notas %></p>
+                </div>
+              </div>
+            </div>
+            <% } %>
+            <div class="col-md-6">
+              <div class="card border">
+                <div class="card-header py-1"><small><i class="bi bi-pie-chart"></i> Estado de L&iacute;neas</small></div>
+                <div class="card-body p-2">
+                  <% if (apiSubscriptions && apiSubscriptions.length > 0) { %>
+                    <% apiSubscriptions.forEach(function(s) { %>
+                      <% var prods = s.products && s.products.length ? s.products : [{productName: s.productName, lineNumber: s.lineNumber, status: s.status, icc: s.icc}]; %>
+                      <% prods.forEach(function(p) { %>
+                        <% var est = (p.status || s.status || 'activa').toLowerCase(); %>
+                        <div class="d-flex align-items-center justify-content-between mb-1 pb-1 border-bottom">
+                          <div>
+                            <strong><%= p.lineNumber || s.lineNumber || 'Nueva línea' %></strong><br>
+                            <small><%= p.productName || s.productName || '-' %></small>
+                          </div>
+                          <div class="text-end">
+                            <span class="badge bg-<%= est === 'activa' || est === 'active' ? 'success' : est === 'suspendida' || est === 'suspended' ? 'warning' : 'secondary' %>">
+                              <%= est %>
+                            </span>
+                            <% if (p.icc || s.icc) { %><br><small class="text-muted">ICC: <%= (p.icc || s.icc).substring(0,15) %>...</small><% } %>
+                          </div>
+                        </div>
+                      <% }); %>
+                    <% }); %>
+                  <% } else { %>
+                    <canvas id="statusChart" height="80"></canvas>
+                  <% } %>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="card border">
+                <div class="card-header py-1 d-flex justify-content-between align-items-center">
+                  <small><i class="bi bi-bar-chart"></i> Consumo GB</small>
+                  <small class="text-muted" id="consLinesInfo"></small>
+                </div>
+                <div class="card-body p-2">
+                  <canvas id="gbChart" height="80"></canvas>
+                  <div id="consPerLine" class="mt-1 small"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ==================== TAB 2: LÍNEAS / SUSCRIPCIONES ==================== -->
+        <div class="tab-pane fade" id="lineas" role="tabpanel" aria-labelledby="lineas-tab">
+          <% if (apiSubscriptions.length === 0 && lineas.length === 0) { %>
+          <div class="text-center text-muted py-5">
+            <i class="bi bi-phone" style="font-size:3rem;"></i>
+            <p class="mt-2">Este cliente no tiene l&iacute;neas o suscripciones</p>
+          </div>
+          <% } else { %>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-dark">
+                <tr>
+                  <th>L&iacute;nea</th>
+                  <th>Producto / Tarifa</th>
+                  <th>Estado</th>
+                  <th>ICC / ICCID</th>
+                  <th>Fecha Alta</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% apiSubscriptions.forEach(function(s) { %>
+                <% var prods = s.products && s.products.length ? s.products : [{productName: s.productName, lineNumber: s.lineNumber, status: s.status, icc: s.icc}]; %>
+                <% prods.forEach(function(p) { %>
+                <% var linea = p.lineNumber || s.lineNumber || ''; %>
+                <tr>
+                  <td>
+                    <% var pname = (p.productName || s.productName || '').toLowerCase(); %>
+                    <% if (pname.includes('fibra') || pname.includes('ftth')) { %><span>🌐</span><% } else if (pname.includes('tv') || pname.includes('television')) { %><span>📺</span><% } else if (pname.includes('fijo') || pname.includes('voip')) { %><span>📞</span><% } else if (pname.includes('movil') || pname.includes('mobile') || pname.includes('tarifa')) { %><span>📱</span><% } else { %><span>📡</span><% } %>
+                    <strong><%= linea || '-' %></strong>
+                  </td>
+                  <td><%= p.productName || s.productName || '-' %></td>
+                  <td>
+                    <% var est = (p.status || s.status || 'activa').toLowerCase(); %>
+                    <span class="badge bg-<%= est === 'activa' || est === 'activo' || est === 'active' ? 'success' : est === 'suspendida' || est === 'suspended' ? 'warning' : est === 'baja' || est === 'cancelled' || est === 'cancelada' ? 'secondary' : 'danger' %> fs-6">
+                      <%= est %>
+                    </span>
+                  </td>
+                  <td><small class="text-muted"><%= p.icc || s.icc || '-' %></small></td>
+                  <td><small><%= (s.startDate || s.created) ? new Date(s.startDate || s.created).toLocaleDateString('es-ES') : '-' %></small></td>
+                  <td>
+                    <div class="d-flex gap-1 flex-wrap">
+                      <button class="btn btn-sm btn-outline-info ver-consumo" data-line="<%= linea %>" data-client="<%= cliente.id %>" <%= linea ? '' : 'disabled' %> title="Consumo">
+                        <i class="bi bi-graph-up"></i>
+                      </button>
+                      <button class="btn btn-sm btn-outline-warning toggle-block" data-line="<%= linea %>" data-client="<%= cliente.id %>" data-blocked="<%= est !== 'activa' && est !== 'active' %>" <%= linea ? '' : 'disabled' %> title="<%= (est === 'activa' || est === 'active') ? 'Bloquear' : 'Desbloquear' %>">
+                        <i class="bi <%= (est === 'activa' || est === 'active') ? 'bi-lock' : 'bi-unlock' %>"></i>
+                      </button>
+                      <button class="btn btn-sm btn-outline-primary cambiar-tarifa-btn" data-line="<%= linea %>" title="Cambiar tarifa">
+                        <i class="bi bi-arrow-left-right"></i>
+                      </button>
+                      <button class="btn btn-sm btn-outline-secondary duplicar-sim-btn" data-line="<%= linea %>" title="Duplicar SIM">
+                        <i class="bi bi-sd-card"></i>
+                      </button>
+                      <button class="btn btn-sm btn-outline-dark mostrar-pinpuk" data-line="<%= linea %>" data-pin="<%= p.pin || s.pin || '' %>" data-puk="<%= p.puk || s.puk || '' %>" title="PIN/PUK">
+                        <i class="bi bi-key"></i>
+                      </button>
+                      <div class="dropdown d-inline-block">
+                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" title="Método pago"><i class="bi bi-credit-card"></i></button>
+                        <ul class="dropdown-menu">
+                          <li><a class="dropdown-item" href="#" onclick="cambiarPagoLinea('<%= linea %>','IBAN')">🏦 IBAN</a></li>
+                          <li><a class="dropdown-item" href="#" onclick="cambiarPagoLinea('<%= linea %>','Stripe')">💳 Stripe</a></li>
+                          <li><a class="dropdown-item" href="#" onclick="cambiarPagoLinea('<%= linea %>','Prepago')">📱 Prepago</a></li>
+                          <li><a class="dropdown-item" href="#" onclick="cambiarPagoLinea('<%= linea %>','Efectivo')">💵 Efectivo</a></li>
+                        </ul>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+                <% }); %>
+                <% }); %>
+                <% lineas.forEach(function(l) { %>
+                <% if (!apiSubscriptions.some(function(s) { var prods = s.products && s.products.length ? s.products : [{productName: s.productName, lineNumber: s.lineNumber, status: s.status, icc: s.icc}]; return prods.some(function(p) { return p.lineNumber === l.linea; }); })) { %>
+                <tr class="table-secondary">
+                  <td>
+                    <% var lpname = (l.producto || '').toLowerCase(); %>
+                    <% if (lpname.includes('fibra') || lpname.includes('ftth')) { %><span>🌐</span><% } else if (lpname.includes('tv') || lpname.includes('television')) { %><span>📺</span><% } else if (lpname.includes('fijo') || lpname.includes('voip')) { %><span>📞</span><% } else if (lpname.includes('movil') || lpname.includes('mobile') || lpname.includes('tarifa')) { %><span>📱</span><% } else { %><span>📡</span><% } %>
+                    <strong><%= l.linea || '-' %></strong>
+                  </td>
+                  <td><%= l.producto || '-' %> <small class="text-muted">(local)</small></td>
+                  <td>
+                    <span class="badge bg-<%= l.estado === 'activo' ? 'success' : l.estado === 'pendiente' ? 'warning' : l.estado === 'baja' ? 'secondary' : 'danger' %> fs-6"><%= l.estado %></span>
+                  </td>
+                  <td><small class="text-muted"><%= l.iccid || '-' %></small></td>
+                  <td><small><%= l.fecha_alta ? new Date(l.fecha_alta).toLocaleDateString('es-ES') : '-' %></small></td>
+                  <td>
+                    <div class="d-flex gap-1 flex-wrap">
+                      <button class="btn btn-sm btn-outline-info ver-consumo" data-line="<%= l.linea %>" data-client="<%= cliente.id %>" <%= l.linea ? '' : 'disabled' %> title="Consumo">
+                        <i class="bi bi-graph-up"></i>
+                      </button>
+                      <button class="btn btn-sm btn-outline-warning toggle-block" data-line="<%= l.linea %>" data-client="<%= cliente.id %>" data-blocked="<%= l.estado !== 'activo' %>" <%= l.linea ? '' : 'disabled' %> title="<%= l.estado === 'activo' ? 'Bloquear' : 'Desbloquear' %>">
+                        <i class="bi <%= l.estado === 'activo' ? 'bi-lock' : 'bi-unlock' %>"></i>
+                      </button>
+                      <button class="btn btn-sm btn-outline-primary cambiar-tarifa-btn" data-line="<%= l.linea %>" title="Cambiar tarifa">
+                        <i class="bi bi-arrow-left-right"></i>
+                      </button>
+                      <button class="btn btn-sm btn-outline-secondary duplicar-sim-btn" data-line="<%= l.linea %>" title="Duplicar SIM">
+                        <i class="bi bi-sd-card"></i>
+                      </button>
+                      <button class="btn btn-sm btn-outline-dark mostrar-pinpuk" data-line="<%= l.linea %>" data-pin="<%= l.pin || '' %>" data-puk="<%= l.puk || '' %>" title="PIN/PUK">
+                        <i class="bi bi-key"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                <% } %>
+                <% }); %>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="d-flex gap-2 flex-wrap mt-3">
+            <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#changeTariffModal"><i class="bi bi-arrow-left-right"></i> Cambiar tarifa</button>
+            <button class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#blockLineModal"><i class="bi bi-lock"></i> Bloquear / Desbloquear</button>
+            <button class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#duplicateSimModal"><i class="bi bi-sd-card"></i> Duplicar SIM</button>
+          </div>
+          <% } %>
+        </div>
+
+        <!-- ==================== TAB 3: ÓRDENES ==================== -->
+        <div class="tab-pane fade" id="ordenes" role="tabpanel" aria-labelledby="ordenes-tab">
+          <% if (apiOrders.length === 0) { %>
+          <div class="text-center text-muted py-5">
+            <i class="bi bi-cart" style="font-size:3rem;"></i>
+            <p class="mt-2">No hay &oacute;rdenes en la API para este cliente</p>
+          </div>
+          <% } else { %>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-dark">
+                <tr>
+                  <th># ID</th>
+                  <th>Estado</th>
+                  <th>Producto</th>
+                  <th>L&iacute;nea</th>
+                  <th>Total</th>
+                  <th>Fecha Creaci&oacute;n</th>
+                  <th>Historial</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% apiOrders.forEach(function(o) { %>
+                <tr>
+                  <td><small class="text-muted"><%= o.productName !== '-' ? o.productName : (o.idShort || o.id || '-') %></small></td>
+                  <td>
+                    <% var os = (o.status || '').toLowerCase(); %>
+                    <span class="badge bg-<%= os === 'completed' || os === 'completada' || os === 'delivered' ? 'success' : os === 'pending' || os === 'pendiente' || os === 'processing' || os === 'pending_provider' ? 'warning' : os === 'cancelled' || os === 'cancelada' || os === 'rejected' ? 'danger' : os === 'shipped' || os === 'enviado' ? 'info' : 'secondary' %> fs-6">
+                      <%= o.statusES || o.status %>
+                    </span>
+                  </td>
+                  <td><%= o.productName || '-' %></td>
+                  <td><%= o.lineNumber || '-' %></td>
+                  <td><strong><%= o.total ? parseFloat(o.total).toFixed(2) + '€' : '-' %></strong></td>
+                  <td><small><%= o.created ? new Date(o.created).toLocaleDateString('es-ES') : '-' %></small></td>
+                  <td>
+                    <% if (o.statusHistory && o.statusHistory.length > 0) { %>
+                    <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="popover" data-bs-html="true" data-bs-trigger="focus" tabindex="0" title="Historial" data-bs-content="<%= o.statusHistory.map(function(h){ var hd = h.date || h.created || h.timestamp || ''; var hs = h.status || h.estado || h.state || ''; var hn = h.note || h.nota || h.comment || ''; return '<div class=\"small\">' + (hd ? new Date(hd).toLocaleDateString('es-ES') + ' ' : '') + '<span class=\"badge bg-info\">' + hs + '</span>' + (hn ? '<br><em>' + hn + '</em>' : '') + '</div>'; }).join('<hr class=\"my-1\">') %>">
+                        <i class="bi bi-clock-history"></i> <%= o.statusHistory.length %>
+                      </button>
+                    <% } else { %>
+                    <span class="text-muted">-</span>
+                    <% } %>
+                  </td>
+                </tr>
+                <% }); %>
+              </tbody>
+            </table>
+          </div>
+          <% } %>
+        </div>
+
+        <!-- ==================== TAB 4: FACTURAS ==================== -->
+        <div class="tab-pane fade" id="facturas" role="tabpanel" aria-labelledby="facturas-tab">
+          <!-- Facturas ISP agrupadas por periodo -->
+          <% if (facturasAgrupadas && Object.keys(facturasAgrupadas).length > 0) { %>
+            <% var periodos = Object.keys(facturasAgrupadas).sort().reverse(); %>
+            <div class="accordion mb-3" id="facturasAccordion">
+              <% periodos.forEach(function(periodo) { %>
+              <% var facturasPeriodo = facturasAgrupadas[periodo]; %>
+              <div class="accordion-item">
+                <h2 class="accordion-header">
+                  <button class="accordion-button collapsed py-2" type="button" data-bs-toggle="collapse" data-bs-target="#facturas<%= periodo.replace(/[^a-zA-Z0-9]/g,'_') %>">
+                    <strong><%= periodo %></strong>
+                    <span class="ms-2 badge bg-primary"><%= facturasPeriodo.length %> factura(s)</span>
+                  </button>
+                </h2>
+                <div id="facturas<%= periodo.replace(/[^a-zA-Z0-9]/g,'_') %>" class="accordion-collapse collapse" data-bs-parent="#facturasAccordion">
+                  <div class="accordion-body p-0">
+                    <table class="table table-sm table-hover mb-0">
+                      <thead class="table-light">
+                        <tr><th>Nº Factura</th><th>Concepto</th><th>Importe</th><th>Estado</th><th></th></tr>
+                      </thead>
+                      <tbody>
+                        <% facturasPeriodo.forEach(function(f) { %>
+                        <tr>
+                          <td><strong><%= (f.serie || 'F') + '-' + String(f.numero_factura || f.id).padStart(5, '0') %></strong></td>
+                          <td><%= f.cliente_nombre || '-' %></td>
+                          <td><%= parseFloat(f.importe_total || 0).toFixed(2) %>€</td>
+                          <td><span class="badge bg-<%= f.estado === 'pagada' ? 'success' : f.estado === 'pendiente' ? 'warning' : f.estado === 'anulada' ? 'danger' : 'secondary' %>"><%= f.estado || '-' %></span></td>
+                          <td>
+                            <a href="/isp/facturacion/facturas/<%= f.id %>/view" class="btn btn-sm btn-outline-info" target="_blank"><i class="bi bi-eye"></i></a>
+                            <a href="/isp/facturacion/facturas/<%= f.id %>" class="btn btn-sm btn-outline-primary" target="_blank"><i class="bi bi-info-circle"></i></a>
+                          </td>
+                        </tr>
+                        <% }); %>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+              <% }); %>
+            </div>
+          <% } else { %>
+          <div class="mb-3">
+            <a href="/isp/facturacion/facturas?fiscal=<%= encodeURIComponent(cliente.dni_nif || '') %>" class="btn btn-sm btn-outline-primary" target="_blank">
+              <i class="bi bi-box-arrow-up-right"></i> Ver facturas ISP completas
+            </a>
+            <a href="/isp/nube" class="btn btn-sm btn-outline-info" target="_blank">
+              <i class="bi bi-cloud"></i> Ver nube/Drive
+            </a>
+          </div>
+          <% } %>
+          <% if (apiInvoices.length > 0) { %>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-dark">
+                <tr>
+                  <th>Periodo</th>
+                  <th>Concepto</th>
+                  <th>Importe</th>
+                  <th>Estado</th>
+                  <th>Fecha Emisi&oacute;n</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <% apiInvoices.forEach(function(f) { %>
+                <tr>
+                  <td><strong><%= f.period || '-' %></strong></td>
+                  <td><%= f.concept || '-' %></td>
+                  <td><strong><%= f.amount.toFixed(2) %>€</strong></td>
+                  <td>
+                    <% var fs = (f.status || '').toLowerCase(); %>
+                    <span class="badge bg-<%= fs === 'paid' || fs === 'pagada' || fs === 'completada' ? 'success' : fs === 'pending' || fs === 'pendiente' ? 'warning' : fs === 'overdue' || fs === 'vencida' ? 'danger' : fs === 'cancelled' || fs === 'cancelada' ? 'secondary' : 'info' %>">
+                      <%= f.status %>
+                    </span>
+                  </td>
+                  <td><small><%= f.issuedDate ? new Date(f.issuedDate).toLocaleDateString('es-ES') : '-' %></small></td>
+                  <td>
+                    <% if (f.id) { %>
+                    <a href="/isp/facturacion/facturas/<%= f.id %>" target="_blank" class="btn btn-sm btn-outline-primary">
+                      <i class="bi bi-eye"></i>
+                    </a>
+                    <% } %>
+                  </td>
+                </tr>
+                <% if (f.fees && f.fees.length > 0) { %>
+                <tr class="table-light">
+                  <td colspan="6" class="p-0">
+                    <table class="table table-sm table-borderless mb-0 ms-4" style="width:auto;">
+                      <% f.fees.forEach(function(fee) { %>
+                      <tr>
+                        <td style="width:80px;"></td>
+                        <td style="min-width:120px;"><small class="text-muted"><%= fee.productName %></small></td>
+                        <td style="min-width:100px;"><% if (fee.lineNumber) { %><small class="text-muted"><%= fee.lineNumber %></small><% } %></td>
+                        <td style="min-width:80px;text-align:right;"><small><%= fee.price.toFixed(2) %>€</small></td>
+                      </tr>
+                      <% }); %>
+                    </table>
+                  </td>
+                </tr>
+                <% } %>
+                <% }); %>
+              </tbody>
+            </table>
+          </div>
+          <% } %>
+        </div>
+
+        <!-- ==================== TAB 5: INSTALACIONES ==================== -->
+        <div class="tab-pane fade" id="instalaciones" role="tabpanel" aria-labelledby="instalaciones-tab">
+          <% if (apiInstallations.length === 0) { %>
+          <div class="text-center text-muted py-5">
+            <i class="bi bi-wrench" style="font-size:3rem;"></i>
+            <p class="mt-2">No hay instalaciones para este cliente</p>
+          </div>
+          <% } else { %>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-dark">
+                <tr>
+                  <th>Direcci&oacute;n</th>
+                  <th>Producto</th>
+                  <th>Estado</th>
+                  <th>Fecha Programada</th>
+                  <th>Fecha Real</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <% apiInstallations.forEach(function(i) { %>
+                <tr>
+                  <td><%= i.address || '-' %><br><small class="text-muted"><%= i.city || '' %></small></td>
+                  <td><%= i.productName || '-' %></td>
+                  <td>
+                    <span class="badge bg-<%= (i.status || '').toLowerCase() === 'completed' || (i.status || '').toLowerCase() === 'completada' ? 'success' : (i.status || '').toLowerCase() === 'scheduled' || (i.status || '').toLowerCase() === 'programada' ? 'info' : (i.status || '').toLowerCase() === 'pending' || (i.status || '').toLowerCase() === 'pendiente' ? 'warning' : 'secondary' %>">
+                      <%= i.status %>
+                    </span>
+                  </td>
+                  <td><small><%= i.scheduledDate ? new Date(i.scheduledDate).toLocaleDateString('es-ES') : '-' %></small></td>
+                  <td><small><%= i.completedDate ? new Date(i.completedDate).toLocaleDateString('es-ES') : '-' %></small></td>
+                  <td>
+                    <button class="btn btn-sm btn-outline-info ver-instalacion"
+                      data-id="<%= i.id %>"
+                      data-address="<%= i.address %>"
+                      data-city="<%= i.city %>"
+                      data-product="<%= i.productName %>"
+                      data-status="<%= i.status %>"
+                      data-scheduled="<%= i.scheduledDate %>"
+                      data-completed="<%= i.completedDate %>"
+                      data-notes="<%= i.notes || '' %>"
+                      data-technician="<%= i.technician || '' %>"
+                      data-dni="<%= i.dni || '' %>"
+                      data-ot="<%= i.ot || '' %>"
+                      data-router="<%= i.router || '' %>"
+                      data-ont="<%= i.ont || '' %>"
+                      data-cto="<%= i.cto || '' %>"
+                      data-contrata="<%= i.contrata || '' %>"
+                      data-parturl="<%= i.partUrl || '' %>"
+                      data-history='<%= JSON.stringify(i.history || []) %>'>
+                      <i class="bi bi-eye"></i> Ver Detalle
+                    </button>
+                  </td>
+                </tr>
+                <% }); %>
+              </tbody>
+            </table>
+          </div>
+          <% } %>
+        </div>
+
+        <!-- ==================== TAB 6: DOCUMENTOS KYC ==================== -->
+        <div class="tab-pane fade" id="kyc" role="tabpanel" aria-labelledby="kyc-tab">
+          <% if (altasOrdenes.length === 0 && (!documentos || documentos.length === 0)) { %>
+          <div class="text-center text-muted py-5">
+            <i class="bi bi-file-earmark-text" style="font-size:3rem;"></i>
+            <p class="mt-2">Sin documentos KYC</p>
+          </div>
+          <% } else { %>
+            <% if (altasOrdenes.length > 0) { %>
+              <% altasOrdenes.forEach(function(o, oidx) { %>
+              <% var datosCliente = o.datos_cliente ? JSON.parse(o.datos_cliente) : {}; %>
+              <% var datosProducto = o.datos_producto ? JSON.parse(o.datos_producto) : {}; %>
+              <div class="card border mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                  <span class="fw-semibold">
+                    <i class="bi bi-cart"></i> Orden #<%= o.id %>
+                    <span class="badge bg-<%= o.estado === 'completada' ? 'success' : o.estado === 'pendiente_kyc' ? 'warning' : o.estado === 'pendiente_aprobacion' ? 'info' : o.estado === 'cancelada' ? 'danger' : 'secondary' %> ms-2"><%= o.estado %></span>
+                  </span>
+                  <small class="text-muted"><%= o.created_at ? new Date(o.created_at).toLocaleDateString('es-ES') : '-' %></small>
+                </div>
+                <div class="card-body">
+                  <div class="row g-3">
+                    <div class="col-md-6">
+                      <table class="table table-sm mb-0">
+                        <tr><th style="width:120px;">Producto</th><td><%= datosProducto.producto_id || '-' %></td></tr>
+                        <tr><th>Contrataci&oacute;n</th><td><%= datosProducto.tipo_contratacion || '-' %></td></tr>
+                        <tr><th>M&eacute;todo pago</th><td><%= (o.datos_pago ? JSON.parse(o.datos_pago).metodo : '') || '-' %></td></tr>
+                        <tr><th>KYC docs</th><td><%= o.kyc_docs_subidos || 0 %> subidos<%= o.kyc_completado ? ' &middot; <span class="text-success"><i class="bi bi-check-circle"></i> Completado</span>' : '' %></td></tr>
+                        <tr><th>Contrato firmado</th><td><%= o.kyc_contrato_firmado ? '<span class="text-success"><i class="bi bi-check-circle"></i> S&iacute;</span>' : '<span class="text-warning"><i class="bi bi-clock"></i> Pendiente</span>' %></td></tr>
+                      </table>
+                    </div>
+                    <div class="col-md-6 text-end">
+                      <div class="d-flex gap-2 justify-content-end flex-wrap">
+                        <a href="/kyc/contrato/<%= o.token %>" target="_blank" class="btn btn-sm btn-outline-primary">
+                          <i class="bi bi-file-text"></i> Ver contrato
+                        </a>
+                        <% if (o.kyc_contrato_firmado) { %>
+                        <button class="btn btn-sm btn-success" onclick="window.open('/kyc/contrato/<%= o.token %>','_blank')">
+                          <i class="bi bi-file-earmark-check"></i> Contrato firmado
+                        </button>
+                        <% } %>
+                      </div>
+                    </div>
+                  </div>
+
+                  <% var docsOrden = kycDocsPorOrden && kycDocsPorOrden[o.id] ? kycDocsPorOrden[o.id] : []; %>
+                  <% if (docsOrden.length > 0) { %>
+                  <hr>
+                  <h6 class="mb-2"><i class="bi bi-images"></i> Documentos subidos</h6>
+                  <div class="row g-2">
+                    <% docsOrden.forEach(function(d) { %>
+                    <div class="col-md-4 col-6">
+                      <div class="card border h-100">
+                        <div class="card-body text-center py-3">
+                          <i class="bi bi-file-earmark-image" style="font-size:2rem;"></i>
+                          <div class="mt-1"><small><strong><%= d.tipo || 'Documento' %></strong></small></div>
+                          <div class="mt-1">
+                            <span class="badge bg-<%= d.estado === 'subido' ? 'success' : 'warning' %>"><%= d.estado %></span>
+                          </div>
+                          <% if (d.download_url) { %>
+                          <a href="<%= d.download_url %>" target="_blank" class="btn btn-sm btn-outline-primary mt-2">
+                            <i class="bi bi-download"></i> Descargar (Drive)
+                          </a>
+                          <% } else if (d.archivo) { %>
+                          <a href="/uploads/kyc/<%= d.archivo %>" target="_blank" class="btn btn-sm btn-outline-primary mt-2">
+                            <i class="bi bi-eye"></i> Ver
+                          </a>
+                          <% } %>
+                        </div>
+                      </div>
+                    </div>
+                    <% }) %>
+                  </div>
+                  <% } %>
+                </div>
+              </div>
+              <% }) %>
+            <% } %>
+
+            <% if (typeof kycDocs !== 'undefined' && kycDocs && kycDocs.length > 0) { %>
+            <hr class="my-3">
+            <h6><i class="bi bi-images"></i> Documentos desde API</h6>
+            <div class="row g-2">
+              <% kycDocs.forEach(function(d) { %>
+              <div class="col-md-4 col-6">
+                <div class="card border h-100">
+                  <div class="card-body text-center py-3">
+                    <i class="bi bi-file-earmark" style="font-size:2rem;"></i>
+                    <div class="mt-1"><small><strong><%= d.tipo || 'Documento' %></strong></small></div>
+                    <div class="mt-1"><span class="badge bg-success"><%= d.estado || 'subido' %></span></div>
+                    <% if (d.download_url || d.upload_url) { %>
+                    <a href="<%= d.download_url || d.upload_url %>" target="_blank" class="btn btn-sm btn-outline-primary mt-2">
+                      <i class="bi bi-eye"></i> Ver
+                    </a>
+                    <% } %>
+                  </div>
+                </div>
+              </div>
+              <% }); %>
+            </div>
+            <% } %>
+
+            <% if (documentos && documentos.length > 0) { %>
+            <hr class="my-3">
+            <h6><i class="bi bi-folder"></i> Documentos ISP</h6>
+            <div class="table-responsive">
+              <table class="table table-sm table-hover">
+                <thead class="table-light">
+                  <tr><th>Nombre</th><th>Tipo</th><th>Categor&iacute;a</th><th>Fecha</th><th></th></tr>
+                </thead>
+                <tbody>
+                  <% documentos.forEach(function(d) { %>
+                  <tr>
+                    <td><%= d.nombre || d.archivo || 'Documento' %></td>
+                    <td><span class="badge bg-secondary"><%= d.tipo || '-' %></span></td>
+                    <td><%= d.categoria || '-' %></td>
+                    <td><small><%= d.created_at ? new Date(d.created_at).toLocaleDateString('es-ES') : '-' %></small></td>
+                    <td>
+                      <% if (d.ruta) { %>
+                      <a href="<%= d.ruta %>" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-download"></i></a>
+                      <% } %>
+                    </td>
+                  </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+            <% } %>
+          <% } %>
+        </div>
+
+        <!-- ==================== TAB 7: CONTRATO ==================== -->
+        <div class="tab-pane fade" id="contrato" role="tabpanel" aria-labelledby="contrato-tab">
+          <div class="mb-3">
+            <a href="/isp/contratos?search=<%= encodeURIComponent(cliente.dni_nif || cliente.nombre || '') %>" class="btn btn-sm btn-outline-primary" target="_blank">
+              <i class="bi bi-box-arrow-up-right"></i> Ver contratos ISP
+            </a>
+          </div>
+          <% if (altasOrdenes.length === 0 && contratos.length === 0 && (!apiContratos || apiContratos.length === 0)) { %>
+          <div class="text-center text-muted py-5">
+            <i class="bi bi-file-text" style="font-size:3rem;"></i>
+            <p class="mt-2">Sin contratos</p>
+          </div>
+          <% } else { %>
+            <% if (altasOrdenes.length > 0) { %>
+            <h6 class="mb-3"><i class="bi bi-cart"></i> Contratos de altas_ordenes</h6>
+            <div class="table-responsive mb-4">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="table-dark">
+                  <tr><th>#</th><th>Producto</th><th>Estado</th><th>Fecha</th><th>Contrato firmado</th><th></th></tr>
+                </thead>
+                <tbody>
+                  <% altasOrdenes.forEach(function(o) { %>
+                  <% var dp = o.datos_producto ? JSON.parse(o.datos_producto) : {}; %>
+                  <tr>
+                    <td><strong>#<%= o.id %></strong></td>
+                    <td><%= dp.producto_id || '-' %></td>
+                    <td><span class="badge bg-<%= o.estado === 'completada' ? 'success' : o.estado === 'pendiente_kyc' ? 'warning' : o.estado === 'cancelada' ? 'danger' : 'info' %>"><%= o.estado %></span></td>
+                    <td><small><%= o.created_at ? new Date(o.created_at).toLocaleDateString('es-ES') : '-' %></small></td>
+                    <td>
+                      <% if (o.kyc_contrato_firmado) { %>
+                      <span class="text-success"><i class="bi bi-check-circle"></i> Firmado</span>
+                      <% } else { %>
+                      <span class="text-warning"><i class="bi bi-clock"></i> Pendiente</span>
+                      <% } %>
+                    </td>
+                    <td>
+                      <a href="/kyc/contrato/<%= o.token %>" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-file-text"></i> Ver contrato</a>
+                    </td>
+                  </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+            <% } %>
+            <% if (contratos.length > 0) { %>
+            <h6 class="mb-3"><i class="bi bi-broadcast"></i> Contratos ISP</h6>
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="table-dark">
+                  <tr><th>#</th><th>Producto / Tarifa</th><th>L&iacute;nea</th><th>Estado</th><th>Fecha Alta</th><th></th></tr>
+                </thead>
+                <tbody>
+                  <% contratos.forEach(function(c) { %>
+                  <tr>
+                    <td><strong>#<%= c.id %></strong></td>
+                    <td><%= c.producto || c.tarifa || '-' %></td>
+                    <td><%= c.linea || '-' %></td>
+                    <td><span class="badge bg-<%= c.estado === 'activo' ? 'success' : c.estado === 'pendiente' ? 'warning' : 'danger' %>"><%= c.estado %></span></td>
+                    <td><small><%= c.fecha_alta ? new Date(c.fecha_alta).toLocaleDateString('es-ES') : '-' %></small></td>
+                    <td><a href="/isp/contratos/<%= c.id %>" class="btn btn-sm btn-outline-info"><i class="bi bi-eye"></i></a></td>
+                  </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+            <% } %>
+            <% if (apiContratos && apiContratos.length > 0) { %>
+            <h6 class="mb-3 mt-3"><i class="bi bi-cloud"></i> Contratos desde API</h6>
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="table-dark">
+                  <tr><th>Producto</th><th>L&iacute;nea</th><th>Estado</th><th>ICC</th><th>PIN/PUK</th><th>Fecha Alta</th></tr>
+                </thead>
+                <tbody>
+                  <% apiContratos.forEach(function(c) { %>
+                  <tr>
+                    <td><%= c.producto || '-' %></td>
+                    <td><%= c.linea || '-' %></td>
+                    <td><span class="badge bg-<%= c.estado === 'active' || c.estado === 'activo' ? 'success' : c.estado === 'suspended' || c.estado === 'suspendida' ? 'warning' : 'secondary' %>"><%= c.estado %></span></td>
+                    <td><small><%= c.iccid || '-' %></small></td>
+                    <td><button class="btn btn-sm btn-outline-dark" onclick="mostrarPinPuk('<%= c.linea %>','<%= c.pin %>','<%= c.puk %>')"><i class="bi bi-key"></i></button></td>
+                    <td><small><%= c.fecha_alta ? new Date(c.fecha_alta).toLocaleDateString('es-ES') : '-' %></small></td>
+                  </tr>
+                  <% }); %>
+                </tbody>
+              </table>
+            </div>
+            <% } %>
+          <% } %>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Installation Detail Modal -->
+<div class="modal fade" id="instalacionDetailModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-wrench"></i> Detalle de Instalaci&oacute;n</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <table class="table table-sm mb-0">
+          <tr><th style="width:140px;">ID</th><td id="instDetId">-</td></tr>
+          <tr><th>Direcci&oacute;n</th><td id="instDetAddress">-</td></tr>
+          <tr><th>Producto</th><td id="instDetProduct">-</td></tr>
+          <tr><th>Estado</th><td id="instDetStatus">-</td></tr>
+          <tr><th>DNI</th><td id="instDetDni">-</td></tr>
+          <tr><th>OT</th><td id="instDetOt">-</td></tr>
+          <tr><th>Router</th><td id="instDetRouter">-</td></tr>
+          <tr><th>ONT</th><td id="instDetOnt">-</td></tr>
+          <tr><th>CTO</th><td id="instDetCto">-</td></tr>
+          <tr><th>Contrata</th><td id="instDetContrata">-</td></tr>
+          <tr><th>Fecha Programada</th><td id="instDetScheduled">-</td></tr>
+          <tr><th>Fecha Real</th><td id="instDetCompleted">-</td></tr>
+          <tr><th>T&eacute;cnico</th><td id="instDetTechnician">-</td></tr>
+          <tr><th>Notas</th><td id="instDetNotes">-</td></tr>
+        </table>
+        <hr>
+        <h6><i class="bi bi-clock-history"></i> Historial</h6>
+        <div id="instDetHistory" style="max-height:200px;overflow:auto;">
+          <div class="text-center text-muted py-2">Sin historial</div>
+        </div>
+        <div id="instDetPartContainer" class="mt-2" style="display:none;">
+          <a id="instDetPartLink" href="#" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-download"></i> Descargar parte</a>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PIN/PUK Modal -->
+<div class="modal fade" id="pinPukModal" tabindex="-1">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-key"></i> PIN / PUK</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center">
+        <p class="mb-2"><strong>L&iacute;nea:</strong> <span id="pinPukLinea" class="text-primary"></span></p>
+        <div class="row g-2">
+          <div class="col-6">
+            <div class="border rounded p-3 bg-light">
+              <small class="text-muted d-block">PIN</small>
+              <strong id="pinPukPin" style="font-size:1.3rem;letter-spacing:2px;">-</strong>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="border rounded p-3 bg-light">
+              <small class="text-muted d-block">PUK</small>
+              <strong id="pinPukPuk" style="font-size:1.3rem;letter-spacing:2px;">-</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer justify-content-center">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Consumption Modal -->
+<div class="modal fade" id="consumptionModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-graph-up"></i> Consumo - <span id="consLineNumber"></span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-md-5">
+            <canvas id="consGBChart" height="200"></canvas>
+          </div>
+          <div class="col-md-7">
+            <table class="table table-sm table-bordered mb-0">
+              <tr><th>Total GB</th><td id="consTotalGB">-</td></tr>
+              <tr><th>Usados GB</th><td id="consUsedGB">-</td></tr>
+              <tr><th>Restantes GB</th><td id="consRemainingGB">-</td></tr>
+              <tr><th>Roaming GB</th><td id="consRoamingGB">-</td></tr>
+            </table>
+          </div>
+        </div>
+        <hr>
+        <h6 class="mt-3"><i class="bi bi-bar-chart"></i> Consumo diario (GB)</h6>
+        <div style="max-height:200px;overflow:auto">
+          <table class="table table-sm table-striped mb-0">
+            <thead><tr><th>Fecha</th><th class="text-end">GB</th></tr></thead>
+            <tbody id="consDailyBody"><tr><td colspan="2" class="text-center text-muted">Cargando...</td></tr></tbody>
+          </table>
+        </div>
+        <hr>
+        <h6 class="mt-3"><i class="bi bi-telephone"></i> Llamadas recientes (CDRs)</h6>
+        <div style="max-height:300px;overflow:auto">
+          <table class="table table-sm table-striped mb-0">
+            <thead><tr><th>Fecha</th><th>Tipo</th><th>Destino</th><th>Duraci&oacute;n</th><th>Coste</th></tr></thead>
+            <tbody id="cdrsBody"><tr><td colspan="5" class="text-center text-muted">Cargando...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Change Tariff Modal -->
+<div class="modal fade" id="changeTariffModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-arrow-left-right"></i> Cambiar tarifa</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">L&iacute;nea</label>
+          <select id="tariffLine" class="form-select"><option value="">Seleccione l&iacute;nea...</option></select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Nuevo producto</label>
+          <div id="tariffProductCards" class="row g-2">
+            <div class="col-12 text-center text-muted py-3" id="tariffLoading">Cargando productos...</div>
+          </div>
+          <select id="tariffProduct" class="form-select d-none"></select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Ejecutar</label>
+          <select id="tariffSchedule" class="form-select">
+            <option value="">Inmediatamente</option>
+            <option value="next_billing">Pr&oacute;xima facturaci&oacute;n</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button id="submitChangeTariff" class="btn btn-primary"><i class="bi bi-check"></i> Solicitar cambio</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Block Line Modal -->
+<div class="modal fade" id="blockLineModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-lock"></i> Bloquear / Desbloquear l&iacute;nea</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">L&iacute;nea</label>
+          <select id="blockLineSelect" class="form-select"><option value="">Seleccione l&iacute;nea...</option></select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Acci&oacute;n</label>
+          <div>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="radio" name="blockAction" id="blockActionBlock" value="block" checked>
+              <label class="form-check-label" for="blockActionBlock"><i class="bi bi-lock"></i> Bloquear</label>
+            </div>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="radio" name="blockAction" id="blockActionUnblock" value="unblock">
+              <label class="form-check-label" for="blockActionUnblock"><i class="bi bi-unlock"></i> Desbloquear</label>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button id="submitBlockLine" class="btn btn-warning"><i class="bi bi-check"></i> Ejecutar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Duplicate SIM Modal -->
+<div class="modal fade" id="duplicateSimModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-sd-card"></i> Duplicar SIM</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">L&iacute;nea</label>
+          <select id="simLine" class="form-select"><option value="">Seleccione l&iacute;nea...</option></select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Motivo</label>
+          <select id="simReason" class="form-select">
+            <option value="lost">Perdida</option>
+            <option value="stolen">Robada</option>
+            <option value="broken">Rota / Defectuosa</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Tipo</label>
+          <div>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="radio" name="simType" id="simTypePhysical" value="sim" checked>
+              <label class="form-check-label" for="simTypePhysical">SIM f&iacute;sica</label>
+            </div>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="radio" name="simType" id="simTypeEsim" value="esim">
+              <label class="form-check-label" for="simTypeEsim">eSIM</label>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button id="submitDuplicateSim" class="btn btn-info"><i class="bi bi-check"></i> Solicitar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function mostrarPinPuk(linea, pin, puk) {
+  document.getElementById('pinPukLinea').textContent = linea || '-';
+  document.getElementById('pinPukPin').textContent = pin || '-';
+  document.getElementById('pinPukPuk').textContent = puk || '-';
+  new bootstrap.Modal(document.getElementById('pinPukModal')).show();
+}
+
+function editarCampo(campo, clienteId) {
+  var valorActual = '';
+  if (campo === 'aeat_status') valorActual = '<%= (cliente.aeat_status || apiCustomer.aeatStatus || "") %>';
+  else if (campo === 'scoring') valorActual = '<%= (cliente.scoring || apiCustomer.scoring || "") %>';
+  else if (campo === 'riesgo') valorActual = '<%= (cliente.riesgo || apiCustomer.riskLevel || "") %>';
+  var nuevoValor = prompt('Valor para ' + campo + ':', valorActual);
+  if (nuevoValor === null) return;
+  fetch('/clientes/' + clienteId + '/campo', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ campo: campo, valor: nuevoValor })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d.ok) { location.reload(); }
+    else { alert('Error: ' + (d.error || '')); }
+  })
+  .catch(function() { alert('Error de conexión'); });
+}
+
+function cambiarPagoLinea(linea, metodo) {
+  if (!confirm('¿Cambiar método de pago de la línea ' + linea + ' a ' + metodo + '?')) return;
+  fetch('/clientes/' + <%= cliente.id %> + '/line/' + encodeURIComponent(linea) + '/metodo-pago', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ metodo_pago: metodo })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d.ok) { alert('Método de pago actualizado'); location.reload(); }
+    else { alert('Error: ' + (d.error || '')); }
+  })
+  .catch(function() { alert('Error de conexión'); });
+}
+
+function guardarIBAN(clienteId) {
+  var iban = document.getElementById('clienteIban').value.trim();
+  if (!iban) { alert('Introduce un IBAN'); return; }
+  fetch('/clientes/' + clienteId + '/campo', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ campo: 'iban', valor: iban })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d.ok) { alert('IBAN actualizado'); location.reload(); }
+    else { alert('Error: ' + (d.error || '')); }
+  })
+  .catch(function() { alert('Error de conexión'); });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  var statusData = <%- JSON.stringify(linesByStatus || {}) %>;
+  var linesArr = <%- JSON.stringify(lineNumbers || []) %>;
+  var clientId = <%= cliente.id %>;
+
+  function formatDate(d) {
+    if (!d) return '-';
+    try { return new Date(d).toLocaleDateString('es-ES'); } catch(e) { return d; }
+  }
+
+  // ========== PIN/PUK BUTTONS ==========
+  document.querySelectorAll('.mostrar-pinpuk').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      mostrarPinPuk(this.dataset.line, this.dataset.pin, this.dataset.puk);
+    });
+  });
+
+  // ========== INSTALLATION DETAIL ==========
+  document.querySelectorAll('.ver-instalacion').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      document.getElementById('instDetId').textContent = this.dataset.id || '-';
+      document.getElementById('instDetAddress').textContent = (this.dataset.address || '') + (this.dataset.city ? ', ' + this.dataset.city : '');
+      document.getElementById('instDetProduct').textContent = this.dataset.product || '-';
+      var st = this.dataset.status || '';
+      var badge = 'secondary';
+      if (st.toLowerCase() === 'completed' || st.toLowerCase() === 'completada') badge = 'success';
+      else if (st.toLowerCase() === 'scheduled' || st.toLowerCase() === 'programada') badge = 'info';
+      else if (st.toLowerCase() === 'pending' || st.toLowerCase() === 'pendiente') badge = 'warning';
+      document.getElementById('instDetStatus').innerHTML = '<span class="badge bg-' + badge + '">' + st + '</span>';
+      document.getElementById('instDetScheduled').textContent = formatDate(this.dataset.scheduled);
+      document.getElementById('instDetCompleted').textContent = formatDate(this.dataset.completed);
+      document.getElementById('instDetTechnician').textContent = this.dataset.technician || '-';
+      document.getElementById('instDetNotes').textContent = this.dataset.notes || '-';
+      document.getElementById('instDetDni').textContent = this.dataset.dni || '-';
+      document.getElementById('instDetOt').textContent = this.dataset.ot || '-';
+      document.getElementById('instDetRouter').textContent = this.dataset.router || '-';
+      document.getElementById('instDetOnt').textContent = this.dataset.ont || '-';
+      document.getElementById('instDetCto').textContent = this.dataset.cto || '-';
+      document.getElementById('instDetContrata').textContent = this.dataset.contrata || '-';
+      // History
+      var historyDiv = document.getElementById('instDetHistory');
+      try {
+        var hist = JSON.parse(this.dataset.history || '[]');
+        if (hist.length > 0) {
+          var html = '<ul style="list-style:none;padding:0;margin:0;">';
+          hist.forEach(function(h) {
+            var hDate = h.date || h.created || h.timestamp || '';
+            var hStatus = h.status || h.estado || h.state || '';
+            var hNote = h.note || h.nota || h.comment || h.notes || '';
+            html += '<li style="padding:4px 0;border-bottom:1px solid #eee;">' +
+              '<small class="text-muted">' + (hDate ? new Date(hDate).toLocaleString('es-ES') : '?') + '</small> ' +
+              '<span class="badge bg-info">' + hStatus + '</span>' +
+              (hNote ? '<br><em>' + hNote + '</em>' : '') +
+              '</li>';
+          });
+          html += '</ul>';
+          historyDiv.innerHTML = html;
+        } else {
+          historyDiv.innerHTML = '<div class="text-center text-muted py-2">Sin historial disponible</div>';
+        }
+      } catch(e) { historyDiv.innerHTML = '<div class="text-center text-muted py-2">Sin historial</div>'; }
+      // Part download
+      var partContainer = document.getElementById('instDetPartContainer');
+      var partUrl = this.dataset.parturl || '';
+      if (partUrl) {
+        document.getElementById('instDetPartLink').href = partUrl;
+        partContainer.style.display = 'block';
+      } else {
+        partContainer.style.display = 'none';
+      }
+      new bootstrap.Modal(document.getElementById('instalacionDetailModal')).show();
+    });
+  });
+
+  // ========== STATUS CHART ==========
+  var statusCtx = document.getElementById('statusChart');
+  if (statusCtx && Object.keys(statusData).length > 0) {
+    new Chart(statusCtx, {
+      type: 'doughnut',
+      data: {
+        labels: Object.keys(statusData),
+        datasets: [{
+          data: Object.values(statusData),
+          backgroundColor: ['#28a745', '#ffc107', '#dc3545', '#17a2b8', '#6c757d']
+        }]
+      },
+      options: {
+        animation: false, resizeDelay: 0,
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } }
+        }
+      }
+    });
+  }
+
+  // ========== GB CHART ==========
+  var gbCtx = document.getElementById('gbChart');
+  var gbChart = null;
+  if (gbCtx) {
+    gbChart = new Chart(gbCtx, {
+      type: 'bar',
+      data: {
+        labels: ['GB Totales', 'GB Usados', 'GB Restantes'],
+        datasets: [{ label: 'GB', data: [0, 0, 0], backgroundColor: ['#17a2b8', '#ffc107', '#28a745'] }]
+      },
+      options: {
+        animation: false, resizeDelay: 0,
+        responsive: true, maintainAspectRatio: false,
+        scales: { y: { beginAtZero: true } },
+        plugins: { legend: { display: false } }
+      }
+    });
+    if (linesArr.length > 0) {
+      var consPerLine = document.getElementById('consPerLine');
+      var consInfo = document.getElementById('consLinesInfo');
+      var totalAll = 0;
+      var loaded = 0;
+      linesArr.forEach(function(line, idx) {
+        fetch('/clientes/' + clientId + '/line/' + encodeURIComponent(line) + '/consumption', { method: 'POST' })
+          .then(function(r) { return r.json(); })
+          .then(function(res) {
+            if (res.ok && res.data) {
+              var d = res.data;
+              var payload = d.data || d;
+              var total = parseFloat(payload.totalGB || payload.total_gb || payload.total || payload.totalGb || 0);
+              var used = parseFloat(payload.usedGB || payload.used_gb || payload.used || payload.consumed || payload.consumption || 0);
+              var remaining = parseFloat(payload.remainingGB || payload.remaining_gb || payload.remaining || payload.remainingGb || 0);
+              totalAll += used;
+              if (idx === 0) {
+                gbChart.data.datasets[0].data = [total, used, remaining];
+                gbChart.update();
+              }
+              consPerLine.innerHTML += '<div><strong>' + line + ':</strong> ' + used.toFixed(2) + ' GB usados / ' + total.toFixed(2) + ' GB total</div>';
+              loaded++;
+              if (loaded === linesArr.length) {
+                consInfo.textContent = 'Total: ' + totalAll.toFixed(2) + ' GB';
+              }
+            }
+          })
+          .catch(function(err) { console.error('Auto-fetch consumption error:', err); });
+      });
+    }
+  }
+
+  // ========== CONSUMPTION MODAL ==========
+  var _consChartInstance = null;
+
+  function parseGBData(payload) {
+    var d = payload.data || payload;
+    return {
+      total: parseFloat(d.totalGB || d.total_gb || d.total || d.totalGb || d.allowance || 0),
+      used: parseFloat(d.usedGB || d.used_gb || d.used || d.consumed || d.consumption || d.usage || 0),
+      remaining: parseFloat(d.remainingGB || d.remaining_gb || d.remaining || d.remainingGb || d.balance || d.left || 0),
+      roaming: parseFloat(d.roamingGB || d.roaming_gb || d.roaming || d.roaming_used || 0)
+    };
+  }
+
+  function fetchCDRData(line, tbody) {
+    fetch('/clientes/' + clientId + '/line/' + encodeURIComponent(line) + '/cdrs', { method: 'POST' })
+      .then(function(r) { return r.json(); })
+      .then(function(res) {
+        tbody.innerHTML = '';
+        if (res.ok && res.data) {
+          var cdrList = Array.isArray(res.data) ? res.data : (res.data.data || res.data.cdrs || res.data.records || res.data.items || []);
+          if (!Array.isArray(cdrList)) cdrList = [];
+          if (cdrList.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Sin registros de llamadas</td></tr>';
+          } else {
+            cdrList.forEach(function(cdr) {
+              var tr = document.createElement('tr');
+              var fecha = cdr.date || cdr.fecha || cdr.startTime || cdr.start_date || cdr.startDate || '-';
+              var tipo = cdr.type || cdr.tipo || cdr.callType || cdr.direction || '-';
+              var destino = cdr.destination || cdr.destino || cdr.calledNumber || cdr.callee || cdr.phone || '-';
+              var dur = cdr.duration || cdr.duracion || cdr.durationSec || cdr.seconds || cdr.durationSeconds || '-';
+              var cost = cdr.cost || cdr.coste || cdr.price || cdr.amount || '-';
+              if (dur !== '-' && !isNaN(parseFloat(dur))) {
+                var secs = parseInt(dur);
+                dur = Math.floor(secs / 60) + 'm ' + (secs % 60) + 's';
+              }
+              if (cost !== '-' && !isNaN(parseFloat(cost))) cost = parseFloat(cost).toFixed(4) + '€';
+              tr.innerHTML = '<td class="small">' + fecha + '</td><td>' + tipo + '</td><td>' + destino + '</td><td>' + dur + '</td><td>' + cost + '</td>';
+              tbody.appendChild(tr);
+            });
+          }
+        } else {
+          tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Sin registros de llamadas</td></tr>';
+        }
+      })
+      .catch(function(err) {
+        console.error('CDRs error:', err);
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Error al cargar CDRs</td></tr>';
+      });
+  }
+
+  document.querySelectorAll('.ver-consumo').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var line = this.dataset.line;
+      if (!line) return;
+      document.getElementById('consLineNumber').textContent = line;
+      var cdrBody = document.getElementById('cdrsBody');
+      cdrBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Cargando...</td></tr>';
+
+      fetch('/clientes/' + clientId + '/line/' + encodeURIComponent(line) + '/consumption', { method: 'POST' })
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+          if (res.ok && res.data) {
+            var gb = parseGBData(res.data);
+            document.getElementById('consTotalGB').textContent = gb.total.toFixed(2);
+            document.getElementById('consUsedGB').textContent = gb.used.toFixed(2);
+            document.getElementById('consRemainingGB').textContent = gb.remaining.toFixed(2);
+            document.getElementById('consRoamingGB').textContent = gb.roaming.toFixed(2);
+            if (gbChart) {
+              gbChart.data.datasets[0].data = [gb.total, gb.used, gb.remaining];
+              gbChart.update();
+            }
+            var consCtx = document.getElementById('consGBChart');
+            if (consCtx) {
+              if (_consChartInstance) { _consChartInstance.destroy(); }
+              _consChartInstance = new Chart(consCtx, {
+                type: 'bar',
+                data: {
+                  labels: ['Totales', 'Usados', 'Restantes'],
+                  datasets: [{ label: 'GB', data: [gb.total, gb.used, gb.remaining], backgroundColor: ['#17a2b8', '#ffc107', '#28a745'] }]
+                },
+                options: {
+                  animation: false, resizeDelay: 0,
+                  responsive: true, maintainAspectRatio: false,
+                  indexAxis: 'y',
+                  plugins: { legend: { display: false } }
+                }
+              });
+            }
+          } else {
+            document.getElementById('consTotalGB').textContent = 'Error';
+            document.getElementById('consUsedGB').textContent = '-';
+            document.getElementById('consRemainingGB').textContent = '-';
+            document.getElementById('consRoamingGB').textContent = '-';
+          }
+        })
+        .catch(function(err) {
+          console.error('Consumption error:', err);
+          document.getElementById('consTotalGB').textContent = 'Error';
+        });
+
+      fetchCDRData(line, cdrBody);
+      
+      // Cargar consumo diario desde CDRs
+      fetch('/clientes/' + clientId + '/line/' + encodeURIComponent(line) + '/cdrs', { method: 'POST' })
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+          if (!res.ok) return;
+          var cdrs = Array.isArray(res) ? res : (res.data || res.cdrs || []);
+          if (cdrs.length === 0) return;
+          var daily = {};
+          cdrs.forEach(function(c) {
+            var dia = (c.fecha || c.date || '').substring(0, 10);
+            if (!dia) return;
+            if (!daily[dia]) daily[dia] = 0;
+            if (c.tipo === 'data' || c.tipo === 'exceso' || !c.tipo) {
+              daily[dia] += parseFloat(c.unidades || c.units || c.duracion || 0);
+            }
+          });
+          var days = Object.keys(daily).sort();
+          var html = '';
+          days.forEach(function(d) {
+            html += '<tr><td>' + d + '</td><td class="text-end">' + daily[d].toFixed(2) + ' GB</td></tr>';
+          });
+          if (days.length > 0) document.getElementById('consDailyBody').innerHTML = html;
+        })
+        .catch(function() {});
+      
+      new bootstrap.Modal(document.getElementById('consumptionModal')).show();
+    });
+  });
+
+  // ========== BLOCK TOGGLE (inline buttons) ==========
+  document.querySelectorAll('.toggle-block').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var line = this.dataset.line;
+      var blocked = this.dataset.blocked === 'true';
+      if (!line) return;
+      if (!confirm((blocked ? 'Desbloquear' : 'Bloquear') + ' la l&iacute;nea ' + line + '?')) return;
+      fetch('/clientes/' + clientId + '/line/' + encodeURIComponent(line) + '/block', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ blocked: !blocked })
+      })
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+          if (res.ok) { location.reload(); }
+          else { alert('Error: ' + (res.error || 'Desconocido')); }
+        })
+        .catch(function(err) { alert('Error: ' + err.message); });
+    });
+  });
+
+  // ========== POPULATE SELECTS ==========
+  function populateSelect(id) {
+    var sel = document.getElementById(id);
+    if (!sel) return;
+    linesArr.forEach(function(ln) {
+      if (!ln) return;
+      var opt = document.createElement('option');
+      opt.value = ln;
+      opt.textContent = ln;
+      sel.appendChild(opt);
+    });
+  }
+  populateSelect('tariffLine');
+  populateSelect('blockLineSelect');
+  populateSelect('simLine');
+
+  // ========== CAMBIAR TARIFA FROM INLINE BUTTON ==========
+  document.querySelectorAll('.cambiar-tarifa-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var line = this.dataset.line;
+      if (!line) return;
+      var sel = document.getElementById('tariffLine');
+      if (sel) { sel.value = line; }
+      new bootstrap.Modal(document.getElementById('changeTariffModal')).show();
+    });
+  });
+
+  // ========== DUPLICAR SIM FROM INLINE BUTTON ==========
+  document.querySelectorAll('.duplicar-sim-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var line = this.dataset.line;
+      if (!line) return;
+      var sel = document.getElementById('simLine');
+      if (sel) { sel.value = line; }
+      new bootstrap.Modal(document.getElementById('duplicateSimModal')).show();
+    });
+  });
+
+  // ========== CHANGE TARIFF MODAL ==========
+  document.getElementById('changeTariffModal').addEventListener('show.bs.modal', function() {
+    var container = document.getElementById('tariffProductCards');
+    var sel = document.getElementById('tariffProduct');
+    container.innerHTML = '<div class="col-12 text-center text-muted py-3">Cargando productos...</div>';
+    sel.classList.add('d-none');
+    fetch('/clientes/' + clientId + '/compatible-products')
+      .then(function(r) { return r.json(); })
+      .then(function(res) {
+        container.innerHTML = '';
+        if (res.ok && Array.isArray(res.data) && res.data.length > 0) {
+          var familias = {};
+          res.data.forEach(function(p) {
+            var name = p.name || p.productName || p.product || p.description || '';
+            var val = p.id || p.code || name;
+            var familia = p.family || p.familia || p.category || p.categoria || 'General';
+            if (!familias[familia]) familias[familia] = [];
+            familias[familia].push({ name: name, val: val, price: p.price, desc: p.description || '' });
+          });
+          var familiaIconos = { 'Movil': '📱', 'Móvil': '📱', 'Fibra': '🌐', 'TV': '📺', 'Television': '📺', 'Fijo': '📞', 'VoIP': '📞', 'General': '📡' };
+          Object.keys(familias).forEach(function(fam) {
+            var icono = familiaIconos[fam] || '📡';
+            container.innerHTML += '<div class="col-12"><h6 class="mt-2 mb-1 border-bottom pb-1">' + icono + ' ' + fam + '</h6></div>';
+            familias[fam].forEach(function(prod) {
+              container.innerHTML += '<div class="col-md-4 col-6"><div class="card border tariff-card" style="cursor:pointer;" data-value="' + prod.val + '"><div class="card-body p-2 text-center"><div class="fw-semibold small">' + prod.name + '</div>' + (prod.price ? '<div class="text-primary small mt-1">' + parseFloat(prod.price).toFixed(2) + '€</div>' : '') + '</div></div></div>';
+            });
+          });
+          document.querySelectorAll('.tariff-card').forEach(function(card) {
+            card.addEventListener('click', function() {
+              document.querySelectorAll('.tariff-card').forEach(function(c) { c.classList.remove('border-primary', 'bg-light'); });
+              this.classList.add('border-primary', 'bg-light');
+              sel.value = this.dataset.value;
+            });
+          });
+          if (res.data.length === 1) {
+            document.querySelector('.tariff-card').classList.add('border-primary', 'bg-light');
+            sel.value = document.querySelector('.tariff-card').dataset.value;
+          }
+        } else {
+          container.innerHTML = '<div class="col-12 text-center text-muted py-3">No hay productos disponibles</div>';
+        }
+      })
+      .catch(function() {
+        container.innerHTML = '<div class="col-12 text-center text-muted py-3">Error al cargar productos</div>';
+      });
+  });
+
+  document.getElementById('submitChangeTariff').addEventListener('click', function() {
+    var line = document.getElementById('tariffLine').value;
+    var product = document.getElementById('tariffProduct').value;
+    var schedule = document.getElementById('tariffSchedule').value || null;
+    if (!line || !product) { alert('Seleccione l&iacute;nea y producto'); return; }
+    fetch('/clientes/' + clientId + '/line/' + encodeURIComponent(line) + '/change-tariff', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ line: line, productId: product, productCode: product, schedule: schedule })
+    })
+      .then(function(r) { return r.json(); })
+      .then(function(res) {
+        if (res.ok) {
+          alert('Cambio de tarifa solicitado correctamente');
+          bootstrap.Modal.getInstance(document.getElementById('changeTariffModal')).hide();
+        } else {
+          alert('Error: ' + (res.error || 'Desconocido'));
+        }
+      })
+      .catch(function(err) { alert('Error: ' + err.message); });
+  });
+
+  // ========== BLOCK LINE MODAL ==========
+  document.getElementById('submitBlockLine').addEventListener('click', function() {
+    var line = document.getElementById('blockLineSelect').value;
+    var blocked = document.querySelector('input[name="blockAction"]:checked').value === 'block';
+    if (!line) { alert('Seleccione una l&iacute;nea'); return; }
+    fetch('/clientes/' + clientId + '/line/' + encodeURIComponent(line) + '/block', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ blocked: blocked })
+    })
+      .then(function(r) { return r.json(); })
+      .then(function(res) {
+        if (res.ok) {
+          alert('L&iacute;nea ' + (blocked ? 'bloqueada' : 'desbloqueada') + ' correctamente');
+          bootstrap.Modal.getInstance(document.getElementById('blockLineModal')).hide();
+          location.reload();
+        } else {
+          alert('Error: ' + (res.error || 'Desconocido'));
+        }
+      })
+      .catch(function(err) { alert('Error: ' + err.message); });
+  });
+
+  // ========== DUPLICATE SIM MODAL ==========
+  document.getElementById('submitDuplicateSim').addEventListener('click', function() {
+    var line = document.getElementById('simLine').value;
+    var reason = document.getElementById('simReason').value;
+    var simType = document.querySelector('input[name="simType"]:checked').value;
+    if (!line) { alert('Seleccione una l&iacute;nea'); return; }
+    fetch('/clientes/' + clientId + '/line/' + encodeURIComponent(line) + '/duplicate-sim', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ line: line, reason: reason, simType: simType, type: simType })
+    })
+      .then(function(r) { return r.json(); })
+      .then(function(res) {
+        if (res.ok) {
+          alert('Solicitud de duplicado de SIM realizada correctamente');
+          bootstrap.Modal.getInstance(document.getElementById('duplicateSimModal')).hide();
+        } else {
+          alert('Error: ' + (res.error || 'Desconocido'));
+        }
+      })
+      .catch(function(err) { alert('Error: ' + err.message); });
+  });
+
+  // ========== INIT POPOVERS ==========
+  var popoverList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+  popoverList.forEach(function(el) {
+    new bootstrap.Popover(el);
+  });
+});
+</script>

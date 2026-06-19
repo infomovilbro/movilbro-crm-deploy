@@ -1,0 +1,88 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="ri-admin-line"></i> <%= user ? 'Editar Usuario' : 'Nuevo Usuario' %></h2>
+    <a href="/users" class="btn btn-outline-secondary btn-sm"><i class="ri-arrow-left-line"></i> Volver</a>
+  </div>
+
+  <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-danger"><%= error %></div><% } %>
+
+  <div class="card">
+    <div class="card-body">
+      <form method="POST" action="<%= user ? '/users/' + user.id + '/editar' : '/users/nuevo' %>">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Nombre <span class="text-danger">*</span></label>
+            <input type="text" name="nombre" class="form-control" value="<%= user ? user.nombre : '' %>" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Email</label>
+            <input type="email" name="email" class="form-control" value="<%= user ? (user.email || '') : '' %>">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Usuario <span class="text-danger">*</span></label>
+            <input type="text" name="username" class="form-control" value="<%= user ? user.username : '' %>" <%= user ? 'readonly' : 'required' %>>
+            <% if (user) { %><div class="form-text">El nombre de usuario no se puede cambiar.</div><% } %>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label"><%= user ? 'Nueva contraseña (dejar vacío para mantener)' : 'Contraseña' %> <%= user ? '' : '<span class="text-danger">*</span>' %></label>
+            <input type="password" name="password" class="form-control" <%= user ? '' : 'required' %>>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Rol</label>
+            <select name="rol" class="form-select">
+              <option value="user" <%= user && user.rol === 'user' ? 'selected' : '' %>>Usuario</option>
+              <option value="agent" <%= user && user.rol === 'agent' ? 'selected' : '' %>>Agente</option>
+              <option value="admin" <%= user && user.rol === 'admin' ? 'selected' : '' %>>Administrador</option>
+            </select>
+          </div>
+        </div>
+
+        <hr class="my-4">
+        <h5 class="mb-3"><i class="ri-shield-check-line"></i> Permisos por módulo</h5>
+        <p class="text-muted small mb-3">Los administradores tienen acceso completo. Marca los módulos a los que este usuario puede acceder.</p>
+
+        <div class="row g-3">
+          <% var groups = [
+            { title: 'Panel', perms: ['dashboard','kpis'] },
+            { title: 'Altas', perms: ['altas'] },
+            { title: 'PostVenta', perms: ['aftersales'] },
+            { title: 'Procesos', perms: ['massive_processes'] },
+            { title: 'Suscripciones', perms: ['subscriptions'] },
+            { title: 'Productos', perms: ['products'] },
+            { title: 'Clientes', perms: ['clients'] },
+            { title: 'Encuestas', perms: ['surveys'] },
+            { title: 'Leads', perms: ['leads'] },
+            { title: 'WhatsApp', perms: ['whatsapp'] },
+            { title: 'Canales', perms: ['channel'] },
+            { title: 'Usuarios', perms: ['users'] },
+            { title: 'Facturación', perms: ['invoices','payments','remittances'] },
+            { title: 'Recursos', perms: ['resources'] },
+            { title: 'Tickets', perms: ['tickets'] },
+            { title: 'Configuración', perms: ['settings'] },
+            { title: 'Panel Tienda', perms: ['tienda'] }
+          ]; %>
+          <% groups.forEach(function(g) { %>
+          <div class="col-md-4 col-lg-3">
+            <div class="card border">
+              <div class="card-body py-2 px-3">
+                <strong class="d-block mb-2 small"><%= g.title %></strong>
+                <% g.perms.forEach(function(p) { %>
+                <div class="form-check">
+                  <input type="checkbox" class="form-check-input" id="perm_<%= p %>" name="perm_<%= p %>" value="1" <%= user && user.permissions && user.permissions[p] ? 'checked' : '' %>>
+                  <label class="form-check-label small" for="perm_<%= p %>"><%= p.charAt(0).toUpperCase() + p.slice(1).replace(/_/g, ' ') %></label>
+                </div>
+                <% }); %>
+              </div>
+            </div>
+          </div>
+          <% }); %>
+        </div>
+
+        <div class="mt-4">
+          <button type="submit" class="btn btn-primary"><i class="ri-save-line"></i> <%= user ? 'Guardar cambios' : 'Crear usuario' %></button>
+          <a href="/users" class="btn btn-outline-secondary">Cancelar</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Movilbro · Fibra y Móvil en Antequera</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--white:#fff;--bg:#f6f8fc;--bg2:#edf1f9;--surface:#fff;--surface2:#f8faff;--border:#e2e8f0;--border2:#d0d9e8;--text:#0f172a;--text2:#475569;--text3:#94a3b8;--primary:#0d9488;--primary-light:#14b8a6;--primary-bg:#ecfdf5;--primary-dim:rgba(13,148,136,0.08);--secondary:#f59e0b;--secondary-light:#fbbf24;--secondary-bg:#fffbeb;--accent:#0891b2;--radius:16px;--radius-sm:10px;--shadow:0 1px 3px rgba(0,0,0,0.04),0 4px 16px rgba(0,0,0,0.04);--shadow-lg:0 8px 32px rgba(0,0,0,0.06);--transition:all 0.35s cubic-bezier(0.25,0.46,0.45,0.94)}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);line-height:1.6;overflow-x:hidden}
+img{max-width:100%;height:auto;display:block}
+a{color:inherit;text-decoration:none}
+.container{max-width:1200px;margin:0 auto;padding:0 20px}
+
+/* nav */
+nav{position:fixed;top:0;width:100%;z-index:100;padding:0;transition:var(--transition)}
+nav.scrolled{background:rgba(255,255,255,0.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);box-shadow:0 1px 0 var(--border)}
+.nav-inner{display:flex;align-items:center;justify-content:space-between;height:68px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:1.2rem;color:var(--text)}
+.logo img{height:34px;width:auto}
+.nav-links{display:flex;align-items:center;gap:6px;list-style:none}
+.nav-links a{padding:8px 16px;color:var(--text2);font-size:0.9rem;font-weight:500;border-radius:8px;transition:var(--transition)}
+.nav-links a:hover{background:var(--primary-dim);color:var(--primary)}
+.nav-cta{background:var(--primary);color:#fff!important;padding:10px 22px!important;border-radius:50px!important;font-weight:600!important;display:flex;align-items:center;gap:6px}
+.nav-cta:hover{background:var(--primary-light)!important;transform:scale(1.02)}
+.mobile-toggle{display:none;flex-direction:column;gap:5px;cursor:pointer;background:none;border:none;padding:6px;border-radius:8px}
+.mobile-toggle span{width:26px;height:2.5px;background:var(--text);border-radius:3px;transition:var(--transition)}
+
+/* topbar */
+.topbar{background:var(--primary);color:#fff;padding:6px 0;font-size:0.8rem;font-weight:500}
+.topbar .container{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.topbar a{color:#fff;opacity:0.9;transition:opacity 0.2s}
+.topbar a:hover{opacity:1}
+.topbar-left{display:flex;align-items:center;gap:20px}
+.topbar-right{display:flex;align-items:center;gap:14px}
+
+/* hero */
+.hero{background:var(--white);padding:140px 0 60px;position:relative}
+.hero-grid{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center}
+.hero-badge{display:inline-flex;align-items:center;gap:6px;background:var(--primary-bg);color:var(--primary);padding:6px 16px;border-radius:50px;font-size:0.8rem;font-weight:600;margin-bottom:16px}
+.hero h1{font-size:clamp(2.2rem,4vw,3.5rem);font-weight:900;line-height:1.1;margin-bottom:16px;color:var(--text)}
+.hero h1 .highlight{color:var(--primary)}
+.hero p{font-size:1.05rem;color:var(--text2);max-width:520px;margin-bottom:28px;line-height:1.7}
+.hero-actions{display:flex;gap:12px;flex-wrap:wrap}
+.btn-primary{background:var(--primary);color:#fff;padding:14px 32px;border-radius:50px;font-weight:600;font-size:0.95rem;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:var(--transition)}
+.btn-primary:hover{background:var(--primary-light);transform:translateY(-2px);box-shadow:0 8px 24px rgba(13,148,136,0.25)}
+.btn-secondary{background:var(--white);color:var(--text);padding:13px 28px;border-radius:50px;font-weight:600;font-size:0.95rem;border:1.5px solid var(--border);cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:var(--transition)}
+.btn-secondary:hover{background:var(--bg);border-color:var(--primary);color:var(--primary)}
+.hero-images{display:grid;grid-template-columns:1fr 1fr;gap:12px;border-radius:var(--radius);overflow:hidden}
+.hero-images img{width:100%;height:200px;object-fit:cover;border-radius:8px;transition:transform 0.6s ease}
+.hero-images img:hover{transform:scale(1.03)}
+.hero-images .big{grid-column:1/-1;height:220px}
+.hero-stats{display:flex;gap:32px;margin-top:36px;padding-top:28px;border-top:1px solid var(--border)}
+.hero-stat h3{font-size:1.8rem;font-weight:800;color:var(--text)}
+.hero-stat p{font-size:0.85rem;color:var(--text3);margin:0}
+
+/* oferton */
+.oferton{background:linear-gradient(135deg,var(--primary),#0f766e);color:#fff;padding:56px 0;position:relative;overflow:hidden}
+.oferton::before{content:'';position:absolute;top:-50%;right:-20%;width:400px;height:400px;background:rgba(255,255,255,0.04);border-radius:50%}
+.oferton::after{content:'';position:absolute;bottom:-30%;left:-10%;width:300px;height:300px;background:rgba(255,255,255,0.03);border-radius:50%}
+.oferton-inner{display:flex;align-items:center;justify-content:space-between;gap:32px;position:relative;z-index:1;flex-wrap:wrap}
+.oferton-content{flex:1;min-width:280px}
+.oferton .tag{display:inline-block;background:rgba(255,255,255,0.15);padding:4px 14px;border-radius:50px;font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px}
+.oferton h2{font-size:clamp(1.6rem,3vw,2.4rem);font-weight:900;margin-bottom:8px}
+.oferton p{opacity:0.9;font-size:1rem;margin-bottom:20px;max-width:500px}
+.oferton-price{text-align:center;flex-shrink:0}
+.oferton-price .big{font-size:4rem;font-weight:900;line-height:1}
+.oferton-price .big small{font-size:1.2rem;font-weight:600;opacity:0.8}
+.oferton-price .perks{display:flex;gap:16px;margin-top:12px;justify-content:center;flex-wrap:wrap}
+.oferton-price .perks span{background:rgba(255,255,255,0.1);padding:6px 14px;border-radius:50px;font-size:0.8rem;font-weight:500}
+.btn-white{background:#fff;color:var(--primary);padding:14px 32px;border-radius:50px;font-weight:700;font-size:0.95rem;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:var(--transition)}
+.btn-white:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.15)}
+
+/* sections */
+section{padding:72px 0}
+.section-label{display:inline-block;font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:var(--primary);margin-bottom:8px}
+.section-title{font-size:clamp(1.6rem,2.5vw,2.2rem);font-weight:800;margin-bottom:12px;color:var(--text)}
+.section-sub{color:var(--text2);max-width:560px;font-size:0.95rem;margin-bottom:40px}
+
+/* tarifas */
+.tarifas-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:20px}
+.tarjeta{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px;transition:var(--transition);position:relative}
+.tarjeta:hover{box-shadow:var(--shadow-lg);border-color:var(--border2);transform:translateY(-4px)}
+.tarjeta.featured{border-color:var(--primary);background:linear-gradient(135deg,var(--surface),var(--primary-bg))}
+.tarjeta.featured .badge{position:absolute;top:-10px;right:20px;background:var(--primary);color:#fff;padding:4px 14px;border-radius:50px;font-size:0.7rem;font-weight:700}
+.tarjeta-icon{font-size:1.8rem;margin-bottom:12px}
+.tarjeta h3{font-size:1.15rem;font-weight:700;margin-bottom:2px}
+.tarjeta .desc{color:var(--text2);font-size:0.85rem;margin-bottom:16px}
+.tarjeta .price{font-size:2.4rem;font-weight:900;color:var(--text);margin-bottom:2px}
+.tarjeta .price span{font-size:0.9rem;font-weight:400;color:var(--text3)}
+.tarjeta .perks{list-style:none;margin:16px 0;display:flex;flex-direction:column;gap:8px}
+.tarjeta .perks li{display:flex;align-items:center;gap:8px;font-size:0.85rem;color:var(--text2)}
+.tarjeta .perks li::before{content:'✓';color:var(--primary);font-weight:700}
+.btn-tarjeta{width:100%;padding:12px;border-radius:50px;border:none;font-weight:600;font-size:0.9rem;cursor:pointer;transition:var(--transition);margin-top:12px}
+.btn-tarjeta.primary-btn{background:var(--primary);color:#fff}
+.btn-tarjeta.primary-btn:hover{background:var(--primary-light);box-shadow:0 4px 16px rgba(13,148,136,0.2)}
+.btn-tarjeta.secondary-btn{background:var(--bg);color:var(--text);border:1px solid var(--border)}
+.btn-tarjeta.secondary-btn:hover{background:var(--border);border-color:var(--text3)}
+
+/* servicios extra */
+.servicios-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px}
+.servicio-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;text-align:center;transition:var(--transition)}
+.servicio-card:hover{box-shadow:var(--shadow-lg);transform:translateY(-3px)}
+.servicio-card .icon{font-size:2rem;margin-bottom:10px}
+.servicio-card h4{font-size:0.95rem;font-weight:700;margin-bottom:4px}
+.servicio-card p{font-size:0.85rem;color:var(--text2)}
+
+/* nosotros */
+.nosotros-grid{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center}
+.nosotros-img{border-radius:var(--radius);overflow:hidden}
+.nosotros-img img{width:100%;height:380px;object-fit:cover;border-radius:var(--radius)}
+.nosotros-text h3{font-size:1.3rem;font-weight:700;margin-bottom:12px}
+.nosotros-text p{color:var(--text2);font-size:0.95rem;margin-bottom:16px;line-height:1.7}
+.nosotros-text .sellos{display:flex;gap:20px;margin-top:20px;flex-wrap:wrap}
+.nosotros-text .sello{display:flex;align-items:center;gap:8px;font-size:0.85rem;font-weight:600;color:var(--text)}
+
+/* contacto */
+.contact-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px}
+.contact-form{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:36px}
+.contact-form h3{font-size:1.2rem;font-weight:700;margin-bottom:4px}
+.contact-form .sub{color:var(--text2);font-size:0.9rem;margin-bottom:20px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form-grid input,.form-grid select,.form-grid textarea{padding:12px 16px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:0.9rem;outline:none;width:100%;transition:var(--transition);font-family:'Inter',sans-serif}
+.form-grid input:focus,.form-grid select:focus,.form-grid textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-dim)}
+.form-grid textarea{resize:vertical;min-height:80px;grid-column:1/-1}
+.form-grid .full{grid-column:1/-1}
+.checkbox-row{display:flex;align-items:center;gap:8px;margin:14px 0;font-size:0.85rem;color:var(--text2);grid-column:1/-1}
+.contact-info{display:flex;flex-direction:column;gap:14px;justify-content:center}
+.contact-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;display:flex;align-items:center;gap:14px;transition:var(--transition)}
+.contact-card:hover{border-color:var(--primary)}
+.contact-card .icon{width:44px;height:44px;border-radius:12px;background:var(--primary-bg);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0}
+.contact-card h4{font-size:0.9rem;font-weight:700;margin-bottom:1px}
+.contact-card p{color:var(--text2);font-size:0.85rem}
+
+/* cobertura */
+.cobertura-banner{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:32px 40px;display:flex;gap:32px;align-items:center;flex-wrap:wrap}
+.cobertura-banner h3{font-size:1.1rem;font-weight:700;margin-bottom:4px}
+.cobertura-banner p{color:var(--text2);font-size:0.9rem}
+.cobertura-input{display:flex;gap:10px;flex:1;min-width:240px}
+.cobertura-input input{flex:1;padding:12px 16px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:0.9rem;outline:none;transition:var(--transition);min-width:140px}
+.cobertura-input input:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-dim)}
+
+/* footer */
+footer{background:var(--text);color:rgba(255,255,255,0.7);padding:48px 0 24px;margin-top:40px}
+.footer-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:40px;margin-bottom:32px}
+.footer-brand img{height:32px;margin-bottom:12px;filter:brightness(0) invert(1)}
+.footer-brand p{font-size:0.85rem;line-height:1.7;max-width:300px}
+.footer-col h4{color:#fff;font-size:0.85rem;font-weight:700;margin-bottom:14px;text-transform:uppercase;letter-spacing:1px}
+.footer-col ul{list-style:none}
+.footer-col li{margin-bottom:8px;font-size:0.85rem}
+.footer-col a{color:rgba(255,255,255,0.6);font-size:0.85rem;transition:opacity 0.2s}
+.footer-col a:hover{color:#fff}
+.footer-bottom{text-align:center;padding-top:20px;border-top:1px solid rgba(255,255,255,0.08);font-size:0.8rem}
+
+/* whatsapp */
+.whatsapp-float{position:fixed;bottom:20px;left:20px;z-index:99;width:52px;height:52px;border-radius:50%;background:#25d366;border:none;color:#fff;font-size:1.4rem;cursor:pointer;box-shadow:0 4px 20px rgba(37,211,102,0.35);display:flex;align-items:center;justify-content:center;text-decoration:none;transition:var(--transition)}
+.whatsapp-float:hover{transform:scale(1.08)}
+
+/* modal */
+.modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:300;display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.modal-overlay.show{display:flex}
+.modal-box{background:#fff;border-radius:var(--radius);padding:36px;max-width:420px;width:90%;text-align:center;animation:modalIn 0.3s ease}
+@keyframes modalIn{from{opacity:0;transform:scale(0.92)}to{opacity:1;transform:scale(1)}}
+.modal-box .icon{font-size:2.6rem;margin-bottom:12px}
+.modal-box h3{font-size:1.2rem;font-weight:700;margin-bottom:6px}
+.modal-box p{color:var(--text2);font-size:0.9rem;margin-bottom:20px}
+.modal-box .btn-primary{margin:0 auto}
+
+/* animaciones */
+.animate-fade{opacity:0;transform:translateY(24px);transition:opacity 0.6s ease,transform 0.6s ease}
+.animate-fade.show{opacity:1;transform:translateY(0)}
+
+/* cobertura result */
+#coberturaResult{margin-top:12px;padding:14px 18px;border-radius:var(--radius-sm);display:none;font-size:0.9rem}
+#coberturaResult.ok{display:block;background:var(--primary-bg);border-left:3px solid var(--primary)}
+#coberturaResult.fail{display:block;background:#fef2f2;border-left:3px solid #ef4444}
+#coberturaResult.info{display:block;background:var(--bg2);border-left:3px solid var(--accent)}
+
+/* cart */
+.cart-fab{position:fixed;bottom:20px;right:20px;z-index:99;width:52px;height:52px;border-radius:50%;background:var(--primary);border:none;color:#fff;font-size:1.3rem;cursor:pointer;box-shadow:0 4px 20px rgba(13,148,136,0.35);display:none;align-items:center;justify-content:center;transition:var(--transition)}
+.cart-fab.show{display:flex}
+.cart-fab:hover{transform:scale(1.08)}
+.cart-count{position:absolute;top:-4px;right:-4px;background:#ef4444;color:#fff;font-size:0.65rem;font-weight:700;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.cart-panel{position:fixed;top:0;right:-420px;width:400px;height:100%;background:#fff;box-shadow:-4px 0 24px rgba(0,0,0,0.08);z-index:200;transition:right 0.35s ease;padding:24px;overflow-y:auto}
+.cart-panel.open{right:0}
+.cart-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.25);z-index:199;opacity:0;pointer-events:none;transition:opacity 0.3s}
+.cart-overlay.show{opacity:1;pointer-events:all}
+.cart-header{display:flex;justify-content:space-between;align-items:center;padding-bottom:16px;border-bottom:1px solid var(--border);margin-bottom:16px}
+.cart-header h3{font-size:1.15rem;font-weight:700}
+.cart-close{background:none;border:none;color:var(--text3);font-size:1.4rem;cursor:pointer;padding:2px 8px;border-radius:6px}
+.cart-close:hover{background:var(--bg)}
+.cart-items{display:flex;flex-direction:column;gap:10px}
+.cart-item{background:var(--bg);border-radius:var(--radius-sm);padding:14px 16px;display:flex;justify-content:space-between;align-items:center}
+.cart-item-info h4{font-size:0.85rem;font-weight:600}
+.cart-item-info p{font-size:0.8rem;color:var(--text3)}
+.cart-item-remove{background:none;border:none;color:#ef4444;cursor:pointer;font-size:0.8rem;padding:4px 8px;border-radius:4px}
+.cart-item-remove:hover{background:rgba(239,68,68,0.08)}
+.cart-empty{padding:40px 0;text-align:center;color:var(--text3);font-size:0.9rem}
+.cart-total{padding:14px 0;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-weight:700;font-size:1rem;margin-top:14px}
+.cart-checkout{width:100%;padding:14px;border-radius:50px;border:none;background:var(--primary);color:#fff;font-weight:600;font-size:0.95rem;cursor:pointer;transition:var(--transition);margin-top:14px}
+.cart-checkout:hover{background:var(--primary-light)}
+
+@media(max-width:900px){
+  .topbar .container{justify-content:center;font-size:0.75rem}
+  .topbar-right{display:none}
+  .hero-grid{grid-template-columns:1fr;gap:32px}
+  .hero-images{order:-1}
+  .hero-images img{height:150px}
+  .hero-images .big{height:170px}
+  .hero-stats{gap:20px;flex-wrap:wrap}
+  .contact-grid{grid-template-columns:1fr}
+  .nosotros-grid{grid-template-columns:1fr}
+  .footer-grid{grid-template-columns:1fr 1fr;gap:24px}
+  nav .nav-links{position:fixed;top:0;right:-100%;width:280px;height:100%;background:#fff;flex-direction:column;padding:80px 24px 20px;gap:4px;transition:right 0.35s ease;box-shadow:-4px 0 24px rgba(0,0,0,0.06)}
+  nav .nav-links.open{right:0}
+  .nav-links a{padding:12px 16px;width:100%}
+  .mobile-toggle{display:flex}
+  .mobile-toggle.active span:nth-child(1){transform:rotate(45deg) translate(5px,5px)}
+  .mobile-toggle.active span:nth-child(2){opacity:0}
+  .mobile-toggle.active span:nth-child(3){transform:rotate(-45deg) translate(5px,-5px)}
+  .oferton-inner{flex-direction:column;text-align:center}
+  .cart-panel{width:100%;right:-100%}
+}
+@media(max-width:600px){
+  .tarifas-grid{grid-template-columns:1fr}
+  .servicios-grid{grid-template-columns:1fr 1fr}
+  .form-grid{grid-template-columns:1fr}
+  .footer-grid{grid-template-columns:1fr}
+  .cobertura-banner{flex-direction:column;text-align:center}
+  .cobertura-input{width:100%}
+  .oferton-price .big{font-size:3rem}
+}
+
+/* cart responsive fix */
+@media(max-width:400px){
+  .cart-panel{padding:16px}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="container">
+    <div class="topbar-left">
+      <span>📍 Calle Cantareros 29, Antequera</span>
+      <a href="https://wa.me/34694297048">💬 694 29 70 48</a>
+    </div>
+    <div class="topbar-right">
+      <a href="https://clientesmovilbro.ispgestion.com/site/login" target="_blank">🔐 Panel de clientes</a>
+      <a href="https://linktr.ee/movilbro" target="_blank">🌐 Redes</a>
+    </div>
+  </div>
+</div>
+
+<nav id="navbar">
+  <div class="container nav-inner">
+    <a href="#" class="logo"><img src="img/logo.png" alt="Movilbro" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span style="display:none;align-items:center;gap:8px;font-weight:800">📡 Movilbro</span></a>
+    <ul class="nav-links" id="navLinks">
+      <li><a href="#tarifas">Tarifas</a></li>
+      <li><a href="#servicios">Servicios</a></li>
+      <li><a href="#nosotros">Nosotros</a></li>
+      <li><a href="#cobertura">Cobertura</a></li>
+      <li><a href="#contacto">Contacto</a></li>
+      <li><a href="https://wa.me/34694297048" target="_blank" class="nav-cta">💬 WhatsApp</a></li>
+    </ul>
+    <button class="mobile-toggle" id="mobileToggle" aria-label="Menú"><span></span><span></span><span></span></button>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="container hero-grid">
+    <div>
+      <div class="hero-badge">📡 Fibra + Móvil en Antequera</div>
+      <h1>La fibra que <span class="highlight">conecta tu mundo</span> al mejor precio</h1>
+      <p>En Movilbro te ofrecemos internet de verdad, con doble cobertura Orange+Movistar, precios fijos sin sorpresas y la atención cercana de un negocio de toda la vida en Antequera.</p>
+      <div class="hero-actions">
+        <a href="#oferton" class="btn-primary">Ver ofertas →</a>
+        <a href="https://wa.me/34694297048" target="_blank" class="btn-secondary">💬 Escríbenos</a>
+      </div>
+      <div class="hero-stats">
+        <div class="hero-stat"><h3>+200</h3><p>Clientes en Antequera</p></div>
+        <div class="hero-stat"><h3>99%</h3><p>Cobertura 4G/5G</p></div>
+        <div class="hero-stat"><h3>★5</h3><p>Valoración Google</p></div>
+      </div>
+    </div>
+    <div class="hero-images">
+      <img src="img/fachada.jpeg" alt="Tienda Movilbro Antequera" class="big" onerror="this.style.display='none'">
+      <img src="img/interior.jpeg" alt="Atención personalizada Movilbro" onerror="this.style.display='none'">
+      <div style="background:var(--primary-bg);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;text-align:center;min-height:150px">
+        <div style="font-size:2rem;margin-bottom:4px">🏪</div>
+        <div style="font-weight:700;font-size:0.9rem;color:var(--primary)">Pásate por la tienda</div>
+        <div style="font-size:0.8rem;color:var(--text2);margin-top:2px">Calle Cantareros 29</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="oferton" class="oferton">
+  <div class="container oferton-inner">
+    <div class="oferton-content">
+      <div class="tag">🔥 Oferta del mes</div>
+      <h2>Fibra 600Mb + 2 líneas móvil 30GB</h2>
+      <p>Lleva internet de alta velocidad a toda tu casa más dos líneas con datos acumulables y llamadas ilimitadas. Instalación y router WiFi 6 gratis.</p>
+      <a href="https://wa.me/34694297048?text=¡Hola! Quiero el pack Fibra 600Mb + 2 líneas 30GB por 34,95€. ¿Me das más información?" target="_blank" class="btn-white">💬 Quiero esta oferta</a>
+    </div>
+    <div class="oferton-price">
+      <div class="big">34<small>,95€</small></div>
+      <div style="font-weight:600;font-size:0.9rem;opacity:0.85">/mes todo incluido</div>
+      <div class="perks">
+        <span>📶 600Mb reales</span>
+        <span>📱 2 líneas</span>
+        <span>📦 GB acumulables</span>
+        <span>📞 Llamadas ilimitadas</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="tarifas">
+  <div class="container">
+    <div style="text-align:center">
+      <span class="section-label">📋 Tarifas</span>
+      <h2 class="section-title">Planes claros, sin letra pequeña</h2>
+      <p class="section-sub" style="margin:0 auto 36px">Elige lo que necesitas y olvídate de sorpresas. Precios para siempre desde el primer mes.</p>
+    </div>
+    <div class="tarifas-grid">
+      <div class="tarjeta animate-fade">
+        <div class="tarjeta-icon">🌐</div>
+        <h3>Fibra 600 Mb</h3>
+        <p class="desc">Velocidad real simétrica para toda la casa</p>
+        <div class="price">24,95 <span>€/mes</span></div>
+        <ul class="perks">
+          <li>Instalación gratuita</li>
+          <li>Router WiFi 6</li>
+          <li>Velocidad real 600MB</li>
+          <li>Precio fijo para siempre</li>
+          <li>Sin permanencia</li>
+        </ul>
+        <button class="btn-tarjeta secondary-btn" onclick="addToCart('Fibra 600 Mb',24.95)">Añadir →</button>
+      </div>
+      <div class="tarjeta featured animate-fade">
+        <span class="badge">⭐ Recomendado</span>
+        <div class="tarjeta-icon">🚀</div>
+        <h3>Fibra 1000 Mb</h3>
+        <p class="desc">1 Gbps para gaming, 4K y teletrabajo</p>
+        <div class="price">32,95 <span>€/mes</span></div>
+        <ul class="perks">
+          <li>Instalación gratuita</li>
+          <li>Router WiFi 6 mesh</li>
+          <li>Velocidad real 1GB</li>
+          <li>Precio fijo para siempre</li>
+          <li>Sin permanencia</li>
+        </ul>
+        <button class="btn-tarjeta primary-btn" onclick="addToCart('Fibra 1000 Mb',32.95)">Añadir →</button>
+      </div>
+      <div class="tarjeta animate-fade">
+        <div class="tarjeta-icon">📱</div>
+        <h3>Móvil 30 GB</h3>
+        <p class="desc">Llamadas ilimitadas y datos acumulables</p>
+        <div class="price">6,95 <span>€/mes</span></div>
+        <ul class="perks">
+          <li>Llamadas ilimitadas</li>
+          <li>30 GB acumulables</li>
+          <li>Roaming UE incluido</li>
+          <li>Doble cobertura (Orange+Movistar)</li>
+          <li>Sin permanencia</li>
+        </ul>
+        <button class="btn-tarjeta secondary-btn" onclick="addToCart('Móvil 30 GB',6.95)">Añadir →</button>
+      </div>
+      <div class="tarjeta animate-fade">
+        <div class="tarjeta-icon">⚡</div>
+        <h3>Móvil 60 GB</h3>
+        <p class="desc">Para redes sociales y streaming sin preocuparte</p>
+        <div class="price">7,95 <span>€/mes</span></div>
+        <ul class="perks">
+          <li>Llamadas ilimitadas</li>
+          <li>60 GB acumulables</li>
+          <li>Roaming UE incluido</li>
+          <li>Doble cobertura premium</li>
+          <li>Sin permanencia</li>
+        </ul>
+        <button class="btn-tarjeta secondary-btn" onclick="addToCart('Móvil 60 GB',7.95)">Añadir →</button>
+      </div>
+      <div class="tarjeta animate-fade">
+        <div class="tarjeta-icon">🔥</div>
+        <h3>Móvil 80 GB</h3>
+        <p class="desc">Datos ilimitados virtuales al mejor precio</p>
+        <div class="price">9,95 <span>€/mes</span></div>
+        <ul class="perks">
+          <li>Llamadas ilimitadas</li>
+          <li>80 GB acumulables</li>
+          <li>Roaming UE incluido</li>
+          <li>5G incluido sin recargo</li>
+          <li>Sin permanencia</li>
+        </ul>
+        <button class="btn-tarjeta secondary-btn" onclick="addToCart('Móvil 80 GB',9.95)">Añadir →</button>
+      </div>
+      <div class="tarjeta animate-fade">
+        <div class="tarjeta-icon">🎯</div>
+        <h3>SuperPack</h3>
+        <p class="desc">Fibra + Móvil en un solo pack</p>
+        <div class="price">29,95 <span>€/mes</span></div>
+        <ul class="perks">
+          <li>Fibra 600Mb + Móvil 30GB</li>
+          <li>Router WiFi 6</li>
+          <li>Llamadas ilimitadas</li>
+          <li>Doble cobertura</li>
+          <li>Ahorro máximo</li>
+        </ul>
+        <button class="btn-tarjeta primary-btn" onclick="addToCart('SuperPack Fibra+Móvil',29.95)">Añadir →</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="servicios" style="background:var(--bg2)">
+  <div class="container">
+    <div style="text-align:center">
+      <span class="section-label">🔧 Servicios</span>
+      <h2 class="section-title">Más que fibra y móvil</h2>
+      <p class="section-sub" style="margin:0 auto 36px">En nuestra tienda de Antequera también te ayudamos con todo lo que necesites.</p>
+    </div>
+    <div class="servicios-grid">
+      <div class="servicio-card animate-fade"><div class="icon">📱</div><h4>Venta de móviles</h4><p>Smartphones de todas las marcas al mejor precio</p></div>
+      <div class="servicio-card animate-fade"><div class="icon">🔧</div><h4>Reparaciones</h4><p>Pantallas, baterías y averías. Segunda oportunidad para tu dispositivo</p></div>
+      <div class="servicio-card animate-fade"><div class="icon">📶</div><h4>Fibra óptica</h4><p>Instalación rápida con router WiFi 6 de última generación</p></div>
+      <div class="servicio-card animate-fade"><div class="icon">📞</div><h4>Portabilidad</h4><p>Te ayudamos con todo el papeleo. Tú solo firmas</p></div>
+      <div class="servicio-card animate-fade"><div class="icon">📺</div><h4>Netflix incluido</h4><p>En packs seleccionados disfruta de streaming sin coste extra</p></div>
+      <div class="servicio-card animate-fade"><div class="icon">🏪</div><h4>Atención presencial</h4><p>En Calle Cantareros 29. Sin 902 ni esperas eternas</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="nosotros">
+  <div class="container nosotros-grid">
+    <div class="nosotros-img animate-fade">
+      <img src="img/fachada.jpeg" alt="Tienda Movilbro en Antequera" onerror="this.style.display='none';this.parentElement.innerHTML='<div style=background:var(--primary-bg);padding:60px 40px;border-radius:16px;text-align:center><div style=font-size:3rem;margin-bottom:8px>🏪</div><h3 style=font-weight:700>Movilbro Antequera</h3><p style=color:var(--text2);font-size:0.9rem>Calle Cantareros 29</p></div>'">
+    </div>
+    <div class="nosotros-text animate-fade">
+      <span class="section-label">📍 Quiénes somos</span>
+      <h3>Un negocio de Antequera para la gente de Antequera</h3>
+      <p>Movilbro nació en Antequera con una idea clara: ofrecer fibra y móvil de calidad a precios justos, sin engaños ni letra pequeña. No somos una gran corporación, somos un equipo local que te atiende cara a cara.</p>
+      <p>Trabajamos con doble cobertura Orange + Movistar para darte la mejor conexión, con router WiFi 6 y precios fijos para siempre. Además, en nuestra tienda también reparamos móviles y te asesoramos sin compromiso.</p>
+      <div class="sellos">
+        <div class="sello"><span style="font-size:1.4rem">📡</span> Doble cobertura</div>
+        <div class="sello"><span style="font-size:1.4rem">🔒</span> Precios fijos</div>
+        <div class="sello"><span style="font-size:1.4rem">💚</span> Atención local</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div id="cobertura" style="padding:48px 0;background:var(--bg2)">
+  <div class="container">
+    <div style="text-align:center;margin-bottom:24px">
+      <span class="section-label">📶 Cobertura</span>
+      <h2 class="section-title" style="margin-bottom:4px">¿Llegamos a tu calle?</h2>
+      <p style="color:var(--text2);font-size:0.9rem">Antequera y alrededores. Comprueba si tienes cobertura de fibra.</p>
+    </div>
+    <div class="cobertura-banner">
+      <div>
+        <h3>🔍 Comprueba tu dirección</h3>
+        <p>Te decimos al instante si tenemos cobertura en tu zona.</p>
+      </div>
+      <div class="cobertura-input">
+        <input type="text" id="calleInput" placeholder="Tu calle y número">
+        <input type="text" id="cpInput" placeholder="C.P." style="max-width:100px">
+        <button class="btn-primary" onclick="checkCoverage()" style="padding:12px 24px">Ver →</button>
+      </div>
+      <div id="coberturaResult"></div>
+    </div>
+  </div>
+</div>
+
+<section id="contacto">
+  <div class="container">
+    <div style="text-align:center">
+      <span class="section-label">✉️ Contacto</span>
+      <h2 class="section-title">¿Hablamos?</h2>
+      <p class="section-sub" style="margin:0 auto 36px">Te respondemos en menos de 15 minutos en horario laboral. Sin compromiso.</p>
+    </div>
+    <div class="contact-grid">
+      <div class="contact-form animate-fade">
+        <h3>Pídenos información</h3>
+        <p class="sub">Cuéntanos qué necesitas y te llamamos o escribimos.</p>
+        <div class="form-grid">
+          <input type="text" id="formName" placeholder="Nombre">
+          <input type="tel" id="formPhone" placeholder="Teléfono*">
+          <input type="email" id="formEmail" placeholder="Email" class="full">
+          <select id="formInterest" class="full">
+            <option value="">¿Qué te interesa?</option>
+            <option value="fibra 600">Fibra 600 Mb</option>
+            <option value="fibra 1000">Fibra 1000 Mb</option>
+            <option value="movil">Móvil</option>
+            <option value="fibra+movil">Fibra + Móvil</option>
+            <option value="reparacion">Reparación de móvil</option>
+            <option value="otro">Otro</option>
+          </select>
+          <textarea id="formMessage" placeholder="Cuéntanos qué necesitas..." class="full"></textarea>
+          <div class="checkbox-row">
+            <input type="checkbox" id="formPrivacy">
+            <label for="formPrivacy">Acepto la política de privacidad</label>
+          </div>
+          <button class="btn-primary" onclick="submitForm()" style="width:100%;justify-content:center;grid-column:1/-1">Enviar →</button>
+        </div>
+      </div>
+      <div class="contact-info">
+        <div class="contact-card"><div class="icon">📍</div><div><h4>Tienda en Antequera</h4><p>Calle Cantareros 29, 29200 Antequera, Málaga</p></div></div>
+        <div class="contact-card"><div class="icon">💬</div><div><h4>WhatsApp</h4><p><a href="https://wa.me/34694297048" style="color:var(--primary);font-weight:600">694 29 70 48</a> · Respondemos rápido</p></div></div>
+        <div class="contact-card"><div class="icon">📞</div><div><h4>Teléfono</h4><p>694 29 70 48</p></div></div>
+        <div class="contact-card"><div class="icon">🕐</div><div><h4>Horario</h4><p>Lunes a viernes · Pregúntanos por WhatsApp</p></div></div>
+        <div style="display:flex;gap:10px;margin-top:4px">
+          <a href="https://wa.me/34694297048" target="_blank" class="btn-primary" style="padding:12px 22px;font-size:0.85rem">💬 WhatsApp</a>
+          <a href="https://linktr.ee/movilbro" target="_blank" class="btn-secondary" style="padding:11px 22px;font-size:0.85rem">🌐 Redes</a>
+          <a href="https://clientesmovilbro.ispgestion.com/site/login" target="_blank" class="btn-secondary" style="padding:11px 22px;font-size:0.85rem">🔐 Clientes</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <img src="img/logo.png" alt="Movilbro" onerror="this.style.display='none'">
+        <p>Tu operador de fibra y móvil en Antequera, Málaga. Doble cobertura Orange + Movistar, precios transparentes y atención cercana. Conectamos tu mundo.</p>
+      </div>
+      <div class="footer-col"><h4>Tarifas</h4><ul><li><a href="#tarifas">Fibra 600 Mb</a></li><li><a href="#tarifas">Fibra 1000 Mb</a></li><li><a href="#tarifas">Móvil 30 GB</a></li><li><a href="#tarifas">Móvil 60 GB</a></li><li><a href="#tarifas">SuperPack</a></li></ul></div>
+      <div class="footer-col"><h4>Cliente</h4><ul><li><a href="https://clientesmovilbro.ispgestion.com/site/login" target="_blank">Panel de clientes</a></li><li><a href="#cobertura">Comprobar cobertura</a></li><li><a href="#contacto">Contacto</a></li><li><a href="https://linktr.ee/movilbro" target="_blank">Redes sociales</a></li></ul></div>
+      <div class="footer-col"><h4>Contacto</h4><ul><li>Calle Cantareros 29</li><li>29200 Antequera, Málaga</li><li><a href="https://wa.me/34694297048">📱 694 29 70 48</a></li><li><a href="https://linktr.ee/movilbro">🌐 linktr.ee/movilbro</a></li></ul></div>
+    </div>
+    <div class="footer-bottom">© 2026 Movilbro · Fibra y Móvil en Antequera · Conectamos tu mundo</div>
+  </div>
+</footer>
+
+<a href="https://wa.me/34694297048" target="_blank" class="whatsapp-float" title="WhatsApp">💬</a>
+
+<button class="cart-fab" id="cartFab" onclick="toggleCart()">🛒 <span class="cart-count" id="cartCount">0</span></button>
+<div class="cart-overlay" id="cartOverlay" onclick="toggleCart()"></div>
+<div class="cart-panel" id="cartPanel">
+  <div class="cart-header"><h3>🛒 Tu selección</h3><button class="cart-close" onclick="toggleCart()">✕</button></div>
+  <div class="cart-items" id="cartItems"><div class="cart-empty">Todavía no has elegido nada</div></div>
+  <div class="cart-total"><span>Total</span><span id="cartTotal">0,00 €</span></div>
+  <button class="cart-checkout" onclick="checkoutCart()">Solicitar presupuesto →</button>
+</div>
+
+<div class="modal-overlay" id="successModal">
+  <div class="modal-box">
+    <div class="icon">✅</div>
+    <h3>¡Recibido!</h3>
+    <p>Te responderemos en menos de 15 minutos en horario laboral.</p>
+    <button class="btn-primary" onclick="closeModal()">Entendido</button>
+  </div>
+</div>
+
+<script>
+let cart = [];
+
+function addToCart(name,price){
+  cart.push({name,price});
+  updateCart();
+  document.getElementById('cartFab').classList.add('show');
+  const btn = event.currentTarget;
+  const orig = btn.textContent;
+  btn.textContent = '✓ Añadido';
+  btn.style.background = '#10b981';
+  btn.style.color = '#fff';
+  setTimeout(()=>{btn.textContent=orig;btn.style.background='';btn.style.color=''},1200);
+}
+
+function removeFromCart(i){
+  cart.splice(i,1);
+  updateCart();
+  if(!cart.length) document.getElementById('cartFab').classList.remove('show');
+}
+
+function updateCart(){
+  const el = document.getElementById('cartItems');
+  const total = cart.reduce((s,i)=>s+i.price,0);
+  document.getElementById('cartTotal').textContent = total.toFixed(2).replace('.',',')+' €';
+  document.getElementById('cartCount').textContent = cart.length;
+  if(!cart.length){el.innerHTML='<div class="cart-empty">Todavía no has elegido nada</div>';return}
+  el.innerHTML = cart.map((item,i)=>`
+    <div class="cart-item">
+      <div class="cart-item-info"><h4>${item.name}</h4><p>${item.price.toFixed(2).replace('.',',')} €/mes</p></div>
+      <button class="cart-item-remove" onclick="removeFromCart(${i})">✕</button>
+    </div>`).join('');
+}
+
+function toggleCart(){
+  document.getElementById('cartPanel').classList.toggle('open');
+  document.getElementById('cartOverlay').classList.toggle('show');
+}
+
+function checkoutCart(){
+  if(!cart.length) return;
+  const items = cart.map(i=>`• ${i.name} — ${i.price.toFixed(2).replace('.',',')}€/mes`).join('\n');
+  const total = cart.reduce((s,i)=>s+i.price,0).toFixed(2).replace('.',',');
+  const msg = encodeURIComponent(`¡Hola! Quiero contratar:\n${items}\n\nTotal: ${total}€/mes\n\n¿Podéis indicarme los siguientes pasos?`);
+  window.open(`https://wa.me/34694297048?text=${msg}`,'_blank');
+}
+
+window.addEventListener('scroll',()=>{
+  document.getElementById('navbar').classList.toggle('scrolled',window.scrollY>80);
+});
+
+document.getElementById('mobileToggle').addEventListener('click',()=>{
+  document.getElementById('navLinks').classList.toggle('open');
+  document.getElementById('mobileToggle').classList.toggle('active');
+});
+document.querySelectorAll('#navLinks a').forEach(a=>a.addEventListener('click',()=>{
+  document.getElementById('navLinks').classList.remove('open');
+  document.getElementById('mobileToggle').classList.remove('active');
+}));
+
+const observer = new IntersectionObserver((entries)=>{
+  entries.forEach(entry=>{
+    if(entry.isIntersecting) entry.target.classList.add('show');
+  });
+},{threshold:0.1});
+document.querySelectorAll('.animate-fade').forEach(el=>observer.observe(el));
+
+function checkCoverage(){
+  const calle = document.getElementById('calleInput').value.trim();
+  const cp = document.getElementById('cpInput').value.trim();
+  const el = document.getElementById('coberturaResult');
+  const antequeraCPs = ['29200','29230','29240','29210','29500','29520','29530','29220'];
+  const hasCP = antequeraCPs.some(c=>cp.includes(c));
+  const hasStreet = calle.length>2;
+  if(hasCP && hasStreet){
+    el.className='ok';
+    el.innerHTML='<strong>✅ Cobertura disponible</strong> · En tu zona tenemos fibra y 5G. ¡Contrata ya!';
+  } else if(hasStreet && cp.length>2){
+    el.className='info';
+    el.innerHTML='<strong>📍 Zona con alta probabilidad</strong> · Pregúntanos sin compromiso.';
+  } else if(cp.length>2){
+    el.className='fail';
+    el.innerHTML='<strong>❌ No disponible aún</strong> · Estamos ampliando red. Déjanos tus datos.';
+  } else {
+    el.className='info';
+    el.innerHTML='<strong>📡 Antequera y alrededores</strong> · Consúltanos y te confirmamos.';
+  }
+}
+
+function submitForm(){
+  const name = document.getElementById('formName').value.trim();
+  const phone = document.getElementById('formPhone').value.trim();
+  const privacy = document.getElementById('formPrivacy').checked;
+  if(!name||!phone){alert('Por favor rellena nombre y teléfono');return}
+  if(!privacy){alert('Debes aceptar la política de privacidad');return}
+  const interest = document.getElementById('formInterest').value;
+  const msg = document.getElementById('formMessage').value;
+  const text = encodeURIComponent(`¡Hola! Soy ${name}\n📞 ${phone}\n📋 ${interest}\n💬 ${msg}`);
+  window.open(`https://wa.me/34694297048?text=${text}`,'_blank');
+  document.getElementById('successModal').classList.add('show');
+}
+
+function closeModal(){document.getElementById('successModal').classList.remove('show')}
+document.getElementById('successModal').addEventListener('click',function(e){if(e.target===this)this.classList.remove('show')});
+</script>
+</body>
+</html>

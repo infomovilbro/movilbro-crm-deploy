@@ -1,0 +1,608 @@
+const express = require('express');
+const { requireAuth } = require('../../middleware/auth');
+const { db } = require('../../database');
+const path = require('path');
+const fs = require('fs');
+const nube = require('../../helpers/nube');
+const driveHelper = require('../../helpers/drive');
+const LikesAPI = require('../../likes-api');
+const router = express.Router();
+
+var MES_NOMBRES = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+// Ensure temp uploads directory exists
+var uploadsDir = path.join(__dirname, '..', '..', 'uploads');
+try { if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true }); } catch(e) {}
+
+router.use(requireAuth);
+
+// Upload ZIP file via browser and extract to nube
+router.post('/subir-zip', (req, res) => {
+  try {
+    var multer = require('multer');
+    var AdmZip = require('adm-zip');
+    var up = multer({ dest: uploadsDir }).single('zip');
+    up(req, res, function(err) {
+      if (err) return res.json({ ok: false, error: err.message });
+      if (!req.file) return res.json({ ok: false, error: 'No se seleccionó ningún archivo' });
+      var zip = new AdmZip(req.file.path);
+      var imported = 0;
+      zip.getEntries().forEach(function(entry) {
+        if (entry.entryName.endsWith('.pdf')) {
+          var match = entry.entryName.match(/(\d{4})/);
+          var year = match ? match[1] : new Date().getFullYear().toString();
+          var monthName = MES_NOMBRES[new Date().getMonth() + 1];
+          for (var m = 1; m <= 12; m++) {
+            if (entry.entryName.toLowerCase().indexOf(MES_NOMBRES[m].toLowerCase()) > -1) { monthName = MES_NOMBRES[m]; break; }
+          }
+          var dir = path.join(nube.NUBE_DIR, year, monthName);
+          nube.ensureDir(dir);
+          var destPath = path.join(dir, path.basename(entry.entryName));
+          if (!fs.existsSync(destPath)) {
+            var buf = zip.readFile(entry);
+            fs.writeFileSync(destPath, buf);
+            try {
+              var mIdx = MES_NOMBRES.indexOf(monthName);
+              var dbPeriodo = year + '-' + String(mIdx).padStart(2, '0');
+              nube.guardarEnDB(path.basename(entry.entryName), buf, dbPeriodo);
+            } catch(e2) {}
+            imported++;
+          }
+        }
+      });
+      try { fs.unlinkSync(req.file.path); } catch(e) {}
+      res.json({ ok: true, imported: imported, message: imported + ' PDFs importados' });
+    });
+  } catch(e) { res.json({ ok: false, error: e.message }); }
+});
+
+// Upload any file to nube (not just ZIPs)
+router.post('/subir-archivo', (req, res) => {
+  try {
+    var multer = require('multer');
+    var up = multer({ dest: uploadsDir }).single('archivo');
+    up(req, res, function(err) {
+      if (err) return res.json({ ok: false, error: err.message });
+      if (!req.file) return res.json({ ok: false, error: 'No se seleccionó ningún archivo' });
+      var destFolder = req.body.destino || '';
+      if (!destFolder) {
+        var now = new Date();
+        var year = now.getFullYear().toString();
+        var monthName = MES_NOMBRES[now.getMonth() + 1];
+        destFolder = path.join(year, monthName);
+      }
+      var result = nube.guardarArchivo(req.file.path, req.file.originalname, destFolder);
+      res.json({ ok: true, path: result.destPath, fileName: result.fileName });
+    });
+  } catch(e) { res.json({ ok: false, error: e.message }); }
+});
+
+// Create a new folder in Drive root
+router.post('/crear-carpeta', async (req, res) => {
+  try {
+    var nombre = (req.body.nombre || '').trim().replace(/[^a-zA-Z0-9_\-\u00C0-\u024F ]/g, '_');
+    if (!nombre) return res.json({ ok: false, error: 'Nombre inválido' });
+    if (!driveHelper.isAvailable()) return res.json({ ok: false, error: 'Google Drive no está configurado' });
+    var driveRootId = process.env.DRIVE_ROOT_FOLDER_ID || '1JrStvTy-l0msOmfwT1S0Jupg6Ru6Zemx';
+    var folderId = await driveHelper.ensureFolder(driveRootId, nombre);
+    if (!folderId) return res.json({ ok: false, error: 'No se pudo crear la carpeta en Drive' });
+    res.json({ ok: true, nombre: nombre, driveId: folderId });
+  } catch(e) { res.json({ ok: false, error: e.message }); }
+});
+
+router.get('/', async (req, res) => {
+  try { nube.migrarPDFsADB(); } catch(e) { console.error('[Nube] Error migración:', e.message); }
+  var pdfs = nube.listarPDFs();
+  var zipPdfs = nube.getAllPDFNamesFromZips();
+  var stats = { total: pdfs.length + Object.keys(zipPdfs).length, sizeTotal: 0 };
+  pdfs.forEach(function(p) { stats.sizeTotal += p.size; });
+
+  var facturas = db.prepare('SELECT id, serie, numero_factura, cliente_nombre, periodo, fecha_emision, importe_total, estado FROM isp_facturas ORDER BY fecha_emision DESC, id DESC').all();
+
+  var pdfMap = {};
+  pdfs.forEach(function(p) { pdfMap[p.fileName] = p; });
+
+  var yearsMap = {};
+
+  facturas.forEach(function(f) {
+    var year = f.fecha_emision ? f.fecha_emision.substring(0, 4) : '2026';
+    var month = f.fecha_emision ? parseInt(f.fecha_emision.substring(5, 7)) : 5;
+    if (!yearsMap[year]) yearsMap[year] = {};
+    if (!yearsMap[year][month]) yearsMap[year][month] = { facturas: [], total: 0, count: 0 };
+    var numFactura = (f.serie || 'F') + '-' + String(f.numero_factura || f.id).padStart(5, '0');
+    var pdfName = 'Factura-' + numFactura + '.pdf';
+    var pdfInfo = pdfMap[pdfName] || null;
+    var inZip = zipPdfs[pdfName] || null;
+    yearsMap[year][month].facturas.push({
+      id: f.id,
+      numFactura: numFactura,
+      cliente: f.cliente_nombre,
+      importe: f.importe_total,
+      fecha: f.fecha_emision,
+      estado: f.estado,
+      pdfPath: pdfInfo ? pdfInfo.fullPath : null,
+      pdfSize: pdfInfo ? pdfInfo.size : null,
+      origen: 'db',
+      inZip: inZip ? inZip.zipPath : null
+    });
+    yearsMap[year][month].total += parseFloat(f.importe_total || 0);
+    yearsMap[year][month].count++;
+    delete pdfMap[pdfName];
+    if (inZip) delete zipPdfs[pdfName];
+  });
+
+  var mesMap = { 'Enero':1,'Febrero':2,'Marzo':3,'Abril':4,'Mayo':5,'Junio':6,'Julio':7,'Agosto':8,'Septiembre':9,'Octubre':10,'Noviembre':11,'Diciembre':12 };
+  Object.keys(pdfMap).forEach(function(pdfName) {
+    var pdfInfo = pdfMap[pdfName];
+    var year = pdfInfo.year;
+    var month = mesMap[pdfInfo.month] || 5;
+    if (!yearsMap[year]) yearsMap[year] = {};
+    if (!yearsMap[year][month]) yearsMap[year][month] = { facturas: [], total: 0, count: 0 };
+    var entry = {
+      id: null,
+      numFactura: pdfName.replace(/^Factura-/,'').replace(/\.pdf$/,''),
+      cliente: pdfName.replace(/^Factura-/,'').replace(/\.pdf$/,''),
+      importe: 0,
+      fecha: year + '-' + String(month).padStart(2, '0') + '-01',
+      estado: 'histórica',
+      pdfSize: pdfInfo.size,
+      origen: 'pdf'
+    };
+    if (pdfInfo.dbId) {
+      entry.dbId = pdfInfo.dbId;
+    } else {
+      entry.pdfPath = pdfInfo.fullPath;
+    }
+    yearsMap[year][month].facturas.push(entry);
+    yearsMap[year][month].count++;
+  });
+
+  // Add PDFs that are only in ZIPS (not yet extracted)
+  Object.keys(zipPdfs).forEach(function(pdfName) {
+    var zipInfo = zipPdfs[pdfName];
+    var year = zipInfo.year;
+    var month = mesMap[zipInfo.month];
+    if (!month) return;
+    if (!yearsMap[year]) yearsMap[year] = {};
+    if (!yearsMap[year][month]) yearsMap[year][month] = { facturas: [], total: 0, count: 0 };
+    yearsMap[year][month].facturas.push({
+      id: null,
+      numFactura: pdfName.replace(/^Factura-/,'').replace(/\.pdf$/,''),
+      cliente: pdfName.replace(/^Factura-/,'').replace(/\.pdf$/,''),
+      importe: 0,
+      fecha: year + '-' + String(month).padStart(2, '0') + '-01',
+      estado: 'archivada',
+      pdfPath: null,
+      pdfSize: null,
+      origen: 'zip',
+      inZip: zipInfo.zipPath
+    });
+    yearsMap[year][month].count++;
+  });
+
+  // Augment with Drive PDFs (only for current and previous year, to avoid too many API calls)
+  var driveAvailable = driveHelper.isAvailable();
+  var driveRootId = process.env.DRIVE_ROOT_FOLDER_ID || '1JrStvTy-l0msOmfwT1S0Jupg6Ru6Zemx';
+  if (driveAvailable) {
+    var currentYear = new Date().getFullYear();
+    var yearsToCheck = [String(currentYear), String(currentYear - 1)];
+    for (var yi = 0; yi < yearsToCheck.length; yi++) {
+      var yStr = yearsToCheck[yi];
+      try {
+        var drivePDFs = await driveHelper.listPDFsFromDriveYear(yStr);
+        drivePDFs.forEach(function(dp) {
+          var mNum = mesMap[dp.month];
+          if (!mNum) return;
+          if (!yearsMap[yStr]) yearsMap[yStr] = {};
+          if (!yearsMap[yStr][mNum]) yearsMap[yStr][mNum] = { facturas: [], total: 0, count: 0 };
+          // Check if this PDF already exists from disk/DB
+          var exists = yearsMap[yStr][mNum].facturas.some(function(f) { return f.numFactura === dp.fileName.replace(/\.pdf$/,'') || (f.origen === 'drive' && f.driveId === dp.driveId); });
+          if (!exists) {
+            yearsMap[yStr][mNum].facturas.push({
+              id: null,
+              numFactura: dp.fileName.replace(/\.pdf$/,''),
+              cliente: dp.fileName.replace(/\.pdf$/,''),
+              importe: 0,
+              fecha: yStr + '-' + String(mNum).padStart(2, '0') + '-01',
+              estado: 'drive',
+              pdfSize: dp.size,
+              origen: 'drive',
+              driveId: dp.driveId
+            });
+            yearsMap[yStr][mNum].count++;
+          }
+        });
+      } catch(e) { console.error('Drive PDF list error for ' + yStr + ':', e.message); }
+    }
+  }
+
+  var currentYear = new Date().getFullYear();
+  var years = [];
+  for (var y = 2024; y <= currentYear + 1; y++) {
+    var yearData = yearsMap[y] || {};
+    var meses = [];
+    for (var m = 1; m <= 12; m++) {
+      var mesData = yearData[m] || { facturas: [], total: 0, count: 0 };
+      meses.push({
+        num: m,
+        nombre: MES_NOMBRES[m],
+        facturas: mesData.facturas,
+        total: mesData.total,
+        count: mesData.count
+      });
+    }
+    years.push({ year: y, meses: meses });
+  }
+
+  // Also list ZIPS for display
+  var zipFiles = nube.listZips();
+
+  // Calculate true totals including disk PDFs without DB invoices
+  var totalEntradas = 0;
+  var totalImporteAll = 0;
+  years.forEach(function(yr) {
+    yr.meses.forEach(function(m) {
+      totalEntradas += m.count;
+      totalImporteAll += m.total;
+    });
+  });
+
+  res.render('isp/nube', {
+    title: 'Nube - Facturas',
+    years: years,
+    totalFacturas: totalEntradas,
+    totalImporte: totalImporteAll,
+    totalPDFs: totalEntradas,
+    mesNombres: MES_NOMBRES,
+    zipFiles: zipFiles,
+    driveAvailable: driveAvailable,
+    driveRootId: driveRootId
+  });
+});
+
+router.get('/ver/:id', async (req, res) => {
+  var factura = db.prepare('SELECT * FROM isp_facturas WHERE id=?').get(req.params.id);
+  if (!factura) return res.status(404).send('No encontrada');
+  var lineasRaw = db.prepare('SELECT * FROM isp_facturas_lineas WHERE factura_id=?').all(req.params.id);
+  var lineas = [], cdrG = {};
+  lineasRaw.forEach(function(l) {
+    if (l.tipo === 'cdr') { var k=(l.linea||'')+'|'+(l.tipo||'exceso'); if(!cdrG[k]) cdrG[k]={linea:l.linea,tipo:'cdr',total:0,concepto:l.concepto}; cdrG[k].total+=parseFloat(l.importe||0); }
+    else { lineas.push(l); }
+  });
+  for (var gk in cdrG) { var g=cdrG[gk]; lineas.push({concepto:g.concepto,tipo:'cdr',importe:Math.round(g.total*100)/100,linea:g.linea}); }
+  var cdrsDetalle = [];
+  try { cdrsDetalle = db.prepare('SELECT * FROM isp_cdrs WHERE factura_id=?').all(req.params.id); } catch(e) {}
+  var llamadas = [];
+  try { llamadas = db.prepare('SELECT * FROM isp_llamadas WHERE factura_id=? ORDER BY fecha, hora').all(req.params.id); } catch(e) {}
+
+  // If no CDRs in DB, try API live
+  if (cdrsDetalle.length === 0 && factura.fiscal_id) {
+    try {
+      var api = LikesAPI.getApiInstance();
+      cdrsDetalle = await LikesAPI.fetchCDRsForFiscalId(api, factura.fiscal_id, factura.periodo);
+    } catch(e) { console.error('API CDR fetch for nube ver:', e.message); }
+  }
+
+  var history = [];
+  try {
+    if (factura.fiscal_id) {
+      var histRows = db.prepare("SELECT periodo, SUM(importe_total) as total FROM isp_facturas WHERE fiscal_id=? AND id<=? GROUP BY periodo ORDER BY periodo DESC LIMIT 6").all(factura.fiscal_id, factura.id);
+      history = histRows.reverse();
+    }
+  } catch(e) {}
+  res.render('isp/facturacion/invoice-html', {
+    title: 'Factura #' + factura.id,
+    factura, lineas, cdrsDetalle, llamadas, history,
+    layout: false
+  });
+});
+
+// View a PDF from ZIP storage by filename
+router.get('/ver-zip', (req, res) => {
+  var pdfName = req.query.pdf;
+  if (!pdfName) return res.status(400).send('Falta nombre PDF');
+  var result = nube.findPDFInZips(pdfName);
+  if (!result) {
+    // Try with Factura- prefix
+    var altName = 'Factura-' + pdfName;
+    if (!altName.endsWith('.pdf')) altName += '.pdf';
+    result = nube.findPDFInZips(altName);
+    if (!altName.startsWith('Factura-')) {
+      var altName2 = 'Factura-' + pdfName.replace(/\.pdf$/i,'') + '.pdf';
+      result = nube.findPDFInZips(altName2);
+    }
+  }
+  if (!result) return res.status(404).send('No encontrado en ZIP');
+  var isDownload = req.query.download === '1';
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', (isDownload ? 'attachment' : 'inline') + '; filename="' + pdfName + '"');
+  res.send(result.data);
+});
+
+router.get('/pdf/:id', async (req, res) => {
+  try {
+    var factura = db.prepare('SELECT * FROM isp_facturas WHERE id=?').get(req.params.id);
+    if (!factura) return res.status(404).send('No encontrada');
+    var lineasRaw = db.prepare('SELECT * FROM isp_facturas_lineas WHERE factura_id=?').all(req.params.id);
+    // Group CDR lines
+    var lineas = [], cdrG = {};
+    lineasRaw.forEach(function(l) {
+      if (l.tipo === 'cdr') {
+        var k = (l.linea||'')+'|'+(l.tipo||'exceso');
+        if (!cdrG[k]) cdrG[k] = { linea: l.linea, tipo: 'cdr', total: 0, concepto: l.concepto };
+        cdrG[k].total += parseFloat(l.importe||0);
+      } else { lineas.push(l); }
+    });
+    for (var gk in cdrG) { var g=cdrG[gk]; lineas.push({ concepto: g.concepto, tipo: 'cdr', importe: Math.round(g.total*100)/100, linea: g.linea }); }
+    var cdrsDetalle = [];
+    try { cdrsDetalle = db.prepare('SELECT * FROM isp_cdrs WHERE factura_id=?').all(req.params.id); } catch(e) {}
+    var llamadas = [];
+    try { llamadas = db.prepare('SELECT * FROM isp_llamadas WHERE factura_id=? ORDER BY fecha, hora').all(req.params.id); } catch(e) {}
+
+    // If no CDRs in DB, try API live
+    if (cdrsDetalle.length === 0 && factura.fiscal_id) {
+      try {
+        var api = LikesAPI.getApiInstance();
+        cdrsDetalle = await LikesAPI.fetchCDRsForFiscalId(api, factura.fiscal_id, factura.periodo);
+      } catch(e) { console.error('API CDR fetch for pdf:', e.message); }
+    }
+
+    var history = [];
+    try {
+      if (factura.fiscal_id) {
+        var histRows = db.prepare("SELECT periodo, SUM(importe_total) as total FROM isp_facturas WHERE fiscal_id=? AND id<=? GROUP BY periodo ORDER BY periodo DESC LIMIT 6").all(factura.fiscal_id, factura.id);
+        history = histRows.reverse();
+      }
+    } catch(e) {}
+
+    var numFactura = (factura.serie || 'F') + '-' + String(factura.numero_factura || factura.id).padStart(5, '0');
+    var nombreArchivo = 'Factura-' + numFactura + '.pdf';
+    var paths = nube.getYearMonthPaths(factura.periodo);
+    var cachedPath = path.join(paths.dir, nombreArchivo);
+
+    // 1) Try Drive
+    var drivePdf = await nube.getPDFBuffer(nombreArchivo, factura.periodo);
+    if (drivePdf) {
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'attachment; filename="' + nombreArchivo + '"');
+      return res.send(drivePdf);
+    }
+
+    // 2) Check local file
+    if (fs.existsSync(cachedPath)) return res.download(cachedPath, nombreArchivo);
+
+    // 3) Check DB storage
+    var dbPdf = nube.getPDFFromDB(nombreArchivo);
+    if (dbPdf) {
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'attachment; filename="' + nombreArchivo + '"');
+      return res.send(dbPdf);
+    }
+
+    // 4) Check ZIP storage
+    var zipResult = nube.findPDFInZips(nombreArchivo);
+    if (zipResult) {
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'attachment; filename="' + nombreArchivo + '"');
+      return res.send(zipResult.data);
+    }
+
+    var result = await nube.procesarFactura(factura, lineas, cdrsDetalle, llamadas, history);
+    if (!result) return res.redirect('/isp/facturacion/facturas/' + req.params.id + '/view');
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="' + nombreArchivo + '"');
+    res.send(result.pdfBuf);
+  } catch(e) {
+    console.error(e);
+    res.status(500).send('Error: ' + e.message);
+  }
+});
+
+router.get('/pdf-db/:id', (req, res) => {
+  var row = nube.getPDFFromDBById(req.params.id);
+  if (!row) return res.status(404).send('No encontrado');
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', 'inline; filename="' + row.nombre + '"');
+  res.send(row.datos);
+});
+
+router.get('/descargar', (req, res) => {
+  var filePath = req.query.path;
+  if (!filePath) return res.status(400).send('Falta path');
+  if (!filePath.startsWith(nube.NUBE_DIR)) return res.status(403).send('Acceso denegado');
+  if (!fs.existsSync(filePath)) return res.status(404).send('No encontrado');
+  var isView = req.query.view === '1';
+  if (isView) {
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="' + path.basename(filePath) + '"');
+    return res.sendFile(filePath);
+  }
+  res.download(filePath);
+});
+
+router.get('/zip/:year/:month?', async (req, res) => {
+  try {
+    var archiverMod = await import('archiver');
+    var ArchiverClass = archiverMod.ZipArchive || archiverMod.default?.ZipArchive;
+    if (!ArchiverClass) throw new Error('No se pudo cargar archiver');
+    var archive = new ArchiverClass({ zlib: { level: 9 } });
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', 'attachment; filename="facturas-' + req.params.year + (req.params.month ? '-' + req.params.month : '') + '.zip"');
+    archive.pipe(res);
+
+    var pdfs = nube.listarPDFs();
+    var year = req.params.year;
+    var month = req.params.month;
+    var MESES_INV = { 'Enero':1,'Febrero':2,'Marzo':3,'Abril':4,'Mayo':5,'Junio':6,'Julio':7,'Agosto':8,'Septiembre':9,'Octubre':10,'Noviembre':11,'Diciembre':12 };
+
+    pdfs.forEach(function(p) {
+      if (year !== 'todas' && p.year !== year) return;
+      if (month && MESES_INV[p.month] !== parseInt(month)) return;
+      if (p.fullPath && fs.existsSync(p.fullPath)) {
+        archive.file(p.fullPath, { name: p.year + '/' + p.month + '/' + p.fileName });
+      } else if (p.dbId) {
+        var row = nube.getPDFFromDBById(p.dbId);
+        if (row && row.datos) {
+          archive.append(row.datos, { name: p.year + '/' + p.month + '/' + p.fileName });
+        }
+      }
+    });
+
+    // Also add ZIP-internal PDFs
+    var zipPdfs = nube.getAllPDFNamesFromZips();
+    Object.keys(zipPdfs).forEach(function(pdfName) {
+      var info = zipPdfs[pdfName];
+      if (year !== 'todas' && info.year !== year) return;
+      if (month && MESES_INV[info.month] !== parseInt(month)) return;
+      var data = nube.getPDFDataFromZip(info.zipPath, info.entryName);
+      if (data) {
+        archive.append(data, { name: info.year + '/' + info.month + '/' + pdfName });
+      }
+    });
+
+    archive.finalize();
+  } catch(e) {
+    console.error('Zip error:', e.message);
+    if (!res.headersSent) res.status(500).send('Error: ' + e.message);
+  }
+});
+
+router.post('/generar-todas', async (req, res) => {
+  res.json({ ok: true, message: 'Generando...' });
+  var facturas = db.prepare('SELECT * FROM isp_facturas ORDER BY id ASC').all();
+  for (var f of facturas) {
+    try {
+      var numFactura = (f.serie || 'F') + '-' + String(f.numero_factura || f.id).padStart(5, '0');
+      var nombreArchivo = 'Factura-' + numFactura + '.pdf';
+      var paths = nube.getYearMonthPaths(f.periodo);
+      if (fs.existsSync(path.join(paths.dir, nombreArchivo))) continue;
+      var existDB = db.prepare('SELECT id FROM archivos WHERE nombre=?').get(nombreArchivo);
+      if (existDB) continue;
+      var lineasRaw = db.prepare('SELECT * FROM isp_facturas_lineas WHERE factura_id=?').all(f.id);
+      var lineas = [], cdrG = {};
+      lineasRaw.forEach(function(l) {
+        if (l.tipo === 'cdr') { var k=(l.linea||'')+'|'+(l.tipo||'exceso'); if(!cdrG[k]) cdrG[k]={linea:l.linea,tipo:'cdr',total:0,concepto:l.concepto}; cdrG[k].total+=parseFloat(l.importe||0); }
+        else { lineas.push(l); }
+      });
+      for (var gk in cdrG) { var g=cdrG[gk]; lineas.push({concepto:g.concepto,tipo:'cdr',importe:Math.round(g.total*100)/100,linea:g.linea}); }
+      var cdrsDetalle = [];
+      try { cdrsDetalle = db.prepare('SELECT * FROM isp_cdrs WHERE factura_id=?').all(f.id); } catch(e) {}
+      var llamadas = [];
+      try { llamadas = db.prepare('SELECT * FROM isp_llamadas WHERE factura_id=? ORDER BY fecha, hora').all(f.id); } catch(e) {}
+      // If no CDRs in DB, try API live
+      if (cdrsDetalle.length === 0 && f.fiscal_id) {
+        try {
+          var api = LikesAPI.getApiInstance();
+          cdrsDetalle = await LikesAPI.fetchCDRsForFiscalId(api, f.fiscal_id, f.periodo);
+        } catch(e) { console.error('API CDR fetch for generar-todas:', e.message); }
+      }
+      var history = [];
+      try {
+        if (f.fiscal_id) {
+          var histRows = db.prepare("SELECT periodo, SUM(importe_total) as total FROM isp_facturas WHERE fiscal_id=? AND id<=? GROUP BY periodo ORDER BY periodo DESC LIMIT 6").all(f.fiscal_id, f.id);
+          history = histRows.reverse();
+        }
+      } catch(e) {}
+      await nube.procesarFactura(f, lineas, cdrsDetalle, llamadas, history);
+    } catch(e) { console.error('Error #' + f.id + ': ' + e.message); }
+  }
+  console.log('PDFs generados');
+});
+
+// Browse Drive folder contents
+router.get('/carpeta-drive', async (req, res) => {
+  try {
+    var folderId = req.query.id;
+    if (!folderId) return res.status(400).json({ error: 'Falta id' });
+    var items = await driveHelper.listFolderContents(folderId);
+    res.json({ items: items });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Browse folder contents
+router.get('/carpeta', (req, res) => {
+  try {
+    var folderPath = req.query.path || '';
+    if (!folderPath || !folderPath.startsWith(nube.NUBE_DIR)) {
+      // Convert relative to absolute
+      var absPath = path.join(nube.NUBE_DIR, folderPath);
+      if (fs.existsSync(absPath) && absPath.startsWith(nube.NUBE_DIR)) folderPath = absPath;
+      else return res.status(400).send('Ruta no válida');
+    }
+    if (!fs.existsSync(folderPath)) return res.status(404).send('Carpeta no encontrada');
+    var items = fs.readdirSync(folderPath).map(function(e) {
+      var fp = path.join(folderPath, e);
+      var stat = fs.statSync(fp);
+      return {
+        name: e,
+        isDirectory: stat.isDirectory(),
+        size: stat.isDirectory() ? 0 : stat.size,
+        modified: stat.mtime,
+        path: fp,
+        ext: path.extname(e).toLowerCase()
+      };
+    });
+    items.sort(function(a, b) {
+      if (a.isDirectory && !b.isDirectory) return -1;
+      if (!a.isDirectory && b.isDirectory) return 1;
+      return a.name.localeCompare(b.name);
+    });
+    var relativePath = folderPath.replace(nube.NUBE_DIR, '').replace(/^[\\\/]/, '');
+    res.render('isp/nube-carpeta', {
+      title: 'Nube - ' + (relativePath || 'Raíz'),
+      items: items,
+      folderPath: folderPath,
+      relativePath: relativePath,
+      parentPath: path.dirname(folderPath),
+      isRoot: folderPath === nube.NUBE_DIR,
+      layout: 'layout'
+    });
+  } catch(e) {
+    res.status(500).send('Error: ' + e.message);
+  }
+});
+
+// Download file from Drive by ID
+router.get('/descargar-drive', async (req, res) => {
+  try {
+    var fileId = req.query.id;
+    if (!fileId) return res.status(400).send('Falta id');
+    if (!driveHelper.isAvailable()) return res.status(503).send('Drive no disponible');
+    var buf = await driveHelper.getFileBuffer(fileId);
+    if (!buf) return res.status(404).send('No encontrado en Drive');
+    var isView = req.query.view === '1';
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', (isView ? 'inline' : 'attachment') + '; filename="drive-file.pdf"');
+    res.send(buf);
+  } catch(e) { res.status(500).send('Error: ' + e.message); }
+});
+
+// Run migration at startup: copy existing disk PDFs to DB
+try {
+  var migrados = nube.migrarPDFsADB();
+  if (migrados > 0) console.log('[Nube] Migrados ' + migrados + ' PDFs a DB');
+} catch(e) { console.error('[Nube] Error migración:', e.message); }
+
+// Endpoint to regenerate PDFs
+router.post('/regenerar-pdfs', async (req, res) => {
+  try {
+    var result = await nube.regenerarPDFs();
+    res.json(result);
+  } catch(e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Endpoint to migrate disk PDFs to DB
+router.post('/migrar-a-db', (req, res) => {
+  try {
+    var count = nube.migrarPDFsADB();
+    res.json({ ok: true, migrados: count });
+  } catch(e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+module.exports = router;
