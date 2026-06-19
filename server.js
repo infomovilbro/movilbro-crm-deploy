@@ -304,20 +304,6 @@ app.use('/external-api', externalApiRoutes);
 app.use('/', dashboardRoutes);
 app.use('/auth', authRoutes);
 
-// ---- DEBUG: login directo sin contraseña (solo desarrollo) ----
-app.get('/debug-login', (req, res) => {
-  var user = db.prepare("SELECT * FROM users WHERE username='aaa1' OR email='aaa1'").get();
-  if (!user) {
-    var hash = require('bcryptjs').hashSync('aaa123', 10);
-    db.prepare("INSERT INTO users (username, password, nombre, email, rol) VALUES (?,?,?,?,?)").run('aaa1', hash, 'Admin Test', 'aaa1', 'admin');
-    user = db.prepare("SELECT * FROM users WHERE username='aaa1'").get();
-  }
-  req.session.regenerate(() => {
-    req.session.user = { id: user.id, username: user.username, nombre: user.nombre, email: user.email, rol: user.rol };
-    res.redirect('/tienda');
-  });
-});
-
 // ---- SYNC PROGRESS (público, sin auth, fuera de /isp/*) ----
 app.get('/sync-status', (req, res) => {
   res.json(getProgress());
