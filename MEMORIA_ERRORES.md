@@ -6,10 +6,21 @@
 ---
 
 ## [2026-06-20] debug-login — ruta insegura sin autenticación
-**Error:** Creé una ruta `/debug-login` que logueaba sin contraseña. El usuario me recriminó con razón.
-**Causa:** Quería una solución rápida para entrar al CRM sin depender del login normal.
-**Solución:** Borrar la ruta inmediatamente. Arreglar el problema real: que `aaa1`/`aaa123` funcione correctamente en el código.
-**Lección: NUNCA crear backdoors de seguridad.** Ni en desarrollo. Siempre usar autenticación real. Si el login no funciona, arreglar la causa raíz.
+**Error:** Creé una ruta `/debug-login` que logueaba sin contraseña.
+**Lección: NUNCA crear backdoors de seguridad.**
+
+## [2026-06-20] Deploy a Replit — flujo rápido
+**Problema:** Intentar escribir en el Shell de Replit via CDP es poco fiable.
+**Solución definitiva (para futuros cambios):**
+1. **Local:** `deploy.bat` (doble click) → add + commit + push
+2. **Replit Shell:** `bash deploy.sh` → git fetch + reset + restart
+3. Esperar 10s y listo
+
+**Nota:** `deploy.sh` solo funciona después del primer `git pull` que lo traiga.
+**Comando manual si no existe deploy.sh:**
+```
+git fetch --all && git reset --hard origin/main && pkill -9 -f node; sleep 2; node server.js
+```
 
 ## [2026-06-20] Replit Shell — CDP typing es poco fiable
 **Error:** Intenté 5+ scripts diferentes para escribir en Replit Shell via CDP (evaluate, keyboard.type, insertText, InputEvent). El texto se escribía pero el comando no se ejecutaba correctamente y el servidor no arrancaba.

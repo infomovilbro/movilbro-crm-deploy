@@ -240,58 +240,43 @@ async function callLLM(systemPrompt, userMessage, temperature, modelId, maxToken
   var modelsToTry = [primaryModel, 'deepseek-v4-flash-free', 'nemotron-3-ultra-free', 'nemotron-3-super-free'];
   if (getModelConfig('gemini-2.0-flash-openrouter')?.key) modelsToTry.push('gemini-2.0-flash-openrouter');
   
-  // Lanzar TODOS los modelos en paralelo, el primero que responda gana
-  var factories = modelsToTry.filter(function(m) { return getModelConfig(m) && getModelConfig(m).key; }).map(function(m) {
-    return function() {
-      var cfg = getModelConfig(m);
-      return axios.post(cfg.apiEndpoint, {
-        model: m,
-        messages: [{ role: 'user', content: ((systemPrompt || '') + '\n' + (userMessage || '')).substring(0, maxTokens > 200 ? 2000 : 500) }],
-        temperature: temperature || 0.3, max_tokens: maxTokens
-      }, { timeout: maxTokens > 200 ? 15000 : 5000, headers: { 'Authorization': 'Bearer ' + cfg.key, 'Content-Type': 'application/json' } })
-      .then(function(resp) {
-        var text = resp?.data?.choices?.[0]?.message?.content;
-        if (text && text.trim()) {
-          try { db.prepare("INSERT INTO model_usage (model_id, date, calls) VALUES (?, ?, 1) ON CONFLICT(model_id, date) DO UPDATE SET calls = calls + 1, updated_at = CURRENT_TIMESTAMP").run(m, new Date().toISOString().split('T')[0]); } catch(e) {}
-          return { model: m, text: text.trim() };
-        }
-        return null;
-      })
-      .catch(function(e) {
-        var is429 = e.response && e.response.status === 429;
-        if (!is429) console.log('[CodeOpen] Error en ' + m + ':', e.message);
-        return null;
-      });
-    };
+  var activeModels = modelsToTry.filter(function(m) { return getModelConfig(m) && getModelConfig(m).key; });
+  if (activeModels.length === 0) return 'Error: Inténtalo de nuevo en unos segundos.';
+  
+  var prompt = ((systemPrompt || '') + '\n' + (userMessage || '')).substring(0, 500);
+  
+  // Lanzar TODOS los modelos en PARALELO, el primero que responda gana (race)
+  var promises = activeModels.map(function(m) {
+    var cfg = getModelConfig(m);
+    return axios.post(cfg.apiEndpoint, {
+      model: m,
+      messages: [{ role: 'user', content: prompt }],
+      temperature: temperature || 0.3, max_tokens: maxTokens
+    }, { timeout: 3000, headers: { 'Authorization': 'Bearer ' + cfg.key, 'Content-Type': 'application/json' } })
+    .then(function(resp) {
+      var text = resp?.data?.choices?.[0]?.message?.content;
+      if (text && text.trim()) {
+        try { db.prepare("INSERT INTO model_usage (model_id, date, calls) VALUES (?, ?, 1) ON CONFLICT(model_id, date) DO UPDATE SET calls = calls + 1, updated_at = CURRENT_TIMESTAMP").run(m, new Date().toISOString().split('T')[0]); } catch(e) {}
+        return { model: m, text: text.trim() };
+      }
+      return null;
+    })
+    .catch(function() { return null; });
   });
 
-  // Probar modelos en orden: DeepSeek primero, solo fallback si falla
-  return await new Promise(function(resolve) {
-    if (factories.length === 0) resolve('Error: Inténtalo de nuevo en unos segundos.');
-    var timedOut = false;
-    var timer = setTimeout(function() {
-      timedOut = true;
-      resolve('Error: Inténtalo de nuevo en unos segundos.');
-    }, 25000);
-    async function tryNext(idx) {
-      if (timedOut || idx >= factories.length) {
-        if (!timedOut) resolve('Error: Inténtalo de nuevo en unos segundos.');
-        return;
-      }
-      try {
-        var result = await factories[idx]();
-        if (timedOut) return;
-        if (result && result.text) {
-          clearTimeout(timer);
-          try { db.prepare("UPDATE model_usage SET calls = calls + 1, updated_at = CURRENT_TIMESTAMP WHERE model_id = ? AND date = ?").run(result.model, new Date().toISOString().split('T')[0]); } catch(e) {}
-          resolve(result.text);
-          return;
-        }
-      } catch(e) {}
-      tryNext(idx + 1);
-    }
-    tryNext(0);
-  });
+  // Promise.race - el primero que responda, gana
+  var winner = await Promise.race([
+    Promise.all(promises).then(function(results) {
+      var valid = results.filter(function(r) { return r && r.text; });
+      if (valid.length === 0) return null;
+      valid.sort(function(a, b) { return b.text.length - a.text.length; });
+      return valid[0];
+    }),
+    new Promise(function(r) { setTimeout(function() { r(null); }, 3000); })
+  ]);
+
+  if (winner && winner.text) return winner.text;
+  return 'Error: Inténtalo de nuevo en unos segundos.';
 }
 
 const AGENT_CATEGORIES = {
@@ -1247,6 +1232,8 @@ router.get('/email-status', async (req, res) => {
 router.post('/whatsapp/logout', async (req, res) => {
   try {
     db.prepare("DELETE FROM settings WHERE key='baileys_session'").run();
+    // Limpiar mensajes pendientes de WhatsApp para que no aparezcan antiguos
+    db.prepare("DELETE FROM pending_messages WHERE source='baileys' OR source='whatsapp' OR category='whatsapp'").run();
     try {
       var fs = require('fs');
       var authDir = '/tmp/baileys-auth';
@@ -1264,8 +1251,7 @@ router.post('/whatsapp/logout', async (req, res) => {
       var wa = require('../wa-baileys');
       if (wa.end) wa.end();
     } catch(e) {}
-    // NO auto-reiniciar - el usuario debe reconectar manualmente
-    res.json({ ok: true, message: 'Sesion de WhatsApp eliminada. Usa Reconectar para volver a conectar.' });
+    res.json({ ok: true, message: 'Sesion de WhatsApp eliminada.', forceReload: true });
   } catch(e) { res.json({ ok: false, error: e.message }); }
 });
 
@@ -1288,33 +1274,23 @@ router.post('/whatsapp/login-phone', async (req, res) => {
     
     var wa = require('../wa-baileys');
     
-    // Intentar enviar codigo de emparejamiento primero (antes de borrar sesion)
-    var code = null;
+    // Forzar reinicio completo de Baileys con el numero para pairing
+    try { wa.end(); } catch(e) {}
+    await new Promise(function(r) { setTimeout(r, 2000); });
+    
     try {
-      code = await wa.requestPairingCode(phoneNumber);
-    } catch(e) {
-      console.error('[Phone] Pairing error with existing session:', e.message);
-    }
-    
-    if (!code) {
-      // Si falló, forzar reinicio completo de Baileys con el numero
-      try { wa.end(); } catch(e) {}
-      // Esperar y reiniciar
-      await new Promise(function(r) { setTimeout(r, 2000); });
-      try {
-        await wa.initBaileys(phoneNumber);
-        // Despues de init, pedir codigo otra vez
-        await new Promise(function(r) { setTimeout(r, 3000); });
-        code = await wa.requestPairingCode(phoneNumber);
-      } catch(e2) {
-        console.error('[Phone] Pairing error after restart:', e2.message);
+      await wa.initBaileys(phoneNumber);
+      await new Promise(function(r) { setTimeout(r, 5000); });
+      var code = await wa.requestPairingCode(phoneNumber);
+      
+      if (code) {
+        res.json({ ok: true, message: 'Codigo de 6 digitos enviado a tu WhatsApp. Revisa la notificacion.', pairingCode: code });
+      } else {
+        res.json({ ok: true, message: 'No se pudo generar codigo. Escanea el QR.', pairingCode: null });
       }
-    }
-    
-    if (code) {
-      res.json({ ok: true, message: 'Codigo enviado a tu WhatsApp. Revisa tus chats.', pairingCode: code });
-    } else {
-      res.json({ ok: true, message: 'No se pudo generar codigo. Escanea el QR en CodeOpen.', pairingCode: null });
+    } catch(e2) {
+      console.error('[Phone] Pairing error:', e2.message);
+      res.json({ ok: false, error: 'Error: ' + e2.message });
     }
   } catch(e) { res.json({ ok: false, error: e.message }); }
 });

@@ -223,29 +223,37 @@ async function sendBaileysMessage(jid, content, options) {
       } catch(e) {}
     }
     
-    // Si es audio, enviar como nota de voz real
+    // Si es audio, enviar como nota de voz
     if (options && options.asAudio) {
       var audioBuf = content && content.audioBuffer ? content.audioBuffer : (Buffer.isBuffer(content) ? content : null);
       if (audioBuf && audioBuf.length > 100) {
+        // Intentar con formato OGG primero (WhatsApp espera OGG para ptt)
         try {
-          await sock.sendMessage(jid, { audio: audioBuf, mimetype: 'audio/mp3', ptt: true }, opts);
+          await sock.sendMessage(jid, { audio: audioBuf, mimetype: 'audio/ogg; codecs=opus', ptt: true }, opts);
           return { ok: true, type: 'audio' };
-        } catch(audioErr) {
-          console.log('[Baileys] Audio send failed:', audioErr.message);
-          // Si el audio falla, intentar como documento de audio
+        } catch(err1) {
+          // Reintentar como MP3
           try {
-            await sock.sendMessage(jid, { 
-              document: audioBuf, 
-              mimetype: 'audio/mp3', 
-              fileName: 'mensaje-de-voz.mp3'
-            }, opts);
-            return { ok: true, type: 'audio_document' };
-          } catch(docErr) {
-            return { ok: false, error: 'Audio: ' + audioErr.message + ' / Doc: ' + docErr.message };
+            await sock.sendMessage(jid, { audio: audioBuf, mimetype: 'audio/mp3', ptt: true }, opts);
+            return { ok: true, type: 'audio' };
+          } catch(err2) {
+            // Intentar como documento de audio
+            try {
+              await sock.sendMessage(jid, { 
+                document: audioBuf, 
+                mimetype: 'audio/mpeg', 
+                fileName: 'mensaje-de-voz.mp3'
+              }, opts);
+              return { ok: true, type: 'audio_document' };
+            } catch(docErr) {
+              // Fallback a texto
+              var fallbackText = (content && content.text) || (typeof content === 'string' ? content : '🎤 Mensaje de voz');
+              await sock.sendMessage(jid, { text: '🎤 ' + fallbackText }, opts);
+              return { ok: true, type: 'text_fallback' };
+            }
           }
         }
       } else {
-        // Sin buffer de audio válido, enviar como texto con indicador
         var text = (content && content.text) || (typeof content === 'string' ? content : '');
         await sock.sendMessage(jid, { text: '🎤 ' + text }, opts);
         return { ok: true, type: 'text_fallback', note: 'audio_no_disponible' };

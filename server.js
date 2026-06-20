@@ -71,6 +71,13 @@ const isProd = process.env.NODE_ENV === 'production';
 
 initDatabase();
 
+// Limpiar mensajes antiguos con error al arrancar (deploy/git pull)
+try {
+  var oldDate = new Date(Date.now() - 7200000).toISOString(); // 2h atras
+  db.prepare("DELETE FROM pending_messages WHERE (proposed_response LIKE 'Error:%' OR proposed_response LIKE 'Analizando%') AND created_at < ?").run(oldDate);
+  console.log('[Cleanup] Mensajes antiguos con error eliminados');
+} catch(e) { console.log('[Cleanup] Error:', e.message); }
+
 // Seed shared_context with project summary
 try {
   var seedSummary = require('fs').readFileSync(require('path').join(__dirname, 'PROJECT_SUMMARY.md'), 'utf8');

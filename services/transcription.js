@@ -12,48 +12,53 @@ try {
 } catch(e) {}
 
 async function transcribeAudio(audioBuffer, mimeType) {
-  // Intentar OpenRouter Whisper si no hay AssemblyAI
-  if (!assemblyAIKey) {
-    var openRouterKey = process.env.OPENROUTER_API_KEY || '';
-    if (openRouterKey) {
-      try {
-        var tmpPath = path.join(os.tmpdir(), 'wa_audio_' + Date.now() + '.ogg');
-        fs.writeFileSync(tmpPath, audioBuffer);
-        var FormData = require('form-data');
-        var fd = new FormData();
-        fd.append('model', 'openai/whisper-1');
-        fd.append('file', fs.createReadStream(tmpPath), { filename: 'audio.ogg', contentType: mimeType || 'audio/ogg' });
-        fd.append('language', 'es');
-        var resp = await axios.post('https://openrouter.ai/api/v1/audio/transcriptions', fd, {
-          headers: Object.assign({ 'Authorization': 'Bearer ' + openRouterKey }, fd.getHeaders()),
-          timeout: 30000, maxContentLength: Infinity, maxBodyLength: Infinity
-        });
-        try { fs.unlinkSync(tmpPath); } catch(e) {}
-        if (resp.data && resp.data.text) return { text: resp.data.text, rawText: resp.data.text };
-        if (resp.data && typeof resp.data === 'string') return { text: resp.data, rawText: resp.data };
-      } catch(e) { console.log('[Transcription] OpenRouter fallback error:', e.message); }
-    }
-    return { text: null, error: 'ASSEMBLYAI_API_KEY no configurada. Crea una cuenta gratis en assemblyai.com y añade la API key en Settings.' };
-  }
+  // 1. Intentar OpenRouter Whisper (necesita OPENROUTER_API_KEY en Settings)
+  var openRouterKey = process.env.OPENROUTER_API_KEY || '';
   try {
-    var tmpPath = path.join(os.tmpdir(), 'wa_audio_' + Date.now() + '.ogg');
-    fs.writeFileSync(tmpPath, audioBuffer);
+    var db2 = require('../database');
+    if (db2) {
+      try { openRouterKey = (db2.db.prepare("SELECT value FROM settings WHERE key='openrouter_api_key'").get() || {}).value || openRouterKey; } catch(e) {}
+    }
+  } catch(e) {}
+  
+  if (openRouterKey) {
+    try {
+      var tmpPath = path.join(os.tmpdir(), 'wa_audio_' + Date.now() + '.ogg');
+      fs.writeFileSync(tmpPath, audioBuffer);
+      var FormData = require('form-data');
+      var fd = new FormData();
+      fd.append('model', 'openai/whisper-1');
+      fd.append('file', fs.createReadStream(tmpPath), { filename: 'audio.ogg', contentType: mimeType || 'audio/ogg' });
+      fd.append('language', 'es');
+      var resp = await axios.post('https://openrouter.ai/api/v1/audio/transcriptions', fd, {
+        headers: Object.assign({ 'Authorization': 'Bearer ' + openRouterKey }, fd.getHeaders()),
+        timeout: 30000, maxContentLength: Infinity, maxBodyLength: Infinity
+      });
+      try { fs.unlinkSync(tmpPath); } catch(e) {}
+      if (resp.data && resp.data.text) return { text: resp.data.text, rawText: resp.data.text };
+      if (resp.data && typeof resp.data === 'string') return { text: resp.data, rawText: resp.data };
+    } catch(e) { console.log('[Transcription] OpenRouter error:', e.message); }
+  }
 
-    // Subir audio usando buffer directamente (más fiable que stream)
-    var audioData = fs.readFileSync(tmpPath);
-    var uploadRes = await axios.post('https://api.assemblyai.com/v2/upload', audioData, {
-      headers: { 'Authorization': assemblyAIKey, 'Content-Type': 'application/octet-stream' },
-      maxContentLength: Infinity, maxBodyLength: Infinity,
-      timeout: 60000
-    });
-    var audioUrl = uploadRes.data.upload_url;
-    if (!audioUrl) return { text: null, error: 'Error al subir audio (no upload_url)' };
+  // 2. Intentar AssemblyAI si está configurado
+  if (assemblyAIKey) {
+    try {
+      var tmpPath = path.join(os.tmpdir(), 'wa_audio_' + Date.now() + '.ogg');
+      fs.writeFileSync(tmpPath, audioBuffer);
 
-    // Transcripción - solo lo esencial para ser más rápido y compatible
-    var transcribeRes = await axios.post('https://api.assemblyai.com/v2/transcript', {
-      audio_url: audioUrl,
-      language_code: 'es',
-      punctuate: true,
+      var audioData = fs.readFileSync(tmpPath);
+      var uploadRes = await axios.post('https://api.assemblyai.com/v2/upload', audioData, {
+        headers: { 'Authorization': assemblyAIKey, 'Content-Type': 'application/octet-stream' },
+        maxContentLength: Infinity, maxBodyLength: Infinity,
+        timeout: 60000
+      });
+      var audioUrl = uploadRes.data.upload_url;
+      if (!audioUrl) return { text: null, error: 'Error al subir audio (no upload_url)' };
+
+      var transcribeRes = await axios.post('https://api.assemblyai.com/v2/transcript', {
+        audio_url: audioUrl,
+        language_code: 'es',
+        punctuate: true,
       format_text: true
     }, { headers: { 'Authorization': assemblyAIKey }, timeout: 30000 });
     var transcriptId = transcribeRes.data.id;
@@ -123,6 +128,8 @@ async function transcribeAudio(audioBuffer, mimeType) {
   } catch(e) {
     return { text: null, error: 'Error AssemblyAI: ' + e.message };
   }
+  }
+  return { text: null, error: 'No hay API de transcripción configurada. Configura OPENROUTER_API_KEY o ASSEMBLYAI_API_KEY en Settings.' };
 }
 
 async function textToSpeech(text, voice) {
