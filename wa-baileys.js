@@ -155,6 +155,8 @@ async function initBaileys(pairingPhone) {
     
     sock.ev.on('messages.upsert', function(m) {
       if (!m.messages || !m.messages.length) return;
+      // Solo procesar mensajes nuevos en tiempo real, ignorar historial al reconectar
+      if (m.type !== 'notify') return;
       m.messages.forEach(function(msg) {
         if (msg.key.fromMe) return;
         if (msg.key.remoteJid === 'status@broadcast') return;
@@ -164,19 +166,6 @@ async function initBaileys(pairingPhone) {
         var phone = from.split('@')[0] || '';
         var name = msg.pushName || phone;
 
-        // Ignorar mensajes anteriores al arranque del servidor (evita re-insertar historial al reconectar)
-        var msgTime = msg.messageTimestamp ? msg.messageTimestamp * 1000 : null;
-        var serverStart = Date.now() - 60000; // 1 minuto de margen
-        if (msgTime === null || msgTime < serverStart) return;
-        
-        // Dedup por ID de mensaje (evita duplicados en la misma sesion)
-        try {
-          if (msg.key && msg.key.id) {
-            var existing = db.prepare("SELECT id FROM pending_messages WHERE quoted_data LIKE ? AND created_at > datetime('now', '-2 hour') LIMIT 1").get('%' + msg.key.id + '%');
-            if (existing) return;
-          }
-        } catch(e) {}
-        
         // Guardar quoted_data para poder reenviar con contexto
         var quotedData = null;
         try {
