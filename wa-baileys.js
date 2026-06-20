@@ -165,9 +165,9 @@ async function initBaileys(pairingPhone) {
         var name = msg.pushName || phone;
 
         // Ignorar mensajes anteriores al arranque del servidor (evita re-insertar historial al reconectar)
-        var msgTime = msg.messageTimestamp ? msg.messageTimestamp * 1000 : 0;
+        var msgTime = msg.messageTimestamp ? msg.messageTimestamp * 1000 : null;
         var serverStart = Date.now() - 60000; // 1 minuto de margen
-        if (msgTime > 0 && msgTime < serverStart) return;
+        if (msgTime === null || msgTime < serverStart) return;
         
         // Dedup por ID de mensaje (evita duplicados en la misma sesion)
         try {
