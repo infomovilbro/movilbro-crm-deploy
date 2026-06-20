@@ -164,6 +164,23 @@ async function initBaileys(pairingPhone) {
         var phone = from.split('@')[0] || '';
         var name = msg.pushName || phone;
         
+        // Dedup: evitar re-insertar mensajes que ya existen
+        try {
+          var msgText = msg.message.conversation || (msg.message.extendedTextMessage && msg.message.extendedTextMessage.text) || '';
+          if (msgText) {
+            var existing = db.prepare("SELECT id FROM pending_messages WHERE body=? AND from_address=? AND created_at > datetime('now', '-1 hour') LIMIT 1").get(msgText, from);
+            if (existing) return;
+          }
+        } catch(e) {}
+        
+        // Ignorar mensajes de audio que ya fueron procesados (reconexion)
+        if (msg.message.audioMessage) {
+          try {
+            var audioExisting = db.prepare("SELECT id FROM pending_messages WHERE from_address=? AND body LIKE '🎤%' AND created_at > datetime('now', '-1 hour') LIMIT 1").get(from);
+            if (audioExisting) return;
+          } catch(e) {}
+        }
+        
         // Guardar quoted_data para poder reenviar con contexto
         var quotedData = null;
         try {
