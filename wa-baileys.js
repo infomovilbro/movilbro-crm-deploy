@@ -134,6 +134,13 @@ async function initBaileys(pairingPhone) {
         lastError = 'DC: ' + reason;
         console.log('[Baileys] Disconnected:', reason);
         
+        // Limpiar mensajes pendientes de WhatsApp al desconectarse
+        try {
+          var d = require('./database');
+          if (d && d.db) d.db.prepare("DELETE FROM pending_messages WHERE source='baileys' OR source='whatsapp' OR category='whatsapp'").run();
+          console.log('[Baileys] Mensajes de WhatsApp limpiados al desconectar');
+        } catch(e) {}
+        
         if (reason === 401 || reason === 440) {
           db.prepare("DELETE FROM settings WHERE key = 'baileys_session'").run();
           try { if (fs.existsSync(authDir)) fs.rmSync(authDir, { recursive: true }); } catch(e) {}

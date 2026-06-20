@@ -3,6 +3,7 @@ const axios = require('axios');
 const crypto = require('crypto');
 const router = express.Router();
 const { db } = require('../database');
+const LikesAPI = require('../likes-api');
 
 function getOpenCodeKey() {
   var key = process.env.OPENCODE_API_KEY || '';
@@ -1143,6 +1144,28 @@ router.get('/lookup-client/:phone', (req, res) => {
       if (nameMatch && nameMatch.length > 2) {
         client = db.prepare("SELECT id, nombre, apellidos, dni_nif, telefono, email FROM clients WHERE nombre LIKE ? OR apellidos LIKE ? LIMIT 1").get('%' + nameMatch.substring(0, 20) + '%', '%' + nameMatch.substring(0, 20) + '%');
       }
+    }
+
+    // 3) Buscar en API Likes Telecom por nombre si no se encontró localmente
+    if (!client) {
+      try {
+        var nameSearch = decodeURIComponent(rawPhone).replace(/[@\s]+/g, ' ').trim();
+        if (nameSearch && nameSearch.length > 2) {
+          var api = LikesAPI.getApiInstance();
+          if (api) {
+            var likesCustomers = await api.getCustomers();
+            if (likesCustomers && Array.isArray(likesCustomers)) {
+              var found = likesCustomers.find(function(c) {
+                var cName = (c.name || c.nombre || c.razon_social || '').toLowerCase();
+                return cName.includes(nameSearch.toLowerCase());
+              });
+              if (found) {
+                client = { id: found.id || found.customer_id, nombre: found.name || found.nombre || found.razon_social, apellidos: '', dni_nif: found.fiscal_id || found.dni || '', telefono: found.phone || found.telefono || found.mobile || '', email: found.email || '' };
+              }
+            }
+          }
+        }
+      } catch(e) { console.log('[Lookup] Likes API error:', e.message); }
     }
 
     if (client) {

@@ -74,10 +74,14 @@ Start-Process msedge --remote-debugging-port=9222 --new-window URL
 - **Portal Cliente** — Portal de usuarios
 
 ## Flujo de trabajo (Replit)
-1. Editar código en local
-2. `deploy.bat` (doble click) → git add + commit + push
-3. En Replit Shell: `bash deploy.sh` → git fetch + reset + restart
-4. Esperar 10s, verificar en navegador
+1. Editar código local → `git add -A && git commit -m "..." && git push --force`
+2. En Replit Shell: `bash deploy.sh`
+3. Esperar 10s, verificar en navegador
+
+**Comando manual:**
+```
+git fetch --all && git reset --hard origin/main && pkill -9 -f node; sleep 2; node server.js
+```
 
 ## Flujo de trabajo (Render)
 1. `git push origin version-render:main --force`
