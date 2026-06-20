@@ -1116,7 +1116,7 @@ function emailExists(fromAddress, subject) {
 }
 
 // ---- BUSCAR CLIENTE POR TELÉFONO (para botón de acceso rápido en pendientes) ----
-router.get('/lookup-client/:phone', (req, res) => {
+router.get('/lookup-client/:phone', async (req, res) => {
   try {
     var rawPhone = req.params.phone;
     var phone = rawPhone.replace(/[^0-9]/g, '');
