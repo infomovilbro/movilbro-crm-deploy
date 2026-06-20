@@ -163,23 +163,19 @@ async function initBaileys(pairingPhone) {
         var from = msg.key.remoteJid || '';
         var phone = from.split('@')[0] || '';
         var name = msg.pushName || phone;
+
+        // Ignorar mensajes anteriores al arranque del servidor (evita re-insertar historial al reconectar)
+        var msgTime = msg.messageTimestamp ? msg.messageTimestamp * 1000 : 0;
+        var serverStart = Date.now() - 60000; // 1 minuto de margen
+        if (msgTime > 0 && msgTime < serverStart) return;
         
-        // Dedup: evitar re-insertar mensajes que ya existen
+        // Dedup por ID de mensaje (evita duplicados en la misma sesion)
         try {
-          var msgText = msg.message.conversation || (msg.message.extendedTextMessage && msg.message.extendedTextMessage.text) || '';
-          if (msgText) {
-            var existing = db.prepare("SELECT id FROM pending_messages WHERE body=? AND from_address=? AND created_at > datetime('now', '-1 hour') LIMIT 1").get(msgText, from);
+          if (msg.key && msg.key.id) {
+            var existing = db.prepare("SELECT id FROM pending_messages WHERE quoted_data LIKE ? AND created_at > datetime('now', '-2 hour') LIMIT 1").get('%' + msg.key.id + '%');
             if (existing) return;
           }
         } catch(e) {}
-        
-        // Ignorar mensajes de audio que ya fueron procesados (reconexion)
-        if (msg.message.audioMessage) {
-          try {
-            var audioExisting = db.prepare("SELECT id FROM pending_messages WHERE from_address=? AND body LIKE '🎤%' AND created_at > datetime('now', '-1 hour') LIMIT 1").get(from);
-            if (audioExisting) return;
-          } catch(e) {}
-        }
         
         // Guardar quoted_data para poder reenviar con contexto
         var quotedData = null;
