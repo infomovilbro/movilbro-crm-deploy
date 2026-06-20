@@ -98,6 +98,10 @@ git fetch --all && git reset --hard origin/main && pkill -9 -f node; sleep 2; no
 2. **NUNCA** asumir que deploy se completó solo
 3. **SIEMPRE** verificar en navegador real
 4. **SIEMPRE** leer documentación oficial antes de integrar APIs
-5. **Replit Shell**: usar evaluate() con eventos nativos, no keyboard.type()
+5. **Replit Shell**: no usar CDP — pedir al usuario que pegue el comando
 6. **No hacer deploy-tras-deploy** como debugging — investigar primero
-7. **NUNCA crear rutas de login sin contraseña** — ni en desarrollo. Siempre usar autenticación real. Si el usuario no puede loguearse, arreglar la autenticación, no bypassearla.
+7. **NUNCA crear rutas de login sin contraseña** — usar auth real
+8. **NUNCA crear scripts locales** — todo servidor, nada en PC del usuario
+9. **SIEMPRE verificar sintaxis** con `node -e "require('./archivo')"` antes de push
+10. **SIEMPRE poner `async`** en route handlers que usen `await`
+11. **NADA en local** — no asumir CDP, no leer archivos locales, no crear .bat/.ps1
