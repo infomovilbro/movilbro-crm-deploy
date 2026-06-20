@@ -71,11 +71,10 @@ const isProd = process.env.NODE_ENV === 'production';
 
 initDatabase();
 
-// Limpiar mensajes antiguos con error al arrancar (deploy/git pull)
+// Limpiar mensajes antiguos al arrancar (deploy/git pull)
 try {
-  var oldDate = new Date(Date.now() - 7200000).toISOString(); // 2h atras
-  db.prepare("DELETE FROM pending_messages WHERE (proposed_response LIKE 'Error:%' OR proposed_response LIKE 'Analizando%' OR proposed_response = '' OR proposed_response IS NULL) AND created_at < ?").run(oldDate);
-  console.log('[Cleanup] Mensajes antiguos eliminados');
+  db.prepare("DELETE FROM pending_messages WHERE source='baileys' OR source='whatsapp' OR category='whatsapp'").run();
+  console.log('[Cleanup] Mensajes WhatsApp eliminados al arrancar');
 } catch(e) { console.log('[Cleanup] Error:', e.message); }
 
 // Seed shared_context with project summary
