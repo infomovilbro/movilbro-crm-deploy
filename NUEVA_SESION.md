@@ -73,13 +73,16 @@ Start-Process msedge --remote-debugging-port=9222 --new-window URL
 - **WhatsApp Overlay** — iframe persistente de web.whatsapp.com via proxy, vigilante cada 3s, botón Analizar
 - **Portal Cliente** — Portal de usuarios
 
-## Flujo de trabajo
+## Flujo de trabajo (Replit)
 1. Editar código en local
-2. `git add -A && git commit -m "fix: ..."` (esperar a que pida commit, no hacer por iniciativa propia)
-3. `git push origin version-render:main --force`
-4. Ir a dashboard.render.com → Manual Deploy (NO asumir auto-deploy)
-5. Esperar build 3-5 min, verificar en navegador
-6. NUNCA hacer deploy-tras-deploy como debugging — investigar primero
+2. `deploy.bat` (doble click) → git add + commit + push
+3. En Replit Shell: `bash deploy.sh` → git fetch + reset + restart
+4. Esperar 10s, verificar en navegador
+
+## Flujo de trabajo (Render)
+1. `git push origin version-render:main --force`
+2. Ir a dashboard.render.com → Manual Deploy
+3. Esperar build 3-5 min, verificar en navegador
 
 ## Lecciones clave aprendidas
 - WhatsApp Baileys: `messaging-history.set` SOLO se dispara en primer pairing. Persistir chats localmente.
