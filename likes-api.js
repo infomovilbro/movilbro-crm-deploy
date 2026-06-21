@@ -2,17 +2,23 @@ const axios = require('axios');
 const { db } = require('./database');
 
 function getApiInstance() {
-  return new LikesAPI({});
+  const s = db.prepare("SELECT key, value FROM settings WHERE key LIKE 'likes_%'").all();
+  const c = {};
+  s.forEach(r => c[r.key] = r.value);
+  return new LikesAPI({ apiUrl: c.likes_api_url, email: c.likes_client_id, password: c.likes_client_secret, brandId: c.likes_brand_id });
 }
 
 class LikesAPI {
   constructor(config) {
-    this.apiUrl = 'https://api.likestelecom.com';
-    this.email = 'eloyfuentesbermudez@gmail.com';
-    this.password = 'Teresa88.';
-    this.brandId = '264';
+    this.apiUrl = config.apiUrl || 'https://api.likestelecom.com';
+    this.email = config.email || process.env.LIKES_CLIENT_ID || '';
+    this.password = config.password || process.env.LIKES_CLIENT_SECRET || '';
+    this.brandId = config.brandId || process.env.LIKES_BRAND_ID || '';
     this._tokenCache = null;
     this._tokenExpiry = null;
+    if (!this.email || !this.password) {
+      console.error('[LikesAPI] CREDENCIALES FALTANTES: likes_client_id=' + (this.email ? 'OK' : 'VACIO') + ', likes_client_secret=' + (this.password ? 'OK' : 'VACIO') + '. Configúralas en Render como LIKES_CLIENT_ID y LIKES_CLIENT_SECRET');
+    }
   }
 
   async getToken() {

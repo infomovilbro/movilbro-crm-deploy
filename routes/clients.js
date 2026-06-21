@@ -7,15 +7,10 @@ const router = express.Router();
 // Test endpoint to debug API customers count
 router.get('/api-test', requireAuth, async (req, res) => {
   try {
-    var axios = require('axios');
-    var result = await axios.post('https://api.likestelecom.com/token', {
-      email: 'eloyfuentesbermudez@gmail.com',
-      password: 'Teresa88.',
-      brand: '264'
-    }, { timeout: 15000 });
-    res.json({ ok: true, token_ok: true, status: result.status, data_preview: JSON.stringify(result.data).substring(0, 200) });
+    const api = LikesAPI.getApiInstance();
+    res.json({ ok: true, email: api.email, brand: api.brandId, url: api.apiUrl });
   } catch(e) {
-    res.json({ ok: false, error: e.message, status: e.response?.status, data: e.response?.data, code: e.code });
+    res.json({ ok: false, error: e.message });
   }
 });
 
