@@ -943,7 +943,7 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
       btn.disabled = false;
       btn.innerHTML = '<i class="ri-phone-line"></i> Vincular';
       if (d.ok) {
-        document.getElementById('waPhoneStatus').textContent = 'Sesión reiniciada. Escanea el QR o espera el código en tu WhatsApp.';
+        document.getElementById('waPhoneStatus').textContent = d.pairingCode ? 'Código de 6 dígitos: ' + d.pairingCode + ' — Introdúcelo en WhatsApp Web → Dispositivos vinculados → Vincular dispositivo' : d.message || 'Sesión reiniciada. Escanea el QR.';
         pollWAStatus();
       } else {
         document.getElementById('waPhoneStatus').textContent = 'Error: ' + (d.error || 'desconocido');
