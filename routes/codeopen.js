@@ -926,8 +926,8 @@ router.post('/analyze/:id', async (req, res) => {
     var fastPrompt = 'Eres agente de atencion al cliente de Movilbro.\n' +
       'Cliente: "' + (row.body || '').substring(0, 200) + '"\n' +
       (docInfo && docInfo.resumen ? 'Info: ' + docInfo.resumen : '') + '\n\n' +
-      'Responde DIRECTAMENTE al cliente en español, como si hablaras con el. Max 2 frases.';
-    
+      'IMPORTANTE: No preguntes datos al cliente. Si pide una factura, di que se la envias. Si pide informacion, dala directamente. Responde como si hablaras con el cliente. Max 2 frases.';
+
     var finalResponse = await callLLM(fastPrompt, '', 0.7, 'deepseek-v4-flash-free', 400);
     var cleanResponse = finalResponse || '';
     // Limpiar: quitar cualquier resto del prompt o instrucciones
@@ -948,6 +948,14 @@ router.post('/analyze/:id', async (req, res) => {
     
     // Solo guardar si NO es error (si es error, no sobreescribir una respuesta previa válida)
     if (sendResponse && sendResponse.indexOf('Error:') !== 0) {
+      // Limpiar respuestas que preguntan datos al cliente
+      var questionPatterns = [/podr[ií]as (confirmarme|indicarme|decirme|facilitarme|darme)/i, /me (confirmas|indicas|dices|facilitas)/i, /necesito (que me |que me )?confirmes/i, /digame|dígame/i];
+      var isAsking = questionPatterns.some(function(p) { return p.test(sendResponse); });
+      if (isAsking) {
+        // Si pregunta datos, reemplazar con respuesta mas directa
+        sendResponse = sendResponse.replace(/¿.*?\?/g, '').trim();
+        if (!sendResponse) sendResponse = 'Claro, ahora mismo te lo envio.';
+      }
       if (docReady && docData) {
         db.prepare("UPDATE pending_messages SET proposed_response=?, document_ready=1, document_info=?, document_buffer=? WHERE id=?").run(
           sendResponse, JSON.stringify(docInfo), docData.buffer, row.id

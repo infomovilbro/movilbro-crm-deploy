@@ -127,8 +127,35 @@ async function transcribeAudio(audioBuffer, mimeType) {
 }
 
 async function textToSpeech(text, voice) {
-  // Intentar con AssemblyAI TTS
-  if (assemblyAIKey) {
+  var audioBuf = null;
+
+  // 0. SpeechT5 local via Xenova (GRATIS, voz masculina, sin API key)
+  if (voice === 'echo') {
+    try {
+      var { pipeline } = await import('@xenova/transformers');
+      var synthesizer = await pipeline('text-to-speech', 'Xenova/speecht5_tts', { quantized: true });
+      var result = await synthesizer(text.substring(0, 200));
+      if (result && result.audio) {
+        var numS = result.audio.length;
+        var sr = result.sampling_rate || 16000;
+        var wav = Buffer.alloc(44 + numS * 2);
+        wav.write('RIFF', 0); wav.writeUInt32LE(36 + numS * 2, 4); wav.write('WAVE', 8);
+        wav.write('fmt ', 12); wav.writeUInt32LE(16, 16); wav.writeUInt16LE(1, 20);
+        wav.writeUInt16LE(1, 22); wav.writeUInt32LE(sr, 24); wav.writeUInt32LE(sr * 2, 28);
+        wav.writeUInt16LE(2, 32); wav.writeUInt16LE(16, 34); wav.write('data', 36);
+        wav.writeUInt32LE(numS * 2, 40);
+        for (var wi = 0; wi < numS; wi++) {
+          var samp = Math.max(-1, Math.min(1, result.audio[wi]));
+          wav.writeInt16LE(Math.round(samp * 32767), 44 + wi * 2);
+        }
+        audioBuf = wav;
+        console.log('[TTS] SpeechT5 (masculino) generado:', audioBuf.length, 'bytes');
+      }
+    } catch(e) { console.log('[TTS] SpeechT5 error:', e.message); }
+  }
+
+  // 1. AssemblyAI TTS (si hay key)
+  if (!audioBuf && assemblyAIKey) {
     try {
       // Obtener voces disponibles primero
       var voicesResp = await axios.get('https://api.assemblyai.com/v2/text-to-speech/voices', {
