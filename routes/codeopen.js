@@ -999,6 +999,7 @@ router.post('/approve/:id', async (req, res) => {
 
     var mode = req.body.mode || 'without_forward';
     var asAudio = req.body.asAudio || false;
+    var asMale = req.body.asMale || false;
     var customText = (req.body.customText || '').trim();
     var responseText = customText || row.proposed_response || '';
     var sent = false;
@@ -1037,22 +1038,32 @@ router.post('/approve/:id', async (req, res) => {
           } catch(docErr) { console.error('[CodeOpen] Error doc:', docErr.message); }
         }
 
-        // Enviar como audio si se solicita (TTS directo con Google, más fiable)
+        // Enviar como audio si se solicita (TTS)
         if (asAudio && responseText) {
           try {
             var audioBuf = null;
-            var httpLib = require('https');
-            var googleUrl = 'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=es&q=' + encodeURIComponent(responseText.substring(0, 200));
-            audioBuf = await new Promise(function(resolve) {
-              httpLib.get(googleUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } }, function(resp) {
-                var chunks = [];
-                resp.on('data', function(c) { chunks.push(c); });
-                resp.on('end', function() {
-                  var buf = Buffer.concat(chunks);
-                  resolve(buf.length > 1000 ? buf : null);
+            // Usar textToSpeech de transcription.js que soporta voz masculina/femenina
+            if (asMale) {
+              var ttsService = require('../services/transcription');
+              var ttsResult = await ttsService.textToSpeech(responseText, 'echo');
+              if (ttsResult && ttsResult.audio) audioBuf = ttsResult.audio;
+            }
+            // Fallback: Google TTS (femenino, gratis, fiable)
+            if (!audioBuf) {
+              var httpLib = require('https');
+              var chunks = [];
+              for (var gi = 0; gi < responseText.length; gi += 180) {
+                var part = responseText.substring(gi, gi + 180);
+                var gUrl = 'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=es&q=' + encodeURIComponent(part);
+                audioBuf = await new Promise(function(resolve) {
+                  httpLib.get(gUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } }, function(resp) {
+                    var c = []; resp.on('data', function(d) { c.push(d); }); resp.on('end', function() { resolve(Buffer.concat(c)); });
+                  }).on('error', function() { resolve(null); });
                 });
-              }).on('error', function() { resolve(null); });
-            });
+                if (audioBuf && audioBuf.length > 1000) chunks.push(audioBuf);
+              }
+              if (chunks.length > 0) audioBuf = Buffer.concat(chunks);
+            }
             if (audioBuf) {
               opts.asAudio = true;
               var result = await wa.sendMessage(row.from_address, { audioBuffer: audioBuf, mimeType: 'audio/mp3', text: responseText }, opts);

@@ -25,6 +25,7 @@
     "connect-sqlite3": "^0.9.15",
     "cors": "^2.8.6",
     "dotenv": "^16.4.0",
+    "edge-tts": "^1.0.1",
     "ejs": "^3.1.10",
     "express": "^4.19.0",
     "express-ejs-layouts": "^2.5.1",

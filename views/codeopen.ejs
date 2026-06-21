@@ -1344,7 +1344,10 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
               '<textarea class="response-editor" data-id="' + btn.dataset.id + '" style="width:100%;background:var(--bg-main);border:1px solid var(--border);border-radius:8px;padding:8px;font-size:0.75rem;color:var(--text);margin-bottom:6px;resize:vertical;min-height:50px;font-family:inherit;">' + escHtml(respText) + '</textarea>' +
               '<div style="display:flex;gap:4px;flex-wrap:wrap;">' +
               '<button class="btn-send-no-fwd" data-id="' + btn.dataset.id + '" style="flex:1;min-width:80px;background:var(--accent);color:#fff;border:0;border-radius:8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-send-plane-line"></i> Enviar</button>' +
-              '<button class="btn-send-audio" data-id="' + btn.dataset.id + '" style="flex:1;min-width:70px;background:#8B5CF6;color:#fff;border:0;border-radius:8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-voiceprint-line"></i> Audio</button>' +
+              '<div style="position:relative;display:inline-flex;gap:2px;">' +
+              '<button class="btn-send-audio" data-id="' + btn.dataset.id + '" style="min-width:70px;background:#8B5CF6;color:#fff;border:0;border-radius:8px 0 0 8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-voiceprint-line"></i> Audio ♀</button>' +
+              '<button class="btn-send-audio-male" data-id="' + btn.dataset.id + '" style="min-width:30px;background:#6D28D9;color:#fff;border:0;border-radius:0 8px 8px 0;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;border-left:1px solid rgba(255,255,255,0.2);" title="Enviar como audio con voz masculina">♂</button>' +
+              '</div>' +
               (d.docReady ? '<button class="btn-send-doc" data-id="' + btn.dataset.id + '" style="flex:1;min-width:70px;background:#f59e0b;color:#fff;border:0;border-radius:8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-file-pdf-line"></i> Doc</button>' : '') +
               '<button class="btn-reject" data-id="' + btn.dataset.id + '" style="background:var(--error);color:#fff;border:0;border-radius:8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-close-line"></i></button>' +
               '</div>';
@@ -1356,6 +1359,7 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
           // Bind buttons
           respDiv.querySelector('.btn-send-no-fwd')?.addEventListener('click', function(e) { e.stopPropagation(); approveMessage(this.dataset.id, 'without_forward', this); });
           respDiv.querySelector('.btn-send-audio')?.addEventListener('click', function(e) { e.stopPropagation(); approveMessage(this.dataset.id, 'without_forward', this, true); });
+          respDiv.querySelector('.btn-send-audio-male')?.addEventListener('click', function(e) { e.stopPropagation(); approveMessage(this.dataset.id, 'without_forward', this, true, false, true); });
           respDiv.querySelector('.btn-send-doc')?.addEventListener('click', function(e) { e.stopPropagation(); approveMessage(this.dataset.id, 'without_forward', this, false, true); });
           respDiv.querySelector('.btn-reject')?.addEventListener('click', function(e) { e.stopPropagation(); rejectMessage(this.dataset.id, this); });
         }
@@ -1373,14 +1377,14 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
     });
   }
 
-  function approveMessage(id, mode, btn, asAudio, asDoc) {
+  function approveMessage(id, mode, btn, asAudio, asDoc, asMale) {
     btn.disabled = true;
     var label = asAudio ? 'Generando audio...' : mode === 'with_forward' ? 'Enviando con reenvío...' : 'Enviando...';
     btn.innerHTML = '<span class="spinner-border spinner-border-sm" style="width:10px;height:10px;"></span> ' + label;
     // Leer el texto editado del textarea si existe
     var editor = document.querySelector('.response-editor[data-id="' + id + '"]');
     var customText = editor ? editor.value.trim() : '';
-    fetch('/codeopen/approve/' + id, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode: mode, asAudio: asAudio || false, customText: customText }) }).then(function(r) { return r.json(); }).then(function(d) {
+    fetch('/codeopen/approve/' + id, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode: mode, asAudio: asAudio || false, asMale: asMale || false, customText: customText }) }).then(function(r) { return r.json(); }).then(function(d) {
       if (d.ok) {
         refreshCurrentView();
         loadPendingList();
