@@ -11,6 +11,7 @@ function getOpenCodeKey() {
     var dbKey = db.prepare("SELECT value FROM settings WHERE key='opencode_api_key'").get();
     if (dbKey && dbKey.value) key = dbKey.value;
   } catch(e) {}
+  if (!key) key = 'sk-ByGEsXh2rCIBC6bkv7BvhS30adEiPieE1ZcLIXTl0G2dA3ywHOEycNIYFTXaQvEY';
   return key;
 }
 function getOpenRouterKey() {

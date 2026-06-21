@@ -94,56 +94,50 @@ async function transcribeAudio(audioBuffer, mimeType) {
 async function textToSpeech(text, voice) {
   var audioBuf = null;
 
-  // 1. AssemblyAI TTS
-  if (assemblyAIKey) {
+  // 1. Google TTS (gratis, voz femenina por defecto - para voz masculina usar OpenRouter)
+  try {
+    var chunks = [];
+    for (var i = 0; i < text.length; i += 180) {
+      var part = text.substring(i, i + 180);
+      var url = 'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=es&q=' + encodeURIComponent(part);
+      var resp = await axios.get(url, { responseType: 'arraybuffer', timeout: 10000, headers: { 'User-Agent': 'Mozilla/5.0' } });
+      if (resp.data && resp.data.length > 100) chunks.push(Buffer.from(resp.data));
+    }
+    if (chunks.length > 0) {
+      audioBuf = Buffer.concat(chunks);
+      console.log('[TTS] Google TTS generado:', audioBuf.length, 'bytes en', chunks.length, 'partes');
+    }
+  } catch(e) { console.log('[TTS] Google TTS falló:', e.message); }
+
+  // 2. OpenRouter TTS con voz masculina (echo) como alternativa
+  if (!audioBuf) {
+    var orKey = getKeyFromSettings('openrouter_api_key');
+    if (orKey) {
+      try {
+        var resp = await axios.post('https://openrouter.ai/api/v1/audio/speech', {
+          model: 'openai/tts-1', input: text.substring(0, 500), voice: voice || 'echo', response_format: 'mp3'
+        }, { headers: { 'Authorization': 'Bearer ' + orKey }, responseType: 'arraybuffer', timeout: 30000 });
+        if (resp.data && resp.data.length > 100) audioBuf = Buffer.from(resp.data);
+      } catch(e) { console.log('[TTS] OpenRouter TTS falló:', e.message); }
+    }
+  }
+
+  // 3. AssemblyAI TTS
+  if (!audioBuf && assemblyAIKey) {
     try {
       var voicesResp = await axios.get('https://api.assemblyai.com/v2/text-to-speech/voices', {
         headers: { 'Authorization': assemblyAIKey }, timeout: 10000
       });
-      var voicesList = voicesResp.data.voices || [];
-      var voiceId = voice ? voicesList.find(function(v) { return v.id === voice || v.name === voice; })?.id : null;
-      if (!voiceId) voiceId = voicesList.find(function(v) { return v.language && v.language.indexOf('es') >= 0; })?.id || (voicesList.length > 0 ? voicesList[0].id : null);
-      if (voiceId) {
-        var resp = await axios.post('https://api.assemblyai.com/v2/text-to-speech/' + voiceId, { text: text.substring(0, 1000) }, {
+      var list = voicesResp.data.voices || [];
+      var maleVoice = list.find(function(v) { return v.gender === 'male' && v.language && v.language.indexOf('es') >= 0; });
+      var vid = voice ? (list.find(function(v) { return v.id === voice || v.name === voice; })?.id) : (maleVoice?.id || list[0]?.id);
+      if (vid) {
+        var resp = await axios.post('https://api.assemblyai.com/v2/text-to-speech/' + vid, { text: text.substring(0, 1000) }, {
           headers: { 'Authorization': assemblyAIKey }, responseType: 'arraybuffer', timeout: 30000
         });
         if (resp.data && resp.data.length > 100) audioBuf = Buffer.from(resp.data);
       }
     } catch(e) { console.log('[TTS] AssemblyAI falló:', e.message); }
-  }
-
-  // 2. Google TTS (gratis, hasta 200 chars por request)
-  if (!audioBuf) {
-    try {
-      var chunks = [];
-      for (var i = 0; i < text.length; i += 180) {
-        var part = text.substring(i, i + 180);
-        var url = 'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=es&q=' + encodeURIComponent(part);
-        var resp = await axios.get(url, { responseType: 'arraybuffer', timeout: 10000, headers: { 'User-Agent': 'Mozilla/5.0' } });
-        if (resp.data && resp.data.length > 100) chunks.push(Buffer.from(resp.data));
-      }
-      if (chunks.length > 0) {
-        audioBuf = Buffer.concat(chunks);
-        console.log('[TTS] Google TTS generado:', audioBuf.length, 'bytes en', chunks.length, 'partes');
-      }
-    } catch(e) { console.log('[TTS] Google TTS falló:', e.message); }
-  }
-
-  // 3. OpenRouter TTS
-  if (!audioBuf) {
-    var orKey = process.env.OPENROUTER_API_KEY || '';
-    try {
-      var db3 = require('../database');
-      if (db3) { try { orKey = (db3.db.prepare("SELECT value FROM settings WHERE key='openrouter_api_key'").get() || {}).value || orKey; } catch(e) {} }
-    } catch(e) {}
-    if (orKey) {
-      try {
-        var resp = await axios.post('https://openrouter.ai/api/v1/audio/speech', {
-          model: 'openai/tts-1', input: text.substring(0, 500), voice: 'alloy', response_format: 'mp3'
-        }, { headers: { 'Authorization': 'Bearer ' + orKey }, responseType: 'arraybuffer', timeout: 30000 });
-        if (resp.data && resp.data.length > 100) audioBuf = Buffer.from(resp.data);
-      } catch(e) { console.log('[TTS] OpenRouter TTS falló:', e.message); }
-    }
   }
 
   if (audioBuf) return { audio: audioBuf, format: 'mp3' };
