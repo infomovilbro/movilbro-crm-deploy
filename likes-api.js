@@ -45,7 +45,7 @@ class LikesAPI {
       method,
       url: `${this.apiUrl}${endpoint}`,
       headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-      timeout: 20000
+      timeout: 30000
     };
     if (data) config.data = data;
     try {

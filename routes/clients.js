@@ -4,6 +4,17 @@ const { requireAuth } = require('../middleware/auth');
 const LikesAPI = require('../likes-api');
 const router = express.Router();
 
+// Test endpoint to debug API customers count
+router.get('/api-test', requireAuth, async (req, res) => {
+  try {
+    const api = LikesAPI.getApiInstance();
+    const customers = await api.getCustomers();
+    res.json({ ok: true, count: customers ? customers.length : 0, sample: customers ? customers.slice(0, 2) : [] });
+  } catch(e) {
+    res.json({ ok: false, error: e.message });
+  }
+});
+
 router.get('/', requireAuth, async (req, res) => {
   const search = req.query.search || '';
 
