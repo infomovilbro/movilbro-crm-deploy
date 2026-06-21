@@ -1207,18 +1207,24 @@ router.get('/lookup-client/:phone', async (req, res) => {
 
     // Si es LID, buscar primero por nombre del contacto
     if (isLid && contactName) {
-      // Buscar en DB local por nombre
-      client = db.prepare("SELECT id, nombre, apellidos, dni_nif, telefono, email FROM clients WHERE nombre LIKE ? OR apellidos LIKE ? LIMIT 1").get('%' + contactName.substring(0, 20) + '%', '%' + contactName.substring(0, 20) + '%');
-      // Buscar en Likes API por nombre
+      // Buscar en DB local por TODOS los campos
+      var searchTerm = '%' + contactName.substring(0, 30) + '%';
+      client = db.prepare("SELECT id, nombre, apellidos, dni_nif, telefono, email FROM clients WHERE nombre LIKE ? OR apellidos LIKE ? OR dni_nif LIKE ? OR email LIKE ? OR telefono LIKE ? LIMIT 1").get(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
+      // Buscar en Likes API por nombre, DNI, email, telefono
       if (!client) {
         try {
           var api = LikesAPI.getApiInstance();
           if (api) {
             var likesCustomers = await api.getCustomers();
             if (likesCustomers && Array.isArray(likesCustomers)) {
+              var searchLower = contactName.toLowerCase();
               var found = likesCustomers.find(function(c) {
                 var cName = (c.name || c.nombre || c.razon_social || '').toLowerCase();
-                return cName.includes(contactName.toLowerCase());
+                var cDni = (c.fiscalId || c.fiscal_id || c.dni || '').toLowerCase();
+                var cEmail = (c.email || '').toLowerCase();
+                var cPhone = (c.phone || c.telefono || c.mobile || '').replace(/[^0-9]/g, '');
+                var searchClean = searchLower.replace(/[^0-9]/g, '');
+                return cName.includes(searchLower) || cDni.includes(searchLower) || cEmail.includes(searchLower) || (searchClean && cPhone.includes(searchClean));
               });
               if (found) {
                 client = { id: found.id || found.customer_id, nombre: found.name || found.nombre || found.razon_social, apellidos: '', dni_nif: found.fiscal_id || found.dni || '', telefono: found.phone || found.telefono || found.mobile || '', email: found.email || '' };
@@ -1232,7 +1238,7 @@ router.get('/lookup-client/:phone', async (req, res) => {
       }
     }
 
-    // 1) Buscar por número de teléfono
+    // 1) Buscar por número de teléfono (tambien por DNI, email, nombre)
     if (!client && phone && phone.length >= 6) {
       var searchPhone = phone;
       if (phone.length > 12) searchPhone = phone.slice(-9);
