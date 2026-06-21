@@ -1,8 +1,5 @@
 run = "PORT=5000 node server.js"
 
-[nix]
-channel = "stable-24_05"
-
 [workflows]
   [[workflows.workflows]]
   name = "Iniciar CRM"
