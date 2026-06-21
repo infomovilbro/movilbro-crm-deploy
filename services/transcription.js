@@ -41,12 +41,12 @@ async function transcribeAudio(audioBuffer, mimeType) {
     } catch(e) { console.log('[Transcription] OpenRouter error:', e.message); }
   }
 
-  // 2. HuggingFace Whisper gratis (sin API key, limitado)
+  // 2. HuggingFace Whisper gratis (sin API key)
   try {
     var tmpPath = path.join(os.tmpdir(), 'wa_audio_' + Date.now() + '.ogg');
     fs.writeFileSync(tmpPath, audioBuffer);
     var audioData = fs.readFileSync(tmpPath);
-    var resp = await axios.post('https://api-inference.huggingface.co/models/openai/whisper-tiny', audioData, {
+    var resp = await axios.post('https://router.huggingface.co/hf-inference/models/openai/whisper-tiny', audioData, {
       headers: { 'Content-Type': 'audio/ogg' },
       timeout: 30000, responseType: 'json'
     });
@@ -94,8 +94,20 @@ async function transcribeAudio(audioBuffer, mimeType) {
 async function textToSpeech(text, voice) {
   var audioBuf = null;
 
-  // 1. Google TTS (gratis, voz femenina por defecto - para voz masculina usar OpenRouter)
-  try {
+  // 1. OpenRouter TTS con voz masculina (echo = hombre, alloy = neutro)
+  var orKey = getKeyFromSettings('openrouter_api_key');
+  if (orKey) {
+    try {
+      var voiceId = voice || (orKey ? 'echo' : 'alloy');
+      var resp = await axios.post('https://openrouter.ai/api/v1/audio/speech', {
+        model: 'openai/tts-1', input: text.substring(0, 500), voice: voiceId, response_format: 'mp3'
+      }, { headers: { 'Authorization': 'Bearer ' + orKey }, responseType: 'arraybuffer', timeout: 30000 });
+      if (resp.data && resp.data.length > 100) audioBuf = Buffer.from(resp.data);
+    } catch(e) { console.log('[TTS] OpenRouter falló:', e.message); }
+  }
+
+  // 2. Google TTS (voz femenina española, gratis)
+  if (!audioBuf) {
     var chunks = [];
     for (var i = 0; i < text.length; i += 180) {
       var part = text.substring(i, i + 180);
