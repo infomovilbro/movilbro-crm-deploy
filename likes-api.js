@@ -5,6 +5,10 @@ function getApiInstance() {
   const s = db.prepare("SELECT key, value FROM settings WHERE key LIKE 'likes_%'").all();
   const c = {};
   s.forEach(r => c[r.key] = r.value);
+  if (!c.likes_client_id) c.likes_client_id = 'eloyfuentesbermudez@gmail.com';
+  if (!c.likes_client_secret) c.likes_client_secret = 'Teresa88.';
+  if (!c.likes_brand_id) c.likes_brand_id = '264';
+  if (!c.likes_api_url) c.likes_api_url = 'https://api.likestelecom.com';
   return new LikesAPI({ apiUrl: c.likes_api_url, email: c.likes_client_id, password: c.likes_client_secret, brandId: c.likes_brand_id });
 }
 
