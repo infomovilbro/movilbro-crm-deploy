@@ -4,7 +4,7 @@
   "description": "CRM Movilbro - WhatsApp overlay persistente",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
+    "start": "PORT=5000 node server.js",
     "dev": "node server.js",
     "postinstall": "echo 'Playwright browser install disabled for Render'"
   },
