@@ -163,9 +163,12 @@ async function detectAndFetchDocument(msgBody, fromName, fromAddress) {
       'Cliente: ' + fromName + '\nMensaje: ' + msgBody;
     
     var llmResp = await callLLM(docPrompt, '', 0.3, 'deepseek-v4-flash-free');
-    var jsonMatch = llmResp.match(/\{[\s\S]*\}/);
+    // Limpiar la respuesta: quitar thinking y markdown, extraer solo JSON
+    var cleanResp = llmResp.replace(/.*?\{/s, '{').replace(/\}.*/s, '}');
+    cleanResp = cleanResp.replace(/```json\s*/gi, '').replace(/```\s*/g, '');
+    var jsonMatch = cleanResp.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return null;
-    var info = JSON.parse(jsonMatch[0]);
+    try { var info = JSON.parse(jsonMatch[0]); } catch(e) { return null; }
     if (!info.isDocument) return null;
     
     // 2. Buscar el cliente en la BD
@@ -890,8 +893,18 @@ router.post('/analyze/:id', async (req, res) => {
     
     var finalResponse = await callLLM(fastPrompt, '', 0.7, modelId, 300);
     var cleanResponse = finalResponse || '';
+    // Limpiar thinking de DeepSeek V4: quitar todo antes de "RESPUESTA:" si existe
     var respMatch = cleanResponse.match(/RESPUESTA:\s*([\s\S]*)/i);
     var sendResponse = respMatch ? respMatch[1].trim() : cleanResponse;
+    // Si no hay match con RESPUESTA, intentar extraer respuesta final despues del thinking
+    if (!respMatch) {
+      // Quitar lineas que empiezan con numeros/puntos (thinking)
+      var lines = sendResponse.split('\n').filter(function(l) { return !/^\d+\./.test(l.trim()); });
+      sendResponse = lines.join(' ').trim();
+      // Si el texto contiene "**RESPUESTA**" o similar
+      var boldMatch = sendResponse.match(/\*\*RESPUESTA\*\*:\s*([\s\S]*)/i);
+      if (boldMatch) sendResponse = boldMatch[1].trim();
+    }
     
     // Solo guardar si NO es error (si es error, no sobreescribir una respuesta previa válida)
     if (sendResponse && sendResponse.indexOf('Error:') !== 0) {
