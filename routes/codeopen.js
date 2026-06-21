@@ -288,10 +288,10 @@ async function callLLM(systemPrompt, userMessage, temperature, modelId, maxToken
         model: m,
         messages: [{ role: 'user', content: ((systemPrompt || '') + '\n' + (userMessage || '')).substring(0, 500) }],
         temperature: temperature || 0.3, max_tokens: maxTokens
-      }, { timeout: 8000, headers: { 'Authorization': 'Bearer ' + cfg.key, 'Content-Type': 'application/json' } })
+      }, { timeout: 15000, headers: { 'Authorization': 'Bearer ' + cfg.key, 'Content-Type': 'application/json' } })
       .then(function(resp) {
         var msg = resp?.data?.choices?.[0]?.message;
-        var text = msg?.content || msg?.reasoning_content || '';
+        var text = msg?.content || '';
         if (text && text.trim()) {
           try { db.prepare("INSERT INTO model_usage (model_id, date, calls) VALUES (?, ?, 1) ON CONFLICT(model_id, date) DO UPDATE SET calls = calls + 1, updated_at = CURRENT_TIMESTAMP").run(m, new Date().toISOString().split('T')[0]); } catch(e) {}
           return { model: m, text: text.trim() };
