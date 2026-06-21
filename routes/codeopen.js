@@ -887,16 +887,18 @@ router.post('/analyze/:id', async (req, res) => {
       db.prepare("UPDATE pending_messages SET proposed_response=null WHERE id=?").run(row.id);
     }
 
-    // Generar respuesta con IA - usando Nemotron (no tiene thinking como DeepSeek)
-    var ctxDoc = docInfo ? 'DOC: ' + (docInfo.resumen || '') : '';
-    var fastPrompt = 'Mensaje de ' + row.from_name + ': ' + (row.body || '').substring(0, 200) + ' ' + ctxDoc + '\n\nRESPUESTA (max 200 chars, directo y profesional):';
+    // Generar respuesta con IA - prompt directo al cliente, sin analisis interno
+    var fastPrompt = 'Eres agente de atencion al cliente de Movilbro. Responde DIRECTAMENTE al cliente, sin explicar tu proceso de pensamiento.\n\n' +
+      'Cliente dice: "' + (row.body || '').substring(0, 200) + '"\n\n' +
+      (docInfo && docInfo.resumen ? 'Dato: ' + docInfo.resumen + '\n\n' : '') +
+      'RESPUESTA (max 200 caracteres, directa, profesional, como si hablaras al cliente):';
     
-    // Usar Nemotron para analisis (no produce thinking)  
     var finalResponse = await callLLM(fastPrompt, '', 0.7, 'nemotron-3-ultra-free', 300);
+    // Forzar timeout para analisis ultra rapido (max 4s)
+    if (typeof finalResponse === 'object' && finalResponse.timeout) finalResponse = 'Error: Inténtalo de nuevo.';
     var cleanResponse = finalResponse || '';
-    // Si aun asi hay thinking, limpiarlo
-    var respMatch = cleanResponse.match(/RESPUESTA:\s*([\s\S]*)/i);
-    var sendResponse = respMatch ? respMatch[1].trim() : cleanResponse.replace(/^Thinking[\s\S]*?\*\*RESPUESTA\*\*:\s*/i, '').replace(/^1\.\s*\*\*.*/m, '').trim();
+    // Quitar cualquier thinking residual (aunque Nemotron no deberia tener)
+    var sendResponse = cleanResponse.replace(/^(Thinking|Analizando|Analisis|Claro|Por supuesto)[\s\S]*?(?=RESPUESTA:|Respuesta:|respuesta:)/i, '').replace(/^RESPUESTA:\s*/i, '').replace(/^respuesta:\s*/i, '').trim();
     
     // Solo guardar si NO es error (si es error, no sobreescribir una respuesta previa válida)
     if (sendResponse && sendResponse.indexOf('Error:') !== 0) {
