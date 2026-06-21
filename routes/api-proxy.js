@@ -3,19 +3,7 @@ const { db } = require('../database');
 const LikesAPI = require('../likes-api');
 const router = express.Router();
 
-function getApiFromDb() {
-  const settings = db.prepare("SELECT key, value FROM settings WHERE key LIKE 'likes_%'").all();
-  const config = {};
-  settings.forEach(s => config[s.key] = s.value);
-  return {
-    apiUrl: config.likes_api_url || 'https://api.likestelecom.com',
-    email: config.likes_client_id,
-    password: config.likes_client_secret,
-    brandId: config.likes_brand_id
-  };
-}
-
-async function getAllSubscriptions(api, creds) {
+async function getAllSubscriptions(api) {
   const customers = await api.getCustomers();
   const fiscalIds = customers.map(c => c.fiscalId).filter(Boolean);
   const allSubs = [];
@@ -24,7 +12,7 @@ async function getAllSubscriptions(api, creds) {
     const batch = fiscalIds.slice(i, i + batchSize);
     const results = await Promise.allSettled(
       batch.map(fid =>
-        api.request('GET', `/subscriptions?fiscalId=${encodeURIComponent(fid)}&brand_id=${creds.brandId}`)
+        api.request('GET', `/subscriptions?fiscalId=${encodeURIComponent(fid)}&brand_id=${api.brandId}`)
           .then(data => api.extractData(data))
       )
     );
@@ -47,14 +35,8 @@ router.all('/*', async (req, res) => {
     const fiscalIdMatch = endpoint.match(/[?&]fiscalId=([^&]*)/);
 
     if (isSubscriptions && (!fiscalIdMatch || fiscalIdMatch[1] === '')) {
-      // First try: direct brand-level call (faster)
-      try {
-        const direct = await api.request('GET', `/subscriptions?brand_id=${creds.brandId}`);
-        const items = await api.extractData(direct);
-        if (Array.isArray(items) && items.length > 0) return res.json(items);
-      } catch {}
-      // Fallback: iterate all customers (slower but reliable)
-      const result = await getAllSubscriptions(api, creds);
+      // Fallback: iterate all customers
+      const result = await getAllSubscriptions(api);
       return res.json(result);
     }
 
@@ -64,13 +46,13 @@ router.all('/*', async (req, res) => {
     }
     if (!hasBrandId) {
       const sep = endpoint.includes('?') ? '&' : '?';
-      endpoint += `${sep}brand_id=${creds.brandId}`;
+      endpoint += `${sep}brand_id=${api.brandId}`;
     }
 
     const axios = require('axios');
     const config = {
       method: req.method,
-      url: `${creds.apiUrl}${endpoint}`,
+      url: `${api.apiUrl}${endpoint}`,
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'

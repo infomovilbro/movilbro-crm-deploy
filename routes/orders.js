@@ -108,11 +108,8 @@ router.get('/', requireAuth, async (req, res) => {
     });
   } catch (err) {
     console.error('Orders route error:', err);
-    const localOrders = db.prepare(`
-      SELECT o.*, c.nombre as cliente_nombre, 'local' as source
-      FROM orders o JOIN clients c ON o.client_id = c.id
-      ORDER BY o.created_at DESC
-    `).all();
+    var localOrders = [];
+    try { localOrders = db.prepare("SELECT o.*, c.nombre as cliente_nombre, 'local' as source FROM orders o JOIN clients c ON o.client_id = c.id ORDER BY o.created_at DESC").all(); } catch(e) { console.error('Orders fallback error:', e.message); }
     res.render('orders/list', { title: 'Órdenes', orders: localOrders, charts: { status: { labels: [], data: [] }, monthly: { labels: [], data: [] }, type: { labels: [], data: [] } } });
   }
 });

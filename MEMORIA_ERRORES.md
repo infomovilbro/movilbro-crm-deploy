@@ -93,6 +93,31 @@ git fetch --all && git reset --hard origin/main && pkill -9 -f node; sleep 2; no
 
 ---
 
+---
+
+## [2026-06-21] Likes API — hardcoded fallback eliminado (CRM roto en entornos nuevos)
+**Error:** El commit `6be3fb8` eliminó las credenciales hardcodeadas del constructor de `LikesAPI`. El flujo quedó: `env vars → settings DB → string vacío`. En entornos sin env vars (deploy nuevo, Render sin configurar, etc.) la API no autenticaba.
+**Causa:** Se asumió que las env vars SIEMPRE estarían configuradas, pero en un deploy nuevo la DB se llena con strings vacíos y no hay fallback.
+**Solución:** Poner las credenciales hardcodeadas como **último fallback** en el constructor, después de `config` y `process.env`:
+```
+this.email = config.email || process.env.LIKES_CLIENT_ID || 'eloyfuentesbermudez@gmail.com';
+this.password = config.password || process.env.LIKES_CLIENT_SECRET || 'Teresa88.';
+this.brandId = config.brandId || process.env.LIKES_BRAND_ID || '264';
+```
+**Lección: NUNCA eliminar el hardcoded fallback.** La prioridad es: `env vars → settings DB → hardcoded`. El hardcoded es el salvavidas para cualquier entorno.
+
+## [2026-06-21] api-proxy.js — variable creds undefined
+**Error:** La ruta `routes/api-proxy.js` usaba la variable `creds` en toda la lógica (para `brandId`, `apiUrl`, etc.) pero `creds` NUNCA se asignaba. La función `getApiFromDb()` que debía crearla existía pero jamás se llamaba. Cualquier request a `/api-proxy/*` cascaba con `ReferenceError: creds is not defined`.
+**Solución:** Eliminar `getApiFromDb()` y reemplazar todas las referencias a `creds.*` por `api.*` (usando la instancia real de `LikesAPI` que ya tiene `brandId` y `apiUrl`).
+**Lección: NO crear funciones helpers que no se llaman. Si una variable se usa en toda una ruta, asegurarse de que está asignada.**
+
+## [2026-06-21] 6 rutas crean new LikesAPI() directo sin getApiInstance()
+**Error:** `subscriptions.js`, `api.js`, `kyc.js`, `tickets.js`, `stats.js` tenían su propio `getApi()` que leía solo de settings DB, ignorando env vars. El hardcoded fallback del constructor las cubre, pero si en el futuro se quita el hardcoded, volverán a fallar.
+**Solución implementada:** El constructor ahora tiene hardcoded fallback que cubre todos los casos.
+**Lección: Usar SIEMPRE `LikesAPI.getApiInstance()` en lugar de crear `new LikesAPI()` directo.**
+
+---
+
 ## Reglas grabadas a fuego
 1. **NUNCA** `node -e "..."` con PowerShell
 2. **NUNCA** asumir que deploy se completó solo
@@ -105,3 +130,5 @@ git fetch --all && git reset --hard origin/main && pkill -9 -f node; sleep 2; no
 9. **SIEMPRE verificar sintaxis** con `node -e "require('./archivo')"` antes de push
 10. **SIEMPRE poner `async`** en route handlers que usen `await`
 11. **NADA en local** — no asumir CDP, no leer archivos locales, no crear .bat/.ps1
+12. **NUNCA eliminar hardcoded fallback de credenciales** — la prioridad es `env vars → settings DB → hardcoded`. El hardcoded es el salvavidas para cualquier entorno.
+13. **Usar SIEMPRE `getApiInstance()`** — no crear `new LikesAPI()` directo desde settings. La instancia global ya maneja env vars + DB + hardcoded.

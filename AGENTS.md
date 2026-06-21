@@ -49,6 +49,7 @@
 - [x] Formularios sin `name` + sin `onchange` → autofill del navegador no dispara validación → poner `name` y `onchange` además de `oninput`
 - [x] No tener acceso a Render dashboard → pedir contraseña o URL de deploy hook al principio; no esperar a necesitarla
 - [x] Repetir el mismo error de escapado PowerShell 4+ veces → usar SIEMPRE archivo .js, nunca -e
+- [x] Quitar hardcoded fallback de credenciales Likes → NUNCA eliminar el hardcoded. Prioridad: `env vars → settings DB → hardcoded`. El hardcoded es el salvavidas.
 
 ## AssemblyAI (Audio)
 - API key: cadenas hex de 32 caracteres
