@@ -2,7 +2,7 @@ name: Keep Alive
 
 on:
   schedule:
-    - cron: '*/14 * * * *'
+    - cron: '*/5 * * * *'
   workflow_dispatch:
 
 jobs:
@@ -10,4 +10,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Ping Render server
-        run: curl -sS --max-time 60 "https://movilbro-crm.onrender.com/health" && echo " OK" || echo " FAIL"
+        run: curl -sS --max-time 30 "https://movilbro-crm.onrender.com/health" 2>&1 | head -c 100 || echo "FAIL"
+      - name: Ping Replit server
+        run: curl -sS --max-time 30 "https://6f335cd7-43a3-4f09-b6f0-1b047d1101ee-00-3ca1swasnjcq2.janeway.replit.dev/health" 2>&1 | head -c 100 || echo "FAIL"

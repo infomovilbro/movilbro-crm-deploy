@@ -724,17 +724,22 @@ app.use(function(req, res, next) {
   next();
 });
 
-// PING CADA 1 MINUTO a localhost + URL externa
+// PING CADA 30 SEGUNDOS a localhost + URL externa + preview Replit
 setInterval(function() {
   try { http.get(SELF_PING_URL, (r) => { r.resume(); }).on('error', () => {}); } catch(e) {}
   if (externalUrl) {
-    try { http.get(externalUrl + '/health', (r) => { r.resume(); }).on('error', () => {}); } catch(e) {}
+    try { https.get(externalUrl + '/health', (r) => { r.resume(); }).on('error', () => {}); } catch(e) {}
   }
-  // Siempre intentar variantes de Replit
+  // Ping directo a la preview URL de Replit
+  try {
+    var previewUrl = 'https://6f335cd7-43a3-4f09-b6f0-1b047d1101ee-00-3ca1swasnjcq2.janeway.replit.dev/health';
+    https.get(previewUrl, (r) => { r.resume(); }).on('error', () => {});
+  } catch(e) {}
+  // Variantes de Replit
   try {
     if (process.env.REPL_SLUG && process.env.REPL_OWNER) {
       var slugUrl = 'https://' + process.env.REPL_SLUG + '.' + process.env.REPL_OWNER + '.repl.co/health';
-      http.get(slugUrl, (r) => { r.resume(); }).on('error', () => {});
+      https.get(slugUrl, (r) => { r.resume(); }).on('error', () => {});
     }
   } catch(e) {}
 }, 60000);
