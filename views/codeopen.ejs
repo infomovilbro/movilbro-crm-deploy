@@ -1311,21 +1311,37 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
       if (progBar) { var fill = progBar.querySelector('div'); if (fill) fill.style.width = '100%'; setTimeout(function() { if (progBar) progBar.style.display = 'none'; }, 500); }
       if (d.ok) {
         pollPendingCount();
+        // Cambiar boton Analizar a Re-analizar
+        btn.innerHTML = '<i class="ri-robot-line"></i> Re-analizar';
+        btn.disabled = false;
+        // Mostrar editor de respuesta debajo del mensaje, sin borrar el boton analizar
         var respText = d.response || d.proposed_response || '';
-        var parentDiv = btn.closest('.wa-msg-actions') || btn.closest('[style*="padding"]') || btn.parentElement;
-        if (parentDiv) {
-          parentDiv.innerHTML = '<div style="margin-top:6px;padding:8px;border-radius:8px;border:1px solid rgba(34,197,94,0.2);background:rgba(34,197,94,0.08);">' +
-            '<div style="font-size:0.7rem;color:#22c55e;margin-bottom:4px;"><i class="ri-check-line"></i> Respuesta lista - puedes editarla:</div>' +
-            '<textarea class="response-editor" data-id="' + btn.dataset.id + '" style="width:100%;background:var(--bg-main);border:1px solid var(--border);border-radius:8px;padding:8px;font-size:0.75rem;color:var(--text);margin-bottom:6px;resize:vertical;min-height:50px;font-family:inherit;">' + escHtml(respText) + '</textarea>' +
-            '<div style="display:flex;gap:4px;flex-wrap:wrap;">' +
-            '<button class="btn-send-no-fwd" data-id="' + btn.dataset.id + '" style="flex:1;min-width:80px;background:var(--accent);color:#fff;border:0;border-radius:8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-send-plane-line"></i> Enviar</button>' +
-            '<button class="btn-send-audio" data-id="' + btn.dataset.id + '" style="flex:1;min-width:70px;background:#8B5CF6;color:#fff;border:0;border-radius:8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-voiceprint-line"></i> Audio</button>' +
-            '<button class="btn-reject" data-id="' + btn.dataset.id + '" style="background:var(--error);color:#fff;border:0;border-radius:8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-close-line"></i></button>' +
-            '</div></div>';
+        var msgCard = btn.closest('[style*="background:var(--bg-main);border:1px solid var(--border-light)"]') || btn.closest('.wa-contact-messages > div') || btn.parentElement;
+        if (msgCard) {
+          var existingResp = msgCard.querySelector('.response-editor');
+          if (existingResp) existingResp.value = respText;
+          else {
+            var respDiv = document.createElement('div');
+            respDiv.style.cssText = 'margin-top:6px;padding:8px;border-radius:8px;border:1px solid rgba(34,197,94,0.2);background:rgba(34,197,94,0.08);';
+            respDiv.innerHTML = 
+              '<div style="font-size:0.7rem;color:#22c55e;margin-bottom:4px;"><i class="ri-check-line"></i> Respuesta lista - puedes editarla:</div>' +
+              '<textarea class="response-editor" data-id="' + btn.dataset.id + '" style="width:100%;background:var(--bg-main);border:1px solid var(--border);border-radius:8px;padding:8px;font-size:0.75rem;color:var(--text);margin-bottom:6px;resize:vertical;min-height:50px;font-family:inherit;">' + escHtml(respText) + '</textarea>' +
+              '<div style="display:flex;gap:4px;flex-wrap:wrap;">' +
+              '<button class="btn-send-no-fwd" data-id="' + btn.dataset.id + '" style="flex:1;min-width:80px;background:var(--accent);color:#fff;border:0;border-radius:8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-send-plane-line"></i> Enviar</button>' +
+              '<button class="btn-send-audio" data-id="' + btn.dataset.id + '" style="flex:1;min-width:70px;background:#8B5CF6;color:#fff;border:0;border-radius:8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-voiceprint-line"></i> Audio</button>' +
+              (d.docReady ? '<button class="btn-send-doc" data-id="' + btn.dataset.id + '" style="flex:1;min-width:70px;background:#f59e0b;color:#fff;border:0;border-radius:8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-file-pdf-line"></i> Doc</button>' : '') +
+              '<button class="btn-reject" data-id="' + btn.dataset.id + '" style="background:var(--error);color:#fff;border:0;border-radius:8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-close-line"></i></button>' +
+              '</div>';
+            // Insertar despues del contenedor de acciones actual
+            var actionsDiv = btn.closest('.wa-msg-actions') || btn.parentElement;
+            if (actionsDiv) actionsDiv.after(respDiv);
+            else msgCard.appendChild(respDiv);
+          }
           // Bind buttons
-          parentDiv.querySelector('.btn-send-no-fwd')?.addEventListener('click', function(e) { e.stopPropagation(); approveMessage(this.dataset.id, 'without_forward', this); });
-          parentDiv.querySelector('.btn-send-audio')?.addEventListener('click', function(e) { e.stopPropagation(); approveMessage(this.dataset.id, 'without_forward', this, true); });
-          parentDiv.querySelector('.btn-reject')?.addEventListener('click', function(e) { e.stopPropagation(); rejectMessage(this.dataset.id, this); });
+          respDiv.querySelector('.btn-send-no-fwd')?.addEventListener('click', function(e) { e.stopPropagation(); approveMessage(this.dataset.id, 'without_forward', this); });
+          respDiv.querySelector('.btn-send-audio')?.addEventListener('click', function(e) { e.stopPropagation(); approveMessage(this.dataset.id, 'without_forward', this, true); });
+          respDiv.querySelector('.btn-send-doc')?.addEventListener('click', function(e) { e.stopPropagation(); approveMessage(this.dataset.id, 'without_forward', this, false, true); });
+          respDiv.querySelector('.btn-reject')?.addEventListener('click', function(e) { e.stopPropagation(); rejectMessage(this.dataset.id, this); });
         }
         loadPendingList();
       } else {
@@ -1341,7 +1357,7 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
     });
   }
 
-  function approveMessage(id, mode, btn, asAudio) {
+  function approveMessage(id, mode, btn, asAudio, asDoc) {
     btn.disabled = true;
     var label = asAudio ? 'Generando audio...' : mode === 'with_forward' ? 'Enviando con reenvío...' : 'Enviando...';
     btn.innerHTML = '<span class="spinner-border spinner-border-sm" style="width:10px;height:10px;"></span> ' + label;

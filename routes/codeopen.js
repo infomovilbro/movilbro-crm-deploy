@@ -887,24 +887,16 @@ router.post('/analyze/:id', async (req, res) => {
       db.prepare("UPDATE pending_messages SET proposed_response=null WHERE id=?").run(row.id);
     }
 
-    // Generar respuesta con IA - ultra rápido (timeout 5s)
+    // Generar respuesta con IA - usando Nemotron (no tiene thinking como DeepSeek)
     var ctxDoc = docInfo ? 'DOC: ' + (docInfo.resumen || '') : '';
     var fastPrompt = 'Mensaje de ' + row.from_name + ': ' + (row.body || '').substring(0, 200) + ' ' + ctxDoc + '\n\nRESPUESTA (max 200 chars, directo y profesional):';
     
-    var finalResponse = await callLLM(fastPrompt, '', 0.7, modelId, 300);
+    // Usar Nemotron para analisis (no produce thinking)  
+    var finalResponse = await callLLM(fastPrompt, '', 0.7, 'nemotron-3-ultra-free', 300);
     var cleanResponse = finalResponse || '';
-    // Limpiar thinking de DeepSeek V4: quitar todo antes de "RESPUESTA:" si existe
+    // Si aun asi hay thinking, limpiarlo
     var respMatch = cleanResponse.match(/RESPUESTA:\s*([\s\S]*)/i);
-    var sendResponse = respMatch ? respMatch[1].trim() : cleanResponse;
-    // Si no hay match con RESPUESTA, intentar extraer respuesta final despues del thinking
-    if (!respMatch) {
-      // Quitar lineas que empiezan con numeros/puntos (thinking)
-      var lines = sendResponse.split('\n').filter(function(l) { return !/^\d+\./.test(l.trim()); });
-      sendResponse = lines.join(' ').trim();
-      // Si el texto contiene "**RESPUESTA**" o similar
-      var boldMatch = sendResponse.match(/\*\*RESPUESTA\*\*:\s*([\s\S]*)/i);
-      if (boldMatch) sendResponse = boldMatch[1].trim();
-    }
+    var sendResponse = respMatch ? respMatch[1].trim() : cleanResponse.replace(/^Thinking[\s\S]*?\*\*RESPUESTA\*\*:\s*/i, '').replace(/^1\.\s*\*\*.*/m, '').trim();
     
     // Solo guardar si NO es error (si es error, no sobreescribir una respuesta previa válida)
     if (sendResponse && sendResponse.indexOf('Error:') !== 0) {
