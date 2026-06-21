@@ -162,13 +162,14 @@ async function detectAndFetchDocument(msgBody, fromName, fromAddress) {
       'Responde SOLO con JSON: {"isDocument":true/false, "type":"factura/contrato/recibo/otro", "periodo":"mes-año o null", "clientName":"nombre del cliente si lo menciona o null", "clientDni":"DNI si lo menciona o null"}\n\n' +
       'Cliente: ' + fromName + '\nMensaje: ' + msgBody;
     
-    var llmResp = await callLLM(docPrompt, '', 0.3, 'deepseek-v4-flash-free');
-    // Limpiar la respuesta: quitar thinking y markdown, extraer solo JSON
-    var cleanResp = llmResp.replace(/.*?\{/s, '{').replace(/\}.*/s, '}');
-    cleanResp = cleanResp.replace(/```json\s*/gi, '').replace(/```\s*/g, '');
-    var jsonMatch = cleanResp.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return null;
-    try { var info = JSON.parse(jsonMatch[0]); } catch(e) { return null; }
+    var llmResp = await callLLM(docPrompt, '', 0.3, 'nemotron-3-ultra-free');
+    // Limpiar respuesta: extraer JSON aunque haya texto alrededor
+    var cleanResp = llmResp.replace(/```json\s*/gi, '').replace(/```\s*/g, '');
+    var jsonStart = cleanResp.indexOf('{');
+    var jsonEnd = cleanResp.lastIndexOf('}');
+    if (jsonStart < 0 || jsonEnd < 0) return null;
+    var jsonStr = cleanResp.substring(jsonStart, jsonEnd + 1);
+    try { var info = JSON.parse(jsonStr); } catch(e) { return null; }
     if (!info.isDocument) return null;
     
     // 2. Buscar el cliente en la BD
@@ -184,6 +185,19 @@ async function detectAndFetchDocument(msgBody, fromName, fromAddress) {
       client = db.prepare("SELECT * FROM clients WHERE nombre LIKE ? LIMIT 1").get('%' + info.clientName.substring(0, 30) + '%');
     }
     if (!client) return { error: 'Cliente no identificado. Pídele nombre completo y DNI.' };
+    
+    // 2.5 Buscar en Likes Telecom si no se encontraron facturas localmente
+    if (info.type === 'factura' || info.type === 'recibo') {
+      try {
+        var likesApi = LikesAPI.getApiInstance();
+        if (likesApi) {
+          var subs = await likesApi.getSubscriptions(client.dni_nif || client.likes_customer_id || '');
+          if (subs && subs.length > 0) {
+            // Ya hay suscripciones, proceder
+          }
+        }
+      } catch(e) { console.log('[Doc] Likes API error:', e.message); }
+    }
     
     // 3. Buscar la factura/documento
     if (info.type === 'factura' || info.type === 'recibo') {

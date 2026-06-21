@@ -1161,6 +1161,9 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
         '<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#25D366,#128C7E);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:0.85rem;flex-shrink:0;position:relative;overflow:hidden;"><img class="profile-pic" data-address="' + escHtml(g.address) + '" src="" style="width:100%;height:100%;object-fit:cover;display:none;position:absolute;top:0;left:0;" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'"><span class="profile-initial" style="display:block;">' + initial + '</span></div>' +
         '<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:0.85rem;">' + escHtml(g.contact) + ' <span style="font-weight:400;font-size:0.7rem;color:var(--text-faint);">' + (g.address && g.address.includes('@s.whatsapp.net') ? g.address.replace('@s.whatsapp.net','').replace(/[^0-9]/g,'') : g.address && g.address.includes('@lid') ? '' : escHtml(g.address || '')) + '</span></div><div style="font-size:0.7rem;color:var(--text-dim);">' + g.messages.length + ' mensaje' + (g.messages.length !== 1 ? 's' : '') + (unanalyzed > 0 ? ' · <span style="color:#f59e0b;">' + unanalyzed + ' sin analizar</span>' : '') + '</div></div>' +
         '<button class="btn-chat-history" data-address="' + escHtml(g.address) + '" data-name="' + escHtml(g.contact) + '" style="background:none;border:1px solid var(--border);border-radius:8px;padding:4px 8px;cursor:pointer;font-size:0.7rem;color:var(--text-muted);white-space:nowrap;" title="Ver historial completo de la conversación"><i class="ri-chat-history-line"></i> Historial</button>' +
+        '<div class="crm-actions-wrapper" style="position:relative;display:inline-block;">' +
+        '<button class="btn-crm-actions" data-address="' + escHtml(g.address) + '" data-name="' + escHtml(g.contact) + '" style="background:none;border:1px solid var(--accent);border-radius:8px;padding:4px 8px;cursor:pointer;font-size:0.7rem;color:var(--accent);white-space:nowrap;" title="Acciones CRM"><i class="ri-external-link-line"></i> CRM</button>' +
+        '</div>' +
         '<span class="client-actions-' + escHtml(g.address) + '" style="display:none;"></span>' +
         '<button class="btn-delete-contact" data-address="' + escHtml(g.address) + '" style="background:none;border:1px solid var(--error);border-radius:8px;padding:4px 8px;cursor:pointer;font-size:0.7rem;color:var(--error);white-space:nowrap;" title="Borrar todos los mensajes de este contacto"><i class="ri-delete-bin-line"></i></button>' +
         '<i class="ri-arrow-down-s-line" style="font-size:1.2rem;color:var(--text-dim);transition:transform 0.2s;"></i></div>' +
@@ -1244,6 +1247,9 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
       });
       card.querySelectorAll('.btn-chat-history').forEach(function(b) {
         b.addEventListener('click', function(e) { e.stopPropagation(); openChatHistory(this.dataset.address, this.dataset.name); });
+      });
+      card.querySelectorAll('.btn-crm-actions').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation(); openCRMActions(this.dataset.address, this.dataset.name, this); });
       });
       card.querySelectorAll('.btn-delete-contact').forEach(function(b) {
         b.addEventListener('click', function(e) { e.stopPropagation(); deleteContact(this.dataset.address, this); });
@@ -1428,6 +1434,27 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
   var chatHistorySendAudio = $('chatHistorySendAudio');
   var chatHistoryStatus = $('chatHistoryStatus');
   var currentChatJid = null;
+
+  function openCRMActions(address, name, btn) {
+    var phone = address.replace('@s.whatsapp.net', '').replace('@lid', '').replace(/[^0-9]/g, '');
+    var existing = btn.parentElement.querySelector('.crm-dropdown');
+    if (existing) { existing.remove(); return; }
+    var dd = document.createElement('div');
+    dd.className = 'crm-dropdown';
+    dd.style.cssText = 'position:absolute;top:100%;right:0;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;z-index:50;min-width:180px;box-shadow:0 8px 24px rgba(0,0,0,0.4);padding:4px;margin-top:4px;';
+    dd.innerHTML = '<div style="padding:6px 10px;font-size:0.7rem;color:var(--text-faint);border-bottom:1px solid var(--border);margin-bottom:4px;">' + escHtml(name) + ' (' + phone + ')</div>' +
+      (phone ? '<a href="/clientes?search=' + phone + '" target="_blank" style="display:block;padding:6px 10px;border-radius:6px;text-decoration:none;color:var(--text);font-size:0.75rem;transition:background 0.2s;" onmouseover="this.style.background=\'var(--border)\'" onmouseout="this.style.background=\'transparent\'"><i class="ri-user-line"></i> Ficha cliente</a>' : '') +
+      '<a href="/isp/facturacion/facturas?search=' + phone + '" target="_blank" style="display:block;padding:6px 10px;border-radius:6px;text-decoration:none;color:var(--text);font-size:0.75rem;transition:background 0.2s;" onmouseover="this.style.background=\'var(--border)\'" onmouseout="this.style.background=\'transparent\'"><i class="ri-receipt-line"></i> Facturación</a>' +
+      '<a href="/isp/contratos?search=' + phone + '" target="_blank" style="display:block;padding:6px 10px;border-radius:6px;text-decoration:none;color:var(--text);font-size:0.75rem;transition:background 0.2s;" onmouseover="this.style.background=\'var(--border)\'" onmouseout="this.style.background=\'transparent\'"><i class="ri-file-list-3-line"></i> Contratos</a>' +
+      '<a href="/isp/tarifas" target="_blank" style="display:block;padding:6px 10px;border-radius:6px;text-decoration:none;color:var(--text);font-size:0.75rem;transition:background 0.2s;" onmouseover="this.style.background=\'var(--border)\'" onmouseout="this.style.background=\'transparent\'"><i class="ri-price-tag-3-line"></i> Tarifas</a>' +
+      '<a href="/isp/cdrs?search=' + phone + '" target="_blank" style="display:block;padding:6px 10px;border-radius:6px;text-decoration:none;color:var(--text);font-size:0.75rem;transition:background 0.2s;" onmouseover="this.style.background=\'var(--border)\'" onmouseout="this.style.background=\'transparent\'"><i class="ri-phone-line"></i> CDRs</a>' +
+      '<a href="/isp/portabilidades?search=' + phone + '" target="_blank" style="display:block;padding:6px 10px;border-radius:6px;text-decoration:none;color:var(--text);font-size:0.75rem;transition:background 0.2s;" onmouseover="this.style.background=\'var(--border)\'" onmouseout="this.style.background=\'transparent\'"><i class="ri-swap-line"></i> Portabilidades</a>';
+    btn.parentElement.style.position = 'relative';
+    btn.parentElement.appendChild(dd);
+    // Cerrar al hacer clic fuera
+    var closeDD = function(e2) { if (!dd.contains(e2.target) && e2.target !== btn) { dd.remove(); document.removeEventListener('click', closeDD); } };
+    setTimeout(function() { document.addEventListener('click', closeDD); }, 100);
+  }
 
   function openChatHistory(address, name) {
     currentChatJid = address;
