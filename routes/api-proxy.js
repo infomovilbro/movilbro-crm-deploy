@@ -39,8 +39,7 @@ async function getAllSubscriptions(api, creds) {
 
 router.all('/*', async (req, res) => {
   try {
-    const creds = getApiFromDb();
-    const api = new LikesAPI(creds);
+    const api = LikesAPI.getApiInstance();
     const token = await api.getToken();
 
     let endpoint = req.url;

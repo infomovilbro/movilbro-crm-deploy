@@ -2,26 +2,17 @@ const axios = require('axios');
 const { db } = require('./database');
 
 function getApiInstance() {
-  // Usar credenciales hardcodeadas (sobrescriben settings)
-  return new LikesAPI({
-    apiUrl: 'https://api.likestelecom.com',
-    email: 'eloyfuentesbermudez@gmail.com',
-    password: 'Teresa88.',
-    brandId: '264'
-  });
+  return new LikesAPI({});
 }
 
 class LikesAPI {
   constructor(config) {
-    this.apiUrl = config.apiUrl || 'https://api.likestelecom.com';
-    this.email = config.email;
-    this.password = config.password;
-    this.brandId = config.brandId;
+    this.apiUrl = 'https://api.likestelecom.com';
+    this.email = 'eloyfuentesbermudez@gmail.com';
+    this.password = 'Teresa88.';
+    this.brandId = '264';
     this._tokenCache = null;
     this._tokenExpiry = null;
-    if (!this.email || !this.password) {
-      console.error('[LikesAPI] CREDENCIALES FALTANTES: likes_client_id=' + (this.email ? 'OK' : 'VACIO') + ', likes_client_secret=' + (this.password ? 'OK' : 'VACIO') + '. Configúralas en Render como LIKES_CLIENT_ID y LIKES_CLIENT_SECRET');
-    }
   }
 
   async getToken() {

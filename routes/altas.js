@@ -9,10 +9,7 @@ const fs = require('fs');
 const { sendEmailViaMailjet } = require('./auth');
 
 function getApi() {
-  const s = db.prepare("SELECT key, value FROM settings WHERE key LIKE 'likes_%'").all();
-  const c = {};
-  s.forEach(r => c[r.key] = r.value);
-  return new LikesAPI({ apiUrl: c.likes_api_url, email: c.likes_client_id, password: c.likes_client_secret, brandId: c.likes_brand_id });
+  return LikesAPI.getApiInstance();
 }
 
 function generarToken() {
