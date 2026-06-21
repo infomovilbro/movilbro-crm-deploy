@@ -11,7 +11,8 @@ router.get('/', requireAuth, async (req, res) => {
   try {
     const api = LikesAPI.getApiInstance();
     const customers = await api.getCustomers();
-    apiClientes = customers.map(c => ({
+    console.log('[Clientes] API customers count:', customers ? customers.length : 0);
+    apiClientes = (customers || []).map(c => ({
       origen: 'API',
       id_api: c.id,
       nombre: c.name || c.firstName || '',
