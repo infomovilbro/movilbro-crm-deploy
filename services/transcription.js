@@ -108,8 +108,9 @@ async function textToSpeech(text, voice) {
 
   // 2. Google TTS (voz femenina española, gratis)
   if (!audioBuf) {
-    var chunks = [];
-    for (var i = 0; i < text.length; i += 180) {
+    try {
+      var chunks = [];
+      for (var i = 0; i < text.length; i += 180) {
       var part = text.substring(i, i + 180);
       var url = 'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=es&q=' + encodeURIComponent(part);
       var resp = await axios.get(url, { responseType: 'arraybuffer', timeout: 10000, headers: { 'User-Agent': 'Mozilla/5.0' } });
@@ -120,8 +121,9 @@ async function textToSpeech(text, voice) {
       console.log('[TTS] Google TTS generado:', audioBuf.length, 'bytes en', chunks.length, 'partes');
     }
   } catch(e) { console.log('[TTS] Google TTS falló:', e.message); }
+  }
 
-  // 2. OpenRouter TTS con voz masculina (echo) como alternativa
+  // 3. OpenRouter TTS con voz masculina (echo) como alternativa
   if (!audioBuf) {
     var orKey = getKeyFromSettings('openrouter_api_key');
     if (orKey) {
