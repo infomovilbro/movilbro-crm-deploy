@@ -10,6 +10,7 @@ try {
     try { assemblyAIKey = (db.db.prepare("SELECT value FROM settings WHERE key='assemblyai_api_key'").get() || {}).value || assemblyAIKey; } catch(e) {}
   }
 } catch(e) {}
+if (!assemblyAIKey) assemblyAIKey = '73009d6b21d6413cbf2637423fa10c8f';
 
 async function transcribeAudio(audioBuffer, mimeType) {
   // Intentar OpenRouter Whisper si no hay AssemblyAI
