@@ -13,24 +13,14 @@ router.get('/', requireAuth, async (req, res) => {
       const api = getApiInstance();
       var rawOrders = [];
 
-      // Strategy 1: request with brand_id + extractData
+      // Intentar API con timeout corto (5s) - /orders no funciona sin fiscalId
       try {
-        var raw = await api.request('GET', '/orders?brand_id=' + api.brandId);
+        var raw = await Promise.race([
+          api.request('GET', '/orders?brand_id=' + api.brandId),
+          new Promise(function(_, rej) { setTimeout(function() { rej(new Error('timeout')); }, 5000); })
+        ]);
         rawOrders = api.extractData(raw);
       } catch (e) {}
-
-      // Strategy 2: try without brand_id
-      if (!rawOrders.length) {
-        try {
-          var raw2 = await api.request('GET', '/orders');
-          rawOrders = api.extractData(raw2);
-        } catch (e) {}
-      }
-
-      // Strategy 3: fallback to getOrders
-      if (!rawOrders.length) {
-        try { rawOrders = await api.getOrders(); } catch (e) {}
-      }
 
       apiOrders = (Array.isArray(rawOrders) ? rawOrders : []).map(o => {
         var statusHistory = [];
