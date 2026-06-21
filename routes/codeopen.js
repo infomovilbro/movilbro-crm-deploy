@@ -242,44 +242,59 @@ async function callLLM(systemPrompt, userMessage, temperature, modelId, maxToken
   var modelsToTry = [primaryModel, 'deepseek-v4-flash-free', 'nemotron-3-ultra-free', 'nemotron-3-super-free'];
   if (getModelConfig('gemini-2.0-flash-openrouter')?.key) modelsToTry.push('gemini-2.0-flash-openrouter');
   
-  var activeModels = modelsToTry.filter(function(m) { return getModelConfig(m) && getModelConfig(m).key; });
-  if (activeModels.length === 0) return 'Error: Inténtalo de nuevo en unos segundos.';
-  
-  var prompt = ((systemPrompt || '') + '\n' + (userMessage || '')).substring(0, 500);
-  
-  // Lanzar TODOS los modelos en PARALELO, el primero que responda gana (race)
-  var promises = activeModels.map(function(m) {
-    var cfg = getModelConfig(m);
-    return axios.post(cfg.apiEndpoint, {
-      model: m,
-      messages: [{ role: 'user', content: prompt }],
-      temperature: temperature || 0.3, max_tokens: maxTokens
-    }, { timeout: 8000, headers: { 'Authorization': 'Bearer ' + cfg.key, 'Content-Type': 'application/json' } })
-    .then(function(resp) {
-      var msg = resp?.data?.choices?.[0]?.message;
-      var text = msg?.content || msg?.reasoning_content || '';
-      if (text && text.trim()) {
-        try { db.prepare("INSERT INTO model_usage (model_id, date, calls) VALUES (?, ?, 1) ON CONFLICT(model_id, date) DO UPDATE SET calls = calls + 1, updated_at = CURRENT_TIMESTAMP").run(m, new Date().toISOString().split('T')[0]); } catch(e) {}
-        return { model: m, text: text.trim() };
-      }
-      return null;
-    })
-    .catch(function() { return null; });
+  // Probar modelos en ORDEN (secuencial), fallback si falla
+  var factories = modelsToTry.filter(function(m) { return getModelConfig(m) && getModelConfig(m).key; }).map(function(m) {
+    return function() {
+      var cfg = getModelConfig(m);
+      return axios.post(cfg.apiEndpoint, {
+        model: m,
+        messages: [{ role: 'user', content: ((systemPrompt || '') + '\n' + (userMessage || '')).substring(0, 500) }],
+        temperature: temperature || 0.3, max_tokens: maxTokens
+      }, { timeout: 8000, headers: { 'Authorization': 'Bearer ' + cfg.key, 'Content-Type': 'application/json' } })
+      .then(function(resp) {
+        var msg = resp?.data?.choices?.[0]?.message;
+        var text = msg?.content || msg?.reasoning_content || '';
+        if (text && text.trim()) {
+          try { db.prepare("INSERT INTO model_usage (model_id, date, calls) VALUES (?, ?, 1) ON CONFLICT(model_id, date) DO UPDATE SET calls = calls + 1, updated_at = CURRENT_TIMESTAMP").run(m, new Date().toISOString().split('T')[0]); } catch(e) {}
+          return { model: m, text: text.trim() };
+        }
+        return null;
+      })
+      .catch(function(e) {
+        var is429 = e.response && e.response.status === 429;
+        if (!is429) console.log('[CodeOpen] Error en ' + m + ':', e.message);
+        return null;
+      });
+    };
   });
 
-  // Promise.race - el primero que responda, gana
-  var winner = await Promise.race([
-    Promise.all(promises).then(function(results) {
-      var valid = results.filter(function(r) { return r && r.text; });
-      if (valid.length === 0) return null;
-      valid.sort(function(a, b) { return b.text.length - a.text.length; });
-      return valid[0];
-    }),
-    new Promise(function(r) { setTimeout(function() { r(null); }, 3000); })
-  ]);
-
-  if (winner && winner.text) return winner.text;
-  return 'Error: Inténtalo de nuevo en unos segundos.';
+  // Probar modelos en orden secuencial, como funcionaba antes
+  return await new Promise(function(resolve) {
+    if (factories.length === 0) resolve('Error: Inténtalo de nuevo en unos segundos.');
+    var timedOut = false;
+    var timer = setTimeout(function() {
+      timedOut = true;
+      resolve('Error: Inténtalo de nuevo en unos segundos.');
+    }, 25000);
+    async function tryNext(idx) {
+      if (timedOut || idx >= factories.length) {
+        if (!timedOut) resolve('Error: Inténtalo de nuevo en unos segundos.');
+        return;
+      }
+      try {
+        var result = await factories[idx]();
+        if (timedOut) return;
+        if (result && result.text) {
+          clearTimeout(timer);
+          try { db.prepare("UPDATE model_usage SET calls = calls + 1, updated_at = CURRENT_TIMESTAMP WHERE model_id = ? AND date = ?").run(result.model, new Date().toISOString().split('T')[0]); } catch(e) {}
+          resolve(result.text);
+          return;
+        }
+      } catch(e) {}
+      tryNext(idx + 1);
+    }
+    tryNext(0);
+  });
 }
 
 const AGENT_CATEGORIES = {
