@@ -5,7 +5,13 @@ function getApiInstance() {
   const s = db.prepare("SELECT key, value FROM settings WHERE key LIKE 'likes_%'").all();
   const c = {};
   s.forEach(r => c[r.key] = r.value);
-  return new LikesAPI({ apiUrl: c.likes_api_url, email: c.likes_client_id, password: c.likes_client_secret, brandId: c.likes_brand_id });
+  // Priorizar env vars sobre settings table (las env vars son las que funcionaban antes)
+  return new LikesAPI({
+    apiUrl: process.env.LIKES_API_URL || c.likes_api_url || 'https://api.likestelecom.com',
+    email: process.env.LIKES_CLIENT_ID || c.likes_client_id || '',
+    password: process.env.LIKES_CLIENT_SECRET || c.likes_client_secret || '',
+    brandId: process.env.LIKES_BRAND_ID || c.likes_brand_id || ''
+  });
 }
 
 class LikesAPI {
