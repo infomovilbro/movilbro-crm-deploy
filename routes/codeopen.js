@@ -1297,23 +1297,27 @@ router.post('/whatsapp/login-phone', async (req, res) => {
     
     var wa = require('../wa-baileys');
     
-    // Forzar reinicio completo de Baileys con el numero para pairing
+    // Forzar reinicio de Baileys para asegurar pairing limpio
     try { wa.end(); } catch(e) {}
-    await new Promise(function(r) { setTimeout(r, 2000); });
+    await new Promise(function(r) { setTimeout(r, 3000); });
     
+    // Inicializar con el numero para pairing
+    await wa.initBaileys(phoneNumber);
+    
+    // Esperar que el socket conecte y genere el pairing code
+    await new Promise(function(r) { setTimeout(r, 8000); });
+    
+    var code = null;
     try {
-      await wa.initBaileys(phoneNumber);
-      await new Promise(function(r) { setTimeout(r, 5000); });
-      var code = await wa.requestPairingCode(phoneNumber);
-      
-      if (code) {
-        res.json({ ok: true, message: 'Codigo de 6 digitos enviado a tu WhatsApp. Revisa la notificacion.', pairingCode: code });
-      } else {
-        res.json({ ok: true, message: 'No se pudo generar codigo. Escanea el QR.', pairingCode: null });
-      }
-    } catch(e2) {
-      console.error('[Phone] Pairing error:', e2.message);
-      res.json({ ok: false, error: 'Error: ' + e2.message });
+      code = await wa.requestPairingCode(phoneNumber);
+    } catch(e) {
+      console.error('[Phone] Pairing error:', e.message);
+    }
+    
+    if (code) {
+      res.json({ ok: true, message: 'Codigo enviado a tu WhatsApp. Revisa la notificacion.', pairingCode: code });
+    } else {
+      res.json({ ok: true, message: 'No se pudo generar codigo de emparejamiento. Escanea el QR manualmente.', pairingCode: null });
     }
   } catch(e) { res.json({ ok: false, error: e.message }); }
 });

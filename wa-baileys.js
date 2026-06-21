@@ -155,12 +155,15 @@ async function initBaileys(pairingPhone) {
     
     sock.ev.on('messages.upsert', function(m) {
       if (!m.messages || !m.messages.length) return;
-      // Solo procesar mensajes nuevos en tiempo real, ignorar historial al reconectar
-      if (m.type !== 'notify') return;
       m.messages.forEach(function(msg) {
         if (msg.key.fromMe) return;
         if (msg.key.remoteJid === 'status@broadcast') return;
         if (!msg.message) return;
+        
+        // Ignorar mensajes muy antiguos (mas de 30 segundos) para evitar re-insertar historial
+        var msgSecs = msg.messageTimestamp || 0;
+        var maxAge = Math.floor(Date.now() / 1000) - 30;
+        if (msgSecs > 0 && msgSecs < maxAge) return;
         
         var from = msg.key.remoteJid || '';
         var phone = from.split('@')[0] || '';
