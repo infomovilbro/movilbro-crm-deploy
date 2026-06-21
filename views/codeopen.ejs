@@ -1259,7 +1259,16 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
         b.addEventListener('click', function(e) { e.stopPropagation(); approveMessage(this.dataset.id, 'without_forward', this, true); });
       });
       msgsContainer.querySelectorAll('.btn-send-doc').forEach(function(b) {
-        b.addEventListener('click', function(e) { e.stopPropagation(); sendDocument(this.dataset.id, this); });
+        b.addEventListener('click', function(e) { e.stopPropagation(); 
+          // Si el mensaje tiene document_ready, enviar directo sin preguntar
+          var msgId = this.dataset.id;
+          var hasDoc = this.dataset.docready === '1' || this.dataset.docready === 'true';
+          if (hasDoc) {
+            approveMessage(msgId, 'without_forward', this, false, true);
+          } else {
+            sendDocument(msgId, this);
+          }
+        });
       });
       msgsContainer.querySelectorAll('.btn-reject').forEach(function(b) {
         b.addEventListener('click', function(e) { e.stopPropagation(); rejectMessage(this.dataset.id, this); });
