@@ -175,7 +175,28 @@ async function detectAndFetchDocument(msgBody, fromName, fromAddress) {
     // 2. Buscar el cliente en la BD
     var client = null;
     var searchPhone = fromAddress.replace(/[^0-9]/g, '');
-    if (searchPhone.length >= 9) {
+    var isLid = fromAddress.includes('@lid') || searchPhone.length > 15;
+    if (isLid && fromName) {
+      // Para LIDs, buscar por nombre del contacto
+      client = db.prepare("SELECT * FROM clients WHERE nombre LIKE ? OR apellidos LIKE ? LIMIT 1").get('%' + fromName.substring(0, 30) + '%', '%' + fromName.substring(0, 30) + '%');
+      if (!client) {
+        try {
+          var likesApi = LikesAPI.getApiInstance();
+          if (likesApi) {
+            var likesCustomers = await likesApi.getCustomers();
+            if (likesCustomers && Array.isArray(likesCustomers)) {
+              var found = likesCustomers.find(function(c) {
+                var cName = (c.name || c.nombre || c.razon_social || '').toLowerCase();
+                return cName.includes(fromName.toLowerCase());
+              });
+              if (found) {
+                client = { nombre: found.name || found.nombre || found.razon_social, dni_nif: found.fiscal_id || found.dni || '', likes_customer_id: found.id || found.customer_id, telefono: found.phone || found.telefono || '' };
+              }
+            }
+          }
+        } catch(e) {}
+      }
+    } else if (searchPhone.length >= 9) {
       client = db.prepare("SELECT * FROM clients WHERE telefono LIKE ? OR telefono2 LIKE ? LIMIT 1").get('%' + searchPhone + '%', '%' + searchPhone + '%');
     }
     if (!client && info.clientDni) {
@@ -1168,53 +1189,48 @@ function emailExists(fromAddress, subject) {
 router.get('/lookup-client/:phone', async (req, res) => {
   try {
     var rawPhone = req.params.phone;
+    var contactName = req.query.name || '';
     var phone = rawPhone.replace(/[^0-9]/g, '');
     var client = null;
+    var isLid = rawPhone.includes('@lid') || phone.length > 15;
 
-    // 1) Buscar por número de teléfono (si tiene suficientes dígitos)
-    if (phone && phone.length >= 6) {
-      // Para JIDs de WhatsApp: @lid o @s.whatsapp.net, extraer la parte numérica
-      var searchPhone = phone;
-      // Si es un LID muy largo (>12 dígitos), intentar buscar por los últimos 9 dígitos
-      if (phone.length > 12) searchPhone = phone.slice(-9);
-      client = db.prepare("SELECT id, nombre, apellidos, dni_nif, telefono, email FROM clients WHERE telefono LIKE ? OR telefono2 LIKE ? LIMIT 1").get('%' + searchPhone + '%', '%' + searchPhone + '%');
-      if (!client && phone.length > 12) {
-        // Intentar también los últimos 12 dígitos
-        searchPhone = phone.slice(-12);
-        client = db.prepare("SELECT id, nombre, apellidos, dni_nif, telefono, email FROM clients WHERE telefono LIKE ? OR telefono2 LIKE ? LIMIT 1").get('%' + searchPhone + '%', '%' + searchPhone + '%');
-      }
-      // Buscar como DNI
-      if (!client) client = db.prepare("SELECT id, nombre, apellidos, dni_nif, telefono, email FROM clients WHERE dni_nif=? LIMIT 1").get(phone);
-    }
-
-    // 2) Buscar por nombre de contacto en from_name (para JIDs @lid que no tienen teléfono)
-    if (!client) {
-      var nameMatch = decodeURIComponent(rawPhone).replace(/[@\s]/g, ' ').trim();
-      if (nameMatch && nameMatch.length > 2) {
-        client = db.prepare("SELECT id, nombre, apellidos, dni_nif, telefono, email FROM clients WHERE nombre LIKE ? OR apellidos LIKE ? LIMIT 1").get('%' + nameMatch.substring(0, 20) + '%', '%' + nameMatch.substring(0, 20) + '%');
-      }
-    }
-
-    // 3) Buscar en API Likes Telecom por nombre si no se encontró localmente
-    if (!client) {
-      try {
-        var nameSearch = decodeURIComponent(rawPhone).replace(/[@\s]+/g, ' ').trim();
-        if (nameSearch && nameSearch.length > 2) {
+    // Si es LID, buscar primero por nombre del contacto
+    if (isLid && contactName) {
+      // Buscar en DB local por nombre
+      client = db.prepare("SELECT id, nombre, apellidos, dni_nif, telefono, email FROM clients WHERE nombre LIKE ? OR apellidos LIKE ? LIMIT 1").get('%' + contactName.substring(0, 20) + '%', '%' + contactName.substring(0, 20) + '%');
+      // Buscar en Likes API por nombre
+      if (!client) {
+        try {
           var api = LikesAPI.getApiInstance();
           if (api) {
             var likesCustomers = await api.getCustomers();
             if (likesCustomers && Array.isArray(likesCustomers)) {
               var found = likesCustomers.find(function(c) {
                 var cName = (c.name || c.nombre || c.razon_social || '').toLowerCase();
-                return cName.includes(nameSearch.toLowerCase());
+                return cName.includes(contactName.toLowerCase());
               });
               if (found) {
                 client = { id: found.id || found.customer_id, nombre: found.name || found.nombre || found.razon_social, apellidos: '', dni_nif: found.fiscal_id || found.dni || '', telefono: found.phone || found.telefono || found.mobile || '', email: found.email || '' };
               }
             }
           }
-        }
-      } catch(e) { console.log('[Lookup] Likes API error:', e.message); }
+        } catch(e) { console.log('[Lookup] Likes API error:', e.message); }
+      }
+      if (client) {
+        return res.json({ found: true, client: { id: client.id, name: client.nombre + ' ' + (client.apellidos || ''), dni: client.dni_nif, telefono: client.telefono, email: client.email, url: '/clientes/' + client.id, fiscalUrl: client.dni_nif ? '/clientes/fiscal/' + encodeURIComponent(client.dni_nif) : '/clientes/' + client.id } });
+      }
+    }
+
+    // 1) Buscar por número de teléfono
+    if (!client && phone && phone.length >= 6) {
+      var searchPhone = phone;
+      if (phone.length > 12) searchPhone = phone.slice(-9);
+      client = db.prepare("SELECT id, nombre, apellidos, dni_nif, telefono, email FROM clients WHERE telefono LIKE ? OR telefono2 LIKE ? LIMIT 1").get('%' + searchPhone + '%', '%' + searchPhone + '%');
+      if (!client && phone.length > 12) {
+        searchPhone = phone.slice(-12);
+        client = db.prepare("SELECT id, nombre, apellidos, dni_nif, telefono, email FROM clients WHERE telefono LIKE ? OR telefono2 LIKE ? LIMIT 1").get('%' + searchPhone + '%', '%' + searchPhone + '%');
+      }
+      if (!client) client = db.prepare("SELECT id, nombre, apellidos, dni_nif, telefono, email FROM clients WHERE dni_nif=? LIMIT 1").get(phone);
     }
 
     if (client) {

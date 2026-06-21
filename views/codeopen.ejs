@@ -780,7 +780,8 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
         var name = el.dataset.name;
         var lookupParam = phone && phone.length >= 6 ? phone : (name ? name : '');
         if (!lookupParam) return;
-        fetch('/codeopen/lookup-client/' + lookupParam).then(function(r) { return r.json(); }).then(function(data) {
+        var searchUrl = '/codeopen/lookup-client/' + encodeURIComponent(lookupParam) + (name ? '?name=' + encodeURIComponent(name) : '');
+        fetch(searchUrl).then(function(r) { return r.json(); }).then(function(data) {
           if (data.found && data.client) {
             el.style.display = 'inline';
             var btn = el.querySelector('.crm-access-btn');
