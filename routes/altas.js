@@ -35,7 +35,9 @@ router.get('/', requireAuth, async (req, res) => {
       portabilities = results[2].status === 'fulfilled' ? results[2].value : [];
       donors = results[3].status === 'fulfilled' ? results[3].value : [];
       if (results.some(r => r.status === 'rejected')) {
-        apiError = 'Algunos datos no pudieron cargarse de la API. Los productos pueden no estar disponibles.';
+        if (!Array.isArray(products) || products.length === 0) {
+          apiError = 'Algunos datos no pudieron cargarse de la API.';
+        }
       }
     } catch(e) {
       apiError = 'Error de conexión con API Likes Telecom: ' + e.message;
