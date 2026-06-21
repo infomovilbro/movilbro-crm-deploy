@@ -3,54 +3,26 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-var assemblyAIKey = process.env.ASSEMBLYAI_API_KEY || '';
-try {
-  var db = require('../database');
-  if (db) {
-    try { assemblyAIKey = (db.db.prepare("SELECT value FROM settings WHERE key='assemblyai_api_key'").get() || {}).value || assemblyAIKey; } catch(e) {}
-  }
-} catch(e) {}
+var assemblyAIKey = '';
+var openRouterKey = '';
 
-var xenovaPipeline = null;
-
-async function getXenovaPipeline() {
-  if (xenovaPipeline) return xenovaPipeline;
+function getKeyFromSettings(keyName) {
   try {
-    var { pipeline } = await import('@xenova/transformers');
-    xenovaPipeline = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny.en', { quantized: true });
-    console.log('[Transcription] Whisper local cargado');
-    return xenovaPipeline;
-  } catch(e) {
-    console.log('[Transcription] Xenova error:', e.message);
-    return null;
-  }
-}
-
-async function transcribeAudio(audioBuffer, mimeType) {
-  // 1. Whisper local via Xenova Transformers (GRATIS, sin API key)
-  try {
-    var pipe = await getXenovaPipeline();
-    if (pipe) {
-      var tmpFile = path.join(os.tmpdir(), 'wa_audio_' + Date.now() + '.ogg');
-      fs.writeFileSync(tmpFile, audioBuffer);
-      var result = await pipe(tmpFile, { language: 'spanish', task: 'transcribe' });
-      try { fs.unlinkSync(tmpFile); } catch(e) {}
-      if (result && result.text) {
-        console.log('[Transcription] Whisper local:', result.text.substring(0, 80));
-        return { text: result.text, rawText: result.text, source: 'whisper-local' };
-      }
-    }
-  } catch(e) { console.log('[Transcription] Whisper local error:', e.message); }
-
-  // 2. OpenRouter Whisper
-  var openRouterKey = process.env.OPENROUTER_API_KEY || '';
-  try {
-    var db2 = require('../database');
-    if (db2) {
-      try { openRouterKey = (db2.db.prepare("SELECT value FROM settings WHERE key='openrouter_api_key'").get() || {}).value || openRouterKey; } catch(e) {}
+    var db = require('../database');
+    if (db) {
+      var row = db.db.prepare("SELECT value FROM settings WHERE key=?").get(keyName);
+      if (row && row.value) return row.value;
     }
   } catch(e) {}
-  
+  return process.env[keyName.toUpperCase()] || '';
+}
+
+assemblyAIKey = getKeyFromSettings('assemblyai_api_key');
+openRouterKey = getKeyFromSettings('openrouter_api_key');
+
+async function transcribeAudio(audioBuffer, mimeType) {
+  // 1. OpenRouter Whisper (necesita OPENROUTER_API_KEY en Settings)
+  var openRouterKey = getKeyFromSettings('openrouter_api_key');
   if (openRouterKey) {
     try {
       var tmpPath = path.join(os.tmpdir(), 'wa_audio_' + Date.now() + '.ogg');
@@ -66,9 +38,21 @@ async function transcribeAudio(audioBuffer, mimeType) {
       });
       try { fs.unlinkSync(tmpPath); } catch(e) {}
       if (resp.data && resp.data.text) return { text: resp.data.text, rawText: resp.data.text, source: 'openrouter' };
-      if (resp.data && typeof resp.data === 'string') return { text: resp.data, rawText: resp.data, source: 'openrouter' };
     } catch(e) { console.log('[Transcription] OpenRouter error:', e.message); }
   }
+
+  // 2. HuggingFace Whisper gratis (sin API key, limitado)
+  try {
+    var tmpPath = path.join(os.tmpdir(), 'wa_audio_' + Date.now() + '.ogg');
+    fs.writeFileSync(tmpPath, audioBuffer);
+    var audioData = fs.readFileSync(tmpPath);
+    var resp = await axios.post('https://api-inference.huggingface.co/models/openai/whisper-tiny', audioData, {
+      headers: { 'Content-Type': 'audio/ogg' },
+      timeout: 30000, responseType: 'json'
+    });
+    try { fs.unlinkSync(tmpPath); } catch(e) {}
+    if (resp.data && resp.data.text) return { text: resp.data.text, rawText: resp.data.text, source: 'huggingface' };
+  } catch(e) { console.log('[Transcription] HuggingFace error:', e.message); }
 
   // 3. AssemblyAI
   if (assemblyAIKey) {

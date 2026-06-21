@@ -63,9 +63,13 @@ async function initBaileys(pairingPhone) {
     // Wrap saveCreds to also persist to DB
     var origSaveCreds = saveCreds;
     var wrappedSaveCreds = async function() {
-      try { if (origSaveCreds) await origSaveCreds(); } catch(e) {}
+      try { if (origSaveCreds) await origSaveCreds(); } catch(e) { console.log('[Baileys] Save error:', e.message); }
       try {
-        var credsData = JSON.parse(fs.readFileSync(path.join(authDir, 'creds.json'), 'utf-8'));
+        var credsPath = path.join(authDir, 'creds.json');
+        if (!fs.existsSync(credsPath)) { console.log('[Baileys] creds.json no existe'); return; }
+        var raw = fs.readFileSync(credsPath, 'utf-8');
+        if (!raw || raw.trim().length < 10) { console.log('[Baileys] creds.json vacio'); return; }
+        var credsData = JSON.parse(raw);
         var keysData = {};
         var items = fs.readdirSync(authDir);
         items.forEach(function(item) {
