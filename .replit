@@ -1,5 +1,8 @@
 run = "PORT=5000 node server.js"
 
+[deployment]
+run = "PORT=5000 node server.js"
+
 [workflows]
   [[workflows.workflows]]
   name = "Iniciar CRM"
