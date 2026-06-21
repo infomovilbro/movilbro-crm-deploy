@@ -8,7 +8,14 @@ const router = express.Router();
 router.get('/api-test', requireAuth, async (req, res) => {
   try {
     const api = LikesAPI.getApiInstance();
-    res.json({ ok: true, email: api.email, brand: api.brandId, url: api.apiUrl });
+    res.json({
+      ok: true,
+      email: api.email,
+      brand: api.brandId,
+      url: api.apiUrl,
+      env_set: !!process.env.LIKES_CLIENT_ID,
+      env_email: process.env.LIKES_CLIENT_ID || '(no configurado)'
+    });
   } catch(e) {
     res.json({ ok: false, error: e.message });
   }
