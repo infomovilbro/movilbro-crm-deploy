@@ -901,18 +901,29 @@ router.post('/analyze/:id', async (req, res) => {
       db.prepare("UPDATE pending_messages SET proposed_response=null WHERE id=?").run(row.id);
     }
 
-    // Generar respuesta con IA - prompt directo al cliente, sin analisis interno
-    var fastPrompt = 'Eres agente de atencion al cliente de Movilbro. Responde DIRECTAMENTE al cliente, sin explicar tu proceso de pensamiento.\n\n' +
-      'Cliente dice: "' + (row.body || '').substring(0, 200) + '"\n\n' +
-      (docInfo && docInfo.resumen ? 'Dato: ' + docInfo.resumen + '\n\n' : '') +
-      'RESPUESTA (max 200 caracteres, directa, profesional, como si hablaras al cliente):';
+    // Generar respuesta con IA - prompt directo al cliente
+    var fastPrompt = 'Eres agente de atencion al cliente de Movilbro.\n' +
+      'Cliente: "' + (row.body || '').substring(0, 200) + '"\n' +
+      (docInfo && docInfo.resumen ? 'Info: ' + docInfo.resumen : '') + '\n\n' +
+      'Responde DIRECTAMENTE al cliente en español, como si hablaras con el. Max 2 frases.';
     
-    var finalResponse = await callLLM(fastPrompt, '', 0.7, 'nemotron-3-ultra-free', 300);
-    // Forzar timeout para analisis ultra rapido (max 4s)
-    if (typeof finalResponse === 'object' && finalResponse.timeout) finalResponse = 'Error: Inténtalo de nuevo.';
+    var finalResponse = await callLLM(fastPrompt, '', 0.7, 'deepseek-v4-flash-free', 400);
     var cleanResponse = finalResponse || '';
-    // Quitar cualquier thinking residual (aunque Nemotron no deberia tener)
-    var sendResponse = cleanResponse.replace(/^(Thinking|Analizando|Analisis|Claro|Por supuesto)[\s\S]*?(?=RESPUESTA:|Respuesta:|respuesta:)/i, '').replace(/^RESPUESTA:\s*/i, '').replace(/^respuesta:\s*/i, '').trim();
+    // Limpiar: quitar cualquier resto del prompt o instrucciones
+    var sendResponse = cleanResponse
+      .replace(/^(Claro|Por supuesto|Entendido|De acuerdo)[.!]*\s*/i, '')
+      .replace(/^RESPUESTA:?\s*/i, '')
+      .replace(/^respuesta:?\s*/i, '')
+      .replace(/\bmax\s*\d+\s*(caracteres|chars|palabras)\b.*/gi, '')
+      .replace(/\bdirecto\s*(y\s*)?profesional\b.*/gi, '')
+      .replace(/\bcomo\s*si\s*hablaras\s*al\s*cliente\b.*/gi, '')
+      .replace(/^\s*[""']|[""']\s*$/g, '')
+      .trim();
+    // Si aun asi queda texto largo, cortar en la primera frase coherente
+    if (sendResponse.length > 300) {
+      var firstSentence = sendResponse.match(/^[^.!?]*[.!?]/);
+      if (firstSentence) sendResponse = firstSentence[0];
+    }
     
     // Solo guardar si NO es error (si es error, no sobreescribir una respuesta previa válida)
     if (sendResponse && sendResponse.indexOf('Error:') !== 0) {
