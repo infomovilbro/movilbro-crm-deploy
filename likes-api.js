@@ -4,7 +4,7 @@ const { db } = require('./database');
 function getApiInstance() {
   const s = db.prepare("SELECT key, value FROM settings WHERE key LIKE 'likes_%'").all();
   const c = {};
-  s.forEach(r => c[r.key] = r.value);
+  s.forEach(r => { if (r.value && r.value.trim()) c[r.key] = r.value; });
   // Priorizar env vars sobre settings table (las env vars son las que funcionaban antes)
   return new LikesAPI({
     apiUrl: process.env.LIKES_API_URL || c.likes_api_url || 'https://api.likestelecom.com',
