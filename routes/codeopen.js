@@ -242,13 +242,13 @@ async function detectAndFetchDocument(msgBody, fromName, fromAddress) {
       var periodo = info.periodo || '';
       var factura = null;
       var searchFiscal = client.dni_nif || client.likes_customer_id || '';
+      var fiscalClean = searchFiscal.replace(/^[A-Z]/i, ''); // sin letra B75559955 → 75559955
       if (periodo) {
-        factura = db.prepare("SELECT * FROM isp_facturas WHERE fiscal_id=? AND periodo LIKE ? LIMIT 1").get(searchFiscal, periodo + '%');
-        if (!factura) factura = db.prepare("SELECT * FROM isp_facturas WHERE cliente_nombre LIKE ? AND periodo LIKE ? LIMIT 1").get('%' + client.nombre + '%', periodo + '%');
+        var periodoShort = periodo.replace(/^(\d{4})-0?(\d+)$/, '$1-$2'); // 2026-05 o 2026-5
+        factura = db.prepare("SELECT * FROM isp_facturas WHERE (fiscal_id=? OR fiscal_id=? OR cliente_nombre LIKE ?) AND (periodo=? OR periodo=? OR periodo LIKE ?) LIMIT 1").get(searchFiscal, fiscalClean, '%' + client.nombre + '%', periodo, periodoShort, periodo + '%');
       }
       if (!factura) {
-        factura = db.prepare("SELECT * FROM isp_facturas WHERE fiscal_id=? ORDER BY created_at DESC LIMIT 1").get(searchFiscal);
-        if (!factura) factura = db.prepare("SELECT * FROM isp_facturas WHERE cliente_nombre LIKE ? ORDER BY created_at DESC LIMIT 1").get('%' + client.nombre + '%');
+        factura = db.prepare("SELECT * FROM isp_facturas WHERE fiscal_id=? OR fiscal_id=? OR cliente_nombre LIKE ? ORDER BY created_at DESC LIMIT 1").get(searchFiscal, fiscalClean, '%' + client.nombre + '%');
       }
       if (!factura) {
         factura = db.prepare("SELECT * FROM isp_facturas WHERE fiscal_id=? ORDER BY created_at DESC LIMIT 1").get(searchFiscal);
@@ -304,7 +304,7 @@ async function callLLM(systemPrompt, userMessage, temperature, modelId, maxToken
   var primaryModel = modelId || _lastSuccessfulModel || 'nemotron-3-ultra-free';
   if (!getModelConfig(primaryModel)) return 'Error: Modelo no disponible';
 
-  var modelsToTry = [primaryModel, 'deepseek-v4-flash-free', 'nemotron-3-super-free', 'nemotron-3-ultra-free'];
+  var modelsToTry = [primaryModel, 'deepseek-v4-flash-free', 'nemotron-3-super-free'];
   
   // Probar modelos en ORDEN (secuencial), fallback si falla
   var factories = modelsToTry.filter(function(m) { return getModelConfig(m) && getModelConfig(m).key; }).map(function(m) {
@@ -973,11 +973,12 @@ router.post('/analyze/:id', async (req, res) => {
     var finalResponse = await callLLM(fastPrompt, '', 0.7, _lastSuccessfulModel || 'nemotron-3-ultra-free', 500);
     var cleanResponse = finalResponse || '';
     var sendResponse = cleanResponse
-      .replace(/^ent says?:?\s*/i, '')
-      .replace(/^ent of\s+/i, '')
-      .replace(/^ente de\s+/i, '')
-      .replace(/^(el cliente dice|mensaje recibido|recibido|te dicen)[\s:]*/i, '')
-      .replace(/^\[?agente de\s*/i, '')
+      .replace(/^ent (says?:?|of|for|para)\s*/i, '')
+      .replace(/^ente\s+(de|del|al|para)\s+/i, '')
+      .replace(/^(el cliente dice|cliente dice|mensaje recibido|recibido|te dicen|me dicen)[\s:]*/i, '')
+      .replace(/^\[?agente\s+(de|del)\s*/i, '')
+      .replace(/^soy\s+(agente|el agente|un agente)\s+(de|del)\s*/i, '')
+      .replace(/^(Hola|Buenos días|Buenas tardes)[,.]?\s*/i, '')
       .replace(/^(Claro|Por supuesto|Entendido|De acuerdo)[.!]*\s*/i, '')
       .replace(/^RESPUESTA:?\s*/i, '')
       .replace(/^respuesta:?\s*/i, '')
@@ -992,8 +993,11 @@ router.post('/analyze/:id', async (req, res) => {
       if (firstSentence) sendResponse = firstSentence[0];
     }
     // Si esta vacio o es basura, respuesta generica cordial
-    if (!sendResponse || sendResponse.length < 5) {
-      sendResponse = '¡Hola! Recibí tu mensaje. ¿En qué puedo ayudarte?';
+    if (!sendResponse || sendResponse.length < 10) {
+      var msgBodyLower = (row.body || '').toLowerCase();
+      if (msgBodyLower.indexOf('factura') >= 0) sendResponse = 'Dame un momento, voy a buscar tu factura.';
+      else if (msgBodyLower.indexOf('masculin') >= 0 || msgBodyLower.indexOf('voz') >= 0) sendResponse = '¡Claro! Te lo envío con voz masculina.';
+      else sendResponse = '¡Hola! Recibí tu mensaje. ¿En qué puedo ayudarte?';
     }
     
     // Solo guardar si NO es error (si es error, no sobreescribir una respuesta previa válida)
