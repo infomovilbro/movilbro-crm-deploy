@@ -546,9 +546,9 @@ function initDatabase() {
       empresa_email: 'info@movilbro.com',
       empresa_web: 'https://movilbro.com',
       likes_api_url: 'https://api.likestelecom.com',
-      likes_client_id: 'eloyfuentesbermudez@gmail.com',
-      likes_client_secret: 'Teresa88.',
-      likes_brand_id: '264'
+      likes_client_id: '',
+      likes_client_secret: '',
+      likes_brand_id: ''
     };
     const insert = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
     for (const [key, value] of Object.entries(defaultSettings)) {
@@ -563,7 +563,7 @@ function initDatabase() {
   if (process.env.TELEGRAM_CHAT_ID) {
     db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('telegram_chat_id', ?)").run(process.env.TELEGRAM_CHAT_ID);
   }
-  // Auto-configurar API Likes Telecom (solo si no existe ya en DB o está vacío)
+  // Auto-configurar API Likes Telecom (solo si no existe ya en DB)
   var defaultApi = {
     likes_api_url: 'https://api.likestelecom.com',
     likes_client_id: process.env.LIKES_CLIENT_ID || '',
@@ -574,11 +574,11 @@ function initDatabase() {
   var insertSetting = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
   for (var _k in defaultApi) {
     var envVal = process.env[_k.toUpperCase()];
-    var existing = checkSetting.get(_k);
-    if (envVal && (!existing || !existing.value || !existing.value.trim())) {
+    if (envVal) {
       db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(_k, envVal);
-    } else if (!existing) {
-      insertSetting.run(_k, defaultApi[_k]);
+    } else {
+      var existing = checkSetting.get(_k);
+      if (!existing) insertSetting.run(_k, defaultApi[_k]);
     }
   }
 
