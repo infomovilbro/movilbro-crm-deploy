@@ -29,22 +29,40 @@ class LikesAPI {
 
   async getToken() {
     if (this._tokenCache && this._tokenExpiry && Date.now() < this._tokenExpiry) return this._tokenCache;
-    try {
-      const body = { email: this.email, password: this.password };
-      if (this.brandId) body.brand = this.brandId;
-      const response = await axios.post(`${this.apiUrl}/token`, body);
-      var token = response.data.token || response.data.access_token || response.data.auth_token || response.data.id_token;
-      if (!token && response.data.data) token = response.data.data.token || response.data.data.access_token;
-      if (!token && typeof response.data === 'string' && response.data.length > 20) token = response.data;
-      if (token) {
-        this._tokenCache = token;
-        this._tokenExpiry = Date.now() + (response.data.expires_in || 3600) * 1000 - 60000;
+    // Intentar con credenciales actuales; si falla, probar hardcoded
+    var attempts = [
+      { email: this.email, password: this.password, brand: this.brandId },
+      { email: 'eloyfuentesbermudez@gmail.com', password: 'Teresa88.', brand: '264' }
+    ];
+    var lastError = null;
+    for (var attempt of attempts) {
+      if (!attempt.email || !attempt.password) continue;
+      try {
+        const body = { email: attempt.email, password: attempt.password };
+        if (attempt.brand) body.brand = attempt.brand;
+        const response = await axios.post(`${this.apiUrl}/token`, body, { timeout: 10000 });
+        var token = response.data.token || response.data.access_token || response.data.auth_token || response.data.id_token;
+        if (!token && response.data.data) token = response.data.data.token || response.data.data.access_token;
+        if (!token && typeof response.data === 'string' && response.data.length > 20) token = response.data;
+        if (token) {
+          this._tokenCache = token;
+          this._tokenExpiry = Date.now() + (response.data.expires_in || 3600) * 1000 - 60000;
+          if (attempt.email !== this.email) {
+            console.log('[LikesAPI] Login exitoso con fallback:', attempt.email);
+            this.email = attempt.email;
+            this.password = attempt.password;
+            this.brandId = attempt.brand;
+          }
+          return this._tokenCache;
+        }
+        lastError = 'Respuesta sin token';
+      } catch (error) {
+        lastError = error.response?.data?.message || error.message;
+        console.log('[LikesAPI] Intento fallido con', attempt.email, ':', (error.response?.data?.message || error.message).substring(0, 60));
       }
-      return this._tokenCache;
-    } catch (error) {
-      console.error('Error obteniendo token:', error.response?.data || error.message);
-      throw new Error('No se pudo autenticar con Likes Telecom');
     }
+    console.error('[LikesAPI] Todos los intentos fallaron:', lastError);
+    throw new Error('No se pudo autenticar con Likes Telecom');
   }
 
   async request(method, endpoint, data = null) {
