@@ -546,9 +546,9 @@ function initDatabase() {
       empresa_email: 'info@movilbro.com',
       empresa_web: 'https://movilbro.com',
       likes_api_url: 'https://api.likestelecom.com',
-      likes_client_id: '',
-      likes_client_secret: '',
-      likes_brand_id: ''
+      likes_client_id: 'eloyfuentesbermudez@gmail.com',
+      likes_client_secret: 'Teresa88.',
+      likes_brand_id: '264'
     };
     const insert = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
     for (const [key, value] of Object.entries(defaultSettings)) {
