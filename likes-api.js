@@ -17,9 +17,9 @@ function getApiInstance() {
 class LikesAPI {
   constructor(config) {
     this.apiUrl = config.apiUrl || process.env.LIKES_API_URL || 'https://api.likestelecom.com';
-    this.email = config.email || process.env.LIKES_CLIENT_ID || 'eloyfuentesbermudez@gmail.com';
-    this.password = config.password || process.env.LIKES_CLIENT_SECRET || 'Teresa88.';
-    this.brandId = config.brandId || process.env.LIKES_BRAND_ID || '264';
+    this.email = 'eloyfuentesbermudez@gmail.com';
+    this.password = 'Teresa88.';
+    this.brandId = '264';
     this._tokenCache = null;
     this._tokenExpiry = null;
     if (!this.email || !this.password) {
