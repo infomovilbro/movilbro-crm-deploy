@@ -29,10 +29,10 @@ class LikesAPI {
 
   async getToken() {
     if (this._tokenCache && this._tokenExpiry && Date.now() < this._tokenExpiry) return this._tokenCache;
-    // Intentar con credenciales actuales; si falla, probar hardcoded
+    // Probar hardcoded PRIMERO (evita bloqueo de API si configured tiene email erroneo)
     var attempts = [
-      { email: this.email, password: this.password, brand: this.brandId },
-      { email: 'eloyfuentesbermudez@gmail.com', password: 'Teresa88.', brand: '264' }
+      { email: 'eloyfuentesbermudez@gmail.com', password: 'Teresa88.', brand: '264' },
+      { email: this.email, password: this.password, brand: this.brandId }
     ];
     var lastError = null;
     for (var attempt of attempts) {
@@ -40,7 +40,7 @@ class LikesAPI {
       try {
         const body = { email: attempt.email, password: attempt.password };
         if (attempt.brand) body.brand = attempt.brand;
-        const response = await axios.post(`${this.apiUrl}/token`, body, { timeout: 10000 });
+        const response = await axios.post(`${this.apiUrl}/token`, body, { timeout: 15000, headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36', 'Content-Type': 'application/json' } });
         var token = response.data.token || response.data.access_token || response.data.auth_token || response.data.id_token;
         if (!token && response.data.data) token = response.data.data.token || response.data.data.access_token;
         if (!token && typeof response.data === 'string' && response.data.length > 20) token = response.data;
@@ -60,6 +60,7 @@ class LikesAPI {
         lastError = error.response?.data?.message || error.message;
         console.log('[LikesAPI] Intento fallido con', attempt.email, ':', (error.response?.data?.message || error.message).substring(0, 60));
       }
+      if (lastError && attempt !== attempts[attempts.length - 1]) await new Promise(r => setTimeout(r, 1500));
     }
     console.error('[LikesAPI] Todos los intentos fallaron:', lastError);
     throw new Error('No se pudo autenticar con Likes Telecom');
