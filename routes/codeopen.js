@@ -293,7 +293,7 @@ var _lastSuccessfulModel = null;
 var _lastModelFailures = {};
 
 async function callLLM(systemPrompt, userMessage, temperature, modelId, maxTokens) {
-  maxTokens = Math.min(maxTokens || 300, 300);
+  maxTokens = Math.min(maxTokens || 500, 500);
   var primaryModel = modelId || _lastSuccessfulModel || 'nemotron-3-ultra-free';
   if (!getModelConfig(primaryModel)) return 'Error: Modelo no disponible';
 
@@ -963,11 +963,14 @@ router.post('/analyze/:id', async (req, res) => {
       (docInfo && docInfo.resumen ? 'Documento encontrado: ' + docInfo.resumen + '. Di que se lo envias.' : '') +
       '\nSi pide factura: "Te la envío ahora mismo." Si pide info: dala. Si es prueba: responde cordial. Si es voz masculina: OK.';
 
-    var finalResponse = await callLLM(fastPrompt, '', 0.7, _lastSuccessfulModel || 'nemotron-3-ultra-free', 300);
+    var finalResponse = await callLLM(fastPrompt, '', 0.7, _lastSuccessfulModel || 'nemotron-3-ultra-free', 500);
     var cleanResponse = finalResponse || '';
     var sendResponse = cleanResponse
       .replace(/^ent says?:?\s*/i, '')
       .replace(/^ent of\s+/i, '')
+      .replace(/^ente de\s+/i, '')
+      .replace(/^(el cliente dice|mensaje recibido|recibido|te dicen)[\s:]*/i, '')
+      .replace(/^\[?agente de\s*/i, '')
       .replace(/^(Claro|Por supuesto|Entendido|De acuerdo)[.!]*\s*/i, '')
       .replace(/^RESPUESTA:?\s*/i, '')
       .replace(/^respuesta:?\s*/i, '')
