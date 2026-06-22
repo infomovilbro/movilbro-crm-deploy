@@ -975,10 +975,12 @@ router.post('/analyze/:id', async (req, res) => {
     var sendResponse = cleanResponse
       .replace(/^ent (says?:?|of|for|para)\s*/i, '')
       .replace(/^ente\s+(de|del|al|para)\s+/i, '')
+      .replace(/^(en a user message|en la solicitud|user message|the user)[\s:]*/i, '')
       .replace(/^(el cliente dice|cliente dice|mensaje recibido|recibido|te dicen|me dicen)[\s:]*/i, '')
       .replace(/^\[?agente\s+(de|del)\s*/i, '')
       .replace(/^soy\s+(agente|el agente|un agente)\s+(de|del)\s*/i, '')
       .replace(/^(Hola|Buenos días|Buenas tardes)[,.]?\s*/i, '')
+      .replace(/^[""]([^""]*)[""]\s*/,'$1')
       .replace(/^(Claro|Por supuesto|Entendido|De acuerdo)[.!]*\s*/i, '')
       .replace(/^RESPUESTA:?\s*/i, '')
       .replace(/^respuesta:?\s*/i, '')
