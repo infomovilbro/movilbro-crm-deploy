@@ -27,23 +27,30 @@ class LikesAPI {
     }
   }
 
-  async getToken() {
+  async getToken(retries = 2) {
     if (this._tokenCache && this._tokenExpiry && Date.now() < this._tokenExpiry) return this._tokenCache;
-    try {
-      const body = { email: this.email, password: this.password };
-      if (this.brandId) body.brand = this.brandId;
-      const response = await axios.post(`${this.apiUrl}/token`, body, { headers: { 'User-Agent': 'axios/1.7.2' } });
-      var token = response.data.token || response.data.access_token || response.data.auth_token || response.data.id_token;
-      if (!token && response.data.data) token = response.data.data.token || response.data.data.access_token;
-      if (!token && typeof response.data === 'string' && response.data.length > 20) token = response.data;
-      if (token) {
-        this._tokenCache = token;
-        this._tokenExpiry = Date.now() + (response.data.expires_in || 3600) * 1000 - 60000;
+    for (var i = 0; i <= retries; i++) {
+      try {
+        const body = { email: this.email, password: this.password };
+        if (this.brandId) body.brand = this.brandId;
+        const response = await axios.post(`${this.apiUrl}/token`, body, { timeout: 15000, headers: { 'User-Agent': 'axios/1.7.2' } });
+        var token = response.data.token || response.data.access_token || response.data.auth_token || response.data.id_token;
+        if (!token && response.data.data) token = response.data.data.token || response.data.data.access_token;
+        if (!token && typeof response.data === 'string' && response.data.length > 20) token = response.data;
+        if (token) {
+          this._tokenCache = token;
+          this._tokenExpiry = Date.now() + (response.data.expires_in || 3600) * 1000 - 60000;
+          return this._tokenCache;
+        }
+      } catch (error) {
+        if (i < retries) {
+          console.log('[LikesAPI] Reintentando en', (i + 1) * 3 + 's... (' + (error.response?.data?.message || error.message).substring(0, 40) + ')');
+          await new Promise(r => setTimeout(r, (i + 1) * 3000));
+        } else {
+          console.error('Error obteniendo token:', error.response?.data || error.message);
+          throw new Error('No se pudo autenticar con Likes Telecom');
+        }
       }
-      return this._tokenCache;
-    } catch (error) {
-      console.error('Error obteniendo token:', error.response?.data || error.message);
-      throw new Error('No se pudo autenticar con Likes Telecom');
     }
   }
 
