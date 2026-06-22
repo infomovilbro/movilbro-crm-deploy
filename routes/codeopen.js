@@ -162,7 +162,18 @@ async function detectAndFetchDocument(msgBody, fromName, fromAddress) {
     var hasDoc = docKeywords.some(function(k) { return msgBody.toLowerCase().indexOf(k) >= 0; });
     if (!hasDoc) return null;
     
-    // 2. Preguntar a la IA si esto es una petición de documento
+    // Fast path: detect month in message and search directly
+    var meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+    var foundMes = null;
+    for (var i=0;i<meses.length;i++){if(msgBody.toLowerCase().indexOf(meses[i])>=0){foundMes=(i<9?'0':'')+(i+1);break;}}
+    var isFacturaReq = msgBody.toLowerCase().indexOf('factura') >= 0;
+    
+    // Fast path: if clearly asking for a specific invoice, skip LLM
+    var info = null;
+    if (isFacturaReq && foundMes) {
+      info = { isDocument: true, type: 'factura', periodo: '2026-' + foundMes, clientName: fromName };
+    } else {
+      // 2. Preguntar a la IA si esto es una petición de documento
     var docPrompt = 'Analiza si el cliente está pidiendo UN DOCUMENTO (factura, contrato, recibo, albarán, justificante). ' +
       'Responde SOLO con JSON: {"isDocument":true/false, "type":"factura/contrato/recibo/otro", "periodo":"mes-año o null", "clientName":"nombre del cliente si lo menciona o null", "clientDni":"DNI si lo menciona o null"}\n\n' +
       'Cliente: ' + fromName + '\nMensaje: ' + msgBody.substring(0, 200);
@@ -174,8 +185,9 @@ async function detectAndFetchDocument(msgBody, fromName, fromAddress) {
     var jsonEnd = cleanResp.lastIndexOf('}');
     if (jsonStart < 0 || jsonEnd < 0) return null;
     var jsonStr = cleanResp.substring(jsonStart, jsonEnd + 1);
-    try { var info = JSON.parse(jsonStr); } catch(e) { return null; }
+    try { info = JSON.parse(jsonStr); } catch(e) { return null; }
     if (!info.isDocument) return null;
+    } // end else (LLM doc detection)
     
     // 2. Buscar el cliente en la BD
     var client = null;
@@ -281,7 +293,7 @@ var _lastSuccessfulModel = null;
 var _lastModelFailures = {};
 
 async function callLLM(systemPrompt, userMessage, temperature, modelId, maxTokens) {
-  maxTokens = Math.min(maxTokens || 200, 200);
+  maxTokens = Math.min(maxTokens || 300, 300);
   var primaryModel = modelId || _lastSuccessfulModel || 'nemotron-3-ultra-free';
   if (!getModelConfig(primaryModel)) return 'Error: Modelo no disponible';
 
@@ -951,11 +963,11 @@ router.post('/analyze/:id', async (req, res) => {
       (docInfo && docInfo.resumen ? 'Documento encontrado: ' + docInfo.resumen + '. Di que se lo envias.' : '') +
       '\nSi pide factura: "Te la envío ahora mismo." Si pide info: dala. Si es prueba: responde cordial. Si es voz masculina: OK.';
 
-    var finalResponse = await callLLM(fastPrompt, '', 0.7, _lastSuccessfulModel || 'nemotron-3-ultra-free', 200);
+    var finalResponse = await callLLM(fastPrompt, '', 0.7, _lastSuccessfulModel || 'nemotron-3-ultra-free', 300);
     var cleanResponse = finalResponse || '';
     var sendResponse = cleanResponse
-      .replace(/^(ent says|cliente dice|el cliente|mensaje recibido|recibido)[\s:]*/i, '')
-      .replace(/^sis para que[\s\S]*$/i, '')
+      .replace(/^ent says?:?\s*/i, '')
+      .replace(/^ent of\s+/i, '')
       .replace(/^(Claro|Por supuesto|Entendido|De acuerdo)[.!]*\s*/i, '')
       .replace(/^RESPUESTA:?\s*/i, '')
       .replace(/^respuesta:?\s*/i, '')
