@@ -993,10 +993,11 @@ router.post('/analyze/:id', async (req, res) => {
       if (firstSentence) sendResponse = firstSentence[0];
     }
     // Si esta vacio o es basura, respuesta generica cordial
-    if (!sendResponse || sendResponse.length < 10) {
-      var msgBodyLower = (row.body || '').toLowerCase();
-      if (msgBodyLower.indexOf('factura') >= 0) sendResponse = 'Dame un momento, voy a buscar tu factura.';
-      else if (msgBodyLower.indexOf('masculin') >= 0 || msgBodyLower.indexOf('voz') >= 0) sendResponse = '¡Claro! Te lo envío con voz masculina.';
+    var rawMsgLower = (row.body || '').toLowerCase();
+    var respIsEcho = sendResponse && rawMsgLower.includes(sendResponse.toLowerCase().replace(/[^a-z0-9áéíóúñ]/g,'').substring(0,15));
+    if (!sendResponse || sendResponse.length < 20 || respIsEcho) {
+      if (rawMsgLower.indexOf('factura') >= 0) sendResponse = 'Dame un momento, voy a buscar tu factura.';
+      else if (rawMsgLower.indexOf('masculin') >= 0 || rawMsgLower.indexOf('voz') >= 0) sendResponse = '¡Claro! Te lo envío con voz masculina.';
       else sendResponse = '¡Hola! Recibí tu mensaje. ¿En qué puedo ayudarte?';
     }
     
