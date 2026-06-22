@@ -691,6 +691,8 @@ async function detectExternalUrl() {
     candidates.push(`https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`);
     candidates.push(`https://${process.env.REPL_SLUG}--${process.env.REPL_OWNER}.replit.app`);
     candidates.push(`https://workspace.${process.env.REPL_OWNER}.repl.co`);
+    // Replit nuevo formato: *.riker.replit.dev
+    if (process.env.REPL_ID) candidates.push(`https://${process.env.REPL_ID}.id.repl.co`);
   }
   // Probar cada candidato
   for (var url of candidates) {
@@ -741,9 +743,9 @@ setInterval(function() {
       https.get(appUrl, (r) => { r.resume(); }).on('error', () => {});
     }
   } catch(e) {}
-}, 30000);
+}, 20000);
 
-console.log('[KeepAwake] Ping cada 30s (localhost' + (externalUrl ? ' + ' + externalUrl : '') + ')');
+console.log('[KeepAwake] Ping cada 20s (localhost' + (externalUrl ? ' + ' + externalUrl : '') + ')' + (process.env.REPL_SLUG ? ' slug=' + process.env.REPL_SLUG : ''));
 
 // ---- GLOBAL ERROR HANDLER - Evitar crashes no controlados ----
 process.on('uncaughtException', function(err) {
