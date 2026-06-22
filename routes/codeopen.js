@@ -241,13 +241,20 @@ async function detectAndFetchDocument(msgBody, fromName, fromAddress) {
     if (info.type === 'factura' || info.type === 'recibo') {
       var periodo = info.periodo || '';
       var factura = null;
+      var searchFiscal = client.dni_nif || client.likes_customer_id || '';
       if (periodo) {
-        factura = db.prepare("SELECT * FROM isp_facturas WHERE fiscal_id=? AND periodo=? LIMIT 1").get(client.dni_nif || client.likes_customer_id, periodo);
+        factura = db.prepare("SELECT * FROM isp_facturas WHERE fiscal_id=? AND periodo LIKE ? LIMIT 1").get(searchFiscal, periodo + '%');
+        if (!factura) factura = db.prepare("SELECT * FROM isp_facturas WHERE cliente_nombre LIKE ? AND periodo LIKE ? LIMIT 1").get('%' + client.nombre + '%', periodo + '%');
       }
       if (!factura) {
-        factura = db.prepare("SELECT * FROM isp_facturas WHERE fiscal_id=? ORDER BY created_at DESC LIMIT 1").get(client.dni_nif || client.likes_customer_id);
+        factura = db.prepare("SELECT * FROM isp_facturas WHERE fiscal_id=? ORDER BY created_at DESC LIMIT 1").get(searchFiscal);
+        if (!factura) factura = db.prepare("SELECT * FROM isp_facturas WHERE cliente_nombre LIKE ? ORDER BY created_at DESC LIMIT 1").get('%' + client.nombre + '%');
       }
-      if (!factura) return { error: 'No encontré facturas para ' + client.nombre + '.', clientName: client.nombre };
+      if (!factura) {
+        factura = db.prepare("SELECT * FROM isp_facturas WHERE fiscal_id=? ORDER BY created_at DESC LIMIT 1").get(searchFiscal);
+        if (!factura) factura = db.prepare("SELECT * FROM isp_facturas WHERE cliente_nombre LIKE ? ORDER BY created_at DESC LIMIT 1").get('%' + client.nombre + '%');
+      }
+      if (!factura) return { error: 'Revisa las facturas de ' + client.nombre + ' en Facturación > Facturas. ¿Te refieres a otro mes?', clientName: client.nombre };
       
       // 4. Buscar el PDF generado en archivos
       var archivo = db.prepare("SELECT * FROM archivos WHERE nombre LIKE ? ORDER BY created_at DESC LIMIT 1").get('%' + factura.serie + '-' + factura.numero_factura + '%');
