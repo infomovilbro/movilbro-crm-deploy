@@ -301,15 +301,18 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
       var groups = d.groups || [];
       TAB_PENDING = { todos: d.total || 0, whatsapp: 0, email: 0, altas: 0 };
       groups.forEach(function(g) {
-        if (g.category === 'whatsapp') {
+        if (g.category === 'altas' || g.altas_score > 0.3) {
+          TAB_PENDING.altas += g.messages.length;
+        } else if (g.category === 'whatsapp') {
+          TAB_PENDING.whatsapp += g.messages.length;
+        } else if (g.category === 'email') {
+          TAB_PENDING.email += g.messages.length;
+        } else {
+          // Categoria desconocida: asignar por keywords
           var kw = ['alta', 'contratar', 'contrataci', 'nuevo servicio', 'nueva linea', 'portabilida', 'fibra', 'movil', 'precio', 'tarifa', 'me interesa', 'quiero contrat', 'darme de alta', 'nuevo producto', 'presupuesto'];
           var isAltas = g.messages.some(function(m) { return kw.some(function(k) { return (m.body || '').toLowerCase().indexOf(k) >= 0; }); });
           if (isAltas) TAB_PENDING.altas += g.messages.length;
           else TAB_PENDING.whatsapp += g.messages.length;
-        } else if (g.category === 'email') {
-          TAB_PENDING.email += g.messages.length;
-        } else {
-          TAB_PENDING.whatsapp += g.messages.length;
         }
       });
       // Re-render pills to update badges
@@ -798,13 +801,17 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
                 var phoneClean = (data.client.telefono || '').replace(/[^0-9]/g, '');
                 var dniClean = encodeURIComponent(data.client.dni || '');
                 dd.innerHTML = '<div style="padding:6px 10px;font-size:0.7rem;color:var(--text-faint);border-bottom:1px solid var(--border);margin-bottom:4px;">' + escHtml(data.client.name) + '</div>' +
-                  '<a href="' + data.client.url + '" target="_blank" style="display:block;padding:6px 10px;border-radius:6px;text-decoration:none;color:var(--text);font-size:0.75rem;transition:background 0.2s;" onmouseover="this.style.background=\'var(--border)\'" onmouseout="this.style.background=\'transparent\'"><i class="ri-user-line"></i> Ficha cliente</a>' +
-                  (dniClean ? '<a href="/clientes/fiscal/' + dniClean + '" target="_blank" style="display:block;padding:6px 10px;border-radius:6px;text-decoration:none;color:var(--text);font-size:0.75rem;transition:background 0.2s;" onmouseover="this.style.background=\'var(--border)\'" onmouseout="this.style.background=\'transparent\'"><i class="ri-receipt-line"></i> Facturación</a>' : '') +
+                  '<a href="' + (data.client.fiscalUrl || data.client.url) + '" target="_blank" style="display:block;padding:6px 10px;border-radius:6px;text-decoration:none;color:var(--text);font-size:0.75rem;transition:background 0.2s;" onmouseover="this.style.background=\'var(--border)\'" onmouseout="this.style.background=\'transparent\'"><i class="ri-user-line"></i> Ficha cliente</a>' +
+                  (dniClean ? '<a href="/isp/facturacion?fiscalId=' + dniClean + '" target="_blank" style="display:block;padding:6px 10px;border-radius:6px;text-decoration:none;color:var(--text);font-size:0.75rem;transition:background 0.2s;" onmouseover="this.style.background=\'var(--border)\'" onmouseout="this.style.background=\'transparent\'"><i class="ri-receipt-line"></i> Facturación</a>' : '') +
                   (dniClean ? '<a href="/isp/facturacion/clientes-pago?dni=' + dniClean + '" target="_blank" style="display:block;padding:6px 10px;border-radius:6px;text-decoration:none;color:var(--text);font-size:0.75rem;transition:background 0.2s;" onmouseover="this.style.background=\'var(--border)\'" onmouseout="this.style.background=\'transparent\'"><i class="ri-bank-card-line"></i> Método pago</a>' : '') +
-                  '<a href="/isp/contratos?search=' + (phoneClean || dniClean) + '" target="_blank" style="display:block;padding:6px 10px;border-radius:6px;text-decoration:none;color:var(--text);font-size:0.75rem;transition:background 0.2s;" onmouseover="this.style.background=\'var(--border)\'" onmouseout="this.style.background=\'transparent\'"><i class="ri-file-list-3-line"></i> Contratos</a>' +
-                  '<a href="/isp/tarifas" target="_blank" style="display:block;padding:6px 10px;border-radius:6px;text-decoration:none;color:var(--text);font-size:0.75rem;transition:background 0.2s;" onmouseover="this.style.background=\'var(--border)\'" onmouseout="this.style.background=\'transparent\'"><i class="ri-price-tag-3-line"></i> Tarifas</a>' +
-                  '<a href="/isp/cdrs?search=' + (phoneClean || dniClean) + '" target="_blank" style="display:block;padding:6px 10px;border-radius:6px;text-decoration:none;color:var(--text);font-size:0.75rem;transition:background 0.2s;" onmouseover="this.style.background=\'var(--border)\'" onmouseout="this.style.background=\'transparent\'"><i class="ri-phone-line"></i> CDRs</a>' +
-                  '<a href="/isp/portabilidades?search=' + (phoneClean || dniClean) + '" target="_blank" style="display:block;padding:6px 10px;border-radius:6px;text-decoration:none;color:var(--text);font-size:0.75rem;transition:background 0.2s;" onmouseover="this.style.background=\'var(--border)\'" onmouseout="this.style.background=\'transparent\'"><i class="ri-swap-line"></i> Portabilidades</a>' +
+                  '<a href="/isp/contratos?search=' + encodeURIComponent(data.client.name) + '" target="_blank" style="display:block;padding:6px 10px;border-radius:6px;text-decoration:none;color:var(--text);font-size:0.75rem;transition:background 0.2s;" onmouseover="this.style.background=\'var(--border)\'" onmouseout="this.style.background=\'transparent\'"><i class="ri-file-list-3-line"></i> Contratos</a>' +
+                  (dniClean ? '<a href="/clientes/fiscal/' + dniClean + '" target="_blank" style="display:block;padding:6px 10px;border-radius:6px;text-decoration:none;color:var(--text);font-size:0.75rem;transition:background 0.2s;" onmouseover="this.style.background=\'var(--border)\'" onmouseout="this.style.background=\'transparent\'"><i class="ri-price-tag-3-line"></i> Tarifas</a>' : '') +
+                  (dniClean ? '<a href="/isp/cdrs?fiscal=' + dniClean + '&show=1" target="_blank" style="display:block;padding:6px 10px;border-radius:6px;text-decoration:none;color:var(--text);font-size:0.75rem;transition:background 0.2s;" onmouseover="this.style.background=\'var(--border)\'" onmouseout="this.style.background=\'transparent\'"><i class="ri-phone-line"></i> CDRs</a>' : '') +
+                  (dniClean ? '<a href="/clientes/fiscal/' + dniClean + '#lineas" target="_blank" style="display:block;padding:6px 10px;border-radius:6px;text-decoration:none;color:var(--text);font-size:0.75rem;transition:background 0.2s;" onmouseover="this.style.background=\'var(--border)\'" onmouseout="this.style.background=\'transparent\'"><i class="ri-key-2-line"></i> PIN/PUK</a>' : '') +
+                  (dniClean ? '<a href="/clientes/fiscal/' + dniClean + '#instalaciones" target="_blank" style="display:block;padding:6px 10px;border-radius:6px;text-decoration:none;color:var(--text);font-size:0.75rem;transition:background 0.2s;" onmouseover="this.style.background=\'var(--border)\'" onmouseout="this.style.background=\'transparent\'"><i class="ri-tools-line"></i> Instalación</a>' : '') +
+                  (dniClean ? '<a href="/clientes/fiscal/' + dniClean + '#kyc" target="_blank" style="display:block;padding:6px 10px;border-radius:6px;text-decoration:none;color:var(--text);font-size:0.75rem;transition:background 0.2s;" onmouseover="this.style.background=\'var(--border)\'" onmouseout="this.style.background=\'transparent\'"><i class="ri-file-shield-2-line"></i> Documentos KYC</a>' : '') +
+                  (dniClean ? '<a href="/clientes/fiscal/' + dniClean + '#lineas" target="_blank" style="display:block;padding:6px 10px;border-radius:6px;text-decoration:none;color:var(--text);font-size:0.75rem;transition:background 0.2s;" onmouseover="this.style.background=\'var(--border)\'" onmouseout="this.style.background=\'transparent\'"><i class="ri-bar-chart-2-line"></i> Consumo</a>' : '') +
+                  (dniClean ? '<a href="/clientes/fiscal/' + dniClean + '#lineas" target="_blank" style="display:block;padding:6px 10px;border-radius:6px;text-decoration:none;color:var(--text);font-size:0.75rem;transition:background 0.2s;" onmouseover="this.style.background=\'var(--border)\'" onmouseout="this.style.background=\'transparent\'"><i class="ri-exchange-line"></i> Cambiar Tarifa</a>' : '') +
                   '<a href="/isp/incidencias?search=' + (phoneClean || dniClean) + '" target="_blank" style="display:block;padding:6px 10px;border-radius:6px;text-decoration:none;color:var(--text);font-size:0.75rem;transition:background 0.2s;" onmouseover="this.style.background=\'var(--border)\'" onmouseout="this.style.background=\'transparent\'"><i class="ri-error-warning-line"></i> Incidencias</a>';
                 el.style.position = 'relative';
                 el.appendChild(dd);
@@ -1193,6 +1200,7 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
             '<textarea class="response-editor" data-id="' + msg.id + '" style="width:100%;background:var(--bg-main);border:1px solid var(--border);border-radius:8px;padding:8px;font-size:0.75rem;color:var(--text);margin-bottom:6px;resize:vertical;min-height:50px;font-family:inherit;">' + (isError ? '' : escHtml(msg.proposed_response || '').substring(0, 500)) + '</textarea>' +
             '<div style="display:flex;gap:4px;flex-wrap:wrap;">' +
             '<button class="btn-send-no-fwd" data-id="' + msg.id + '" style="flex:1;min-width:80px;background:var(--accent);color:#fff;border:0;border-radius:8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-send-plane-line"></i> Enviar</button>' +
+            '<button class="btn-send-reply" data-id="' + msg.id + '" style="flex:1;min-width:80px;background:#0ea5e9;color:#fff;border:0;border-radius:8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;" title="Responder citando el mensaje original"><i class="ri-reply-line"></i> Responder</button>' +
             '<button class="btn-send-audio" data-id="' + msg.id + '" style="flex:1;min-width:70px;background:#8B5CF6;color:#fff;border:0;border-radius:8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-voiceprint-line"></i> Audio</button>' +
             '<button class="btn-send-doc" data-id="' + msg.id + '" style="flex:1;min-width:70px;background:#f59e0b;color:#fff;border:0;border-radius:8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-file-pdf-line"></i> Doc</button>' +
             '<button class="btn-reject" data-id="' + msg.id + '" style="background:var(--error);color:#fff;border:0;border-radius:8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-close-line"></i></button>' +
@@ -1222,13 +1230,13 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
                       container.style.flexWrap = 'wrap';
                       container.innerHTML = 
                         (info.fiscalId ? '<a href="/clientes/fiscal/' + encodeURIComponent(info.fiscalId) + '" target="_blank" class="btn-client-action" style="background:#0050A1;color:#fff;border:0;border-radius:6px;padding:4px 8px;font-size:0.65rem;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:2px;" title="Ficha del cliente"><i class="ri-user-line"></i></a>' : '') +
-                        (info.fiscalId ? '<a href="/isp/facturacion/facturas?fiscal=' + encodeURIComponent(info.fiscalId) + '" target="_blank" class="btn-client-action" style="background:#f59e0b;color:#fff;border:0;border-radius:6px;padding:4px 8px;font-size:0.65rem;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:2px;" title="Facturas"><i class="ri-receipt-line"></i></a>' : '') +
-                        (info.fiscalId ? '<a href="/isp/contratos?search=' + encodeURIComponent(info.fiscalId) + '" target="_blank" class="btn-client-action" style="background:#10b981;color:#fff;border:0;border-radius:6px;padding:4px 8px;font-size:0.65rem;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:2px;" title="Contratos"><i class="ri-file-text-line"></i></a>' : '') +
-                        (ph ? '<a href="/isp/cdrs?search=' + ph + '" target="_blank" class="btn-client-action" style="background:#8B5CF6;color:#fff;border:0;border-radius:6px;padding:4px 8px;font-size:0.65rem;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:2px;" title="Consumo/CDRs"><i class="ri-bar-chart-line"></i></a>' : '') +
+                        (info.fiscalId ? '<a href="/isp/facturacion?fiscalId=' + encodeURIComponent(info.fiscalId) + '" target="_blank" class="btn-client-action" style="background:#f59e0b;color:#fff;border:0;border-radius:6px;padding:4px 8px;font-size:0.65rem;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:2px;" title="Facturación"><i class="ri-receipt-line"></i></a>' : '') +
+                        (info.fiscalId ? '<a href="/isp/contratos?search=' + encodeURIComponent(info.nombre || '') + '" target="_blank" class="btn-client-action" style="background:#10b981;color:#fff;border:0;border-radius:6px;padding:4px 8px;font-size:0.65rem;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:2px;" title="Contratos"><i class="ri-file-text-line"></i></a>' : '') +
+                        (info.fiscalId ? '<a href="/isp/cdrs?fiscal=' + encodeURIComponent(info.fiscalId) + '&show=1" target="_blank" class="btn-client-action" style="background:#8B5CF6;color:#fff;border:0;border-radius:6px;padding:4px 8px;font-size:0.65rem;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:2px;" title="Consumo/CDRs"><i class="ri-bar-chart-line"></i></a>' : '') +
                         (info.fiscalId ? '<a href="/isp/nube?fiscal=' + encodeURIComponent(info.fiscalId) + '" target="_blank" class="btn-client-action" style="background:#06b6d4;color:#fff;border:0;border-radius:6px;padding:4px 8px;font-size:0.65rem;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:2px;" title="Documentos"><i class="ri-cloud-line"></i></a>' : '') +
                         (ph ? '<a href="/coverage" target="_blank" class="btn-client-action" style="background:#22c55e;color:#fff;border:0;border-radius:6px;padding:4px 8px;font-size:0.65rem;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:2px;" title="Cobertura"><i class="ri-wifi-line"></i></a>' : '') +
                         (ph ? '<a href="/portal" target="_blank" class="btn-client-action" style="background:#64748b;color:#fff;border:0;border-radius:6px;padding:4px 8px;font-size:0.65rem;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:2px;" title="Zona Clientes (lo que ve el cliente)"><i class="ri-eye-line"></i></a>' : '') +
-(info.fiscalId ? '<a href="/altas" target="_blank" class="btn-client-action" style="background:#ef4444;color:#fff;border:0;border-radius:6px;padding:4px 8px;font-size:0.65rem;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:2px;" title="Nueva alta/contratacion"><i class="ri-add-circle-line"></i></a>' : '');
+                        (info.fiscalId ? '<a href="/altas" target="_blank" class="btn-client-action" style="background:#ef4444;color:#fff;border:0;border-radius:6px;padding:4px 8px;font-size:0.65rem;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:2px;" title="Nueva alta/contratacion"><i class="ri-add-circle-line"></i></a>' : '');
                     }
                   }
               }).catch(function() {});
@@ -1257,6 +1265,28 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
       });
       msgsContainer.querySelectorAll('.btn-send-audio').forEach(function(b) {
         b.addEventListener('click', function(e) { e.stopPropagation(); approveMessage(this.dataset.id, 'without_forward', this, true); });
+      });
+      msgsContainer.querySelectorAll('.btn-send-reply').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation();
+          var msgId = this.dataset.id;
+          var editor = document.querySelector('.response-editor[data-id="' + msgId + '"]');
+          if (editor) {
+            // Buscar el texto original del mensaje en el DOM
+            var msgCard = this.closest('div[style*="background:var(--bg-main)"]') || this.closest('.wa-contact-messages > div');
+            var bodyEl = null;
+            if (msgCard) {
+              // Buscar el div del mensaje original (borde verde a la izquierda)
+              bodyEl = msgCard.querySelector('div[style*="border-left:3px solid #25D366"]');
+            }
+            var originalMsg = bodyEl ? bodyEl.textContent.trim() : '';
+            if (originalMsg) {
+              editor.value = 'En respuesta a: \"' + originalMsg + '\"\n\n' + (editor.value || '');
+              editor.focus();
+              editor.setSelectionRange(0, 0);
+            }
+          }
+          approveMessage(msgId, 'with_forward', this);
+        });
       });
       msgsContainer.querySelectorAll('.btn-send-doc').forEach(function(b) {
         b.addEventListener('click', function(e) { e.stopPropagation(); 
@@ -1344,11 +1374,12 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
               '<textarea class="response-editor" data-id="' + btn.dataset.id + '" style="width:100%;background:var(--bg-main);border:1px solid var(--border);border-radius:8px;padding:8px;font-size:0.75rem;color:var(--text);margin-bottom:6px;resize:vertical;min-height:50px;font-family:inherit;">' + escHtml(respText) + '</textarea>' +
               '<div style="display:flex;gap:4px;flex-wrap:wrap;">' +
               '<button class="btn-send-no-fwd" data-id="' + btn.dataset.id + '" style="flex:1;min-width:80px;background:var(--accent);color:#fff;border:0;border-radius:8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-send-plane-line"></i> Enviar</button>' +
+              '<button class="btn-send-reply" data-id="' + btn.dataset.id + '" style="flex:1;min-width:80px;background:#0ea5e9;color:#fff;border:0;border-radius:8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;" title="Responder citando el mensaje original"><i class="ri-reply-line"></i> Responder</button>' +
               '<div style="position:relative;display:inline-flex;gap:2px;">' +
               '<button class="btn-send-audio" data-id="' + btn.dataset.id + '" style="min-width:70px;background:#8B5CF6;color:#fff;border:0;border-radius:8px 0 0 8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-voiceprint-line"></i> Audio ♀</button>' +
               '<button class="btn-send-audio-male" data-id="' + btn.dataset.id + '" style="min-width:30px;background:#6D28D9;color:#fff;border:0;border-radius:0 8px 8px 0;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;border-left:1px solid rgba(255,255,255,0.2);" title="Enviar como audio con voz masculina">♂</button>' +
               '</div>' +
-              (d.docReady ? '<button class="btn-send-doc" data-id="' + btn.dataset.id + '" style="flex:1;min-width:70px;background:#f59e0b;color:#fff;border:0;border-radius:8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-file-pdf-line"></i> Doc</button>' : '') +
+              '<button class="btn-send-doc" data-id="' + btn.dataset.id + '" style="flex:1;min-width:70px;background:#f59e0b;color:#fff;border:0;border-radius:8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-file-pdf-line"></i> Doc</button>' +
               '<button class="btn-reject" data-id="' + btn.dataset.id + '" style="background:var(--error);color:#fff;border:0;border-radius:8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-close-line"></i></button>' +
               '</div>';
             // Insertar despues del contenedor de acciones actual
@@ -1361,6 +1392,21 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
           respDiv.querySelector('.btn-send-audio')?.addEventListener('click', function(e) { e.stopPropagation(); approveMessage(this.dataset.id, 'without_forward', this, true); });
           respDiv.querySelector('.btn-send-audio-male')?.addEventListener('click', function(e) { e.stopPropagation(); approveMessage(this.dataset.id, 'without_forward', this, true, false, true); });
           respDiv.querySelector('.btn-send-doc')?.addEventListener('click', function(e) { e.stopPropagation(); approveMessage(this.dataset.id, 'without_forward', this, false, true); });
+          respDiv.querySelector('.btn-send-reply')?.addEventListener('click', function(e) { e.stopPropagation();
+            var msgId = this.dataset.id;
+            var editor = document.querySelector('.response-editor[data-id="' + msgId + '"]');
+            if (editor) {
+              var msgCard = this.closest('div[style*="background:var(--bg-main)"]') || this.closest('.wa-contact-messages > div');
+              var bodyEl = msgCard ? msgCard.querySelector('div[style*="border-left:3px solid #25D366"]') : null;
+              var originalMsg = bodyEl ? bodyEl.textContent.trim() : '';
+              if (originalMsg) {
+                editor.value = 'En respuesta a: \"' + originalMsg + '\"\n\n' + (editor.value || '');
+                editor.focus();
+                editor.setSelectionRange(0, 0);
+              }
+            }
+            approveMessage(msgId, 'with_forward', this);
+          });
           respDiv.querySelector('.btn-reject')?.addEventListener('click', function(e) { e.stopPropagation(); rejectMessage(this.dataset.id, this); });
         }
         loadPendingList();

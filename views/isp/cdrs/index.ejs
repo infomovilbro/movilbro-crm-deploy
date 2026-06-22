@@ -106,6 +106,35 @@
       item.style.display = (nombre.includes(q) || fiscal.includes(q)) ? '' : 'none';
     });
   }
+
+  // Auto-expand if fiscal param present
+  (function() {
+    var params = new URLSearchParams(window.location.search);
+    var fiscalId = params.get('fiscal');
+    var show = params.get('show');
+    if (fiscalId && show === '1') {
+      // Fill search
+      var buscador = document.getElementById('buscadorCliente');
+      if (buscador) buscador.value = fiscalId;
+      // Find and expand matching client item
+      setTimeout(function() {
+        filtrarClientes();
+        var items = document.querySelectorAll('.cliente-item');
+        for (var i = 0; i < items.length; i++) {
+          var itemFiscal = items[i].dataset.fiscal || '';
+          if (itemFiscal === fiscalId || itemFiscal.includes(fiscalId)) {
+            var header = items[i].querySelector('[onclick^="toggleCliente"]');
+            if (header) {
+              toggleCliente(header);
+              header.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            break;
+          }
+        }
+      }, 500);
+    }
+  })();
+
   </script>
 </section>
 

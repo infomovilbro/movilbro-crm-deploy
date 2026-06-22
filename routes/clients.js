@@ -201,6 +201,8 @@ function mapApiSubscriptions(subArr) {
           lineNumber: p.lineNumber || p.line || p.fixedNumber || '',
           status: p.status || '',
           icc: p.icc || p.iccid || '',
+          pin: p.pin || '',
+          puk: p.puk || '',
           price: p.price || p.finalPrice || 0
         };
       }) : (s.productName ? [{

@@ -168,9 +168,16 @@ async function textToSpeech(text, voice) {
         if (found) voiceId = found.id;
       }
       if (!voiceId) {
-        // Buscar voz femenina en español
-        var esVoice = voices.find(function(v) { return v.language && v.language.indexOf('es') >= 0; });
-        voiceId = esVoice ? esVoice.id : (voices.length > 0 ? voices[0].id : null);
+        var esVoices = voices.filter(function(v) { return v.language && v.language.indexOf('es') >= 0; });
+        if (voice === 'echo') {
+          var maleVoice = esVoices.find(function(v) {
+            var n = (v.name || '').toLowerCase();
+            return n.indexOf('male') >= 0 || n.indexOf('hombre') >= 0 || n.indexOf('varon') >= 0 || n.indexOf('masculino') >= 0;
+          });
+          voiceId = maleVoice ? maleVoice.id : null;
+        } else {
+          voiceId = esVoices.length > 0 ? esVoices[0].id : (voices.length > 0 ? voices[0].id : null);
+        }
       }
       if (voiceId) {
         var resp = await axios.post('https://api.assemblyai.com/v2/text-to-speech/' + voiceId, {
@@ -189,26 +196,14 @@ async function textToSpeech(text, voice) {
     }
   }
 
-  // Fallback: Google TTS (gratuito, sin API key)
-  try {
-    var googleTts = 'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=es&q=' + encodeURIComponent(text.substring(0, 200));
-    var resp = await axios.get(googleTts, { responseType: 'arraybuffer', timeout: 15000, headers: { 'User-Agent': 'Mozilla/5.0' } });
-    if (resp.data && resp.data.length > 1000) {
-      console.log('[TTS] Audio generado con Google TTS,', resp.data.length, 'bytes');
-      return { audio: Buffer.from(resp.data), format: 'mp3' };
-    }
-  } catch(e) {
-    console.log('[TTS] Google TTS falló:', e.message);
-  }
-
-  // Fallback: OpenRouter TTS si está disponible
+  // 2. OpenRouter TTS (si hay key, con voz masculina onyx para echo)
   var openRouterKey = process.env.OPENROUTER_API_KEY || '';
-  if (openRouterKey) {
+  if (!audioBuf && openRouterKey) {
     try {
       var resp = await axios.post('https://openrouter.ai/api/v1/audio/speech', {
         model: 'openai/tts-1',
         input: text.substring(0, 500),
-        voice: 'alloy',
+        voice: voice === 'echo' ? 'onyx' : 'alloy',
         response_format: 'mp3'
       }, {
         headers: { 'Authorization': 'Bearer ' + openRouterKey },
@@ -216,11 +211,24 @@ async function textToSpeech(text, voice) {
         timeout: 30000
       });
       if (resp.data && resp.data.length > 100) {
+        console.log('[TTS] OpenRouter TTS (' + (voice === 'echo' ? 'onyx-masculino' : 'alloy-femenino') + ') generado:', resp.data.length, 'bytes');
         return { audio: Buffer.from(resp.data), format: 'mp3' };
       }
     } catch(e) {
       console.log('[TTS] OpenRouter TTS falló:', e.message);
     }
+  }
+
+  // Fallback: Google TTS (gratuito, sin API key, voz femenina - último recurso)
+  try {
+    var googleTts = 'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=es&q=' + encodeURIComponent(text.substring(0, 200));
+    var gResp = await axios.get(googleTts, { responseType: 'arraybuffer', timeout: 15000, headers: { 'User-Agent': 'Mozilla/5.0' } });
+    if (gResp.data && gResp.data.length > 1000) {
+      console.log('[TTS] Google TTS generado:', gResp.data.length, 'bytes');
+      return { audio: Buffer.from(gResp.data), format: 'mp3' };
+    }
+  } catch(e) {
+    console.log('[TTS] Google TTS falló:', e.message);
   }
 
   return { audio: null, error: 'No hay servicio TTS disponible. Configura AssemblyAI o API key en Settings.' };

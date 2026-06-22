@@ -7,6 +7,15 @@ const nube = require('../../helpers/nube');
 const driveHelper = require('../../helpers/drive');
 const LikesAPI = require('../../likes-api');
 const router = express.Router();
+// Timeout wrapper for async operations (Drive API calls can hang)
+function withTimeout(promise, ms, fallback) {
+  if (!promise) return Promise.resolve(fallback);
+  var timeout = new Promise(function(resolve) {
+    setTimeout(function() { resolve(fallback); }, ms);
+  });
+  return Promise.race([promise, timeout]).catch(function() { return fallback; });
+}
+
 
 var MES_NOMBRES = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
@@ -189,7 +198,9 @@ router.get('/', async (req, res) => {
     for (var yi = 0; yi < yearsToCheck.length; yi++) {
       var yStr = yearsToCheck[yi];
       try {
-        var drivePDFs = await driveHelper.listPDFsFromDriveYear(yStr);
+        console.log('[Nube] Consultando Drive para ' + yStr + '...');
+        var drivePDFs = await withTimeout(driveHelper.listPDFsFromDriveYear(yStr), 10000, []);
+        if (!Array.isArray(drivePDFs)) drivePDFs = [];
         drivePDFs.forEach(function(dp) {
           var mNum = mesMap[dp.month];
           if (!mNum) return;

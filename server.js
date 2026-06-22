@@ -689,6 +689,7 @@ async function detectExternalUrl() {
   var candidates = [];
   if (process.env.REPL_SLUG && process.env.REPL_OWNER) {
     candidates.push(`https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`);
+    candidates.push(`https://${process.env.REPL_SLUG}--${process.env.REPL_OWNER}.replit.app`);
     candidates.push(`https://workspace.${process.env.REPL_OWNER}.repl.co`);
   }
   // Probar cada candidato
@@ -731,21 +732,18 @@ setInterval(function() {
   if (externalUrl) {
     try { https.get(externalUrl + '/health', (r) => { r.resume(); }).on('error', () => {}); } catch(e) {}
   }
-  // Ping directo a la preview URL de Replit
-  try {
-    var previewUrl = 'https://6f335cd7-43a3-4f09-b6f0-1b047d1101ee-00-3ca1swasnjcq2.janeway.replit.dev/health';
-    https.get(previewUrl, (r) => { r.resume(); }).on('error', () => {});
-  } catch(e) {}
   // Variantes de Replit
   try {
     if (process.env.REPL_SLUG && process.env.REPL_OWNER) {
       var slugUrl = 'https://' + process.env.REPL_SLUG + '.' + process.env.REPL_OWNER + '.repl.co/health';
       https.get(slugUrl, (r) => { r.resume(); }).on('error', () => {});
+      var appUrl = 'https://' + process.env.REPL_SLUG + '--' + process.env.REPL_OWNER + '.replit.app/health';
+      https.get(appUrl, (r) => { r.resume(); }).on('error', () => {});
     }
   } catch(e) {}
-}, 60000);
+}, 30000);
 
-console.log('[KeepAwake] Ping cada 1 min (localhost' + (externalUrl ? ' + ' + externalUrl : '') + ')');
+console.log('[KeepAwake] Ping cada 30s (localhost' + (externalUrl ? ' + ' + externalUrl : '') + ')');
 
 // ---- GLOBAL ERROR HANDLER - Evitar crashes no controlados ----
 process.on('uncaughtException', function(err) {

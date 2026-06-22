@@ -330,6 +330,15 @@
                       <button class="btn btn-sm btn-outline-dark mostrar-pinpuk" data-line="<%= l.linea %>" data-pin="<%= l.pin || '' %>" data-puk="<%= l.puk || '' %>" title="PIN/PUK">
                         <i class="bi bi-key"></i>
                       </button>
+                      <div class="dropdown d-inline-block">
+                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" title="Método pago"><i class="bi bi-credit-card"></i></button>
+                        <ul class="dropdown-menu">
+                          <li><a class="dropdown-item" href="#" onclick="cambiarPagoLinea('<%= l.linea %>','IBAN')">?? IBAN</a></li>
+                          <li><a class="dropdown-item" href="#" onclick="cambiarPagoLinea('<%= l.linea %>','Stripe')">?? Stripe</a></li>
+                          <li><a class="dropdown-item" href="#" onclick="cambiarPagoLinea('<%= l.linea %>','Prepago')">?? Prepago</a></li>
+                          <li><a class="dropdown-item" href="#" onclick="cambiarPagoLinea('<%= l.linea %>','Efectivo')">?? Efectivo</a></li>
+                        </ul>
+                      </div>
                     </div>
                   </td>
                 </tr>

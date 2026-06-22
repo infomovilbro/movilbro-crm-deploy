@@ -87,6 +87,16 @@ document.addEventListener('DOMContentLoaded', function() {
   const filterTipo = document.getElementById('filterTipo');
   const btnLimpiar = document.getElementById('btnLimpiarFiltros');
 
+
+  // Read search param from URL
+  var urlParams = new URLSearchParams(window.location.search);
+  var searchFromUrl = urlParams.get('search');
+  if (searchFromUrl && searchInput) {
+    searchInput.value = searchFromUrl;
+    filtrar();
+  }
+
+
   function filtrar() {
     const q = searchInput ? searchInput.value.toLowerCase().trim() : '';
     const est = filterEstado ? filterEstado.value : '';

@@ -136,7 +136,7 @@ function getCRMContext() {
   try {
     if (!db) return {};
     var facts = {};
-    try { facts = Object.fromEntries(db.prepare("SELECT topic, content FROM shared_context").all().map(r => [r.topic, r.content.substring(0, 500)])); } catch(e) {}
+    try { facts = Object.fromEntries(db.prepare("SELECT topic, content FROM shared_context").all().map(r => [r.topic, r.content.substring(0, 350)])); } catch(e) {}
     return {
       project_summary: PROJECT_SUMMARY.substring(0, 3000),
       facts: facts,
@@ -162,7 +162,7 @@ async function detectAndFetchDocument(msgBody, fromName, fromAddress) {
       'Responde SOLO con JSON: {"isDocument":true/false, "type":"factura/contrato/recibo/otro", "periodo":"mes-año o null", "clientName":"nombre del cliente si lo menciona o null", "clientDni":"DNI si lo menciona o null"}\n\n' +
       'Cliente: ' + fromName + '\nMensaje: ' + msgBody;
     
-    var llmResp = await callLLM(docPrompt, '', 0.3, 'nemotron-3-ultra-free');
+    var llmResp = await callLLM(docPrompt, '', 0.3, _lastSuccessfulModel || 'nemotron-3-ultra-free');
     // Limpiar respuesta: extraer JSON aunque haya texto alrededor
     var cleanResp = llmResp.replace(/```json\s*/gi, '').replace(/```\s*/g, '');
     var jsonStart = cleanResp.indexOf('{');
@@ -272,9 +272,12 @@ function detectAltaIntent(msgBody, fromName) {
   return { isAlta: false, score: 0, matches: [] };
 }
 
+var _lastSuccessfulModel = null;
+var _lastModelFailures = {};
+
 async function callLLM(systemPrompt, userMessage, temperature, modelId, maxTokens) {
-  maxTokens = maxTokens || 200;
-  var primaryModel = modelId || getUserModel();
+  maxTokens = Math.min(maxTokens || 200, 200);
+  var primaryModel = modelId || _lastSuccessfulModel || 'nemotron-3-ultra-free';
   if (!getModelConfig(primaryModel)) return 'Error: Modelo no disponible';
 
   var modelsToTry = [primaryModel, 'deepseek-v4-flash-free', 'nemotron-3-ultra-free', 'nemotron-3-super-free'];
@@ -286,21 +289,24 @@ async function callLLM(systemPrompt, userMessage, temperature, modelId, maxToken
       var cfg = getModelConfig(m);
       return axios.post(cfg.apiEndpoint, {
         model: m,
-        messages: [{ role: 'user', content: ((systemPrompt || '') + '\n' + (userMessage || '')).substring(0, 500) }],
+        messages: [{ role: 'user', content: ((systemPrompt || '') + '\n' + (userMessage || '')).substring(0, 350) }],
         temperature: temperature || 0.3, max_tokens: maxTokens
-      }, { timeout: 15000, headers: { 'Authorization': 'Bearer ' + cfg.key, 'Content-Type': 'application/json' } })
+      }, { timeout: 6000, headers: { 'Authorization': 'Bearer ' + cfg.key, 'Content-Type': 'application/json' } })
       .then(function(resp) {
         var msg = resp?.data?.choices?.[0]?.message;
         var text = msg?.content || '';
         if (text && text.trim()) {
           try { db.prepare("INSERT INTO model_usage (model_id, date, calls) VALUES (?, ?, 1) ON CONFLICT(model_id, date) DO UPDATE SET calls = calls + 1, updated_at = CURRENT_TIMESTAMP").run(m, new Date().toISOString().split('T')[0]); } catch(e) {}
+          _lastSuccessfulModel = m; delete _lastModelFailures[m];
           return { model: m, text: text.trim() };
         }
         return null;
       })
       .catch(function(e) {
         var is429 = e.response && e.response.status === 429;
-        if (!is429) console.log('[CodeOpen] Error en ' + m + ':', e.message);
+        var errMsg = e.response ? (e.response.status + ' ' + (e.response.data && e.response.data.error || e.message).toString().substring(0,60)) : e.message.toString().substring(0,60);
+        _lastModelFailures[m] = (is429 ? 'RATE_LIMITED' : errMsg);
+        if (!is429) console.log('[CodeOpen] Error en ' + m + ':', errMsg);
         return null;
       });
     };
@@ -308,15 +314,15 @@ async function callLLM(systemPrompt, userMessage, temperature, modelId, maxToken
 
   // Probar modelos en orden secuencial, como funcionaba antes
   return await new Promise(function(resolve) {
-    if (factories.length === 0) resolve('Error: Inténtalo de nuevo en unos segundos.');
+    if (factories.length === 0) resolve('Error: No hay modelos disponibles. Verifica las API keys en Ajustes > CodeOpen.');
     var timedOut = false;
     var timer = setTimeout(function() {
       timedOut = true;
-      resolve('Error: Inténtalo de nuevo en unos segundos.');
-    }, 25000);
+      resolve('Error: IA tardó más de 8s en responder. Reintenta en unos segundos.');
+    }, 8000);
     async function tryNext(idx) {
       if (timedOut || idx >= factories.length) {
-        if (!timedOut) resolve('Error: Inténtalo de nuevo en unos segundos.');
+        if (!timedOut) { var failedList = Object.keys(_lastModelFailures).map(function(k){return k+':'+_lastModelFailures[k];}).join('; '); console.log('[CodeOpen] Todos los modelos fallaron: ' + failedList); resolve('Error: IA no disponible (' + (failedList || 'desconocido') + '). Reintenta en unos segundos.'); }
         return;
       }
       try {
@@ -427,7 +433,7 @@ router.post('/', async (req, res) => {
     db.prepare("INSERT INTO chat_history (session_id, role, content) VALUES (?, 'user', ?)").run(sessionId, msg);
     const response = await axios.post(modelConfig.apiEndpoint, {
       model: modelId, messages, temperature: 0.5, max_tokens: 4096
-    }, { headers: { 'Authorization': 'Bearer ' + modelConfig.key, 'Content-Type': 'application/json' }, timeout: 25000 });
+    }, { headers: { 'Authorization': 'Bearer ' + modelConfig.key, 'Content-Type': 'application/json' }, timeout: 8000 });
     const reply = response?.data?.choices?.[0]?.message?.content || '';
     if (reply) db.prepare("INSERT INTO chat_history (session_id, role, content) VALUES (?, 'assistant', ?)").run(sessionId, reply);
     res.json({ response: reply || 'No obtuve respuesta.' });
@@ -928,7 +934,7 @@ router.post('/analyze/:id', async (req, res) => {
       (docInfo && docInfo.resumen ? 'Info: ' + docInfo.resumen : '') + '\n\n' +
       'IMPORTANTE: No preguntes datos al cliente. Si pide una factura, di que se la envias. Si pide informacion, dala directamente. Responde como si hablaras con el cliente. Max 2 frases.';
 
-    var finalResponse = await callLLM(fastPrompt, '', 0.7, 'deepseek-v4-flash-free', 400);
+    var finalResponse = await callLLM(fastPrompt, '', 0.7, _lastSuccessfulModel || 'nemotron-3-ultra-free', 200);
     var cleanResponse = finalResponse || '';
     // Limpiar: quitar cualquier resto del prompt o instrucciones
     var sendResponse = cleanResponse
