@@ -285,8 +285,7 @@ async function callLLM(systemPrompt, userMessage, temperature, modelId, maxToken
   var primaryModel = modelId || _lastSuccessfulModel || 'nemotron-3-ultra-free';
   if (!getModelConfig(primaryModel)) return 'Error: Modelo no disponible';
 
-  var modelsToTry = [primaryModel, 'deepseek-v4-flash-free', 'nemotron-3-ultra-free', 'nemotron-3-super-free'];
-  if (getModelConfig('gemini-2.0-flash-openrouter')?.key) modelsToTry.push('gemini-2.0-flash-openrouter');
+  var modelsToTry = [primaryModel, 'deepseek-v4-flash-free', 'nemotron-3-super-free', 'nemotron-3-ultra-free'];
   
   // Probar modelos en ORDEN (secuencial), fallback si falla
   var factories = modelsToTry.filter(function(m) { return getModelConfig(m) && getModelConfig(m).key; }).map(function(m) {
@@ -300,6 +299,18 @@ async function callLLM(systemPrompt, userMessage, temperature, modelId, maxToken
       .then(function(resp) {
         var msg = resp?.data?.choices?.[0]?.message;
         var text = msg?.content || '';
+        var finishReason = resp?.data?.choices?.[0]?.finish_reason || '';
+        if ((!text || text.trim().length < 3) && msg?.reasoning_content) {
+          text = msg.reasoning_content;
+          // Extraer solo la respuesta final (despues del razonamiento)
+          var parts = text.split(/\*\*Respuesta\*\*|\*\*Answer\*\*|\*\*respuesta\*\*/i);
+          if (parts.length > 1) text = parts[parts.length - 1];
+          else {
+            var match = text.match(/(?:Hola|Claro|Por supuesto|Aquí|Te|La|El|Los|Las|Un|Una|Su|En|Si|No|Ya|Buenos|Gracias|Lo siento|Disculpa)[\s\S]*$/i);
+            if (match) text = match[0];
+          }
+          text = text.replace(/^[\*\s\n\r]+|[\*\s\n\r]+$/g, '').trim();
+        }
         if (text && text.trim()) {
           try { db.prepare("INSERT INTO model_usage (model_id, date, calls) VALUES (?, ?, 1) ON CONFLICT(model_id, date) DO UPDATE SET calls = calls + 1, updated_at = CURRENT_TIMESTAMP").run(m, new Date().toISOString().split('T')[0]); } catch(e) {}
           _lastSuccessfulModel = m; delete _lastModelFailures[m];
