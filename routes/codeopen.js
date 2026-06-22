@@ -945,27 +945,33 @@ router.post('/analyze/:id', async (req, res) => {
     }
 
     // Generar respuesta con IA - prompt directo al cliente
-    var fastPrompt = 'Eres agente de atencion al cliente de Movilbro.\n' +
-      'Cliente: "' + (row.body || '').substring(0, 200) + '"\n' +
-      (docInfo && docInfo.resumen ? 'Info: ' + docInfo.resumen : '') + '\n\n' +
-      'IMPORTANTE: No preguntes datos al cliente. Si pide una factura, di que se la envias. Si pide informacion, dala directamente. Responde como si hablaras con el cliente. Max 2 frases.';
+    var rawMsg = (row.body || '').replace(/^🎤\s*/,'').substring(0, 250);
+    var fastPrompt = 'Eres agente de Movilbro telecom. RESPONDE al cliente. NO repitas su mensaje. NO digas "el cliente dice". 1-2 frases max.\n' +
+      'Mensaje recibido: ' + rawMsg + '\n' +
+      (docInfo && docInfo.resumen ? 'Documento encontrado: ' + docInfo.resumen + '. Di que se lo envias.' : '') +
+      '\nSi pide factura: "Te la envío ahora mismo." Si pide info: dala. Si es prueba: responde cordial. Si es voz masculina: OK.';
 
     var finalResponse = await callLLM(fastPrompt, '', 0.7, _lastSuccessfulModel || 'nemotron-3-ultra-free', 200);
     var cleanResponse = finalResponse || '';
-    // Limpiar: quitar cualquier resto del prompt o instrucciones
     var sendResponse = cleanResponse
+      .replace(/^(ent says|cliente dice|el cliente|mensaje recibido|recibido)[\s:]*/i, '')
+      .replace(/^sis para que[\s\S]*$/i, '')
       .replace(/^(Claro|Por supuesto|Entendido|De acuerdo)[.!]*\s*/i, '')
       .replace(/^RESPUESTA:?\s*/i, '')
       .replace(/^respuesta:?\s*/i, '')
       .replace(/\bmax\s*\d+\s*(caracteres|chars|palabras)\b.*/gi, '')
       .replace(/\bdirecto\s*(y\s*)?profesional\b.*/gi, '')
       .replace(/\bcomo\s*si\s*hablaras\s*al\s*cliente\b.*/gi, '')
-      .replace(/^\s*[""']|[""']\s*$/g, '')
+      .replace(/^[\s"']+|[\s"']+$/g, '')
       .trim();
     // Si aun asi queda texto largo, cortar en la primera frase coherente
     if (sendResponse.length > 300) {
       var firstSentence = sendResponse.match(/^[^.!?]*[.!?]/);
       if (firstSentence) sendResponse = firstSentence[0];
+    }
+    // Si esta vacio o es basura, respuesta generica cordial
+    if (!sendResponse || sendResponse.length < 5) {
+      sendResponse = '¡Hola! Recibí tu mensaje. ¿En qué puedo ayudarte?';
     }
     
     // Solo guardar si NO es error (si es error, no sobreescribir una respuesta previa válida)
