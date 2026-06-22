@@ -157,10 +157,15 @@ function getCRMContext() {
 // Cuando un cliente pide una factura/contrato, el sistema la busca y la prepara
 async function detectAndFetchDocument(msgBody, fromName, fromAddress) {
   try {
-    // 1. Preguntar a la IA si esto es una petición de documento
+    // 1. Fast keyword check - skip LLM if not document-related
+    var docKeywords = ['factura', 'contrato', 'recibo', 'albarán', 'justificante', 'envía', 'envia', 'envíame', 'enviame', 'mándame', 'mandame', 'doc', 'pdf', 'archivo', 'documento'];
+    var hasDoc = docKeywords.some(function(k) { return msgBody.toLowerCase().indexOf(k) >= 0; });
+    if (!hasDoc) return null;
+    
+    // 2. Preguntar a la IA si esto es una petición de documento
     var docPrompt = 'Analiza si el cliente está pidiendo UN DOCUMENTO (factura, contrato, recibo, albarán, justificante). ' +
       'Responde SOLO con JSON: {"isDocument":true/false, "type":"factura/contrato/recibo/otro", "periodo":"mes-año o null", "clientName":"nombre del cliente si lo menciona o null", "clientDni":"DNI si lo menciona o null"}\n\n' +
-      'Cliente: ' + fromName + '\nMensaje: ' + msgBody;
+      'Cliente: ' + fromName + '\nMensaje: ' + msgBody.substring(0, 200);
     
     var llmResp = await callLLM(docPrompt, '', 0.3, _lastSuccessfulModel || 'nemotron-3-ultra-free');
     // Limpiar respuesta: extraer JSON aunque haya texto alrededor
