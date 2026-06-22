@@ -291,7 +291,7 @@ async function callLLM(systemPrompt, userMessage, temperature, modelId, maxToken
         model: m,
         messages: [{ role: 'user', content: ((systemPrompt || '') + '\n' + (userMessage || '')).substring(0, 350) }],
         temperature: temperature || 0.3, max_tokens: maxTokens
-      }, { timeout: 6000, headers: { 'Authorization': 'Bearer ' + cfg.key, 'Content-Type': 'application/json' } })
+      }, { timeout: 8000, headers: { 'Authorization': 'Bearer ' + cfg.key, 'Content-Type': 'application/json' } })
       .then(function(resp) {
         var msg = resp?.data?.choices?.[0]?.message;
         var text = msg?.content || '';
@@ -318,8 +318,8 @@ async function callLLM(systemPrompt, userMessage, temperature, modelId, maxToken
     var timedOut = false;
     var timer = setTimeout(function() {
       timedOut = true;
-      resolve('Error: IA tardó más de 8s en responder. Reintenta en unos segundos.');
-    }, 8000);
+      resolve('Error: IA tardó más de 15s en responder. Reintenta en unos segundos.');
+    }, 15000);
     async function tryNext(idx) {
       if (timedOut || idx >= factories.length) {
         if (!timedOut) { var failedList = Object.keys(_lastModelFailures).map(function(k){return k+':'+_lastModelFailures[k];}).join('; '); console.log('[CodeOpen] Todos los modelos fallaron: ' + failedList); resolve('Error: IA no disponible (' + (failedList || 'desconocido') + '). Reintenta en unos segundos.'); }
