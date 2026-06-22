@@ -32,7 +32,7 @@ class LikesAPI {
     try {
       const body = { email: this.email, password: this.password };
       if (this.brandId) body.brand = this.brandId;
-      const response = await axios.post(`${this.apiUrl}/token`, body);
+      const response = await axios.post(`${this.apiUrl}/token`, body, { headers: { 'User-Agent': 'axios/1.7.2' } });
       var token = response.data.token || response.data.access_token || response.data.auth_token || response.data.id_token;
       if (!token && response.data.data) token = response.data.data.token || response.data.data.access_token;
       if (!token && typeof response.data === 'string' && response.data.length > 20) token = response.data;

@@ -472,7 +472,7 @@ function checkApiHealth() {
       var apiUrl = db.prepare("SELECT value FROM settings WHERE key='likes_api_url'").get()?.value || 'https://api.likestelecom.com';
       var lib = apiUrl.indexOf('https:') === 0 ? https : http;
       var urlObj = new URL(apiUrl);
-      var opts = { hostname: urlObj.hostname, path: '/token', method: 'HEAD', timeout: 10000 };
+      var opts = { hostname: urlObj.hostname, path: '/token', method: 'HEAD', timeout: 10000, headers: { 'User-Agent': 'axios/1.7.2' } };
       var req = lib.request(opts, function(res) { resolve(res.statusCode < 500); });
       req.on('error', function() { resolve(false); });
       req.on('timeout', function() { req.destroy(); resolve(false); });
