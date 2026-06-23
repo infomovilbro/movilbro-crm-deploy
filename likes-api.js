@@ -29,7 +29,36 @@ class LikesAPI {
 
   async getToken() {
     if (this._tokenCache && this._tokenExpiry && Date.now() < this._tokenExpiry) return this._tokenCache;
-    // Check DB for token from frontend (browser on user's IP)
+    
+    // 1. Try direct API call (server IP)
+    try {
+      const body = JSON.stringify({ email: this.email, password: this.password, brand: this.brandId });
+      const response = await new Promise((resolve, reject) => {
+        const https = require('https');
+        const u = new URL(this.apiUrl + '/token');
+        const o = { hostname: u.hostname, path: u.pathname, method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body), 'User-Agent': 'axios/1.7.2' },
+          timeout: 15000, rejectUnauthorized: false };
+        const r = https.request(o, (res) => {
+          let d = ''; res.on('data', c => d += c);
+          res.on('end', () => {
+            try { resolve({ data: JSON.parse(d), status: res.statusCode }); }
+            catch(e) { reject(new Error('JSON: ' + d.substring(0, 60))); }
+          });
+        });
+        r.on('error', reject); r.on('timeout', () => { r.destroy(); reject(new Error('Timeout')); });
+        r.write(body); r.end();
+      });
+      if (response.data && (response.data.token || response.data.access_token)) {
+        var tok = response.data.token || response.data.access_token;
+        this._tokenCache = tok;
+        this._tokenExpiry = Date.now() + (response.data.expires_in || 3600) * 1000 - 60000;
+        console.log('[LikesAPI] Token obtenido directamente (nueva IP funciona)');
+        return tok;
+      }
+    } catch(e) { /* direct call failed, try browser token */ }
+    
+    // 2. Fallback: token from browser (frontend)
     try {
       var stmt = require('./database').db.prepare("SELECT value FROM settings WHERE key='likes_token_cache'");
       var row = stmt.get();
