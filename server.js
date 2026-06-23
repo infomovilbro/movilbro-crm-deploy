@@ -619,19 +619,6 @@ wss.on('connection', function(ws, req) {
   ws.send('ok');
 });
 
-// Endpoint para recibir token desde el refresher local
-var likesTokenOverride = null;
-var likesTokenExpiry = null;
-app.post('/api/update-likes-token', function(req, res) {
-  var token = req.body && req.body.token;
-  if (!token) return res.status(400).json({ ok: false, error: 'Token required' });
-  likesTokenOverride = token;
-  likesTokenExpiry = Date.now() + 3300000; // 55 min
-  var { setCachedToken } = require('./likes-api');
-  setCachedToken(token, likesTokenExpiry);
-  res.json({ ok: true });
-});
-
 server.listen(PORT, () => {
   console.log(`CRM Movilbro iniciado en puerto ${PORT} (${isProd ? 'produccion' : 'desarrollo'})`);
   setTimeout(() => notifyServerStart(), 3000);
