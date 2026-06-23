@@ -30,20 +30,38 @@ class LikesAPI {
   async getToken() {
     if (this._tokenCache && this._tokenExpiry && Date.now() < this._tokenExpiry) return this._tokenCache;
     try {
-      const body = { email: this.email, password: this.password };
-      if (this.brandId) body.brand = this.brandId;
-      const response = await axios.post(`${this.apiUrl}/token`, body, { timeout: 15000, headers: { 'User-Agent': 'axios/1.7.2' } });
+      const body = JSON.stringify({ email: this.email, password: this.password, brand: this.brandId });
+      const response = await new Promise((resolve, reject) => {
+        const https = require('https');
+        const urlObj = new URL(this.apiUrl + '/token');
+        const opts = {
+          hostname: urlObj.hostname, path: urlObj.pathname, method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body), 'User-Agent': 'axios/1.7.2' },
+          timeout: 15000, rejectUnauthorized: false
+        };
+        const req = https.request(opts, (res) => {
+          let d = '';
+          res.on('data', c => d += c);
+          res.on('end', () => {
+            try { resolve({ data: JSON.parse(d), status: res.statusCode }); }
+            catch(e) { reject(new Error('Invalid JSON: ' + d.substring(0, 100))); }
+          });
+        });
+        req.on('error', reject);
+        req.on('timeout', () => { req.destroy(); reject(new Error('Timeout')); });
+        req.write(body);
+        req.end();
+      });
       var token = response.data.token || response.data.access_token || response.data.auth_token || response.data.id_token;
       if (!token && response.data.data) token = response.data.data.token || response.data.data.access_token;
-      if (!token && typeof response.data === 'string' && response.data.length > 20) token = response.data;
       if (token) {
         this._tokenCache = token;
         this._tokenExpiry = Date.now() + (response.data.expires_in || 3600) * 1000 - 60000;
         return this._tokenCache;
       }
-      throw new Error('Respuesta sin token');
+      throw new Error('Respuesta sin token (' + response.status + ')');
     } catch (error) {
-      console.error('Error obteniendo token:', error.response?.data || error.message);
+      console.error('Error obteniendo token:', error.message || error);
       throw new Error('No se pudo autenticar con Likes Telecom');
     }
   }
