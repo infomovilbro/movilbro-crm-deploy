@@ -14,6 +14,14 @@ function getApiInstance() {
   });
 }
 
+var _extToken = null;
+var _extTokenExp = null;
+
+function setCachedToken(token, expiry) {
+  _extToken = token;
+  _extTokenExp = expiry;
+}
+
 class LikesAPI {
   constructor(config) {
     this.apiUrl = config.apiUrl || process.env.LIKES_API_URL || 'https://api.likestelecom.com';
@@ -28,6 +36,8 @@ class LikesAPI {
   }
 
   async getToken(retries = 2) {
+    // Check external cached token first (from local refresher)
+    if (_extToken && _extTokenExp && Date.now() < _extTokenExp) return _extToken;
     if (this._tokenCache && this._tokenExpiry && Date.now() < this._tokenExpiry) return this._tokenCache;
     for (var i = 0; i <= retries; i++) {
       try {
@@ -334,3 +344,4 @@ class LikesAPI {
 
 module.exports = LikesAPI;
 module.exports.getApiInstance = getApiInstance;
+module.exports.setCachedToken = setCachedToken;
