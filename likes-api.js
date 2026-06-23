@@ -30,50 +30,52 @@ class LikesAPI {
   async getToken() {
     if (this._tokenCache && this._tokenExpiry && Date.now() < this._tokenExpiry) return this._tokenCache;
     
-    // 1. Try direct API call (server IP)
-    try {
-      const body = JSON.stringify({ email: this.email, password: this.password, brand: this.brandId });
-      const response = await new Promise((resolve, reject) => {
-        const https = require('https');
-        const u = new URL(this.apiUrl + '/token');
-        const o = { hostname: u.hostname, path: u.pathname, method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body), 'User-Agent': 'axios/1.7.2' },
-          timeout: 15000, rejectUnauthorized: false };
-        const r = https.request(o, (res) => {
-          let d = ''; res.on('data', c => d += c);
-          res.on('end', () => {
-            try { resolve({ data: JSON.parse(d), status: res.statusCode }); }
-            catch(e) { reject(new Error('JSON: ' + d.substring(0, 60))); }
+    var lastError = null;
+    for (var intento = 1; intento <= 2; intento++) {
+      try {
+        const body = JSON.stringify({ email: this.email, password: this.password, brand: this.brandId });
+        const response = await new Promise((resolve, reject) => {
+          const https = require('https');
+          const u = new URL(this.apiUrl + '/token');
+          const o = { hostname: u.hostname, path: u.pathname, method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body), 'User-Agent': 'axios/1.7.2' },
+            timeout: 15000, rejectUnauthorized: false };
+          const r = https.request(o, (res) => {
+            let d = ''; res.on('data', c => d += c);
+            res.on('end', () => {
+              try { resolve({ data: JSON.parse(d), status: res.statusCode }); }
+              catch(e) { reject(new Error('JSON: ' + d.substring(0, 60))); }
+            });
           });
+          r.on('error', reject); r.on('timeout', () => { r.destroy(); reject(new Error('Timeout')); });
+          r.write(body); r.end();
         });
-        r.on('error', reject); r.on('timeout', () => { r.destroy(); reject(new Error('Timeout')); });
-        r.write(body); r.end();
-      });
-      if (response.data && (response.data.token || response.data.access_token)) {
-        var tok = response.data.token || response.data.access_token;
-        this._tokenCache = tok;
-        this._tokenExpiry = Date.now() + (response.data.expires_in || 3600) * 1000 - 60000;
-        console.log('[LikesAPI] Token obtenido directamente (nueva IP funciona)');
-        return tok;
-      }
-    } catch(e) { /* direct call failed, try browser token */ }
-    
-    // 2. Fallback: token from browser (frontend)
-    try {
-      var stmt = require('./database').db.prepare("SELECT value FROM settings WHERE key='likes_token_cache'");
-      var row = stmt.get();
-      if (row && row.value) {
-        var cached = JSON.parse(row.value);
-        if (cached.token && cached.expiry > Date.now()) {
-          this._tokenCache = cached.token;
-          this._tokenExpiry = cached.expiry;
-          return cached.token;
+        if (response.data && (response.data.token || response.data.access_token)) {
+          var tok = response.data.token || response.data.access_token;
+          this._tokenCache = tok;
+          this._tokenExpiry = Date.now() + (response.data.expires_in || 3600) * 1000 - 60000;
+          if (errorAnterior) {
+            console.log('[LikesAPI] Token recuperado - enviando notificacion...');
+            try {
+              var { sendEmail } = require('./services/email');
+              await sendEmail('infomovilbro@gmail.com', 'Admin', '[CRM LikesAPI] Recuperado', '<h3>Likes API recuperado</h3><p>El token se ha obtenido correctamente después de un fallo previo.</p><p>Timestamp: ' + new Date().toISOString() + '</p>');
+            } catch(em) {}
+            errorAnterior = false;
+          }
+          return tok;
         }
-      }
-    } catch(e) {}
-    var err = new Error('No hay token. Abre el CRM en tu navegador para autenticar.');
-    err.requiresBrowser = true;
-    throw err;
+        lastError = 'Respuesta sin token (' + response.status + ')';
+      } catch(e) { lastError = e.message || e; }
+      if (intento === 1) await new Promise(r => setTimeout(r, 10000));
+    }
+    
+    errorAnterior = true;
+    console.error('[LikesAPI] ERROR: 2 intentos fallidos. Enviando notificacion...');
+    try {
+      var { sendEmail } = require('./services/email');
+      await sendEmail('infomovilbro@gmail.com', 'Admin', '[CRM LikesAPI] Sin conexion', '<h3>Likes API no disponible</h3><p>No se pudo obtener token en 2 intentos.</p><p>Error: ' + (lastError || 'desconocido') + '</p><p>Timestamp: ' + new Date().toISOString() + '</p><p>IP del servidor bloqueada o API caida.</p>');
+    } catch(em) {}
+    throw new Error('Likes API no disponible - notificado por email');
   }
 
 
@@ -356,12 +358,7 @@ class LikesAPI {
   }
 }
 
-function setTokenFromBrowser(token, expiresIn) {
-  var expiry = Date.now() + (expiresIn || 3600) * 1000 - 60000;
-  db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('likes_token_cache', ?)").run(JSON.stringify({ token: token, expiry: expiry }));
-  console.log('[LikesAPI] Token recibido desde navegador, valido hasta', new Date(expiry).toISOString());
-}
+var errorAnterior = false;
 
 module.exports = LikesAPI;
 module.exports.getApiInstance = getApiInstance;
-module.exports.setTokenFromBrowser = setTokenFromBrowser;

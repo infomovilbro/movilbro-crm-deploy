@@ -619,15 +619,6 @@ wss.on('connection', function(ws, req) {
   ws.send('ok');
 });
 
-// Endpoint para recibir token del navegador (CORS desde el frontend)
-app.post('/api/likes-token', function(req, res) {
-  var token = req.body && req.body.token;
-  if (!token) return res.status(400).json({ ok: false, error: 'Token required' });
-  var { setTokenFromBrowser } = require('./likes-api');
-  setTokenFromBrowser(token, req.body.expiresIn || 3600);
-  res.json({ ok: true });
-});
-
 server.listen(PORT, () => {
   console.log(`CRM Movilbro iniciado en puerto ${PORT} (${isProd ? 'produccion' : 'desarrollo'})`);
   setTimeout(() => notifyServerStart(), 3000);
