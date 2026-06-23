@@ -52,5 +52,8 @@
     "socket.io-client": "^4.8.3",
     "stripe": "^22.1.1",
     "ws": "^8.21.0"
+  },
+  "overrides": {
+    "protobufjs": "7.6.4"
   }
 }
