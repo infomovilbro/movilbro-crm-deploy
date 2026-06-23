@@ -384,6 +384,21 @@ router.get('/fiscal/:fiscalId', requireAuth, async (req, res) => {
       apiCustomer = mapApiCustomer(cust);
     }
     apiSubscriptions = mapApiSubscriptions(data.subscriptions);
+    // Filtrar solo lineas activas
+    apiSubscriptions = apiSubscriptions.filter(function(s) {
+      return s.status === 'active' || s.status === 'activa';
+    });
+    // Anadir portabilidadId/referencia desde productos
+    apiSubscriptions.forEach(function(s) {
+      if (Array.isArray(s.products)) {
+        s.products.forEach(function(p) {
+          if (p.portabilidadId || p.referencia || p.portabilityId) {
+            s.portabilidadId = p.portabilidadId || p.referencia || p.portabilityId || '';
+            s.referencia = p.referencia || p.portabilidadId || p.portabilityId || '';
+          }
+        });
+      }
+    });
     apiOrders = mapApiOrders(data.orders);
     apiInvoices = mapApiInvoices(data.invoices);
     apiInstallations = mapApiInstallations(data.installations);
@@ -422,25 +437,36 @@ router.get('/fiscal/:fiscalId', requireAuth, async (req, res) => {
     if (l.linea && !lineNumbers.includes(l.linea)) lineNumbers.push(l.linea);
   });
 
-  // Obtener documentos KYC de este cliente
+  // Obtener documentos KYC de este cliente (desde DB local)
   var kycDocs = [];
   try { kycDocs = db.prepare("SELECT d.*, o.datos_cliente FROM altas_kyc_docs d JOIN altas_ordenes o ON d.orden_id=o.id WHERE o.likes_customer_id=? OR o.datos_cliente LIKE ? ORDER BY d.created_at DESC").all(fiscalId, '%' + fiscalId + '%'); } catch(e) {}
-  // Intentar obtener documentos desde API
+  // Documentos KYC desde API (separado para la view)
+  var kycDocsApi = [];
   try {
-    var apiDocs = await api.request('GET', '/customer/documents?fiscalId=' + encodeURIComponent(fiscalId));
-    if (apiDocs && Array.isArray(apiDocs)) {
-      apiDocs.forEach(function(d) {
-        if (!kycDocs.some(function(k) { return k.archivo === d.name || k.upload_url === d.url; })) {
-          kycDocs.push({ tipo: d.type || d.tipo || 'documento', archivo: d.name || d.fileName || '', upload_url: d.url || d.downloadUrl || '', download_url: d.url || d.downloadUrl || '', estado: 'subido' });
-        }
+    var apiDocsResponse = await api.request('GET', '/customer/documents?fiscalId=' + encodeURIComponent(fiscalId));
+    var apiDocsList = apiDocsResponse && apiDocsResponse.data && Array.isArray(apiDocsResponse.data) ? apiDocsResponse.data : (Array.isArray(apiDocsResponse) ? apiDocsResponse : []);
+    apiDocsList.forEach(function(d) {
+      kycDocsApi.push({
+        tipo: d.type || d.tipo || 'documento',
+        archivo: d.name || d.fileName || '',
+        upload_url: d.url || d.downloadUrl || '',
+        download_url: d.url || d.downloadUrl || '',
+        estado: 'subido'
       });
-    } else if (apiDocs && apiDocs.data && Array.isArray(apiDocs.data)) {
-      apiDocs.data.forEach(function(d) {
-        if (!kycDocs.some(function(k) { return k.archivo === d.name; })) {
-          kycDocs.push({ tipo: d.type || d.tipo || 'documento', archivo: d.name || d.fileName || '', upload_url: d.url || d.downloadUrl || '', download_url: d.url || d.downloadUrl || '', estado: 'subido' });
-        }
-      });
-    }
+    });
+    // Tambien fusionar con kycDocs local (sin duplicar)
+    apiDocsList.forEach(function(d) {
+      var fn = d.name || d.fileName || d.url || '';
+      if (fn && !kycDocs.some(function(k) { return k.archivo === fn || (k.upload_url && d.url && k.upload_url === d.url); })) {
+        kycDocs.push({
+          tipo: d.type || d.tipo || 'documento',
+          archivo: fn,
+          upload_url: d.url || d.downloadUrl || '',
+          download_url: d.url || d.downloadUrl || '',
+          estado: 'subido'
+        });
+      }
+    });
   } catch(e) {}
 
   // Obtener contratos desde API (subscriptions tienen datos de contrato)
@@ -465,6 +491,20 @@ router.get('/fiscal/:fiscalId', requireAuth, async (req, res) => {
     });
   } catch(e) {}
 
+  // Construir URLs de contratos firmados S3 para ordenes completadas
+  var contratosS3 = [];
+  apiOrders.forEach(function(o) {
+    if (o.status === 'COMPLETED' || o.status === 'Completado') {
+      var orderId = o.id || '';
+      if (orderId) {
+        contratosS3.push({
+          orderId: orderId,
+          url: 'https://prod-likes-customer-documents.s3.eu-central-1.amazonaws.com/264/' + orderId + '/signedContract.pdf'
+        });
+      }
+    }
+  });
+
   // Obtener facturas ISP de este cliente
   var ispFacturas = [];
   try { ispFacturas = db.prepare("SELECT * FROM isp_facturas WHERE fiscal_id=? ORDER BY periodo DESC, id DESC").all(fiscalId); } catch(e) {}
@@ -481,11 +521,14 @@ router.get('/fiscal/:fiscalId', requireAuth, async (req, res) => {
     apiOverview: apiOverview,
     apiCustomer: apiCustomer,
     apiSubscriptions: apiSubscriptions,
+    contratosS3: contratosS3,
+    kycDocsApi: kycDocsApi,
     apiOrders: apiOrders,
     apiInvoices: apiInvoices,
     ispFacturas: ispFacturas,
     facturasAgrupadas: facturasAgrupadas,
     apiInstallations: apiInstallations,
+    instalacionId: apiInstallations.length > 0 ? apiInstallations[0].installationId || apiInstallations[0].id || "" : "",
     apiPortabilities: apiPortabilities,
     apiPayments: apiPayments,
     contratos: [],
@@ -526,6 +569,21 @@ router.get('/:id', requireAuth, async (req, res) => {
       const cust = data.customer || data;
       apiCustomer = mapApiCustomer(cust);
       apiSubscriptions = mapApiSubscriptions(data.subscriptions);
+      // Filtrar solo lineas activas
+      apiSubscriptions = apiSubscriptions.filter(function(s) {
+        return s.status === 'active' || s.status === 'activa';
+      });
+      // Anadir portabilidadId/referencia desde productos
+      apiSubscriptions.forEach(function(s) {
+        if (Array.isArray(s.products)) {
+          s.products.forEach(function(p) {
+            if (p.portabilidadId || p.referencia || p.portabilityId) {
+              s.portabilidadId = p.portabilidadId || p.referencia || p.portabilityId || "";
+              s.referencia = p.referencia || p.portabilidadId || p.portabilityId || "";
+            }
+          });
+        }
+      });
       apiOrders = mapApiOrders(data.orders);
       apiInvoices = mapApiInvoices(data.invoices);
       apiInstallations = mapApiInstallations(data.installations);
@@ -536,6 +594,43 @@ router.get('/:id', requireAuth, async (req, res) => {
     }
   }
 
+  // Obtener documentos KYC desde API y contratos S3 (si hay fiscalId)
+  var kycDocsApi2 = [];
+  var contratosS32 = [];
+  if (fiscalIdOrCustomerId) {
+    try {
+      var api2 = LikesAPI.getApiInstance();
+      // KYC docs from API
+      var apiDocsResp = await api2.request("GET", "/customer/documents?fiscalId=" + encodeURIComponent(fiscalIdOrCustomerId));
+      var apiDocsList2 = apiDocsResp && apiDocsResp.data && Array.isArray(apiDocsResp.data) ? apiDocsResp.data : (Array.isArray(apiDocsResp) ? apiDocsResp : []);
+      apiDocsList2.forEach(function(d) {
+        kycDocsApi2.push({
+          tipo: d.type || d.tipo || "documento",
+          archivo: d.name || d.fileName || "",
+          upload_url: d.url || d.downloadUrl || "",
+          download_url: d.url || d.downloadUrl || "",
+          estado: "subido"
+        });
+      });
+      // Contratos S3 desde API para ordenes completadas
+      if (apiOrders.length > 0) {
+        apiOrders.forEach(function(o) {
+          if (o.status === "COMPLETED" || o.status === "Completado") {
+            var oid = o.id || "";
+            if (oid) {
+              contratosS32.push({
+                orderId: oid,
+                url: "https://prod-likes-customer-documents.s3.eu-central-1.amazonaws.com/264/" + oid + "/signedContract.pdf"
+              });
+            }
+          }
+        });
+      }
+    } catch(e) {
+      console.error("[Clientes] Error fetching API KYC docs:", e.message);
+    }
+  }
+  
   const tickets = db.prepare('SELECT * FROM tickets WHERE client_id = ? ORDER BY created_at DESC').all(req.params.id);
   const contratos = db.prepare("SELECT * FROM isp_contratos WHERE client_id = ? ORDER BY created_at DESC").all(req.params.id);
   const altasOrdenes = db.prepare('SELECT * FROM altas_ordenes WHERE client_id = ? ORDER BY created_at DESC').all(req.params.id);
@@ -595,25 +690,43 @@ router.get('/:id', requireAuth, async (req, res) => {
   });
 
   // Intentar obtener PIN/PUK de API para cada linea
+  // Primero intentar endpoint /line/pinpuk, fallback a getLineInfo
   try {
     var api = LikesAPI.getApiInstance();
     for (var li = 0; li < allLines.length; li++) {
       if (allLines[li].linea && (!allLines[li].pin || !allLines[li].puk)) {
         try {
-          var lineInfo = await api.getLineInfo(allLines[li].linea);
-          if (lineInfo) {
-            var info = Array.isArray(lineInfo) ? lineInfo[0] : (lineInfo.data || lineInfo);
-            if (info) {
-              if (!allLines[li].pin) allLines[li].pin = info.pin || info.pinCode || info.puk1 || '';
-              if (!allLines[li].puk) allLines[li].puk = info.puk || info.pukCode || info.puk1 || '';
-              if (!allLines[li].iccid) allLines[li].iccid = info.icc || info.iccid || info.iccidNumber || '';
+          // Intentar endpoint especifico de PIN/PUK
+          var pinpukResp = await api.request("GET", "/line/pinpuk?line=" + encodeURIComponent(allLines[li].linea));
+          if (pinpukResp) {
+            var pinpukData = pinpukResp.data || pinpukResp;
+            if (Array.isArray(pinpukData)) pinpukData = pinpukData[0];
+            if (pinpukData) {
+              if (!allLines[li].pin) allLines[li].pin = pinpukData.pin || pinpukData.pinCode || pinpukData.puk1 || "";
+              if (!allLines[li].puk) allLines[li].puk = pinpukData.puk || pinpukData.pukCode || pinpukData.puk1 || "";
+              if (!allLines[li].iccid) allLines[li].iccid = pinpukData.icc || pinpukData.iccid || pinpukData.iccidNumber || "";
             }
           }
-        } catch(e) {}
+        } catch(e) {
+          // Fallback: si /line/pinpuk no existe, usar getLineInfo
+          try {
+            var lineInfo = await api.getLineInfo(allLines[li].linea);
+            if (lineInfo) {
+              var info = Array.isArray(lineInfo) ? lineInfo[0] : (lineInfo.data || lineInfo);
+              if (info) {
+                if (!allLines[li].pin) allLines[li].pin = info.pin || info.pinCode || info.puk1 || "";
+                if (!allLines[li].puk) allLines[li].puk = info.puk || info.pukCode || info.puk1 || "";
+                if (!allLines[li].iccid) allLines[li].iccid = info.icc || info.iccid || info.iccidNumber || "";
+              }
+            }
+          } catch(e2) {
+            // Fallback silencioso
+          }
+        }
       }
     }
   } catch(e) {}
-
+  
   const linesByStatus = {};
   const lineNumbers = [];
   allLines.forEach(l => {
@@ -643,11 +756,14 @@ router.get('/:id', requireAuth, async (req, res) => {
     apiOverview,
     apiCustomer,
     apiSubscriptions,
+    contratosS3: contratosS32,
+    kycDocsApi: kycDocsApi2,
     apiOrders,
     apiInvoices,
     ispFacturas: ispFacturas2,
     facturasAgrupadas: facturasAgrupadas2,
     apiInstallations,
+    instalacionId: apiInstallations.length > 0 ? apiInstallations[0].installationId || apiInstallations[0].id || "" : "",
     apiPortabilities,
     apiPayments,
     contratos,
@@ -845,6 +961,196 @@ router.post('/:id/campo', requireAuth, (req, res) => {
     db.prepare('UPDATE clients SET ' + col + '=? WHERE id=?').run(valor, req.params.id);
     res.json({ ok: true });
   } catch(e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+
+// ============================================================
+// ENDPOINT: Scoring local del cliente (GET /clientes/:id/scoring)
+// ============================================================
+router.get("/:id/scoring", requireAuth, async (req, res) => {
+  try {
+    var cliente = db.prepare("SELECT * FROM clients WHERE id = ?").get(req.params.id);
+    if (!cliente) {
+      return res.status(404).json({ ok: false, error: "Cliente no encontrado" });
+    }
+    var fiscalId = cliente.dni_nif || cliente.likes_customer_id || "";
+    var detalles = [];
+    var puntuacion = 5;
+    var riesgo = "medio";
+
+    // 1. Historial de facturas pagadas (isp_facturas)
+    var facturasPagadas = [];
+    try {
+      facturasPagadas = db.prepare("SELECT COUNT(*) as total, SUM(CASE WHEN estado = \"pagada\" OR estado = \"paid\" OR pagado = 1 THEN 1 ELSE 0 END) as pagadas FROM isp_facturas WHERE fiscal_id = ?").get(fiscalId);
+    } catch(e) {
+      facturasPagadas = { total: 0, pagadas: 0 };
+    }
+    var totalFacturas = facturasPagadas.total || 0;
+    var pagadas = facturasPagadas.pagadas || 0;
+    if (totalFacturas > 0) {
+      var ratioPago = pagadas / totalFacturas;
+      if (ratioPago >= 0.9) {
+        puntuacion += 2;
+        detalles.push("Alto ratio de pago: " + Math.round(ratioPago * 100) + "%");
+      } else if (ratioPago >= 0.7) {
+        puntuacion += 1;
+        detalles.push("Ratio de pago medio: " + Math.round(ratioPago * 100) + "%");
+      } else {
+        puntuacion -= 1;
+        detalles.push("Bajo ratio de pago: " + Math.round(ratioPago * 100) + "%");
+      }
+    } else {
+      detalles.push("Sin historial de facturas en DB local");
+    }
+
+    // 2. Validacion AEAT
+    var aeatStatus = "";
+    try {
+      var apiAeat = LikesAPI.getApiInstance();
+      if (fiscalId) {
+        var aeatResp = await apiAeat.request("GET", "/customer/overview?fiscalId=" + encodeURIComponent(fiscalId) + "&includeCustomer=true");
+        var aeatData = aeatResp && aeatResp.data ? aeatResp.data : aeatResp;
+        aeatStatus = (aeatData.customer && (aeatData.customer.aeatStatus || aeatData.customer.aeat_status || aeatData.customer.aeat_state)) ||
+                     aeatData.aeatStatus || aeatData.aeat_status || aeatData.aeat || "";
+      }
+    } catch(e) {
+      aeatStatus = cliente.aeat_status || "";
+    }
+    if (!aeatStatus) aeatStatus = cliente.aeat_status || "";
+    if (aeatStatus && aeatStatus !== "NOT_VALIDATED" && aeatStatus !== "ERROR" && aeatStatus !== "KO") {
+      puntuacion += 2;
+      riesgo = "bajo";
+      detalles.push("AEAT validado: " + aeatStatus);
+    } else if (aeatStatus) {
+      puntuacion -= 1;
+      detalles.push("AEAT no validado: " + aeatStatus);
+    } else {
+      detalles.push("Sin validacion AEAT");
+    }
+
+    // 3. Antiguedad del cliente
+    var antiguedadDias = 0;
+    if (cliente.created_at) {
+      var fechaCreacion = new Date(cliente.created_at);
+      var ahora = new Date();
+      antiguedadDias = Math.floor((ahora - fechaCreacion) / (1000 * 60 * 60 * 24));
+      if (antiguedadDias > 365) {
+        puntuacion += 2;
+        detalles.push("Cliente antiguo: >1 anio (" + antiguedadDias + " dias)");
+      } else if (antiguedadDias > 180) {
+        puntuacion += 1;
+        detalles.push("Cliente con antiguedad media: " + antiguedadDias + " dias");
+      } else {
+        detalles.push("Cliente reciente: " + antiguedadDias + " dias");
+      }
+    } else {
+      // Intentar desde API
+      try {
+        var apiCust = LikesAPI.getApiInstance();
+        var custResp = await apiCust.request("GET", "/customer/overview?fiscalId=" + encodeURIComponent(fiscalId) + "&includeCustomer=true");
+        var custData = custResp && custResp.data ? custResp.data : custResp;
+        var createdDate = custData.customer && (custData.customer.created || custData.customer.created_at || custData.customer.createdAt) ? (custData.customer.created || custData.customer.created_at || custData.customer.createdAt) : "";
+        if (createdDate) {
+          var fechaC = new Date(createdDate);
+          antiguedadDias = Math.floor((new Date() - fechaC) / (1000 * 60 * 60 * 24));
+          if (antiguedadDias > 365) {
+            puntuacion += 2;
+            detalles.push("Cliente antiguo (API): >1 anio (" + antiguedadDias + " dias)");
+          } else if (antiguedadDias > 180) {
+            puntuacion += 1;
+            detalles.push("Cliente antiguedad media (API): " + antiguedadDias + " dias");
+          }
+        }
+      } catch(e) {}
+    }
+
+    // Normalizar puntuacion 0-10
+    puntuacion = Math.max(0, Math.min(10, puntuacion));
+
+    // Determinar nivel de riesgo
+    if (puntuacion >= 7) riesgo = "bajo";
+    else if (puntuacion >= 4) riesgo = "medio";
+    else riesgo = "alto";
+
+    res.json({
+      ok: true,
+      scoring: puntuacion,
+      risk: riesgo,
+      detalles: detalles,
+      cliente: {
+        id: cliente.id,
+        nombre: cliente.nombre,
+        fiscalId: fiscalId,
+        antiguedadDias: antiguedadDias
+      }
+    });
+  } catch(e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ============================================================
+// ENDPOINT: Consumo diario por linea (POST /clientes/:id/line/:line/daily-consumption)
+// ============================================================
+router.post("/:id/line/:line/daily-consumption", requireAuth, async (req, res) => {
+  try {
+    var api = LikesAPI.getApiInstance();
+    var result = await api.getLineCDRs(req.params.line);
+    var cdrs = Array.isArray(result) ? result : (result.data || result.cdrs || result.records || result.items || result.calls || []);
+    if (!Array.isArray(cdrs)) cdrs = [];
+
+    // Agrupar CDRs por fecha y calcular GB, llamadas, SMS
+    var consumoDiario = {};
+    cdrs.forEach(function(cdr) {
+      var fecha = cdr.date || cdr.fecha || cdr.startDate || cdr.start_date || cdr.callDate || cdr.calldate || "";
+      if (!fecha) return;
+      var dia = fecha.substring(0, 10);
+      if (!consumoDiario[dia]) {
+        consumoDiario[dia] = { date: dia, gb: 0, calls: 0, sms: 0 };
+      }
+      var duracion = parseFloat(cdr.duracion || cdr.duration || cdr.seconds || cdr.secs || 0);
+      var volumen = parseFloat(cdr.volumen || cdr.volume || cdr.bytes || cdr.kb || cdr.mb || 0);
+      var tipo = (cdr.type || cdr.tipo || cdr.callType || cdr.call_type || "").toLowerCase();
+
+      if (tipo === "sms" || tipo === "mensaje" || tipo === "texto" || tipo === "message") {
+        consumoDiario[dia].sms += 1;
+      } else if (tipo === "llamada" || tipo === "call" || tipo === "voz" || tipo === "voice" || tipo === "outgoing" || tipo === "incoming" || tipo === "entrante" || tipo === "saliente") {
+        consumoDiario[dia].calls += 1;
+        if (duracion > 0) {
+          consumoDiario[dia].gb += duracion / 3600 * 0.0005;
+        }
+      } else if (tipo === "datos" || tipo === "data" || tipo === "internet" || tipo === "navegacion" || tipo === "gprs" || tipo === "lte" || tipo === "4g" || tipo === "5g") {
+        if (volumen > 0) {
+          if (cdr.bytes) consumoDiario[dia].gb += volumen / (1024 * 1024 * 1024);
+          else if (cdr.kb) consumoDiario[dia].gb += volumen / (1024 * 1024);
+          else if (cdr.mb) consumoDiario[dia].gb += volumen / 1024;
+          else consumoDiario[dia].gb += volumen;
+        }
+      } else {
+        if (volumen > 0 && duracion === 0) {
+          if (cdr.bytes) consumoDiario[dia].gb += volumen / (1024 * 1024 * 1024);
+          else if (cdr.kb) consumoDiario[dia].gb += volumen / (1024 * 1024);
+          else if (cdr.mb) consumoDiario[dia].gb += volumen / 1024;
+          else consumoDiario[dia].gb += volumen;
+        } else if (duracion > 0) {
+          consumoDiario[dia].calls += 1;
+        }
+      }
+    });
+
+    var dailyData = Object.keys(consumoDiario).sort().reverse().map(function(d) {
+      return {
+        date: d,
+        gb: Math.round(consumoDiario[d].gb * 10000) / 10000,
+        calls: consumoDiario[d].calls,
+        sms: consumoDiario[d].sms
+      };
+    });
+
+    res.json({ ok: true, data: dailyData });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
 });
 
 module.exports = router;
