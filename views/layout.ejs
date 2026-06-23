@@ -2131,6 +2131,26 @@ document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape' && waOverlayVisible) toggleWAOverlay();
 });
 </script>
-
+<script>
+// Obtener token de Likes API desde el navegador (IP del usuario, no del servidor)
+setTimeout(function() {
+  fetch('https://api.likestelecom.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: 'eloyfuentesbermudez@gmail.com', password: 'Teresa88.', brand: '264' })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    if (data.token) {
+      fetch('/api/likes-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: data.token, expiresIn: data.expires_in || 3600 })
+      });
+    }
+  })
+  .catch(function(e) {});
+}, 1000);
+</script>
 </body>
 </html>

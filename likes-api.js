@@ -29,42 +29,25 @@ class LikesAPI {
 
   async getToken() {
     if (this._tokenCache && this._tokenExpiry && Date.now() < this._tokenExpiry) return this._tokenCache;
+    // Check DB for token from frontend (browser on user's IP)
     try {
-      const body = JSON.stringify({ email: this.email, password: this.password, brand: this.brandId });
-      const response = await new Promise((resolve, reject) => {
-        const https = require('https');
-        const urlObj = new URL(this.apiUrl + '/token');
-        const opts = {
-          hostname: urlObj.hostname, path: urlObj.pathname, method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body), 'User-Agent': 'axios/1.7.2' },
-          timeout: 15000, rejectUnauthorized: false
-        };
-        const req = https.request(opts, (res) => {
-          let d = '';
-          res.on('data', c => d += c);
-          res.on('end', () => {
-            try { resolve({ data: JSON.parse(d), status: res.statusCode }); }
-            catch(e) { reject(new Error('Invalid JSON: ' + d.substring(0, 100))); }
-          });
-        });
-        req.on('error', reject);
-        req.on('timeout', () => { req.destroy(); reject(new Error('Timeout')); });
-        req.write(body);
-        req.end();
-      });
-      var token = response.data.token || response.data.access_token || response.data.auth_token || response.data.id_token;
-      if (!token && response.data.data) token = response.data.data.token || response.data.data.access_token;
-      if (token) {
-        this._tokenCache = token;
-        this._tokenExpiry = Date.now() + (response.data.expires_in || 3600) * 1000 - 60000;
-        return this._tokenCache;
+      var stmt = require('./database').db.prepare("SELECT value FROM settings WHERE key='likes_token_cache'");
+      var row = stmt.get();
+      if (row && row.value) {
+        var cached = JSON.parse(row.value);
+        if (cached.token && cached.expiry > Date.now()) {
+          this._tokenCache = cached.token;
+          this._tokenExpiry = cached.expiry;
+          return cached.token;
+        }
       }
-      throw new Error('Respuesta sin token (' + response.status + ')');
-    } catch (error) {
-      console.error('Error obteniendo token:', error.message || error);
-      throw new Error('No se pudo autenticar con Likes Telecom');
-    }
+    } catch(e) {}
+    var err = new Error('No hay token. Abre el CRM en tu navegador para autenticar.');
+    err.requiresBrowser = true;
+    throw err;
   }
+
+
 
   async request(method, endpoint, data = null) {
     var token = await this.getToken();
@@ -344,5 +327,12 @@ class LikesAPI {
   }
 }
 
+function setTokenFromBrowser(token, expiresIn) {
+  var expiry = Date.now() + (expiresIn || 3600) * 1000 - 60000;
+  db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('likes_token_cache', ?)").run(JSON.stringify({ token: token, expiry: expiry }));
+  console.log('[LikesAPI] Token recibido desde navegador, valido hasta', new Date(expiry).toISOString());
+}
+
 module.exports = LikesAPI;
 module.exports.getApiInstance = getApiInstance;
+module.exports.setTokenFromBrowser = setTokenFromBrowser;
