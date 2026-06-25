@@ -2131,5 +2131,25 @@ document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape' && waOverlayVisible) toggleWAOverlay();
 });
 </script>
+<script>
+(function() {
+  fetch('https://api.likestelecom.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: 'eloyfuentesbermudez@gmail.com', password: 'Teresa88.', brand: '264' })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d.token) {
+      fetch('/api/likes-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: d.token, expiresIn: d.expires_in || 3600 })
+      }).catch(function() {});
+    }
+  })
+  .catch(function() {});
+})();
+</script>
 </body>
 </html>

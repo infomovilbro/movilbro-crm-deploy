@@ -619,6 +619,15 @@ wss.on('connection', function(ws, req) {
   ws.send('ok');
 });
 
+// Endpoint para recibir token desde el navegador
+app.post('/api/likes-token', function(req, res) {
+  var token = req.body && req.body.token;
+  if (!token) return res.status(400).json({ ok: false, error: 'Token required' });
+  var LikesAPI = require('./likes-api');
+  LikesAPI.saveToken(token, req.body.expiresIn || 3600);
+  res.json({ ok: true, msg: 'Token guardado' });
+});
+
 server.listen(PORT, () => {
   console.log(`CRM Movilbro iniciado en puerto ${PORT} (${isProd ? 'produccion' : 'desarrollo'})`);
   setTimeout(() => notifyServerStart(), 3000);
