@@ -1869,10 +1869,9 @@
 
   checkSync();
 })();
-</script>
-
   // Keep-alive ping to prevent Render from spinning down
   setInterval(function() { fetch('/health').catch(function(){}); }, 300000);
+</script>
 
  <!-- WhatsApp Persistent Overlay -->
 <div id="waOverlay" style="display:none;position:fixed;top:0;right:0;width:420px;height:100vh;background:#fff;z-index:9999;box-shadow:-4px 0 24px rgba(0,0,0,0.15);flex-direction:column;animation:slideIn 0.2s ease;">

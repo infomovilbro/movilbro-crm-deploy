@@ -879,48 +879,11 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
   var waQRConnected = $('waQRConnected');
   var waQRError = $('waQRError');
   var waStatusText = $('waStatusText');
-
-  function pollWAStatus() {
-    fetch('/codeopen/baileys-qr').then(function(r) { return r.json(); }).then(function(d) {
-      var st = d.status || {};
-      var waSessionActions = document.getElementById('waSessionActions');
-      if (st.connected) {
-        waStatusText.textContent = 'Conect.';
-        waStatusText.style.color = '#22c55e';
-        waQRLoading.style.display = 'none';
-        waQRImageWrap.style.display = 'none';
-        waQRConnected.style.display = 'block';
-        waQRError.style.display = 'none';
-        if (waSessionActions) waSessionActions.style.display = 'block';
-      } else if (st.hasQR) {
-        waStatusText.textContent = 'QR';
-        waStatusText.style.color = '#f59e0b';
-        waQRImage.src = '/codeopen/baileys-qr-image?' + Date.now();
-        waQRImage.onload = function() {
-          waQRLoading.style.display = 'none';
-          waQRImageWrap.style.display = 'block';
-          waQRConnected.style.display = 'none';
-          waQRError.style.display = 'none';
-        };
-        waQRImage.onerror = function() {
-          waQRLoading.innerHTML = '<div>Error al cargar QR</div>';
-        };
-      } else if (st.error) {
-        waStatusText.textContent = 'Error';
-        waStatusText.style.color = '#ef4444';
-        waQRError.textContent = 'Error: ' + st.error;
-        waQRError.style.display = 'block';
-        waQRLoading.style.display = 'none';
-      } else {
-        waStatusText.textContent = 'Descon.';
-        waStatusText.style.color = '#888';
-      }
-    });
-  }
-
-  try { pollWAStatus(); } catch(e) { console.error('[Init] pollWAStatus:', e); }
-  // Polling QR cada 30s (antes 5s) para reducir carga
-  setInterval(function() { try { pollWAStatus(); } catch(e) {} }, 30000);
+  // Mostrar mensaje de que WhatsApp overlay esta disponible
+  if (waQRLoading) waQRLoading.innerHTML = '<div style="color:var(--text-dim);padding:20px;text-align:center;"><i class="ri-whatsapp-line" style="font-size:2rem;display:block;margin-bottom:8px;"></i>Usa el bot&oacute;n <strong>WhatsApp</strong> en la barra lateral para abrir el overlay.<br><small style="color:var(--text-faint);">El monitor de mensajes se conecta autom&aacute;ticamente.</small></div>';
+  if (waStatusText) { waStatusText.textContent = 'Overlay'; waStatusText.style.color = '#22c55e'; }
+  if (waQRImageWrap) waQRImageWrap.style.display = 'none';
+  function pollWAStatus() {} // stub, QR no disponible
 
   whatsappBtn.addEventListener('click', function() {
     waQRPanel.style.right = '0';
@@ -1031,10 +994,19 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
       var user = $('emailConfigUser').value.trim();
       var pass = $('emailConfigPass').value;
       if (!user || !pass) { alert('Introduce email y contraseña'); return; }
+      var btn = this;
+      btn.disabled = true;
+      btn.innerHTML = '<i class="ri-loader-4-line ri-spin"></i> Verificando...';
       fetch('/codeopen/email/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user: user, pass: pass }) }).then(function(r) { return r.json(); }).then(function(d) {
-        if (d.ok) { alert('Sesión de Gmail iniciada'); loadEmailConfig(); }
-        else { alert('Error: ' + (d.error || '')); }
-      });
+        if (!d.ok) { alert('Error: ' + (d.error || '')); btn.disabled = false; btn.innerHTML = '<i class="ri-login-circle-line"></i> Iniciar sesion'; return; }
+        // Probar conexion IMAP
+        fetch('/codeopen/email/test', { method: 'POST' }).then(function(r2) { return r2.json(); }).then(function(t) {
+          if (t.ok) { alert('Configuracion guardada y conexion IMAP verificada correctamente'); loadEmailConfig(); }
+          else { alert('Configuracion guardada pero la conexion IMAP fallo: ' + (t.error || '') + '. Verifica la contrasena y que sea una App Password de Gmail.'); loadEmailConfig(); }
+          btn.disabled = false;
+          btn.innerHTML = '<i class="ri-login-circle-line"></i> Iniciar sesion';
+        }).catch(function() { btn.disabled = false; btn.innerHTML = '<i class="ri-login-circle-line"></i> Iniciar sesion'; loadEmailConfig(); });
+      }).catch(function() { btn.disabled = false; btn.innerHTML = '<i class="ri-login-circle-line"></i> Iniciar sesion'; });
     });
   }
   var emailConfigLogoutBtn = $('emailConfigLogoutBtn');

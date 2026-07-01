@@ -1350,6 +1350,25 @@ router.get('/email/config', (req, res) => {
   } catch(e) { res.json({ user: '', passConfigured: false }); }
 });
 
+router.post('/email/test', async (req, res) => {
+  try {
+    var u = gmailUser || db.prepare("SELECT value FROM settings WHERE key='gmail_user'").get()?.value || '';
+    var p = gmailPass || db.prepare("SELECT value FROM settings WHERE key='gmail_pass'").get()?.value || '';
+    if (!u || !p) return res.json({ ok: false, error: 'Credenciales no configuradas' });
+    if (!ImapModule) return res.json({ ok: false, error: 'Modulo IMAP no disponible' });
+    var Imap = ImapModule;
+    var imap = new Imap({ user: u, password: p, host: 'imap.gmail.com', port: 993, tls: true, tlsOptions: { rejectUnauthorized: false }, connTimeout: 10000 });
+    await new Promise(function(resolve, reject) {
+      imap.once('ready', function() { imap.end(); resolve(); });
+      imap.once('error', function(err) { reject(err); });
+      imap.connect();
+    });
+    res.json({ ok: true, message: 'Conexion IMAP exitosa' });
+  } catch(e) {
+    res.json({ ok: false, error: 'Error de conexion: ' + e.message });
+  }
+});
+
 // ---- BAILEYS WHATSAPP INTEGRATION ----
 router.get('/baileys-qr', async (req, res) => {
   res.json({ error: 'WhatsApp Baileys no disponible. Usa el overlay de WhatsApp.' });

@@ -540,7 +540,7 @@ router.get('/fiscal/:fiscalId', requireAuth, async (req, res) => {
     kycDocs: kycDocs,
     documentos: [],
     linesByStatus: JSON.stringify(linesByStatus),
-    lineNumbers: JSON.stringify(lineNumbers),
+    lineNumbers: lineNumbers,
     apiActions: { canBlock: true, canChangeTariff: true, canDuplicateSim: true, canViewConsumption: true }
   });
 });
@@ -758,6 +758,7 @@ router.get('/:id', requireAuth, async (req, res) => {
     apiSubscriptions,
     contratosS3: contratosS32,
     kycDocsApi: kycDocsApi2,
+    kycDocs: kycDocsApi2,
     apiOrders,
     apiInvoices,
     ispFacturas: ispFacturas2,
@@ -774,7 +775,7 @@ router.get('/:id', requireAuth, async (req, res) => {
     kycDocsPorOrden,
     documentos,
     linesByStatus: JSON.stringify(linesByStatus),
-    lineNumbers: JSON.stringify(lineNumbers),
+    lineNumbers: lineNumbers,
     apiActions: { canBlock: true, canChangeTariff: true, canDuplicateSim: true, canViewConsumption: true }
   });
 });
@@ -951,7 +952,7 @@ router.post('/bulk/status', requireAuth, (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// Campo editable (AEAT, scoring, riesgo)
+// Campo editable (IBAN, campos legacy)
 router.post('/:id/campo', requireAuth, (req, res) => {
   try {
     var campo = req.body.campo;
@@ -1003,32 +1004,52 @@ router.get("/:id/scoring", requireAuth, async (req, res) => {
       detalles.push("Sin historial de facturas en DB local");
     }
 
-    // 2. Validacion AEAT
-    var aeatStatus = "";
-    try {
-      var apiAeat = LikesAPI.getApiInstance();
-      if (fiscalId) {
-        var aeatResp = await apiAeat.request("GET", "/customer/overview?fiscalId=" + encodeURIComponent(fiscalId) + "&includeCustomer=true");
-        var aeatData = aeatResp && aeatResp.data ? aeatResp.data : aeatResp;
-        aeatStatus = (aeatData.customer && (aeatData.customer.aeatStatus || aeatData.customer.aeat_status || aeatData.customer.aeat_state)) ||
-                     aeatData.aeatStatus || aeatData.aeat_status || aeatData.aeat || "";
-      }
-    } catch(e) {
-      aeatStatus = cliente.aeat_status || "";
-    }
-    if (!aeatStatus) aeatStatus = cliente.aeat_status || "";
-    if (aeatStatus && aeatStatus !== "NOT_VALIDATED" && aeatStatus !== "ERROR" && aeatStatus !== "KO") {
-      puntuacion += 2;
-      riesgo = "bajo";
-      detalles.push("AEAT validado: " + aeatStatus);
-    } else if (aeatStatus) {
+    // 2. Validacion DNI/NIF (formato)
+    var dni = (fiscalId || "").toUpperCase();
+    var dniValido = dni.length >= 8 && /^\d{8}[A-Z]$/.test(dni);
+    if (dniValido) {
+      puntuacion += 1;
+      detalles.push("DNI/NIF con formato valido");
+    } else if (dni) {
       puntuacion -= 1;
-      detalles.push("AEAT no validado: " + aeatStatus);
+      detalles.push("DNI/NIF formato invalido: " + dni);
     } else {
-      detalles.push("Sin validacion AEAT");
+      detalles.push("Sin DNI/NIF");
     }
 
-    // 3. Antiguedad del cliente
+    // 3. Email y telefono presentes
+    if (cliente.email || cliente.telefono) {
+      puntuacion += 1;
+      detalles.push("Email o telefono registrados");
+    } else {
+      detalles.push("Sin email ni telefono");
+    }
+
+    // 4. Lineas activas en Likes API
+    try {
+      var apiLines = LikesAPI.getApiInstance();
+      if (fiscalId) {
+        var subsResp = await apiLines.request("GET", "/subscriptions?fiscalId=" + encodeURIComponent(fiscalId) + "&brand_id=" + (apiLines.brandId || "264"));
+        var subsData = Array.isArray(subsResp) ? subsResp : (subsResp && subsResp.data ? subsResp.data : []);
+        var lineasActivas = subsData.filter(function(s) {
+          var st = (s.status || "").toLowerCase();
+          return st === "active" || st === "activa";
+        }).length;
+        if (lineasActivas > 2) {
+          puntuacion += 2;
+          detalles.push(lineasActivas + " lineas activas en Likes");
+        } else if (lineasActivas > 0) {
+          puntuacion += 1;
+          detalles.push(lineasActivas + " lineas activas en Likes");
+        } else {
+          detalles.push("Sin lineas activas en Likes");
+        }
+      }
+    } catch(e) {
+      detalles.push("No se pudo consultar Likes API");
+    }
+
+    // 5. Antiguedad del cliente
     var antiguedadDias = 0;
     if (cliente.created_at) {
       var fechaCreacion = new Date(cliente.created_at);

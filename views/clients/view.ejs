@@ -138,45 +138,7 @@
                       <%= addr.state || cliente.provincia ? ', ' + (addr.state || cliente.provincia) : '' %>
                       <%= addr.zipCode || addr.zip || cliente.codigo_postal ? ' (' + (addr.zipCode || addr.zip || cliente.codigo_postal) + ')' : '' %>
                     </td></tr>
-                    <tr><th>Líneas activas</th><td>
-                      <% if (apiSubscriptions.length > 0) { %>
-                        <% apiSubscriptions.forEach(function(s) { %>
-                          <% var prods = s.products && s.products.length ? s.products : [{productName: s.productName, lineNumber: s.lineNumber, status: s.status, icc: s.icc}]; %>
-                          <% prods.forEach(function(p) { %>
-                          <% var linea2 = p.lineNumber || s.lineNumber || ""; %>
-                          <% var pname2 = (p.productName || s.productName || "").toLowerCase(); %>
-                          <% var icono2 = "📡"; %>
-                          <% if (pname2.includes("fibra") || pname2.includes("ftth")) { icono2 = "🌐"; } else if (pname2.includes("tv") || pname2.includes("television")) { icono2 = "📺"; } else if (pname2.includes("fijo") || pname2.includes("voip")) { icono2 = "📞"; } else if (pname2.includes("movil") || pname2.includes("mobile") || pname2.includes("tarifa")) { icono2 = "📱"; } %>
-                          <% var ref2 = s.portabilidadId || s.referencia || p.portabilidadId || p.referencia || ""; %>
-                          <div class="d-flex align-items-center justify-content-between mb-1 pb-1 border-bottom">
-                            <div>
-                              <span><%= icono2 %></span>
-                              <strong><%= linea2 || "Nueva línea" %></strong>
-                              <small class="text-muted d-block"><%= p.productName || s.productName || "" %></small>
-                              <% if (ref2) { %><small class="text-muted">Ref: <%= ref2 %></small><% } %>
-                            </div>
-                            <div class="dropdown d-inline-block">
-                              <button class="btn btn-sm btn-outline-secondary dropdown-toggle py-0" data-bs-toggle="dropdown">
-                                <i class="bi bi-credit-card"></i>
-                              </button>
-                              <ul class="dropdown-menu dropdown-menu-end">
-                                <li><a class="dropdown-item" href="#" onclick="cambiarPagoLinea('<%= linea2 %>','IBAN')">🏦 IBAN</a></li>
-                                <li><a class="dropdown-item" href="#" onclick="cambiarPagoLinea('<%= linea2 %>','Stripe')">💳 Stripe</a></li>
-                                <li><a class="dropdown-item" href="#" onclick="cambiarPagoLinea('<%= linea2 %>','Prepago')">📱 Prepago</a></li>
-                                <li><a class="dropdown-item" href="#" onclick="cambiarPagoLinea('<%= linea2 %>','Efectivo')">💵 Efectivo</a></li>
-                              </ul>
-                            </div>
-                          </div>
-                          <% }); %>
-                        <% }); %>
-                      <% } else { %>
-                        <% var pm = apiCustomer.paymentMethod || cliente.metodo_pago; %>
-                        <div class="mb-1"><small class="text-muted">Sin líneas activas</small></div>
-                        <div class="mt-1">
-                          <% if (pm) { %><span class="badge bg-info"><i class="bi bi-credit-card"></i> <%= pm %></span><% } else { %><span class="text-muted">-</span><% } %>
-                        </div>
-                      <% } %>
-                    </td></tr>
+
 <tr><th>Líneas activas</th><td>
                       <% if (apiSubscriptions.length > 0) { %>
                         <% apiSubscriptions.forEach(function(s) { %>
@@ -217,23 +179,31 @@
                       <% } %>
                     </td></tr>
 <tr><th>M&eacute;todo pago</th><td>
+                      <% var lineasPago = (cliente.lineas_pago || '{}'); %>
+                      <% try { var pagosJson = JSON.parse(lineasPago); } catch(e) { var pagosJson = {}; } %>
                       <% if (apiSubscriptions.length > 0) { %>
                         <% apiSubscriptions.forEach(function(s) { %>
                           <% var prods = s.products && s.products.length ? s.products : [{productName: s.productName, lineNumber: s.lineNumber}]; %>
                           <% prods.forEach(function(p) { %>
                           <% var linea = p.lineNumber || s.lineNumber || ''; %>
+                          <% var metodoActual = pagosJson[linea] || ''; %>
                           <div class="d-flex align-items-center justify-content-between mb-1 pb-1 border-bottom">
                             <small><strong><%= linea || 'Nueva línea' %></strong> - <%= p.productName || s.productName || '' %></small>
-                            <div class="dropdown d-inline-block">
-                              <button class="btn btn-sm btn-outline-secondary dropdown-toggle py-0" data-bs-toggle="dropdown">
-                                <i class="bi bi-credit-card"></i>
-                              </button>
-                              <ul class="dropdown-menu dropdown-menu-end">
-                                <li><a class="dropdown-item" href="#" onclick="cambiarPagoLinea('<%= linea %>','IBAN')">🏦 IBAN</a></li>
-                                <li><a class="dropdown-item" href="#" onclick="cambiarPagoLinea('<%= linea %>','Stripe')">💳 Stripe</a></li>
-                                <li><a class="dropdown-item" href="#" onclick="cambiarPagoLinea('<%= linea %>','Prepago')">📱 Prepago</a></li>
-                                <li><a class="dropdown-item" href="#" onclick="cambiarPagoLinea('<%= linea %>','Efectivo')">💵 Efectivo</a></li>
-                              </ul>
+                            <div class="d-flex align-items-center gap-1">
+                              <% if (metodoActual) { %>
+                                <span class="badge bg-info"><%= metodoActual %></span>
+                              <% } %>
+                              <div class="dropdown d-inline-block">
+                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle py-0" data-bs-toggle="dropdown" title="Cambiar método de pago">
+                                  <i class="bi bi-credit-card"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                  <li><a class="dropdown-item" href="#" onclick="cambiarPagoLinea('<%= linea %>','IBAN')">🏦 IBAN</a></li>
+                                  <li><a class="dropdown-item" href="#" onclick="cambiarPagoLinea('<%= linea %>','Stripe')">💳 Stripe</a></li>
+                                  <li><a class="dropdown-item" href="#" onclick="cambiarPagoLinea('<%= linea %>','Prepago')">📱 Prepago</a></li>
+                                  <li><a class="dropdown-item" href="#" onclick="cambiarPagoLinea('<%= linea %>','Efectivo')">💵 Efectivo</a></li>
+                                </ul>
+                              </div>
                             </div>
                           </div>
                           <% }); %>
@@ -255,32 +225,32 @@
             </div>
             <div class="col-md-6">
               <div class="card h-100 border">
-                <div class="card-header fw-semibold"><i class="bi bi-shield-check"></i> AEAT &amp; Scoring</div>
-                <div class="card-body">
+                <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
+                  <span><i class="bi bi-shield-check"></i> An&aacute;lisis de Fiabilidad</span>
+                  <button class="btn btn-sm btn-outline-success" onclick="calcularScoring(<%= cliente.id %>)">
+                    <i class="bi bi-calculator"></i> Calcular
+                  </button>
+                </div>
+                <div class="card-body" id="scoringCardBody">
                   <table class="table table-sm mb-0">
-                    <tr><th style="width:120px;">Estado AEAT</th><td>
-                      <% var ae = apiCustomer.aeatStatus || cliente.aeat_status || ''; %>
-                      <% if (ae) { %><span class="badge bg-<%= ae === 'ok' || ae === 'verified' || ae === 'valido' || ae === 'valid' ? 'success' : ae === 'pending' || ae === 'pendiente' ? 'warning' : 'danger' %>"><%= ae %></span><% } else { %><span class="text-muted">-</span><% } %>
-                      <button class="btn btn-sm btn-outline-primary ms-1" onclick="editarCampo('aeat_status','<%= cliente.id %>')"><i class="bi bi-pencil"></i></button>
+                    <tr><th style="width:130px;">DNI/NIF</th><td>
+                      <% var dni = (cliente.dni_nif || '').toUpperCase(); %>
+                      <% var dniValido = dni.length >= 8 && /^\d{8}[A-Z]$/.test(dni); %>
+                      <span class="badge bg-<%= dniValido ? 'success' : 'danger' %>"><%= dni || '-' %></span>
+                    </td></tr>
+                    <tr><th>Email</th><td><%= apiCustomer.email || cliente.email || '-' %></td></tr>
+                    <tr><th>Tel&eacute;fono</th><td><%= apiCustomer.phone || cliente.telefono || '-' %></td></tr>
+                    <tr><th>L&iacute;neas</th><td><span class="badge bg-primary"><%= apiSubscriptions.length %></span></td></tr>
+                    <tr><th>Antigüedad</th><td>
+                      <% var fCreacion = apiCustomer.created || cliente.created_at || ''; %>
+                      <% if (fCreacion) { %><%= new Date(fCreacion).toLocaleDateString('es-ES') %><% } else { %>-<% } %>
                     </td></tr>
                     <tr><th>Scoring</th><td>
-                      <% var sc = apiCustomer.scoring || cliente.scoring || ''; %>
-                      <% if (sc) { %>
-                        <span class="badge bg-<%= parseFloat(sc) >= 7 ? 'success' : parseFloat(sc) >= 4 ? 'warning' : 'danger' %> fs-6"><%= sc %></span>
-                      <% } else { %><span class="text-muted">-</span><% } %>
-                      <button class="btn btn-sm btn-outline-primary ms-1" onclick="editarCampo('scoring','<%= cliente.id %>')"><i class="bi bi-pencil"></i></button>
+                      <span id="scoringBadge" class="fs-6"><span class="text-muted">Pulsa "Calcular"</span></span>
                     </td></tr>
-                    <tr><th>Riesgo</th><td>
-                      <% var rk = apiCustomer.riskLevel || cliente.riesgo || ''; %>
-                      <% if (rk) { %><span class="badge bg-<%= rk === 'bajo' || rk === 'low' ? 'success' : rk === 'medio' || rk === 'medium' ? 'danger' : 'warning' %>"><%= rk %></span><% } else { %><span class="text-muted">-</span><% } %>
-                      <button class="btn btn-sm btn-outline-primary ms-1" onclick="editarCampo('riesgo','<%= cliente.id %>')"><i class="bi bi-pencil"></i></button>
-
+                    <tr><th>Recomendaci&oacute;n</th><td>
+                      <span id="scoringRecomendacion"><span class="text-muted">-</span></span>
                     </td></tr>
-                    <tr><th colspan="2" class="text-center pt-2">
-                      <button class="btn btn-sm btn-outline-success" onclick="calcularScoring()">
-                        <i class="bi bi-calculator"></i> Calcular Scoring
-                      </button>
-                    </th></tr>                    </td></tr>
                   </table>
                 </div>
               </div>
@@ -1295,6 +1265,17 @@ function calcularScoring(clienteId) {
           detallesHtml += '<li class="text-muted">Sin detalles</li>';
         }
         document.getElementById('scoringResultDetails').innerHTML = detallesHtml;
+        // Update card
+        var sb = document.getElementById('scoringBadge');
+        if (sb) sb.innerHTML = '<span class="badge bg-' + riskBadge + ' fs-6">' + res.scoring + '/10</span>';
+        var sr = document.getElementById('scoringRecomendacion');
+        if (sr) {
+          var recHtml = '';
+          if (res.scoring >= 7) recHtml = '<span class="badge bg-success fs-6">✅ Recomendado</span>';
+          else if (res.scoring >= 4) recHtml = '<span class="badge bg-warning fs-6">⚠️ Revisar</span>';
+          else recHtml = '<span class="badge bg-danger fs-6">❌ No recomendado</span>';
+          sr.innerHTML = recHtml;
+        }
       } else {
         document.getElementById('scoringResultValue').textContent = 'Error';
         document.getElementById('scoringResultDetails').innerHTML = '<li class="text-danger">' + (res.error || 'Error al calcular scoring') + '</li>';
