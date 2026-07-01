@@ -1174,4 +1174,43 @@ router.post("/:id/line/:line/daily-consumption", requireAuth, async (req, res) =
   }
 });
 
+// ============================================================
+// ENDPOINT: Info de línea (POST /clientes/:id/line/:line/info)
+// ============================================================
+router.post("/:id/line/:line/info", requireAuth, async (req, res) => {
+  try {
+    var api = LikesAPI.getApiInstance();
+    var lineNumber = req.params.line;
+
+    // Intentar endpoint específico de PIN/PUK + info
+    var pinpukResp = await api.request("GET", "/line/pinpuk?line=" + encodeURIComponent(lineNumber));
+    var pinpukData = pinpukResp && pinpukResp.data ? pinpukResp.data : pinpukResp;
+    if (Array.isArray(pinpukData)) pinpukData = pinpukData[0];
+
+    // Fallback a getLineInfo
+    var lineInfo = {};
+    try {
+      var infoResp = await api.getLineInfo(lineNumber);
+      lineInfo = infoResp && infoResp.data ? infoResp.data : infoResp;
+      if (Array.isArray(lineInfo)) lineInfo = lineInfo[0];
+    } catch(e) {}
+
+    // Combinar datos
+    var result = {
+      iccid: pinpukData?.icc || pinpukData?.iccid || pinpukData?.iccidNumber || lineInfo?.icc || lineInfo?.iccid || lineInfo?.iccidNumber || '',
+      pin: pinpukData?.pin || pinpukData?.pinCode || pinpukData?.puk1 || lineInfo?.pin || lineInfo?.pinCode || lineInfo?.puk1 || '',
+      puk: pinpukData?.puk || pinpukData?.pukCode || pinpukData?.puk1 || lineInfo?.puk || lineInfo?.pukCode || lineInfo?.puk1 || '',
+      titular: lineInfo?.holderName || lineInfo?.clientName || lineInfo?.customerName || lineInfo?.titular || '',
+      dni: lineInfo?.fiscalId || lineInfo?.dni || lineInfo?.nif || '',
+      spn: lineInfo?.spn || lineInfo?.operator || lineInfo?.spnName || '',
+      status: lineInfo?.status || lineInfo?.estado || '',
+      creditLimit: lineInfo?.creditLimit || lineInfo?.credit_limit || lineInfo?.limit || ''
+    };
+
+    res.json({ ok: true, data: result });
+  } catch(e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 module.exports = router;

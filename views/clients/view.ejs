@@ -1022,41 +1022,61 @@
 
 <!-- Consumption Modal -->
 <div class="modal fade" id="consumptionModal" tabindex="-1">
-  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title"><i class="bi bi-graph-up"></i> Consumo - <span id="consLineNumber"></span></h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <div class="row g-3">
+        <!-- Line Info Card (estilo Likes) -->
+        <div class="card mb-3" id="consLineInfoCard" style="display:none;">
+          <div class="card-header fw-semibold"><i class="bi bi-sim-card"></i> Información de la Línea</div>
+          <div class="card-body">
+            <div class="row g-2">
+              <div class="col-md-3"><small class="text-muted">Titular</small><div id="consLineTitular" class="fw-semibold">-</div></div>
+              <div class="col-md-3"><small class="text-muted">DNI</small><div id="consLineDni" class="fw-semibold">-</div></div>
+              <div class="col-md-3"><small class="text-muted">SPN</small><div id="consLineSpn" class="fw-semibold">-</div></div>
+              <div class="col-md-3"><small class="text-muted">Estado</small><div id="consLineStatus" class="fw-semibold">-</div></div>
+              <div class="col-md-3"><small class="text-muted">SIM (ICCID)</small><div id="consLineSim" class="fw-semibold small">-</div></div>
+              <div class="col-md-3"><small class="text-muted">PIN</small><div id="consLinePin" class="fw-semibold font-monospace">-</div></div>
+              <div class="col-md-3"><small class="text-muted">PUK</small><div id="consLinePuk" class="fw-semibold font-monospace">-</div></div>
+              <div class="col-md-3"><small class="text-muted">Límite crédito</small><div id="consLineCreditLimit" class="fw-semibold">-</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- GB Section -->
+        <div class="row g-3 mb-3">
           <div class="col-md-5">
             <canvas id="consGBChart" height="200"></canvas>
           </div>
           <div class="col-md-7">
             <table class="table table-sm table-bordered mb-0">
-              <tr><th>Total GB</th><td id="consTotalGB">-</td></tr>
-              <tr><th>Usados GB</th><td id="consUsedGB">-</td></tr>
-              <tr><th>Restantes GB</th><td id="consRemainingGB">-</td></tr>
-              <tr><th>Roaming GB</th><td id="consRoamingGB">-</td></tr>
+              <tr><th>GB Nacionales</th><td id="consTotalGB">-</td></tr>
+              <tr><th>GB Tarifa</th><td id="consUsedGB">-</td></tr>
+              <tr><th>GB Acumulados</th><td id="consRemainingGB">-</td></tr>
+              <tr><th>GB Roaming</th><td id="consRoamingGB">-</td></tr>
             </table>
           </div>
         </div>
         <hr>
-                <h6 class="mt-3"><i class="bi bi-calendar-day"></i> Consumo diario</h6>
+        
+        <!-- Consumo Diario -->
+        <h6 class="mt-3"><i class="bi bi-calendar-day"></i> Consumo Diario</h6>
         <div style="max-height:250px;overflow:auto">
           <table class="table table-sm table-striped mb-0">
             <thead><tr><th>Fecha</th><th class="text-end">GB</th><th class="text-end">Llamadas</th><th class="text-end">SMS</th><th></th></tr></thead>
             <tbody id="consDailyBody2"><tr><td colspan="5" class="text-center text-muted">Cargando...</td></tr></tbody>
           </table>
         </div>
-/table>
-        </div>
         <hr>
-        <h6 class="mt-3"><i class="bi bi-telephone"></i> Llamadas recientes (CDRs)</h6>
+        
+        <!-- Llamadas Recientes (CDRs) -->
+        <h6 class="mt-3"><i class="bi bi-telephone"></i> Llamadas Recientes</h6>
         <div style="max-height:300px;overflow:auto">
           <table class="table table-sm table-striped mb-0">
-            <thead><tr><th>Fecha</th><th>Tipo</th><th>Destino</th><th>Duraci&oacute;n</th><th>Coste</th></tr></thead>
+            <thead><tr><th>Fecha</th><th>Tipo</th><th>Destino</th><th>Duración</th><th>Coste</th></tr></thead>
             <tbody id="cdrsBody"><tr><td colspan="5" class="text-center text-muted">Cargando...</td></tr></tbody>
           </table>
         </div>
@@ -1545,8 +1565,26 @@ document.addEventListener('DOMContentLoaded', function() {
       var line = this.dataset.line;
       if (!line) return;
       document.getElementById('consLineNumber').textContent = line;
-      var cdrBody = document.getElementById('cdrsBody');
-      cdrBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Cargando...</td></tr>';
+
+      // Fetch line info (SIM, PIN, PUK, titular, SPN, credit limit)
+      fetch('/clientes/' + clientId + '/line/' + encodeURIComponent(line) + '/info', { method: 'POST' })
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+          if (res.ok && res.data) {
+            var d = res.data;
+            document.getElementById('consLineInfoCard').style.display = '';
+            document.getElementById('consLineTitular').textContent = d.titular || d.holderName || d.clientName || '-';
+            document.getElementById('consLineDni').textContent = d.dni || d.fiscalId || '-';
+            document.getElementById('consLineSpn').textContent = d.spn || d.operator || '-';
+            document.getElementById('consLineStatus').textContent = d.status || d.estado || '-';
+            document.getElementById('consLineSim').textContent = d.iccid || d.sim || d.icc || '-';
+            document.getElementById('consLinePin').textContent = d.pin || d.pinCode || '-';
+            document.getElementById('consLinePuk').textContent = d.puk || d.pukCode || '-';
+            document.getElementById('consLineCreditLimit').textContent = d.creditLimit || d.credit_limit || '-';
+          } else {
+            document.getElementById('consLineInfoCard').style.display = 'none';
+          }
+        }).catch(function() { document.getElementById('consLineInfoCard').style.display = 'none'; });
 
       fetch('/clientes/' + clientId + '/line/' + encodeURIComponent(line) + '/consumption', { method: 'POST' })
         .then(function(r) { return r.json(); })
