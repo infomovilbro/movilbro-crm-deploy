@@ -86,50 +86,39 @@ function isOAuthAvailable() {
 let _oauthExpiryWarning = false;
 
 function getAuth() {
-  const oauthCfg = getOAuthConfig();
   const keyFile = getKey();
-  if (oauthCfg) console.log('[Drive] OAuth config found, has refresh_token:', !!oauthCfg.refresh_token, 'has client_id:', !!oauthCfg.client_id, 'has client_secret:', !!oauthCfg.client_secret);
+  const oauthCfg = getOAuthConfig();
   if (keyFile) console.log('[Drive] Service account key found, has client_email:', !!keyFile.client_email);
-  if (!oauthCfg && !keyFile) console.log('[Drive] No auth credentials found - check DRIVE_OAUTH_JSON or DRIVE_KEY_JSON env vars');
-  const cfg = getOAuthConfig();
-  if (cfg && cfg.refresh_token && cfg.client_id && cfg.client_secret) {
+  if (oauthCfg) console.log('[Drive] OAuth config found, has refresh_token:', !!oauthCfg.refresh_token);
+  if (!oauthCfg && !keyFile) console.log('[Drive] No auth credentials found - check DRIVE_KEY_JSON or DRIVE_OAUTH_JSON env vars');
+
+  // Try service account first (more reliable than OAuth)
+  if (keyFile && keyFile.client_email) {
     try {
-      const oauth2Client = new google.auth.OAuth2(cfg.client_id, cfg.client_secret, 'urn:ietf:wg:oauth:2.0:oob');
-      oauth2Client.setCredentials({ refresh_token: cfg.refresh_token });
-      // Check if token might be expired by testing expiry_date
-      if (cfg.expiry_date) {
-        const expiresAt = new Date(cfg.expiry_date);
-        const now = new Date();
-        const diffMs = expiresAt - now;
-        if (diffMs < 0 && !_oauthExpiryWarning) {
-          console.log('[Drive] WARNING: Token expired on', expiresAt.toISOString(), 'Refresh will happen automatically via googleapis');
-          _oauthExpiryWarning = true;
-        } else if (diffMs > 0 && diffMs < 3600000) {
-          console.log('[Drive] Token expires in', Math.round(diffMs / 1000 / 60), 'minutes');
-        }
-      }
+      console.log('[Drive] Using service account auth with email:', keyFile.client_email);
+      const auth = new google.auth.GoogleAuth({
+        credentials: keyFile,
+        scopes: ['https://www.googleapis.com/auth/drive']
+      });
+      return auth;
+    } catch (e) {
+      console.error('[Drive] Service account auth error:', e.message);
+    }
+  }
+
+  // Fallback to OAuth if service account not available
+  if (oauthCfg && oauthCfg.refresh_token && oauthCfg.client_id && oauthCfg.client_secret) {
+    try {
+      const oauth2Client = new google.auth.OAuth2(oauthCfg.client_id, oauthCfg.client_secret, 'urn:ietf:wg:oauth:2.0:oob');
+      oauth2Client.setCredentials({ refresh_token: oauthCfg.refresh_token });
       return oauth2Client;
     } catch (e) {
       console.error('[Drive] OAuth auth error:', e.message);
     }
   }
-  // If OAuth failed, try service account
-  try {
-    const key = getKey();
-    if (!key) {
-      console.log('[Drive] No service account key available either');
-      return null;
-    }
-    console.log('[Drive] Using service account auth with email:', key.client_email);
-    const auth = new google.auth.GoogleAuth({
-      credentials: key,
-      scopes: ['https://www.googleapis.com/auth/drive']
-    });
-    return auth;
-  } catch (e) {
-    console.error('[Drive] Service account auth error:', e.message);
-    return null;
-  }
+
+  console.log('[Drive] No usable auth credentials');
+  return null;
 }
 
 function getDrive() {

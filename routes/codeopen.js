@@ -1070,92 +1070,9 @@ router.post('/approve/:id', async (req, res) => {
     var sent = false;
     var sendInfo = '';
 
-    // Enviar respuesta por WhatsApp vía Baileys
+    // Enviar respuesta por WhatsApp (vía overlay iframe, Baileys ya no disponible)
     if (row.source === 'whatsapp' || row.category === 'whatsapp') {
-      try {
-        var wa = require('../wa-baileys');
-        var opts = {};
-
-        // Configurar quote si es con reenvío
-        if (mode === 'with_forward' && row.quoted_data) {
-          opts.quotedData = row.quoted_data;
-        }
-        if (mode === 'with_forward' && !row.quoted_data) {
-          var textWithQuote = '📩 Mensaje original:\n"' + (row.body || '') + '"\n\n---\n\n' + responseText;
-          var result = await wa.sendMessage(row.from_address, textWithQuote, opts);
-          if (result.ok) { sent = true; sendInfo = ' (con texto original)'; }
-          else { console.log('[CodeOpen] Error WhatsApp:', result.error); }
-        }
-
-        // Enviar como documento PDF si está listo
-        if (!sent && row.document_ready && row.document_buffer) {
-          try {
-            var docInfo = row.document_info ? JSON.parse(row.document_info) : null;
-            opts.asDocument = true;
-            var result = await wa.sendMessage(row.from_address, { 
-              documentBuffer: row.document_buffer, 
-              mimeType: 'application/pdf', 
-              fileName: (docInfo && docInfo.archivo ? docInfo.archivo.nombre : 'documento.pdf'),
-              text: responseText
-            }, opts);
-            if (result.ok) { sent = true; sendInfo = ' (📄 ' + (docInfo && docInfo.archivo ? docInfo.archivo.nombre : 'PDF') + ')'; }
-            else { console.log('[CodeOpen] Error al enviar documento:', result.error); }
-          } catch(docErr) { console.error('[CodeOpen] Error doc:', docErr.message); }
-        }
-
-        // Enviar como audio si se solicita (TTS)
-        if (asAudio && responseText) {
-          try {
-            var audioBuf = null;
-            // Usar textToSpeech de transcription.js que soporta voz masculina/femenina
-            if (asMale) {
-              var ttsService = require('../services/transcription');
-              var ttsResult = await ttsService.textToSpeech(responseText, 'echo');
-              if (ttsResult && ttsResult.audio) audioBuf = ttsResult.audio;
-            }
-            // Fallback: Google TTS (femenino, gratis, fiable)
-            if (!audioBuf) {
-              var httpLib = require('https');
-              var chunks = [];
-              for (var gi = 0; gi < responseText.length; gi += 180) {
-                var part = responseText.substring(gi, gi + 180);
-                var gUrl = 'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=es&q=' + encodeURIComponent(part);
-                audioBuf = await new Promise(function(resolve) {
-                  httpLib.get(gUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } }, function(resp) {
-                    var c = []; resp.on('data', function(d) { c.push(d); }); resp.on('end', function() { resolve(Buffer.concat(c)); });
-                  }).on('error', function() { resolve(null); });
-                });
-                if (audioBuf && audioBuf.length > 1000) chunks.push(audioBuf);
-              }
-              if (chunks.length > 0) audioBuf = Buffer.concat(chunks);
-            }
-            if (audioBuf) {
-              opts.asAudio = true;
-              var result = await wa.sendMessage(row.from_address, { audioBuffer: audioBuf, mimeType: 'audio/mp3', text: responseText }, opts);
-              if (result.ok) { sent = true; sendInfo = ' (audio)'; }
-              else { sendInfo = ' (error audio: ' + result.error + ')'; console.error('[CodeOpen] Audio send fail:', result.error); }
-            } else {
-              sendInfo = ' (TTS no disponible)';
-              console.error('[CodeOpen] Google TTS no generó audio');
-            }
-          } catch(ttsErr) { 
-            console.error('[CodeOpen] Error TTS:', ttsErr.message);
-            sendInfo = ' (error TTS: ' + ttsErr.message + ')';
-          }
-          if (!sent) {
-            var textResult = await wa.sendMessage(row.from_address, responseText, opts);
-            if (textResult && textResult.ok) { sent = true; sendInfo += ' (enviado como texto)'; }
-          }
-        }
-
-        // Enviar como texto (default solo si NO es audio)
-        if (!sent && !asAudio) {
-          var result = await wa.sendMessage(row.from_address, responseText, opts);
-          if (result.ok) { sent = true; }
-          else { console.log('[CodeOpen] Error WhatsApp:', result.error); }
-        }
-        if (sent) console.log('[CodeOpen] WhatsApp respondido a', row.from_address, sendInfo);
-      } catch(waErr) { console.error('[CodeOpen] Error WhatsApp:', waErr.message); }
+      console.log('[CodeOpen] WhatsApp response not sent: Baileys no longer available. Use WhatsApp overlay manually.');
     }
 
     // Send Email
@@ -1197,17 +1114,7 @@ router.post('/send-document', require('multer')({ dest: '/tmp/codeopen-docs' }).
     if (!messageId) return res.json({ ok: false, error: 'message_id requerido' });
     var row = db.prepare("SELECT * FROM pending_messages WHERE id=? AND status='pending'").get(messageId);
     if (!row) return res.json({ ok: false, error: 'Mensaje no encontrado' });
-    var wa = require('../wa-baileys');
-    var fs = require('fs');
-    var fileBuf = fs.readFileSync(req.file.path);
-    var result = await wa.sendMessage(row.from_address, {
-      documentBuffer: fileBuf,
-      mimeType: req.file.mimetype || 'application/pdf',
-      fileName: req.file.originalname || 'documento.pdf',
-      text: '📄 Documento adjunto'
-    }, { asDocument: true });
-    try { fs.unlinkSync(req.file.path); } catch(e) {}
-    res.json(result);
+    res.json({ ok: false, error: 'WhatsApp Baileys no disponible. Usa el overlay de WhatsApp manualmente.' });
   } catch(e) { res.json({ ok: false, error: e.message }); }
 });
 
@@ -1400,73 +1307,15 @@ router.get('/email-status', async (req, res) => {
 
 // ---- WHATSAPP SESSION MANAGEMENT ----
 router.post('/whatsapp/logout', async (req, res) => {
-  try {
-    db.prepare("DELETE FROM settings WHERE key='baileys_session'").run();
-    // Limpiar mensajes pendientes de WhatsApp para que no aparezcan antiguos
-    db.prepare("DELETE FROM pending_messages WHERE source='baileys' OR source='whatsapp' OR category='whatsapp'").run();
-    try {
-      var fs = require('fs');
-      var authDir = '/tmp/baileys-auth';
-      if (fs.existsSync(authDir)) {
-        fs.readdirSync(authDir).forEach(function(f) {
-          var fp = require('path').join(authDir, f);
-          if (fs.lstatSync(fp).isDirectory()) {
-            fs.readdirSync(fp).forEach(function(sf) { try { fs.unlinkSync(require('path').join(fp, sf)); } catch(e) {} });
-          }
-          try { fs.unlinkSync(fp); } catch(e) {}
-        });
-      }
-    } catch(e) {}
-    try {
-      var wa = require('../wa-baileys');
-      if (wa.end) wa.end();
-    } catch(e) {}
-    res.json({ ok: true, message: 'Sesion de WhatsApp eliminada.', forceReload: true });
-  } catch(e) { res.json({ ok: false, error: e.message }); }
+  res.json({ ok: true, message: 'WhatsApp Baileys no disponible. Usa el overlay de WhatsApp.' });
 });
 
 router.post('/whatsapp/reconnect', async (req, res) => {
-  try {
-    db.prepare("DELETE FROM settings WHERE key='baileys_session'").run();
-    var wa = require('../wa-baileys');
-    try { wa.end(); } catch(e) {}
-    setTimeout(function() {
-      wa.initBaileys().catch(function(e) { console.error('[WA] Reinit:', e.message); });
-    }, 2000);
-    res.json({ ok: true, message: 'Sesion borrada. Nuevo QR disponible en breve.' });
-  } catch(e) { res.json({ ok: false, error: e.message }); }
+  res.json({ ok: true, message: 'WhatsApp Baileys no disponible. Usa el overlay de WhatsApp.' });
 });
 
 router.post('/whatsapp/login-phone', async (req, res) => {
-  try {
-    var phoneNumber = (req.body.phone || '').replace(/[^0-9]/g, '');
-    if (!phoneNumber || phoneNumber.length < 10) return res.json({ ok: false, error: 'Numero invalido. Debe tener al menos 10 digitos.' });
-    
-    var wa = require('../wa-baileys');
-    
-    // Forzar reinicio de Baileys para asegurar pairing limpio
-    try { wa.end(); } catch(e) {}
-    await new Promise(function(r) { setTimeout(r, 3000); });
-    
-    // Inicializar con el numero para pairing
-    await wa.initBaileys(phoneNumber);
-    
-    // Esperar que el socket conecte y genere el pairing code
-    await new Promise(function(r) { setTimeout(r, 8000); });
-    
-    var code = null;
-    try {
-      code = await wa.requestPairingCode(phoneNumber);
-    } catch(e) {
-      console.error('[Phone] Pairing error:', e.message);
-    }
-    
-    if (code) {
-      res.json({ ok: true, message: 'Codigo enviado a tu WhatsApp. Revisa la notificacion.', pairingCode: code });
-    } else {
-      res.json({ ok: true, message: 'No se pudo generar codigo de emparejamiento. Escanea el QR manualmente.', pairingCode: null });
-    }
-  } catch(e) { res.json({ ok: false, error: e.message }); }
+  res.json({ ok: false, error: 'WhatsApp Baileys no disponible. Usa el overlay de WhatsApp.' });
 });
 
 // ---- EMAIL CONFIG ----
@@ -1503,32 +1352,11 @@ router.get('/email/config', (req, res) => {
 
 // ---- BAILEYS WHATSAPP INTEGRATION ----
 router.get('/baileys-qr', async (req, res) => {
-  try {
-    var wa = require('../wa-baileys');
-    var status = wa.getStatus();
-    var qrDataUrl = await wa.getQRDataURL();
-    res.json({ status: status, qr: qrDataUrl, error: status.error });
-  } catch(e) {
-    res.json({ error: e.message });
-  }
+  res.json({ error: 'WhatsApp Baileys no disponible. Usa el overlay de WhatsApp.' });
 });
 
-// Endpoint to serve the QR image directly
 router.get('/baileys-qr-image', async (req, res) => {
-  try {
-    var wa = require('../wa-baileys');
-    var qrDataUrl = await wa.getQRDataURL();
-    if (qrDataUrl) {
-      var base64 = qrDataUrl.split(',')[1];
-      var img = Buffer.from(base64, 'base64');
-      res.writeHead(200, { 'Content-Type': 'image/png', 'Content-Length': img.length });
-      res.end(img);
-    } else {
-      res.status(404).send('QR not available');
-    }
-  } catch(e) {
-    res.status(500).send(e.message);
-  }
+  res.status(404).send('WhatsApp Baileys no disponible.');
 });
 
 // ---- EMAIL HISTORY ----
@@ -1542,68 +1370,19 @@ router.get('/email/history', (req, res) => {
 
 // ---- WHATSAPP CHAT HISTORY ----
 router.get('/whatsapp/profile-pic/:jid', async (req, res) => {
-  try {
-    var wa = require('../wa-baileys');
-    var url = await wa.getProfilePicture(decodeURIComponent(req.params.jid));
-    res.json({ url: url });
-  } catch(e) { res.json({ url: null }); }
+  res.json({ url: null });
 });
 
 router.get('/whatsapp/chats', async (req, res) => {
-  try {
-    var wa = require('../wa-baileys');
-    var result = await wa.getChats();
-    res.json(result);
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  res.json({ chats: [], source: 'baileys no disponible' });
 });
 
 router.get('/whatsapp/chat/:jid/messages', async (req, res) => {
-  try {
-    var wa = require('../wa-baileys');
-    var count = parseInt(req.query.count) || 30;
-    var result = await wa.getChatMessages(decodeURIComponent(req.params.jid), count);
-    res.json(result);
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  res.json({ messages: [], source: 'none' });
 });
 
 router.post('/whatsapp/send', async (req, res) => {
-  try {
-    var jid = req.body.jid;
-    var text = req.body.text;
-    var asAudio = req.body.asAudio || false;
-    if (!jid || !text) return res.status(400).json({ error: 'jid y text requeridos' });
-    
-    var wa = require('../wa-baileys');
-    var opts = {};
-    
-    if (asAudio) {
-      try {
-        var audioBuf = await new Promise(function(resolve) {
-          var httpLib = require('https');
-          var googleUrl = 'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=es&q=' + encodeURIComponent(text.substring(0, 200));
-          httpLib.get(googleUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } }, function(resp) {
-            var chunks = [];
-            resp.on('data', function(c) { chunks.push(c); });
-            resp.on('end', function() {
-              var buf = Buffer.concat(chunks);
-              resolve(buf.length > 1000 ? buf : null);
-            });
-          }).on('error', function() { resolve(null); });
-        });
-        if (audioBuf) {
-          opts.asAudio = true;
-          var result = await wa.sendMessage(jid, { audioBuffer: audioBuf, mimeType: 'audio/mp3', text: text }, opts);
-          return res.json(result);
-        }
-      } catch(e) { console.error('[Audio] TTS error:', e.message); }
-    }
-    
-    if (!asAudio) {
-      var result = await wa.sendMessage(jid, text, opts);
-      return res.json(result);
-    }
-    res.json({ ok: false, error: 'No se pudo generar audio' });
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  res.json({ ok: false, error: 'WhatsApp Baileys no disponible. Usa el overlay de WhatsApp.' });
 });
 
 // ---- CÓDIGO: EJECUTAR ACCIONES EN EL CRM ----

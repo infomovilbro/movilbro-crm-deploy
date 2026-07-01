@@ -341,7 +341,6 @@ function mapApiInstallations(instArr) {
       cto: findField(i, ['cto', 'ctoId', 'cto_id', 'ctoName', 'cto_name']),
       contrata: findField(i, ['contrata', 'contract', 'contractId', 'contract_id', 'contratista', 'proveedor']),
       history: histEvents,
-      partUrl: findField(i, ['partUrl', 'part_url', 'reportUrl', 'downloadUrl', 'documentUrl']),
       installationId: i.installationId || i.id || ''
     };
   });
@@ -384,9 +383,10 @@ router.get('/fiscal/:fiscalId', requireAuth, async (req, res) => {
       apiCustomer = mapApiCustomer(cust);
     }
     apiSubscriptions = mapApiSubscriptions(data.subscriptions);
-    // Filtrar solo lineas activas
+    // Filtrar solo lineas activas (case-insensitive)
     apiSubscriptions = apiSubscriptions.filter(function(s) {
-      return s.status === 'active' || s.status === 'activa';
+      var st = (s.status || '').toLowerCase();
+      return st === 'active' || st === 'activa';
     });
     // Anadir portabilidadId/referencia desde productos
     apiSubscriptions.forEach(function(s) {
@@ -564,14 +564,15 @@ router.get('/:id', requireAuth, async (req, res) => {
       const api = LikesAPI.getApiInstance();
       const raw = await api.request('GET', '/customer/overview?fiscalId=' + encodeURIComponent(fiscalIdOrCustomerId) +
         '&includeCustomer=true&includeSubscriptions=true&includeOrders=true&includePortabilities=true&includeInstallations=true&includeInvoices=true&includePayments=true');
-      const data = raw && raw.data ? raw : raw;
+      const data = raw && raw.data ? raw.data : raw;
       apiOverview = data;
       const cust = data.customer || data;
       apiCustomer = mapApiCustomer(cust);
       apiSubscriptions = mapApiSubscriptions(data.subscriptions);
-      // Filtrar solo lineas activas
+      // Filtrar solo lineas activas (case-insensitive)
       apiSubscriptions = apiSubscriptions.filter(function(s) {
-        return s.status === 'active' || s.status === 'activa';
+        var st = (s.status || '').toLowerCase();
+        return st === 'active' || st === 'activa';
       });
       // Anadir portabilidadId/referencia desde productos
       apiSubscriptions.forEach(function(s) {
@@ -594,21 +595,20 @@ router.get('/:id', requireAuth, async (req, res) => {
     }
   }
 
-  // Obtener documentos KYC desde API y contratos S3 (si hay fiscalId)
+  // Obtener documentos KYC desde API (customer.documentation del overview) y contratos S3
   var kycDocsApi2 = [];
   var contratosS32 = [];
   if (fiscalIdOrCustomerId) {
     try {
-      var api2 = LikesAPI.getApiInstance();
-      // KYC docs from API
-      var apiDocsResp = await api2.request("GET", "/customer/documents?fiscalId=" + encodeURIComponent(fiscalIdOrCustomerId));
-      var apiDocsList2 = apiDocsResp && apiDocsResp.data && Array.isArray(apiDocsResp.data) ? apiDocsResp.data : (Array.isArray(apiDocsResp) ? apiDocsResp : []);
-      apiDocsList2.forEach(function(d) {
+      // KYC docs from overview customer.documentation
+      var custDocs = apiOverview && apiOverview.customer && Array.isArray(apiOverview.customer.documentation) ? apiOverview.customer.documentation : [];
+      custDocs.forEach(function(d) {
+        var docUrl = d.path ? "https://prod-likes-customer-documents.s3.eu-central-1.amazonaws.com/" + d.path : "";
         kycDocsApi2.push({
           tipo: d.type || d.tipo || "documento",
-          archivo: d.name || d.fileName || "",
-          upload_url: d.url || d.downloadUrl || "",
-          download_url: d.url || d.downloadUrl || "",
+          archivo: d.path || d.name || d.fileName || "",
+          upload_url: docUrl,
+          download_url: docUrl,
           estado: "subido"
         });
       });

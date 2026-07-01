@@ -546,22 +546,13 @@ router.post('/facturas/:id/enviar', async (req, res) => {
 
     var gmailUser = db.prepare("SELECT value FROM settings WHERE key='gmail_user'").get()?.value;
     var gmailPass = db.prepare("SELECT value FROM settings WHERE key='gmail_pass'").get()?.value;
-    var smtpHost = db.prepare("SELECT value FROM settings WHERE key='smtp_host'").get()?.value;
-    var smtpUser = db.prepare("SELECT value FROM settings WHERE key='smtp_user'").get()?.value;
-    var smtpPass = db.prepare("SELECT value FROM settings WHERE key='smtp_pass'").get()?.value;
 
     var nodemailer = require('nodemailer');
 
-    // Try sending methods in order
     var methods = [];
 
     if (gmailUser && gmailPass) {
-      methods.push({ name: 'Gmail Service', transporter: nodemailer.createTransport({ service: 'gmail', auth: { user: gmailUser, pass: gmailPass } }), from: gmailUser });
-      methods.push({ name: 'Gmail SMTP', transporter: nodemailer.createTransport({ host: 'smtp.gmail.com', port: 587, secure: false, auth: { user: gmailUser, pass: gmailPass } }), from: gmailUser });
-    }
-    if (smtpHost && smtpUser && smtpPass) {
-      var smtpFrom = db.prepare("SELECT value FROM settings WHERE key='email_from'").get()?.value || smtpUser;
-      methods.push({ name: 'SMTP Custom', transporter: nodemailer.createTransport({ host: smtpHost, port: 587, secure: false, auth: { user: smtpUser, pass: smtpPass } }), from: smtpFrom });
+      methods.push({ name: 'Gmail', transporter: nodemailer.createTransport({ service: 'gmail', auth: { user: gmailUser, pass: gmailPass } }), from: gmailUser });
     }
 
     for (var m of methods) {
@@ -578,7 +569,7 @@ router.post('/facturas/:id/enviar', async (req, res) => {
     }
 
     if (!sent) {
-      return res.json({ ok: false, error: 'No hay método de envío configurado. Configura Gmail en Ajustes > Correo SMTP.' + (lastError ? ' Último error: ' + lastError : '') });
+      return res.json({ ok: false, error: 'No hay método de envío configurado. Configura Gmail en Ajustes > Gmail.' + (lastError ? ' Último error: ' + lastError : '') });
     }
     
     db.prepare('UPDATE isp_facturas SET email_enviado=1 WHERE id=?').run(factura.id);

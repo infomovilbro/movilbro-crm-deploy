@@ -45,6 +45,7 @@
             <tr>
               <th>#</th>
               <th>Cliente</th>
+              <th>DNI/NIF</th>
               <th>Tipo</th>
               <th>Estado</th>
               <th>Tarifa</th>
@@ -55,12 +56,13 @@
           </thead>
           <tbody>
             <% if (contratos.length === 0) { %>
-            <tr><td colspan="8" class="text-center text-muted py-4"><i class="bi bi-inbox"></i> No hay contratos registrados</td></tr>
+            <tr><td colspan="9" class="text-center text-muted py-4"><i class="bi bi-inbox"></i> No hay contratos registrados</td></tr>
             <% } else { %>
               <% contratos.forEach(function(c) { %>
               <tr class="contrato-row">
                 <td><a href="/isp/contratos/<%= c.id %>" class="fw-bold"><%= c.cliente_nombre || ('#' + c.id) %></a></td>
                 <td><%= c.cliente_nombre || '-' %></td>
+                <td><%= c.dni_nif || '-' %></td>
                 <td><span class="badge bg-secondary"><%= c.tipo %></span></td>
                 <td><span class="badge bg-<%= c.estado === 'activo' ? 'success' : c.estado === 'pendiente' ? 'warning' : c.estado === 'baja' ? 'secondary' : 'danger' %> fs-6"><%= c.estado %></span></td>
                 <td><%= c.tarifa || '-' %></td>

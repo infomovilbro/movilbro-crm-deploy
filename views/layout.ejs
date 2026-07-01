@@ -347,16 +347,7 @@
             </div>
             <div id="globalSearchDropdown" class="dropdown-menu shadow-sm p-0" style="max-height:350px;overflow-y:auto;display:none;width:320px;position:absolute;top:100%;left:0;z-index:9999;"></div>
           </div>
-          <!-- AI Chat Widget -->
-          <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" id="aiChatToggle" title="Asistente IA" style="border-radius:20px;padding:4px 12px;">
-            <i class="ri-robot-line"></i>
-            <span class="d-none d-sm-inline">IA</span>
-          </button>
-          <!-- Sync Now -->
-          <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1" id="syncNowBtn" title="Sincronizar ahora con Likes Telecom" style="border-radius:20px;padding:4px 12px;">
-            <i class="ri-refresh-line"></i>
-            <span class="d-none d-sm-inline">Sync</span>
-          </button>
+
           <!-- Notification Bell -->
           <% var _notif = typeof notificaciones !== 'undefined' ? notificaciones : {agenda:[], facturas:[], total:0}; %>
           <div class="dropdown" id="notifDropdown">
@@ -589,14 +580,6 @@
         if (s) s.classList.remove('show');
         e.target.classList.remove('show');
         document.querySelectorAll('.bottom-nav-item').forEach(function(i) { i.classList.remove('active'); });
-        return;
-      }
-      // Sidebar AI toggle
-      var aiToggle = e.target.closest('#sidebarAiToggle');
-      if (aiToggle) {
-        e.preventDefault();
-        var chatToggle = document.getElementById('aiChatToggle');
-        if (chatToggle) chatToggle.click();
         return;
       }
     });
@@ -912,25 +895,7 @@
   <div class="container-fluid p-0"><%- body %></div>
   <% } %>
 
-  <!-- AI Chat Panel -->
-  <div id="aiChatPanel" class="ai-chat-panel">
-    <div class="ai-chat-header">
-      <i class="ri-robot-line"></i> Asistente IA
-      <button id="aiChatClose" class="btn btn-sm btn-link text-white ms-auto p-0"><i class="ri-close-line" style="font-size:1.3rem;"></i></button>
-    </div>
-    <div class="ai-chat-messages" id="aiChatMessages">
-      <div class="ai-message">
-        <div class="ai-avatar"><i class="ri-robot-line"></i></div>
-        <div class="ai-bubble">
-          ¡Hola! Soy tu asistente IA del CRM. Puedo ayudarte a consultar clientes, productos, facturas y más. ¿En qué te ayudo?
-        </div>
-      </div>
-    </div>
-    <div class="ai-chat-input">
-      <input type="text" id="aiChatInput" class="form-control form-control-sm" placeholder="Escribe tu consulta..." autocomplete="off">
-      <button id="aiChatSend" class="btn btn-primary btn-sm"><i class="ri-send-plane-2-line"></i></button>
-    </div>
-  </div>
+
 
   <% if (user && user.rol === 'admin') { %>
   <div id="uiEditorPanel" class="ui-editor-panel">
@@ -1812,68 +1777,7 @@
     })();
   </script>
   <% } %>
-  <script>
-    // AI Chat Widget
-    (function() {
-      const toggle = document.getElementById('aiChatToggle');
-      const panel = document.getElementById('aiChatPanel');
-      const close = document.getElementById('aiChatClose');
-      const input = document.getElementById('aiChatInput');
-      const send = document.getElementById('aiChatSend');
-      const messages = document.getElementById('aiChatMessages');
 
-      if (!toggle || !panel) return;
-
-      toggle.addEventListener('click', function(e) {
-        e.stopPropagation();
-        panel.classList.toggle('open');
-        if (panel.classList.contains('open')) setTimeout(() => input?.focus(), 300);
-      });
-
-      close?.addEventListener('click', function() { panel.classList.remove('open'); });
-
-      document.addEventListener('click', function(e) {
-        if (panel.classList.contains('open') && !panel.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) {
-          panel.classList.remove('open');
-        }
-      });
-
-      function addMessage(text, isUser) {
-        const div = document.createElement('div');
-        div.className = isUser ? 'user-message' : 'ai-message';
-        if (isUser) {
-          div.innerHTML = '<div class="user-bubble">' + text + '</div>';
-        } else {
-          div.innerHTML = '<div class="ai-avatar"><i class="ri-robot-line"></i></div><div class="ai-bubble">' + text + '</div>';
-        }
-        messages.appendChild(div);
-        messages.scrollTop = messages.scrollHeight;
-      }
-
-      function sendMessage() {
-        const text = input.value.trim();
-        if (!text) return;
-        addMessage(text, true);
-        input.value = '';
-
-        fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: text })
-        })
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-          setTimeout(function() { addMessage(data.response, false); }, 300 + Math.random() * 300);
-        })
-        .catch(function() {
-          setTimeout(function() { addMessage('Lo siento, hubo un error de conexión. Inténtalo de nuevo.', false); }, 500);
-        });
-      }
-
-      send?.addEventListener('click', sendMessage);
-      input?.addEventListener('keydown', function(e) { if (e.key === 'Enter') sendMessage(); });
-    })();
-  </script>
 <script>
 (function() {
   var input = document.getElementById('globalSearchInput');
@@ -1925,37 +1829,7 @@
   });
 })();
 
-// Sync Now button
-(function() {
-  var btn = document.getElementById('syncNowBtn');
-  if (btn) {
-    btn.addEventListener('click', function() {
-      var icon = btn.querySelector('i');
-      icon.className = 'ri-refresh-line spinner';
-      btn.disabled = true;
-      btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Sincro...';
-      fetch('/isp/re-sync', { method: 'POST' })
-        .then(function(r) { return r.json(); })
-        .then(function(d) {
-          if (d.ok) {
-            btn.innerHTML = '<i class="ri-check-line"></i> OK';
-            setTimeout(function() { btn.innerHTML = '<i class="ri-refresh-line"></i><span class="d-none d-sm-inline">Sync</span>'; btn.disabled = false; }, 2000);
-          } else {
-            btn.innerHTML = '<i class="ri-close-line"></i> Error';
-            console.error('Sync error:', d.error);
-            setTimeout(function() { btn.innerHTML = '<i class="ri-refresh-line"></i><span class="d-none d-sm-inline">Sync</span>'; btn.disabled = false; }, 3000);
-          }
-          // Show progress bar
-          var bar = document.getElementById('syncProgressBar');
-          if (bar) bar.classList.remove('d-none');
-        })
-        .catch(function() {
-          btn.innerHTML = '<i class="ri-close-line"></i> Error';
-          setTimeout(function() { btn.innerHTML = '<i class="ri-refresh-line"></i><span class="d-none d-sm-inline">Sync</span>'; btn.disabled = false; }, 3000);
-        });
-    });
-  }
-})();
+
 
 // Sync progress - solo comprobar al cargar la página, no cada 5s
 (function() {
@@ -1997,7 +1871,10 @@
 })();
 </script>
 
-<!-- WhatsApp Persistent Overlay -->
+  // Keep-alive ping to prevent Render from spinning down
+  setInterval(function() { fetch('/health').catch(function(){}); }, 300000);
+
+ <!-- WhatsApp Persistent Overlay -->
 <div id="waOverlay" style="display:none;position:fixed;top:0;right:0;width:420px;height:100vh;background:#fff;z-index:9999;box-shadow:-4px 0 24px rgba(0,0,0,0.15);flex-direction:column;animation:slideIn 0.2s ease;">
   <style>
     @keyframes slideIn { from { transform:translateX(100%); } to { transform:translateX(0); } }

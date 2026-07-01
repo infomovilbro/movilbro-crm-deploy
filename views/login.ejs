@@ -18,13 +18,13 @@
       Si eres nuevo, pídeme crear tu usuario con tu correo para acceso personal.
     </div>
 
-    <!-- Mostrar contraseña temporal si el SMTP no está configurado -->
+    <!-- Mostrar contraseña temporal si no hay Gmail configurado -->
     <% if (typeof mostrarPassword !== 'undefined' && mostrarPassword && typeof passwordTemporal !== 'undefined') { %>
     <div class="alert alert-warning">
-      <strong><i class="bi bi-exclamation-triangle"></i> SMTP no configurado</strong>
+      <strong><i class="bi bi-exclamation-triangle"></i> Sin correo configurado</strong>
       <p class="mb-1 mt-2 small">Tu contraseña temporal es:</p>
       <div style="background:#fff;padding:12px;border-radius:6px;text-align:center;font-size:22px;font-weight:700;letter-spacing:2px;color:#0050A1;margin:8px 0;border:2px dashed #0050A1;"><%= passwordTemporal %></div>
-      <p class="small mb-0">Guárdala. Después de iniciar sesión, configura el SMTP en el panel de administración para recibir las contraseñas por correo.</p>
+      <p class="small mb-0">Guárdala. Después de iniciar sesión, configura Gmail en el panel de administración para recibir las contraseñas por correo.</p>
     </div>
     <% } %>
 

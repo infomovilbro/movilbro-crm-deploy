@@ -686,7 +686,7 @@
                       data-ont="<%= i.ont || '' %>"
                       data-cto="<%= i.cto || '' %>"
                       data-contrata="<%= i.contrata || '' %>"
-                      data-parturl="<%= i.partUrl || '' %>"
+
                       data-installationid="<%= i.installationId || i.id || '' %>"
                       data-history='<%= JSON.stringify(i.history || []) %>'>
                       <i class="bi bi-eye"></i> Ver Detalle
@@ -984,9 +984,7 @@
         <div id="instDetHistory" style="max-height:200px;overflow:auto;">
           <div class="text-center text-muted py-2">Sin historial</div>
         </div>
-        <div id="instDetPartContainer" class="mt-2" style="display:none;">
-          <a id="instDetPartLink" href="#" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-download"></i> Descargar parte</a>
-        </div>
+
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
@@ -1368,15 +1366,7 @@ document.addEventListener('DOMContentLoaded', function() {
           historyDiv.innerHTML = '<div class="text-center text-muted py-2">Sin historial disponible</div>';
         }
       } catch(e) { historyDiv.innerHTML = '<div class="text-center text-muted py-2">Sin historial</div>'; }
-      // Part download
-      var partContainer = document.getElementById('instDetPartContainer');
-      var partUrl = this.dataset.parturl || '';
-      if (partUrl) {
-        document.getElementById('instDetPartLink').href = partUrl;
-        partContainer.style.display = 'block';
-      } else {
-        partContainer.style.display = 'none';
-      }
+
       new bootstrap.Modal(document.getElementById('instalacionDetailModal')).show();
     });
   });

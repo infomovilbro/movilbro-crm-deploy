@@ -12,7 +12,7 @@ router.get('/', async (req, res) => {
     try { var cr = db.prepare('SELECT COUNT(*) as c FROM isp_contratos').get(); localCount = cr.c; } catch(e) {}
     
     if (localCount > 0) {
-      var contratos = db.prepare('SELECT c.*, cl.nombre as cliente_nombre FROM isp_contratos c LEFT JOIN clients cl ON c.client_id=cl.id ORDER BY c.created_at DESC').all();
+      var contratos = db.prepare('SELECT c.*, cl.nombre as cliente_nombre, cl.dni_nif FROM isp_contratos c LEFT JOIN clients cl ON c.client_id=cl.id ORDER BY c.created_at DESC').all();
       return res.render('isp/contratos', { title: 'Contratos', contratos });
     }
 
@@ -29,19 +29,24 @@ router.get('/', async (req, res) => {
         return api.request('GET', '/subscriptions?fiscalId=' + encodeURIComponent(fid) + '&brand_id=264')
           .then(function(data) { return Array.isArray(data) ? data : (data.data || data.subscriptions || []); });
       }));
-      results.forEach(function(r) {
+      results.forEach(function(r, idx) {
         if (r.status === 'fulfilled' && Array.isArray(r.value)) {
-          r.value.forEach(function(s) { allSubs.push(s); });
+          var currentFiscalId = batch[idx];
+          r.value.forEach(function(s) {
+            s._fiscalId = currentFiscalId;
+            allSubs.push(s);
+          });
         }
       });
     }
 
     var contratos = allSubs.map(function(s) {
-      var subFiscalId = s.fiscalId || s.fiscalId || '';
+      var subFiscalId = s._fiscalId || '';
       var cliente = customers.find(function(c) { return c.fiscalId === subFiscalId; });
       return {
         id: s.subscriptionId || s.id || subFiscalId,
         cliente_nombre: cliente ? (cliente.name + ' ' + (cliente.firstSurname || '')) : (subFiscalId || ''),
+        dni_nif: cliente ? cliente.fiscalId : (subFiscalId || ''),
         tipo: s.productName || (s.products && s.products[0] ? s.products[0].productName : '') || '',
         tarifa: s.productName || (s.products && s.products[0] ? s.products[0].productName : '') || '',
         precio: s.price || (s.products && s.products[0] ? s.products[0].price : 0) || 0,
