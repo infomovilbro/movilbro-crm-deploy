@@ -145,6 +145,19 @@
   </div>
   <div id="chatHistoryOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:999;display:none;"></div>
 
+  <!-- CRM Iframe Panel -->
+  <div id="crmIframePanel" style="position:fixed;top:0;right:-600px;width:580px;height:100vh;background:var(--bg-card);border-left:1px solid var(--border);z-index:1001;transition:right 0.3s ease;display:flex;flex-direction:column;">
+    <div style="padding:10px 14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);flex-shrink:0;">
+      <button id="closeCrmIframe" style="background:none;border:0;cursor:pointer;font-size:1.2rem;color:var(--text-dim);padding:4px;">&larr;</button>
+      <div style="flex:1;min-width:0;">
+        <span id="crmIframeTitle" style="font-weight:600;font-size:0.8rem;"></span>
+      </div>
+      <button id="sendToContactBtn" style="background:var(--accent);color:#fff;border:0;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:0.75rem;display:none;"><i class="ri-send-plane-line"></i> Enviar al contacto</button>
+    </div>
+    <iframe id="crmIframe" style="flex:1;width:100%;border:0;background:#fff;"></iframe>
+  </div>
+  <div id="crmIframeOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:1000;display:none;"></div>
+
   <!-- Pending Panel -->
   <div id="pendingPanel" style="position:fixed;top:0;right:-400px;width:380px;height:100vh;background:var(--bg-card);border-left:1px solid var(--border);z-index:1000;transition:right 0.3s ease;display:flex;flex-direction:column;">
     <div style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);flex-shrink:0;">
@@ -1174,7 +1187,7 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
       card.style.cssText = 'background:var(--bg-card);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;overflow:hidden;animation:fadeScale 0.3s ease;';
       var initial = g.contact.charAt(0).toUpperCase();
       card.innerHTML = '<div class="wa-contact-header" style="display:flex;align-items:center;gap:8px;padding:12px 16px;cursor:pointer;transition:background 0.2s;" onclick="toggleContactGroup(this)">' +
-        '<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#25D366,#128C7E);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:0.85rem;flex-shrink:0;position:relative;overflow:hidden;"><img class="profile-pic" data-address="' + escHtml(g.address) + '" src="" style="width:100%;height:100%;object-fit:cover;display:none;position:absolute;top:0;left:0;" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'"><span class="profile-initial" style="display:block;">' + initial + '</span></div>' +
+        '<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#25D366,#128C7E);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:0.85rem;flex-shrink:0;position:relative;overflow:hidden;"><img class="profile-pic" data-address="' + escHtml(g.address) + '" src="" style="width:100%;height:100%;object-fit:cover;display:none;position:absolute;top:0;left:0;" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'" onload="this.style.display=\'block\';this.nextElementSibling.style.display=\'none\'"><span class="profile-initial" style="display:block;">' + initial + '</span></div>' +
         '<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:0.85rem;">' + escHtml(g.contact) + ' <span style="font-weight:400;font-size:0.7rem;color:var(--text-faint);">' + (g.address && g.address.includes('@s.whatsapp.net') ? g.address.replace('@s.whatsapp.net','').replace(/[^0-9]/g,'') : g.address && g.address.includes('@lid') ? '' : escHtml(g.address || '')) + '</span></div><div style="font-size:0.7rem;color:var(--text-dim);">' + g.messages.length + ' mensaje' + (g.messages.length !== 1 ? 's' : '') + (unanalyzed > 0 ? ' · <span style="color:#f59e0b;">' + unanalyzed + ' sin analizar</span>' : '') + '</div></div>' +
         '<button class="btn-chat-history" data-address="' + escHtml(g.address) + '" data-name="' + escHtml(g.contact) + '" style="background:none;border:1px solid var(--border);border-radius:8px;padding:4px 8px;cursor:pointer;font-size:0.7rem;color:var(--text-muted);white-space:nowrap;" title="Ver historial completo de la conversación"><i class="ri-chat-history-line"></i> Historial</button>' +
         '<div class="crm-actions-wrapper" style="position:relative;display:inline-block;">' +
@@ -1546,7 +1559,7 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
       }
       var esc = function(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
       var lienzo = function(icon, label, url) {
-        return '<a href="' + esc(url) + '" target="_blank" style="display:flex;align-items:center;gap:6px;padding:7px 10px;border-radius:6px;text-decoration:none;color:var(--text);font-size:0.75rem;transition:background 0.15s;" onmouseover="this.style.background=\'var(--border)\'" onmouseout="this.style.background=\'transparent\'"><i class="' + esc(icon) + '" style="width:16px;text-align:center;"></i>' + esc(label) + '</a>';
+        return '<a href="javascript:void(0)" data-crm-url="' + esc(url) + '" data-crm-label="' + esc(label) + '" class="crm-iframe-link" style="display:flex;align-items:center;gap:6px;padding:7px 10px;border-radius:6px;text-decoration:none;color:var(--text);font-size:0.75rem;transition:background 0.15s;" onmouseover="this.style.background=\'var(--border)\'" onmouseout="this.style.background=\'transparent\'"><i class="' + esc(icon) + '" style="width:16px;text-align:center;"></i>' + esc(label) + '</a>';
       };
       var showCRM = fid && fid !== phone;
       dd.innerHTML = '<div style="padding:6px 10px;font-size:0.7rem;color:var(--text-faint);border-bottom:1px solid var(--border);margin-bottom:4px;">' + esc(name) + ' (' + esc(phone) + ')</div>' +
@@ -1588,6 +1601,36 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
 
   $('closeChatHistory').addEventListener('click', closeChatHistory);
   chatHistoryOverlay.addEventListener('click', closeChatHistory);
+
+  // ========== CRM IFRAME PANEL ==========
+  window.openCrmIframe = function(url, label) {
+    $('crmIframe').src = url;
+    $('crmIframeTitle').textContent = label || 'CRM';
+    $('crmIframePanel').style.right = '0';
+    $('crmIframeOverlay').style.display = 'block';
+    var sendBtn = $('sendToContactBtn');
+    sendBtn.style.display = 'inline-flex';
+    sendBtn.onclick = function() {
+      var input = $('chatHistoryInput');
+      if (input) { input.value = 'Mira esto: ' + url; }
+      closeCrmIframe();
+    };
+  };
+  window.closeCrmIframe = function() {
+    $('crmIframePanel').style.right = '-600px';
+    $('crmIframeOverlay').style.display = 'none';
+    $('crmIframe').src = '';
+  };
+  $('closeCrmIframe').addEventListener('click', closeCrmIframe);
+  $('crmIframeOverlay').addEventListener('click', closeCrmIframe);
+  // Delegated clicks for crm-iframe-link
+  document.addEventListener('click', function(e) {
+    var link = e.target.closest('.crm-iframe-link');
+    if (link) {
+      e.preventDefault();
+      openCrmIframe(link.dataset.crmUrl, link.dataset.crmLabel);
+    }
+  });
 
   function loadChatHistory(address) {
     var encoded = encodeURIComponent(address);

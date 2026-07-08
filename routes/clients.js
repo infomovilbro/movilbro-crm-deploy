@@ -429,6 +429,16 @@ router.get('/fiscal/:fiscalId', requireAuth, async (req, res) => {
     tipo_cliente: apiCustomer.customerType || 'particular', stripe_payment_method: ''
   };
 
+  // Sincronizar teléfono desde API a DB del servidor para que aparezca en lista de clientes
+  if (apiCustomer.phone && fiscalId) {
+    try {
+      var existingForPhone = db.prepare("SELECT id, telefono FROM clients WHERE dni_nif=? OR likes_customer_id=?").get(fiscalId, fiscalId);
+      if (existingForPhone && !existingForPhone.telefono) {
+        db.prepare("UPDATE clients SET telefono=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").run(apiCustomer.phone, existingForPhone.id);
+      }
+    } catch(e) {}
+  }
+
   var terminatedStatuses = ['terminada', 'baja', 'cancelled', 'cancelada'];
   var allLines = [];
   apiSubscriptions.forEach(function(s) {
@@ -706,38 +716,42 @@ router.get('/:id', requireAuth, async (req, res) => {
   });
 
   // Intentar obtener PIN/PUK de API para cada linea
-  // Primero intentar endpoint /line/pinpuk, fallback a getLineInfo
+  // Primero intentar endpoint /line con withSims=true (el que SÍ devuelve simInfo.pin/puk)
+  // Luego /line/pinpuk como fallback
   try {
     var api = LikesAPI.getApiInstance();
     for (var li = 0; li < allLines.length; li++) {
       if (allLines[li].linea && (!allLines[li].pin || !allLines[li].puk)) {
         try {
-          // Intentar endpoint especifico de PIN/PUK
-          var pinpukResp = await api.getLinePINPUK(allLines[li].linea);
-          if (pinpukResp) {
-            var pinpukData = pinpukResp.data || pinpukResp;
-            if (Array.isArray(pinpukData)) pinpukData = pinpukData[0];
-            if (pinpukData) {
-              if (!allLines[li].pin) allLines[li].pin = pinpukData.pin || pinpukData.pinCode || pinpukData.puk1 || "";
-              if (!allLines[li].puk) allLines[li].puk = pinpukData.puk || pinpukData.pukCode || pinpukData.puk1 || "";
-              if (!allLines[li].iccid) allLines[li].iccid = pinpukData.icc || pinpukData.iccid || pinpukData.iccidNumber || "";
+          var lineInfo = await api.getLineInfo(allLines[li].linea);
+          if (lineInfo) {
+            var info = Array.isArray(lineInfo) ? lineInfo[0] : (lineInfo.data || lineInfo);
+            if (info) {
+              // El PIN/PUK real esta en simInfo (estructura de la API Likes)
+              if (info.simInfo) {
+                if (!allLines[li].pin) allLines[li].pin = info.simInfo.pin || info.simInfo.pinCode || "";
+                if (!allLines[li].puk) allLines[li].puk = info.simInfo.puk || info.simInfo.pukCode || "";
+                if (!allLines[li].iccid) allLines[li].iccid = info.simInfo.icc || info.simInfo.iccid || info.icc || "";
+              }
+              if (!allLines[li].pin) allLines[li].pin = info.pin || info.pinCode || info.puk1 || "";
+              if (!allLines[li].puk) allLines[li].puk = info.puk || info.pukCode || info.puk1 || "";
+              if (!allLines[li].iccid) allLines[li].iccid = info.icc || info.iccid || info.iccidNumber || "";
             }
           }
         } catch(e) {
-          // Fallback: si /line/pinpuk no existe, usar getLineInfo
+          // Fallback: endpoint especifico de PIN/PUK
           try {
-            var lineInfo = await api.getLineInfo(allLines[li].linea);
-            if (lineInfo) {
-              var info = Array.isArray(lineInfo) ? lineInfo[0] : (lineInfo.data || lineInfo);
-              if (info) {
-                if (!allLines[li].pin) allLines[li].pin = info.pin || info.pinCode || info.puk1 || "";
-                if (!allLines[li].puk) allLines[li].puk = info.puk || info.pukCode || info.puk1 || "";
-                if (!allLines[li].iccid) allLines[li].iccid = info.icc || info.iccid || info.iccidNumber || "";
+            var pinpukResp = await api.getLinePINPUK(allLines[li].linea);
+            if (pinpukResp) {
+              var pinpukData = pinpukResp.data || pinpukResp;
+              if (Array.isArray(pinpukData)) pinpukData = pinpukData[0];
+              if (pinpukData) {
+                if (!allLines[li].pin) allLines[li].pin = pinpukData.pin || pinpukData.pinCode || pinpukData.puk1 || "";
+                if (!allLines[li].puk) allLines[li].puk = pinpukData.puk || pinpukData.pukCode || pinpukData.puk1 || "";
+                if (!allLines[li].iccid) allLines[li].iccid = pinpukData.icc || pinpukData.iccid || pinpukData.iccidNumber || "";
               }
             }
-          } catch(e2) {
-            // Fallback silencioso
-          }
+          } catch(e2) {}
         }
       }
     }
@@ -1258,39 +1272,43 @@ router.get('/api/find-by-phone/:phone', requireAuth, async (req, res) => {
 router.post('/:id/line/:line/pinpuk', requireAuth, async (req, res) => {
   var api = LikesAPI.getApiInstance();
   var lineNum = req.params.line;
+  // Helper para extraer pin/puk de cualquier objeto (busca tambien en simInfo)
+  function extractPinPuk(obj) {
+    if (!obj) return null;
+    var d = obj.data || obj;
+    if (Array.isArray(d)) d = d[0];
+    if (!d) return null;
+    // Buscar en simInfo primero (estructura real de la API)
+    if (d.simInfo && (d.simInfo.pin || d.simInfo.puk)) return { pin: d.simInfo.pin, puk: d.simInfo.puk, icc: d.simInfo.icc || d.icc || '' };
+    // Buscar en raiz
+    if (d.pin || d.puk || d.pinCode || d.pukCode) return { pin: d.pin || d.pinCode, puk: d.puk || d.pukCode, icc: d.icc || d.iccid || '' };
+    // Buscar en sims array
+    if (Array.isArray(d.sims) && d.sims.length > 0 && (d.sims[0].pin || d.sims[0].puk)) return { pin: d.sims[0].pin, puk: d.sims[0].puk, icc: d.sims[0].icc || '' };
+    // Buscar en customer
+    if (d.customer && (d.customer.pin || d.customer.puk)) return { pin: d.customer.pin, puk: d.customer.puk, icc: d.customer.icc || '' };
+    return null;
+  }
+  // 1. Intentar /line/pinpuk endpoint especifico
   try {
-    var pp = await api.getLinePINPUK(lineNum);
-    if (pp) {
-      var ppd = pp.data || pp;
-      if (Array.isArray(ppd)) ppd = ppd[0];
-      if (ppd && (ppd.pin || ppd.puk || ppd.pinCode || ppd.pukCode)) return res.json({ ok: true, data: ppd });
-    }
+    var ppd = extractPinPuk(await api.getLinePINPUK(lineNum));
+    if (ppd) return res.json({ ok: true, data: ppd });
   } catch(e) {}
+  // 2. Intentar /line con withSims=true (el que SÍ devuelve simInfo.pin/puk)
   try {
-    var li = await api.getLineInfo(lineNum);
-    if (li) {
-      var lid = li.data || li;
-      if (Array.isArray(lid)) lid = lid[0];
-      if (lid && (lid.pin || lid.puk)) return res.json({ ok: true, data: lid });
-    }
+    var lid = extractPinPuk(await api.getLineInfo(lineNum));
+    if (lid) return res.json({ ok: true, data: lid });
   } catch(e2) {}
+  // 3. Intentar /line/sim
   try {
-    var sim = await api.request('GET', '/line/sim?lineNumber=' + encodeURIComponent(lineNum));
-    if (sim) {
-      var simd = sim.data || sim;
-      if (Array.isArray(simd)) simd = simd[0];
-      if (simd && (simd.pin || simd.puk || simd.pinCode || simd.pukCode)) return res.json({ ok: true, data: simd });
-    }
+    var simd = extractPinPuk(await api.request('GET', '/line/sim?lineNumber=' + encodeURIComponent(lineNum)));
+    if (simd) return res.json({ ok: true, data: simd });
   } catch(e3) {}
+  // 4. Intentar /line sin extras
   try {
-    var inf2 = await api.request('GET', '/line?lineNumber=' + encodeURIComponent(lineNum) + '&withSims=true');
-    if (inf2) {
-      var i2d = inf2.data || inf2;
-      if (Array.isArray(i2d)) i2d = i2d[0];
-      if (i2d && (i2d.pin || i2d.puk)) return res.json({ ok: true, data: i2d });
-    }
+    var i2d = extractPinPuk(await api.request('GET', '/line?lineNumber=' + encodeURIComponent(lineNum) + '&withSims=true'));
+    if (i2d) return res.json({ ok: true, data: i2d });
   } catch(e4) {}
-  res.json({ ok: false, error: 'No se pudo obtener PIN/PUK tras 4 intentos' });
+  res.json({ ok: false, error: 'No se pudo obtener PIN/PUK' });
 });
 
 // Generar nuevo PIN/PUK

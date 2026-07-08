@@ -259,7 +259,7 @@
                             <div class="d-flex gap-1 mt-1 justify-content-end">
                               <button class="btn btn-sm btn-outline-warning py-0 toggle-block" style="font-size:0.65rem;line-height:1;" data-line="<%= p.lineNumber || s.lineNumber || '' %>" data-client="<%= _cid %>" data-blocked="<%= est !== 'activa' && est !== 'active' %>" title="<%= (est === 'activa' || est === 'active') ? 'Bloquear' : 'Desbloquear' %>"><i class="bi <%= (est === 'activa' || est === 'active') ? 'bi-lock' : 'bi-unlock' %>"></i></button>
                               <button class="btn btn-sm btn-outline-primary py-0 cambiar-tarifa-btn" style="font-size:0.65rem;line-height:1;" data-line="<%= p.lineNumber || s.lineNumber || '' %>" title="Cambiar tarifa"><i class="bi bi-arrow-left-right"></i></button>
-                              <button class="btn btn-sm btn-outline-dark py-0 mostrar-pinpuk" style="font-size:0.65rem;line-height:1;" data-line="<%= p.lineNumber || s.lineNumber || '' %>" data-pin="<%= p.pin || s.pin || '' %>" data-puk="<%= p.puk || s.puk || '' %>" title="PIN/PUK"><i class="bi bi-key"></i></button>
+                              <button class="btn btn-sm btn-outline-dark py-0 mostrar-pinpuk" style="font-size:0.65rem;line-height:1;" data-line="<%= p.lineNumber || s.lineNumber || '' %>" data-pin="<%= p.pin || s.pin || '' %>" data-puk="<%= p.puk || s.puk || '' %>" data-icc="<%= p.icc || s.icc || '' %>" title="PIN/PUK"><i class="bi bi-key"></i></button>
                             </div>
                           </div>
                         </div>
@@ -345,7 +345,7 @@
                       <button class="btn btn-sm btn-outline-secondary duplicar-sim-btn" data-line="<%= linea %>" title="Duplicar SIM">
                         <i class="bi bi-sd-card"></i>
                       </button>
-                      <button class="btn btn-sm btn-outline-dark mostrar-pinpuk" data-line="<%= linea %>" data-pin="<%= p.pin || s.pin || '' %>" data-puk="<%= p.puk || s.puk || '' %>" title="PIN/PUK">
+                      <button class="btn btn-sm btn-outline-dark mostrar-pinpuk" data-line="<%= linea %>" data-pin="<%= p.pin || s.pin || '' %>" data-puk="<%= p.puk || s.puk || '' %>" data-icc="<%= p.icc || s.icc || '' %>" title="PIN/PUK">
                         <i class="bi bi-key"></i>
                       </button>
                     </div>
@@ -383,7 +383,7 @@
                       <button class="btn btn-sm btn-outline-secondary duplicar-sim-btn" data-line="<%= l.linea %>" title="Duplicar SIM">
                         <i class="bi bi-sd-card"></i>
                       </button>
-                      <button class="btn btn-sm btn-outline-dark mostrar-pinpuk" data-line="<%= l.linea %>" data-pin="<%= l.pin || '' %>" data-puk="<%= l.puk || '' %>" title="PIN/PUK">
+                      <button class="btn btn-sm btn-outline-dark mostrar-pinpuk" data-line="<%= l.linea %>" data-pin="<%= l.pin || '' %>" data-puk="<%= l.puk || '' %>" data-icc="<%= l.iccid || '' %>" title="PIN/PUK">
                         <i class="bi bi-key"></i>
                       </button>
                     </div>
@@ -697,20 +697,35 @@
                     <div class="col-md-4 col-6">
                       <div class="card border h-100">
                         <div class="card-body text-center py-3">
+                          <% var isImage = d.download_url && (d.download_url.match(/\.(jpeg|jpg|png|webp|gif)/i)); %>
+                          <% if (isImage) { %>
+                          <a href="<%= d.download_url %>" target="_blank">
+                            <img src="<%= d.download_url %>" alt="<%= d.tipo %>" style="max-width:100%;max-height:100px;object-fit:contain;border-radius:4px;" onerror="this.style.display='none';this.nextElementSibling.style.display='block';"><i class="bi bi-file-earmark-image" style="font-size:2rem;display:none;"></i>
+                          </a>
+                          <% } else { %>
                           <i class="bi bi-file-earmark-image" style="font-size:2rem;"></i>
+                          <% } %>
                           <div class="mt-1"><small><strong><%= d.tipo || 'Documento' %></strong></small></div>
                           <div class="mt-1">
                             <span class="badge bg-<%= d.estado === 'subido' ? 'success' : 'warning' %>"><%= d.estado %></span>
                           </div>
-                          <% if (d.download_url) { %>
-                          <a href="<%= d.download_url %>" target="_blank" class="btn btn-sm btn-outline-primary mt-2">
-                            <i class="bi bi-download"></i> Descargar (Drive)
-                          </a>
-                          <% } else if (d.archivo) { %>
-                          <a href="/uploads/kyc/<%= d.archivo %>" target="_blank" class="btn btn-sm btn-outline-primary mt-2">
-                            <i class="bi bi-eye"></i> Ver
-                          </a>
-                          <% } %>
+                          <div class="mt-2 d-flex gap-1 justify-content-center">
+                            <% if (d.download_url) { %>
+                            <a href="<%= d.download_url %>" target="_blank" class="btn btn-sm btn-outline-primary" title="Ver">
+                              <i class="bi bi-eye"></i>
+                            </a>
+                            <a href="<%= d.download_url %>" download target="_blank" class="btn btn-sm btn-outline-secondary" title="Descargar">
+                              <i class="bi bi-download"></i>
+                            </a>
+                            <% } else if (d.archivo) { %>
+                            <a href="/uploads/kyc/<%= d.archivo %>" target="_blank" class="btn btn-sm btn-outline-primary" title="Ver">
+                              <i class="bi bi-eye"></i>
+                            </a>
+                            <a href="/uploads/kyc/<%= d.archivo %>" download class="btn btn-sm btn-outline-secondary" title="Descargar">
+                              <i class="bi bi-download"></i>
+                            </a>
+                            <% } %>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -740,9 +755,10 @@
                     <div class="mt-1"><small><strong><%= d.tipo || 'Documento' %></strong></small></div>
                     <div class="mt-1"><span class="badge bg-success"><%= d.estado || 'subido' %></span></div>
                     <% if (d.download_url) { %>
-                    <a href="<%= d.download_url %>" target="_blank" class="btn btn-sm btn-outline-primary mt-2">
-                      <i class="bi bi-eye"></i> Ver
-                    </a>
+                    <div class="mt-2 d-flex gap-1 justify-content-center">
+                      <a href="<%= d.download_url %>" target="_blank" class="btn btn-sm btn-outline-primary" title="Ver"><i class="bi bi-eye"></i></a>
+                      <a href="<%= d.download_url %>" download target="_blank" class="btn btn-sm btn-outline-secondary" title="Descargar"><i class="bi bi-download"></i></a>
+                    </div>
                     <% } %>
                   </div>
                 </div>
@@ -979,7 +995,8 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body text-center">
-        <p class="mb-2"><strong>L&iacute;nea:</strong> <span id="pinPukLinea" class="text-primary"></span></p>
+        <p class="mb-1"><strong>L&iacute;nea:</strong> <span id="pinPukLinea" class="text-primary"></span></p>
+        <p class="mb-2 small text-muted">ICC: <span id="pinPukIcc">-</span></p>
         <div class="row g-2">
           <div class="col-6">
             <div class="border rounded p-3 bg-light">
@@ -1224,11 +1241,11 @@
 </div>
 
 <script>
-function mostrarPinPuk(linea, pin, puk) {
+function mostrarPinPuk(linea, pin, puk, icc) {
   document.getElementById('pinPukLinea').textContent = linea || '-';
   document.getElementById('pinPukPin').textContent = pin || '-';
   document.getElementById('pinPukPuk').textContent = puk || '-';
-  // Store line for generatePinPuk
+  document.getElementById('pinPukIcc').textContent = icc || '-';
   document.getElementById('pinPukModal').dataset.line = linea || '';
   new bootstrap.Modal(document.getElementById('pinPukModal')).show();
 }
@@ -1499,29 +1516,39 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // ========== PIN/PUK BUTTONS ==========
+  function getIccFromRow(btn) {
+    var row = btn.closest('tr');
+    if (!row) return '';
+    var cells = row.querySelectorAll('td');
+    for (var c of cells) {
+      var txt = (c.textContent || '').trim();
+      if (txt.length > 15 && !isNaN(txt.replace(/\s/g, '').slice(0,1))) return txt;
+    }
+    return '';
+  }
   document.querySelectorAll('.mostrar-pinpuk').forEach(function(btn) {
     btn.addEventListener('click', function() {
       var line = this.dataset.line;
       var pin = this.dataset.pin;
       var puk = this.dataset.puk;
-      // If data attributes have values, show directly; otherwise fetch from API
+      var icc = this.dataset.icc || '';
+      if (!icc) icc = getIccFromRow(this);
       if (pin || puk) {
-        mostrarPinPuk(line, pin, puk);
+        mostrarPinPuk(line, pin, puk, icc);
       } else {
-        // Fetch PIN/PUK from API
-        mostrarPinPuk(line, 'Consultando...', '');
+        mostrarPinPuk(line, 'Consultando...', '', icc);
         fetch('/clientes/' + clientId + '/line/' + encodeURIComponent(line) + '/pinpuk', { method: 'POST' })
           .then(function(r) { return r.json(); })
           .then(function(res) {
             if (res.ok && res.data) {
               var d = res.data.data || res.data;
-              mostrarPinPuk(line, d.pin || d.pinCode || 'No disponible', d.puk || d.pukCode || 'No disponible');
+              mostrarPinPuk(line, d.pin || d.pinCode || 'No disponible', d.puk || d.pukCode || 'No disponible', icc);
             } else {
-              mostrarPinPuk(line, 'No disponible', 'No disponible');
+              mostrarPinPuk(line, 'No disponible', 'No disponible', icc);
             }
           })
           .catch(function() {
-            mostrarPinPuk(line, 'Error', 'Error');
+            mostrarPinPuk(line, 'Error', 'Error', icc);
           });
       }
     });
