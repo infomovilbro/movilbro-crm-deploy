@@ -1,0 +1,170 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h5 class="mb-0"><i class="bi bi-list-ul"></i> Facturas <span class="badge bg-secondary"><%= facturas.length %></span></h5>
+    <div class="d-flex gap-2">
+      <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalFacturaManual"><i class="bi bi-plus-circle"></i> Manual</button>
+      <a href="/isp/facturacion" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Volver</a>
+    </div>
+  </div>
+
+  <div class="input-group input-group-sm mb-3">
+    <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+    <input type="text" id="buscadorFacturas" class="form-control" placeholder="Buscar cliente, nº factura, importe..." autocomplete="off">
+    <select class="form-select form-select-sm" id="filterEstado" style="max-width:130px;">
+      <option value="">Todos</option>
+      <option value="pendiente">Pendiente</option>
+      <option value="pagada">Pagada</option>
+      <option value="vencida">Vencida</option>
+    </select>
+  </div>
+
+  <% if (years.length === 0) { %>
+  <div class="text-center py-5 text-muted"><i class="bi bi-inbox" style="font-size:3rem;"></i><p class="mt-2">No hay facturas.</p></div>
+  <% } else { %>
+    <% years.forEach(function(yr) { %>
+      <% var hasFacturas = yr.meses.some(function(m) { return m.count > 0; }); %>
+    <div class="card mb-2 <%= hasFacturas ? '' : 'opacity-50' %>">
+      <div class="card-header d-flex justify-content-between align-items-center py-1" style="cursor:pointer;" onclick="toggleYear('fy-<%= yr.year %>')">
+        <small><strong><%= yr.year %></strong> <span class="text-muted">(<%= yr.meses.reduce(function(s,m){return s+m.count},0) %> facturas)</span></small>
+        <i class="bi bi-chevron-down" id="chevron-fy-<%= yr.year %>"></i>
+      </div>
+      <div id="fy-<%= yr.year %>" class="card-body py-1" style="display:<%= yr.year == new Date().getFullYear() ? '' : 'none' %>;">
+        <div class="row g-1 mb-1">
+          <% yr.meses.forEach(function(m) { %>
+          <div class="col-md-1 col-2 text-center" style="cursor:pointer;" onclick="toggleMes('fm-<%= yr.year %>-<%= m.num %>')">
+            <div class="p-1 rounded <%= m.count > 0 ? 'bg-primary text-white' : 'bg-light text-muted' %> small" style="min-height:38px;display:flex;flex-direction:column;justify-content:center;align-items:center;font-size:0.7rem;">
+              <div><%= m.nombre.substring(0,3) %></div>
+              <div class="fw-bold"><%= m.count %></div>
+            </div>
+          </div>
+          <% }); %>
+        </div>
+        <% yr.meses.forEach(function(m) { %>
+        <div id="fm-<%= yr.year %>-<%= m.num %>" class="mt-1" style="display:none;">
+          <% if (m.count > 0) { %>
+          <div class="list-group">
+            <% m.facturas.forEach(function(f) { %>
+            <div class="list-group-item d-flex justify-content-between align-items-center py-1 px-3 factura-row" data-search="<%= (f.numFactura+' '+f.cliente+' '+f.importe).toLowerCase() %>" data-estado="<%= f.estado %>">
+              <div class="d-flex align-items-center gap-2" style="min-width:0;">
+                <span class="fw-semibold text-nowrap" style="font-size:0.8rem;min-width:85px;"><%= f.numFactura %></span>
+                <span class="small text-truncate" style="max-width:180px;"><%= f.cliente %></span>
+                <span class="badge bg-<%= f.estado==='pagada'?'success':f.estado==='pendiente'?'warning':'secondary' %>" style="font-size:0.6rem;"><%= f.estado||'pendiente' %></span>
+              </div>
+              <div class="d-flex align-items-center gap-1 text-nowrap">
+                <span class="fw-bold" style="font-size:0.85rem;"><%= parseFloat(f.importe||0).toFixed(2) %>€</span>
+                <a href="/isp/facturacion/facturas/<%= f.id %>" class="btn btn-sm btn-outline-info" title="Detalle"><i class="bi bi-eye" style="font-size:0.7rem;"></i></a>
+                <a href="/isp/nube/pdf/<%= f.id %>" class="btn btn-sm btn-outline-primary" title="PDF"><i class="bi bi-download" style="font-size:0.7rem;"></i></a>
+                <button class="btn btn-sm btn-outline-success btn-pagar" data-id="<%= f.id %>" title="Pagar" <%= f.estado === 'pagada' ? 'disabled' : '' %>><i class="bi bi-check" style="font-size:0.7rem;"></i></button>
+                <button class="btn btn-sm btn-outline-primary btn-enviar-email" data-id="<%= f.id %>" title="Email"><i class="bi bi-envelope" style="font-size:0.7rem;"></i></button>
+              </div>
+            </div>
+            <% }); %>
+          </div>
+          <% } else { %>
+          <div class="text-center text-muted small py-1">Sin facturas</div>
+          <% } %>
+        </div>
+        <% }); %>
+      </div>
+    </div>
+    <% }); %>
+  <% } %>
+</section>
+
+<!-- Modal Factura Manual -->
+<div class="modal fade" id="modalFacturaManual" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title"><i class="bi bi-plus-circle"></i> Crear Factura Manual</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <form id="formFacturaManual">
+          <div class="mb-2"><label class="form-label">Cliente *</label><input type="text" class="form-control" name="cliente_nombre" required></div>
+          <div class="mb-2"><label class="form-label">Email</label><input type="email" class="form-control" name="cliente_email"></div>
+          <div class="mb-2"><label class="form-label">NIF/CIF</label><input type="text" class="form-control" name="fiscal_id"></div>
+          <div class="mb-2"><label class="form-label">Periodo</label><input type="month" class="form-control" name="periodo" value="<%= new Date().toISOString().substring(0,7) %>"></div>
+          <div class="mb-2"><label class="form-label">Concepto</label><input type="text" class="form-control" name="concepto" value="Cuota servicio"></div>
+          <div class="mb-2"><label class="form-label">Importe *</label><input type="number" step="0.01" class="form-control" name="importe" required></div>
+          <div class="mb-2"><label class="form-label">Línea</label><input type="text" class="form-control" name="linea"></div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-primary" id="btnGuardarManual">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Toggle year
+function toggleYear(id) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? '' : 'none';
+  var ch = document.getElementById('chevron-' + id);
+  if (ch) ch.className = el.style.display === 'none' ? 'bi bi-chevron-right' : 'bi bi-chevron-down';
+}
+
+function toggleMes(id) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? '' : 'none';
+}
+
+// Search + filter
+document.getElementById('buscadorFacturas')?.addEventListener('input', filtrar);
+document.getElementById('filterEstado')?.addEventListener('change', filtrar);
+
+function filtrar() {
+  var q = (document.getElementById('buscadorFacturas').value || '').toLowerCase().trim();
+  var est = document.getElementById('filterEstado').value;
+  document.querySelectorAll('.factura-row').forEach(function(row) {
+    var busca = (row.getAttribute('data-search') || '');
+    var estadoOk = !est || row.getAttribute('data-estado') === est;
+    var textoOk = !q || busca.includes(q);
+    row.style.display = (textoOk && estadoOk) ? '' : 'none';
+  });
+}
+
+// Pay button
+document.querySelectorAll('.btn-pagar').forEach(function(b) {
+  b.addEventListener('click', function() {
+    if (!confirm('¿Marcar como pagada?')) return;
+    var id = this.dataset.id;
+    fetch('/isp/facturacion/facturas/' + id + '/pagar', { method: 'POST', headers: {'Content-Type':'application/json'} })
+      .then(function(r) { return r.json(); })
+      .then(function(d) { if (d.ok) location.reload(); else alert(d.error); });
+  });
+});
+
+// Email button
+document.querySelectorAll('.btn-enviar-email').forEach(function(b) {
+  b.addEventListener('click', function() {
+    var id = this.dataset.id;
+    var btn = this;
+    btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    fetch('/isp/facturacion/facturas/' + id + '/enviar', { method: 'POST', headers: {'Content-Type':'application/json'} })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        btn.disabled = false; btn.innerHTML = '<i class="bi bi-envelope"></i>';
+        alert(d.ok ? 'Email enviado' : 'Error: ' + (d.error || ''));
+      }).catch(function() {
+        btn.disabled = false; btn.innerHTML = '<i class="bi bi-envelope"></i>';
+        alert('Error de conexión');
+      });
+  });
+});
+
+// Manual invoice
+document.getElementById('btnGuardarManual')?.addEventListener('click', function() {
+  var fd = new FormData(document.getElementById('formFacturaManual'));
+  var data = {};
+  fd.forEach(function(v, k) { data[k] = v; });
+  fetch('/isp/facturacion/facturas/manual', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.ok) { location.reload(); }
+      else { alert('Error: ' + (d.error || '')); }
+    });
+});
+</script>

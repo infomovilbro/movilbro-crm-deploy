@@ -1,0 +1,197 @@
+<section>
+<style>
+.fn-card{background:#fff;border-radius:10px;border:1px solid #e0e0e0;padding:14px;margin-bottom:10px;border-left:4px solid #e74c3c;}
+.fn-card.fixed{border-left-color:#27ae60;opacity:0.7;}
+.fn-card .fn-url{font-size:0.75rem;color:#888;word-break:break-all;margin-bottom:4px;}
+.fn-card .fn-sel{font-size:0.75rem;color:#999;font-family:monospace;background:#f5f5f5;padding:2px 6px;border-radius:4px;}
+.fn-card .fn-note{font-size:0.9rem;margin:6px 0;}
+.fn-card .fn-text{font-size:0.8rem;color:#666;background:#fafafa;padding:4px 8px;border-radius:4px;border-left:2px solid #ddd;}
+.fn-card .fn-meta{font-size:0.7rem;color:#aaa;}
+</style>
+<div class="card mb-3 bg-light">
+  <div class="card-body py-2">
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <button class="btn btn-sm btn-outline-primary" onclick="saveToDrive()"><i class="bi bi-cloud-upload"></i> Guardar en Drive</button>
+      <button class="btn btn-sm btn-outline-info" onclick="toggleDriveHistory()"><i class="bi bi-cloud-download"></i> Cargar de Drive</button>
+      <span id="driveStatus" class="small text-muted"></span>
+    </div>
+    <div id="driveHistoryPanel" class="mt-2" style="display:none">
+      <div class="d-flex gap-2 align-items-center flex-wrap">
+        <select id="drvYear" class="form-select form-select-sm" style="width:auto" onchange="drvOnYearChange()"><option value="">Año</option></select>
+        <select id="drvMonth" class="form-select form-select-sm" style="width:auto" onchange="drvOnMonthChange()"><option value="">Mes</option></select>
+        <select id="drvDay" class="form-select form-select-sm" style="width:auto" onchange="drvOnDayChange()"><option value="">Día</option></select>
+      </div>
+      <div id="drvSnapshotList" class="mt-1 small"></div>
+      <div id="drvSnapshotContent" class="mt-2" style="display:none"></div>
+    </div>
+  </div>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0"><i class="bi bi-bug me-2"></i>Notas de Error — Soluciones Pendientes</h4>
+  <span class="badge bg-danger fs-6"><%= pending.length %> pendientes</span>
+</div>
+
+<% if (pending.length === 0) { %>
+<div class="alert alert-success">🎉 No hay errores pendientes de revisar.</div>
+<% } else { %>
+  <% pending.forEach(function(n) { %>
+  <div class="fn-card" id="fn_<%= n.id %>">
+    <div class="d-flex justify-content-between align-items-start">
+      <div class="flex-grow-1">
+        <div class="fn-url"><i class="bi bi-link-45deg"></i> <a href="<%= n.url %>" target="_blank"><%= n.url %></a></div>
+        <% if (n.selector) { %><div class="fn-sel"><%= n.selector %></div><% } %>
+        <div class="fn-note"><%= n.note %></div>
+        <% if (n.element_text) { %><div class="fn-text">📄 <%= n.element_text.substring(0,150) %></div><% } %>
+        <div class="fn-meta mt-1">#<%= n.id %> · <%= n.created_at %></div>
+      </div>
+      <div class="d-flex gap-1 flex-shrink-0 ms-2">
+        <button class="btn btn-sm btn-outline-success" onclick="fnFix(<%= n.id %>)" title="Marcar como arreglado">✅ Hecho</button>
+        <button class="btn btn-sm btn-outline-danger" onclick="fnDel(<%= n.id %>)" title="Eliminar">🗑️</button>
+      </div>
+    </div>
+  </div>
+  <% }); %>
+<% } %>
+
+<% if (fixed.length > 0) { %>
+<h5 class="mt-4 mb-2"><i class="bi bi-check-circle text-success me-1"></i>Arreglados (<%= fixed.length %>)</h5>
+<% fixed.forEach(function(n) { %>
+<div class="fn-card fixed">
+  <div class="fn-url"><i class="bi bi-link-45deg"></i> <%= n.url %></div>
+  <% if (n.selector) { %><div class="fn-sel"><%= n.selector %></div><% } %>
+  <div class="fn-note"><%= n.note %></div>
+  <div class="fn-meta">✅ <%= n.fixed_at %></div>
+</div>
+<% }); %>
+<% } %>
+</section>
+<script>
+function fnFix(id) {
+  fetch('/api/fix-notes/'+id+'/fix',{method:'POST',headers:{'Content-Type':'application/json'}})
+  .then(function(r){return r.json()}).then(function(d){
+    if(d.ok){document.getElementById('fn_'+id).style.display='none';location.reload();}
+  });
+}
+function fnDel(id) {
+  if(!confirm('¿Eliminar nota #'+id+'?'))return;
+  fetch('/api/fix-notes/'+id,{method:'DELETE'})
+  .then(function(r){return r.json()}).then(function(d){
+    if(d.ok) document.getElementById('fn_'+id).remove();
+  });
+}
+
+// — Drive persistence —
+var _drvData = null;
+
+function saveToDrive() {
+  var btn = event && event.target || document.querySelector('button[onclick="saveToDrive()"]');
+  var status = document.getElementById('driveStatus');
+  status.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Guardando...';
+  fetch('/api/fix-notes/save-to-drive',{method:'POST'})
+  .then(function(r){return r.json()}).then(function(d){
+    if(d.ok){status.innerHTML='<span class="text-success">✓ Guardado: '+d.fileName+'</span>';}
+    else{status.innerHTML='<span class="text-danger">✗ Error: '+d.error+'</span>';}
+  });
+}
+
+function toggleDriveHistory() {
+  var panel = document.getElementById('driveHistoryPanel');
+  if(panel.style.display!='none'){panel.style.display='none';return;}
+  panel.style.display='block';
+  document.getElementById('driveStatus').innerHTML = 'Cargando historial...';
+  fetch('/api/fix-notes/drive-history')
+  .then(function(r){return r.json()}).then(function(d){
+    if(!d.ok){document.getElementById('driveStatus').innerHTML='<span class="text-danger">Error: '+d.error+'</span>';return;}
+    _drvData = d.years || [];
+    var yrSel = document.getElementById('drvYear');
+    yrSel.innerHTML = '<option value="">Año</option>';
+    _drvData.forEach(function(y){yrSel.innerHTML+='<option value="'+y.name+'">'+y.name+'</option>';});
+    document.getElementById('drvMonth').innerHTML = '<option value="">Mes</option>';
+    document.getElementById('drvDay').innerHTML = '<option value="">Día</option>';
+    document.getElementById('drvSnapshotList').innerHTML = '';
+    document.getElementById('driveStatus').innerHTML = '<span class="text-success">✓ ' + _drvData.length + ' años con snapshots</span>';
+  });
+}
+
+function drvOnYearChange() {
+  var yr = document.getElementById('drvYear').value;
+  var moSel = document.getElementById('drvMonth');
+  var dySel = document.getElementById('drvDay');
+  moSel.innerHTML = '<option value="">Mes</option>';
+  dySel.innerHTML = '<option value="">Día</option>';
+  document.getElementById('drvSnapshotList').innerHTML = '';
+  document.getElementById('drvSnapshotContent').style.display='none';
+  if(!yr)return;
+  var yearObj = _drvData.find(function(y){return y.name===yr;});
+  if(!yearObj)return;
+  yearObj.months.forEach(function(m){moSel.innerHTML+='<option value="'+m.name+'">'+m.name+'</option>';});
+}
+
+function drvOnMonthChange() {
+  var yr = document.getElementById('drvYear').value;
+  var mo = document.getElementById('drvMonth').value;
+  var dySel = document.getElementById('drvDay');
+  dySel.innerHTML = '<option value="">Día</option>';
+  document.getElementById('drvSnapshotList').innerHTML = '';
+  document.getElementById('drvSnapshotContent').style.display='none';
+  if(!yr||!mo)return;
+  var yearObj = _drvData.find(function(y){return y.name===yr;});
+  if(!yearObj)return;
+  var moObj = yearObj.months.find(function(m){return m.name===mo;});
+  if(!moObj)return;
+  moObj.days.forEach(function(d){dySel.innerHTML+='<option value="'+d.name+'">'+d.name+'</option>';});
+}
+
+function drvOnDayChange() {
+  var yr = document.getElementById('drvYear').value;
+  var mo = document.getElementById('drvMonth').value;
+  var dy = document.getElementById('drvDay').value;
+  document.getElementById('drvSnapshotList').innerHTML = '';
+  document.getElementById('drvSnapshotContent').style.display='none';
+  if(!yr||!mo||!dy)return;
+  var yearObj = _drvData.find(function(y){return y.name===yr;});
+  if(!yearObj)return;
+  var moObj = yearObj.months.find(function(m){return m.name===mo;});
+  if(!moObj)return;
+  var dyObj = moObj.days.find(function(d){return d.name===dy;});
+  if(!dyObj||!dyObj.files.length){
+    document.getElementById('drvSnapshotList').innerHTML='<span class="text-muted">Sin snapshots en esta fecha</span>';
+    return;
+  }
+  var html = '<div class="mt-1"><strong>Snapshots:</strong></div><div class="d-flex flex-column gap-1 mt-1">';
+  dyObj.files.forEach(function(f){
+    var label = f.name.replace('fix-notes-','').replace('.json','').replace(/T/g,' ').replace(/-/g,':').substring(0,19);
+    html += '<a href="#" class="text-decoration-none small" onclick="return drvLoadSnapshot(\''+yr+'\',\''+mo+'\',\''+dy+'\',\''+f.name+'\')"><i class="bi bi-file-earmark-text"></i> '+label+'</a>';
+  });
+  html += '</div>';
+  document.getElementById('drvSnapshotList').innerHTML = html;
+}
+
+function drvLoadSnapshot(yr,mo,dy,fileName) {
+  var url = '/api/fix-notes/drive-snapshot/'+encodeURIComponent(yr)+'/'+encodeURIComponent(mo)+'/'+encodeURIComponent(dy)+'/'+encodeURIComponent(fileName);
+  document.getElementById('driveStatus').innerHTML = '<span class="spinner-border spinner-border-sm"></span> Cargando snapshot...';
+  fetch(url).then(function(r){return r.json()}).then(function(d){
+    if(!d.ok){document.getElementById('driveStatus').innerHTML='<span class="text-danger">Error: '+d.error+'</span>';return;}
+    var c = document.getElementById('drvSnapshotContent');
+    var notes = d.data.notes || [];
+    var pendingCount = notes.filter(function(n){return n.status==='pending';}).length;
+    var fixedCount = notes.filter(function(n){return n.status==='fixed';}).length;
+    var html = '<div class="card border-info"><div class="card-header py-1 d-flex justify-content-between"><strong>📋 Snapshot: '+d.fileName+'</strong><span class="text-muted">'+pendingCount+' pendientes, '+fixedCount+' arreglados</span></div><div class="card-body p-2" style="max-height:400px;overflow-y:auto">';
+    notes.forEach(function(n){
+      var cls = n.status==='fixed' ? 'fn-card fixed' : 'fn-card';
+      html += '<div class="'+cls+'"><div class="fn-url"><i class="bi bi-link-45deg"></i> '+n.url+'</div>';
+      if(n.selector) html += '<div class="fn-sel">'+n.selector+'</div>';
+      html += '<div class="fn-note">'+n.note+'</div>';
+      if(n.element_text) html += '<div class="fn-text">📄 '+n.element_text.substring(0,150)+'</div>';
+      html += '<div class="fn-meta mt-1">#'+n.id+' · '+n.created_at+(n.fixed_at?' · ✅ '+n.fixed_at:'')+'</div></div>';
+    });
+    html += '</div></div>';
+    c.innerHTML = html;
+    c.style.display = 'block';
+    document.getElementById('driveStatus').innerHTML = '<span class="text-success">✓ Snapshot cargado: '+d.fileName+'</span>';
+  });
+  return false;
+}
+</script>
+</section>

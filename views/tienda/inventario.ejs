@@ -1,0 +1,247 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-box-seam"></i> Inventario</h2>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalInventario"><i class="bi bi-plus-lg"></i> Nuevo Producto</button>
+  </div>
+
+  <!-- Inventario Table -->
+  <h5><i class="bi bi-box-seam"></i> Inventario</h5>
+  <div class="card hideable-section" data-card-id="inventario-stock">
+    <div class="card-body p-0 table-responsive">
+      <table class="table table-hover mb-0" id="tablaInventario" style="white-space:nowrap;">
+        <thead><tr><th>Nombre</th><th>Tipo</th><th>Stock</th><th>P. Compra</th><th>P. Venta</th><th>Proveedor</th><th>Ubicación</th><th>St. Mín</th><th>Acciones</th></tr></thead>
+        <tbody>
+        <% if (items.length === 0) { %>
+          <tr><td colspan="9" class="text-center text-muted py-4"><i class="bi bi-box" style="font-size:2rem;display:block;margin-bottom:8px;"></i>Inventario vacío</td></tr>
+        <% } else { items.forEach(i => { const margen = i.precio_venta - i.precio_compra; %>
+          <tr>
+            <td><%= i.nombre %></td>
+            <td><span class="badge bg-info"><%= i.tipo || '-' %></span></td>
+            <td>
+              <span class="badge bg-<%= i.cantidad <= i.stock_minimo ? 'danger' : i.cantidad <= i.stock_minimo * 2 ? 'warning' : 'success' %>"><%= i.cantidad %></span>
+            </td>
+            <td class="small"><%= i.precio_compra > 0 ? i.precio_compra.toFixed(2)+'€' : '-' %></td>
+            <td class="small"><%= i.precio_venta > 0 ? i.precio_venta.toFixed(2)+'€' : '-' %></td>
+            <td class="small"><%= i.proveedor || '-' %></td>
+            <td class="small"><%= i.ubicacion || '-' %></td>
+            <td class="small"><%= i.stock_minimo %></td>
+            <td class="text-nowrap">
+              <button class="btn btn-sm btn-outline-primary editar-inventario" data-id="<%= i.id %>" data-nombre="<%= i.nombre %>" data-tipo="<%= i.tipo || '' %>" data-cantidad="<%= i.cantidad %>" data-pcompra="<%= i.precio_compra %>" data-pventa="<%= i.precio_venta %>" data-proveedor="<%= i.proveedor || '' %>" data-ubicacion="<%= i.ubicacion || '' %>" data-stockmin="<%= i.stock_minimo %>" data-notas="<%= i.notas || '' %>"><i class="bi bi-pencil"></i></button>
+              <button class="btn btn-sm btn-outline-danger eliminar-inventario" data-id="<%= i.id %>"><i class="bi bi-trash"></i></button>
+              <button class="btn btn-sm btn-outline-warning devolver-inventario" data-id="<%= i.id %>" data-nombre="<%= i.nombre %>"><i class="bi bi-arrow-return-left"></i></button>
+            </td>
+          </tr>
+        <% }) } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Devoluciones Section -->
+  <div class="mt-4">
+    <h5><i class="bi bi-arrow-return-left"></i> Devoluciones</h5>
+    <div class="card hideable-section" data-card-id="inventario-movimientos">
+      <div class="card-body p-0 table-responsive">
+        <table class="table table-hover mb-0" style="white-space:nowrap;">
+          <thead><tr><th>#</th><th>Producto</th><th>Motivo</th><th>Estado</th><th>Resolución</th><th>Fecha Devolución</th><th>Fecha Resolución</th><th>Usuario</th><th>Acciones</th></tr></thead>
+          <tbody>
+          <% if (!devoluciones || devoluciones.length === 0) { %>
+            <tr><td colspan="8" class="text-center text-muted py-3"><i class="bi bi-check-circle"></i> No hay devoluciones registradas</td></tr>
+          <% } else { devoluciones.forEach(d => { %>
+            <tr>
+              <td class="small"><%= d.id %></td>
+              <td><%= d.producto_nombre %></td>
+              <td class="small"><%= d.motivo || '-' %></td>
+              <td>
+                <span class="badge bg-<%= d.estado === 'pendiente' ? 'warning' : d.estado === 'no_devuelto' ? 'dark' : 'success' %>">
+                  <%= d.estado === 'pendiente' ? 'Pendiente' : d.estado === 'no_devuelto' ? 'No devuelto' : 'Finalizada' %>
+                </span>
+              </td>
+              <td class="small"><%= d.resolucion ? ({ dinero: 'Devolución en dinero', articulo: 'Nos mandarán el artículo', perdida: 'Perdemos la devolución' })[d.resolucion] || d.resolucion : '-' %></td>
+              <td class="small"><%= new Date(d.fecha_devolucion).toLocaleDateString('es-ES') %></td>
+              <td class="small"><%= d.fecha_resolucion ? new Date(d.fecha_resolucion).toLocaleDateString('es-ES') : '-' %></td>
+              <td class="small"><%= d.user_name || '-' %></td>
+              <td>
+                <% if (d.estado === 'pendiente') { %>
+                  <button class="btn btn-sm btn-success resolver-devolucion" data-id="<%= d.id %>"><i class="bi bi-check-lg"></i> Resolver</button>
+                <% } else { %>
+                  <span class="text-muted small">Resuelta</span>
+                <% } %>
+              </td>
+            </tr>
+          <% }) } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Modal Nuevo Producto -->
+<div class="modal fade" id="modalInventario" tabindex="-1">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <form method="POST" action="/tienda/inventario/crear">
+      <div class="modal-header"><h5><i class="bi bi-box-seam"></i> Nuevo Producto</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="row g-2 mb-2">
+          <div class="col"><label class="form-label">Nombre *</label><input type="text" name="nombre" class="form-control" required></div>
+          <div class="col"><label class="form-label">Tipo</label><select name="tipo" class="form-select"><option value="">Seleccionar</option><option value="terminal">Terminal</option><option value="accesorio">Accesorio</option><option value="sim">SIM</option><option value="router">Router</option><option value="recambio">Recambio</option><option value="consumible">Consumible</option></select></div>
+        </div>
+        <div class="row g-2 mb-2">
+          <div class="col"><label class="form-label">Cantidad</label><input type="number" name="cantidad" class="form-control" value="0"></div>
+          <div class="col"><label class="form-label">Stock mínimo</label><input type="number" name="stock_minimo" class="form-control" value="5"></div>
+        </div>
+        <div class="row g-2 mb-2">
+          <div class="col"><label class="form-label">Precio compra (€)</label><input type="number" step="0.01" name="precio_compra" class="form-control" value="0"></div>
+          <div class="col"><label class="form-label">Precio venta (€)</label><input type="number" step="0.01" name="precio_venta" class="form-control" value="0"></div>
+        </div>
+        <div class="row g-2 mb-2">
+          <div class="col"><label class="form-label">Proveedor</label><input type="text" name="proveedor" class="form-control"></div>
+          <div class="col"><label class="form-label">Ubicación</label><input type="text" name="ubicacion" class="form-control"></div>
+        </div>
+        <div class="mb-2"><label class="form-label">Notas</label><textarea name="notas" class="form-control" rows="2"></textarea></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Guardar</button>
+      </div>
+    </form>
+  </div></div>
+</div>
+
+<!-- Modal Editar Inventario -->
+<div class="modal fade" id="modalEditarInventario" tabindex="-1">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <form method="POST" action="/tienda/inventario/editar">
+      <input type="hidden" name="id" id="edit-id">
+      <div class="modal-header"><h5><i class="bi bi-pencil"></i> Editar Producto</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="row g-2 mb-2">
+          <div class="col"><label class="form-label">Nombre *</label><input type="text" name="nombre" id="edit-nombre" class="form-control" required></div>
+          <div class="col"><label class="form-label">Tipo</label><select name="tipo" id="edit-tipo" class="form-select"><option value="">Seleccionar</option><option value="terminal">Terminal</option><option value="accesorio">Accesorio</option><option value="sim">SIM</option><option value="router">Router</option><option value="recambio">Recambio</option><option value="consumible">Consumible</option></select></div>
+        </div>
+        <div class="row g-2 mb-2">
+          <div class="col"><label class="form-label">Cantidad</label><input type="number" name="cantidad" id="edit-cantidad" class="form-control"></div>
+          <div class="col"><label class="form-label">Stock mínimo</label><input type="number" name="stock_minimo" id="edit-stockmin" class="form-control"></div>
+        </div>
+        <div class="row g-2 mb-2">
+          <div class="col"><label class="form-label">Precio compra (€)</label><input type="number" step="0.01" name="precio_compra" id="edit-pcompra" class="form-control"></div>
+          <div class="col"><label class="form-label">Precio venta (€)</label><input type="number" step="0.01" name="precio_venta" id="edit-pventa" class="form-control"></div>
+        </div>
+        <div class="row g-2 mb-2">
+          <div class="col"><label class="form-label">Proveedor</label><input type="text" name="proveedor" id="edit-proveedor" class="form-control"></div>
+          <div class="col"><label class="form-label">Ubicación</label><input type="text" name="ubicacion" id="edit-ubicacion" class="form-control"></div>
+        </div>
+        <div class="mb-2"><label class="form-label">Notas</label><textarea name="notas" id="edit-notas" class="form-control" rows="2"></textarea></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Guardar Cambios</button>
+      </div>
+    </form>
+  </div></div>
+</div>
+
+<!-- Modal Devolución -->
+<div class="modal fade" id="modalDevolucion" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5><i class="bi bi-arrow-return-left"></i> Registrar Devolución</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <input type="hidden" id="dev-producto-id">
+      <div class="mb-2"><label class="form-label">Producto</label><input type="text" id="dev-producto-nombre" class="form-control" readonly></div>
+      <div class="mb-2"><label class="form-label">Motivo *</label><select id="dev-motivo" class="form-select"><option value="defecto">Defecto de fábrica</option><option value="no_funciona">No funciona</option><option value="cliente_insatisfecho">Cliente insatisfecho</option><option value="error_pedido">Error en pedido</option><option value="otro">Otro</option></select></div>
+      <div class="mb-2"><label class="form-label">Notas</label><textarea id="dev-notas" class="form-control" rows="2" placeholder="Notas adicionales..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+      <button type="button" class="btn btn-warning" id="btnConfirmarDevolucion"><i class="bi bi-check-lg"></i> Confirmar Devolución</button>
+    </div>
+  </div></div>
+</div>
+
+<!-- Modal Resolver Devolución -->
+<div class="modal fade" id="modalResolverDevolucion" tabindex="-1">
+  <div class="modal-dialog modal-sm modal-dialog-centered"><div class="modal-content">
+    <div class="modal-header"><h6><i class="bi bi-check-circle"></i> Resolver Devolución</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body text-center">
+      <p class="mb-3">¿Cómo se resolvió esta devolución?</p>
+      <div class="d-grid gap-2">
+        <button class="btn btn-outline-success btn-lg resolver-opcion" data-resolucion="dinero"><i class="bi bi-cash"></i> Devolución en dinero</button>
+        <button class="btn btn-outline-primary btn-lg resolver-opcion" data-resolucion="articulo"><i class="bi bi-box-seam"></i> Nos mandarán el artículo</button>
+        <button class="btn btn-outline-danger btn-lg resolver-opcion" data-resolucion="perdida"><i class="bi bi-x-circle"></i> Perdemos la devolución</button>
+      </div>
+    </div>
+  </div></div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.editar-inventario').forEach(btn => {
+    btn.addEventListener('click', function() {
+      document.getElementById('edit-id').value = this.dataset.id;
+      document.getElementById('edit-nombre').value = this.dataset.nombre;
+      document.getElementById('edit-tipo').value = this.dataset.tipo;
+      document.getElementById('edit-cantidad').value = this.dataset.cantidad;
+      document.getElementById('edit-stockmin').value = this.dataset.stockmin;
+      document.getElementById('edit-pcompra').value = this.dataset.pcompra;
+      document.getElementById('edit-pventa').value = this.dataset.pventa;
+      document.getElementById('edit-proveedor').value = this.dataset.proveedor;
+      document.getElementById('edit-ubicacion').value = this.dataset.ubicacion;
+      document.getElementById('edit-notas').value = this.dataset.notas;
+      new bootstrap.Modal('#modalEditarInventario').show();
+    });
+  });
+
+  document.querySelectorAll('.eliminar-inventario').forEach(btn => {
+    btn.addEventListener('click', function() {
+      if (!confirm('¿Eliminar este producto del inventario?')) return;
+      fetch('/tienda/inventario/eliminar', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','Accept':'application/json'},
+        body: JSON.stringify({ id: parseInt(this.dataset.id) })
+      }).then(r=>r.json()).then(d=>{ if(d.ok) location.reload(); });
+    });
+  });
+
+  document.querySelectorAll('.devolver-inventario').forEach(btn => {
+    btn.addEventListener('click', function() {
+      document.getElementById('dev-producto-id').value = this.dataset.id;
+      document.getElementById('dev-producto-nombre').value = this.dataset.nombre;
+      new bootstrap.Modal('#modalDevolucion').show();
+    });
+  });
+
+  document.getElementById('btnConfirmarDevolucion')?.addEventListener('click', function() {
+    const id = document.getElementById('dev-producto-id').value;
+    const nombre = document.getElementById('dev-producto-nombre').value;
+    const motivo = document.getElementById('dev-motivo').value;
+    const notas = document.getElementById('dev-notas').value;
+    if (!confirm('¿Registrar devolución de "'+nombre+'"?')) return;
+    fetch('/tienda/inventario/devolucion/crear', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','Accept':'application/json'},
+      body: JSON.stringify({ producto_id: parseInt(id), producto_nombre: nombre, motivo, notas })
+    }).then(r=>r.json()).then(d=>{ if(d.ok) location.reload(); });
+  });
+
+  document.querySelectorAll('.resolver-devolucion').forEach(btn => {
+    btn.addEventListener('click', function() {
+      document.getElementById('modalResolverDevolucion').dataset.targetId = this.dataset.id;
+      new bootstrap.Modal('#modalResolverDevolucion').show();
+    });
+  });
+
+  document.querySelectorAll('.resolver-opcion').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const id = parseInt(document.getElementById('modalResolverDevolucion').dataset.targetId);
+      const resolucion = this.dataset.resolucion;
+      bootstrap.Modal.getInstance(document.getElementById('modalResolverDevolucion')).hide();
+      fetch('/tienda/inventario/devolucion/resolver', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','Accept':'application/json'},
+        body: JSON.stringify({ id, resolucion })
+      }).then(r=>r.json()).then(d=>{ if(d.ok) location.reload(); });
+    });
+  });
+});
+</script>

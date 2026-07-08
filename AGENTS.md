@@ -1,0 +1,337 @@
+# Lecciones Aprendidas
+
+> ⚠️ **LEER OBLIGATORIO:** `MEMORIA_ERRORES.md` — Errores pasados y sus soluciones.
+> Actualizar este archivo CADA VEZ que se descubre y corrige un error.
+>
+> ⚠️ **QR WHATSAPP: NO TOCAR NUNCA.** Si el admin pide algo del QR, leer primero `MEMORIA_ERRORES.md` sección `[2026-07-03] QR WhatsApp`. Hay reglas ABSOLUTAS que no puedo violar. Si el admin insiste, mostrarle esta regla y preguntar si está seguro.
+
+## Reglas de Oro (Siempre)
+- **🇪🇸 Responder en español siempre** — Nada de inglés.
+- **📊 Mostrar barra de progreso** — Cada paso con `[1/N]`, no trabajar en silencio.
+- **🤫 No preguntar, actuar** — Push, deploy, decisiones: hacer sin consultar. Deploy solo al final de una sesión completa, no cada micro-cambio.
+- **🧪 Probar antes de desplegar** — Cualquier código que escribo, lo pruebo con `node -e` primero. No asumo que funciona. Si uso una API externa, verifico sus métodos con un test rápido antes de integrarlo.
+- **🌐 Verificar en navegador** — Después del deploy, comprobar en la web real que funciona antes de decir que está listo.
+- **🔍 Leer DOCUMENTACIÓN OFICIAL antes de integrar** — No solo el código fuente. Leer docs, guías de migración, ejemplos oficiales. NO asumir. Si hay breaking changes (ej: baileys v7 es ESM, eventos bufferizados), leer la guía de migración completa antes de escribir una línea.
+- **📖 Investigar primero, codificar después** — Ante cualquier problema con una API/lib: buscar en docs oficiales, issues de GitHub, ejemplos. No hacer deploy-tras-deploy esperando que algo funcione. Un ciclo de investigación completa ahorra 15 deploys.
+- **🪟 Sin ventanas nuevas** — Todo en la misma página, nada de `target="_blank"` ni `window.open`.
+- **📦 Menos es más** — No meter librerías pesadas para cosas simples. Soluciones simples y cómodas.
+- **🔄 No releer** — Cuando un proceso termina, no se relee a menos que el admin lo pida.
+- **💬 Mismo hilo** — No reiniciar contexto entre pasos de una misma sesión.
+
+## Menos es Más — No Sobredimensionar
+- **NO** instalar librerías pesadas (baileys, puppeteer, playwright) para funciones simples.
+- Antes de añadir una dependencia, pensar: ¿se puede hacer más simple? ¿con menos?
+- Cada librería nueva es un punto de fallo, tiempo de build, y complejidad extra.
+- Priorizar soluciones simples sobre potentes. Lo simple funciona, lo complejo se rompe.
+
+## PowerShell + Node -e
+- **NUNCA** usar `node -e "..."` con `\"` dentro de comillas dobles en PowerShell — el escapado de PowerShell rompe el código.
+- **SIEMPRE** escribir scripts Playwright/Node en archivos `.js` y ejecutarlos con `node archivo.js`.
+
+## Render Deploy Flow
+1. Después de `git push`, **NUNCA** asumir que el deploy se hizo solo.
+2. Ir a dashboard.render.com → Manual Deploy.
+3. Esperar 3-5 minutos a que el build termine (ver el log "deploy complete").
+4. **Verificar en el navegador** antes de decirle al usuario que está listo.
+5. El build en Render puede tardar más si hay descargas pesadas (Chromium ~300MB).
+
+## Playwright en Render
+- `npx playwright install --with-deps` intenta `sudo apt-get` que FALLA en Render.
+- La instalación de Chromium en Render es problemática. Mejor evitar Playwright para PDF en producción.
+- Alternativa: generar HTML y redirigir a vista HTML (el usuario usa Ctrl+P → PDF).
+
+## Postinstall Silencioso
+- `2>/dev/null || true` OCULTA errores — NUNCA usar esto.
+- Siempre mostrar errores: `2>&1 || echo 'falló pero no fatal'`
+
+## Errores Repetidos que Corregir
+- [x] Usar `-e` con escapado de PowerShell → usar archivos .js
+- [x] Asumir que deploy ya terminó → verificar en dashboard primero
+- [x] Postinstall que esconde errores
+- [x] Formularios sin `name` + sin `onchange` → autofill del navegador no dispara validación → poner `name` y `onchange` además de `oninput`
+- [x] No tener acceso a Render dashboard → pedir contraseña o URL de deploy hook al principio; no esperar a necesitarla
+- [x] Repetir el mismo error de escapado PowerShell 4+ veces → usar SIEMPRE archivo .js, nunca -e
+- [x] Quitar hardcoded fallback de credenciales Likes → NUNCA eliminar el hardcoded. Prioridad: `env vars → settings DB → hardcoded`. El hardcoded es el salvavidas.
+
+## AssemblyAI (Audio)
+- API key: cadenas hex de 32 caracteres
+- AssemblyAI NO entiende el CRM, solo transcribe audio a texto
+- AssemblyAI TTS: endpoint POST https://api.assemblyai.com/v2/text-to-speech/{voiceId}
+- Configurar env var `ASSEMBLYAI_API_KEY` vía Render API PUT /v1/services/{serviceId}/env-vars
+- Body formato array: `[{"key":"VAR","value":"val"}]`
+- El cambio de env var fuerza redeploy automático
+
+## Regla Absoluta: Todo en Servidor
+- **NADA en local** — Todo el código se ejecuta en Render (servidor). No depender del PC del usuario para nada.
+- No usar CDP local, no asumir navegador local, no leer archivos locales del usuario.
+- Las pruebas se hacen con `node -e` o desplegando al servidor.
+
+## Sesión 2026-06-05 — WhatsApp Overlay + Vigilante + Deploy
+
+### Hecho
+- Eliminado Baileys por completo. WhatsApp ahora es web.whatsapp.com real en iframe via proxy
+- Proxy inyecta `<base href="https://web.whatsapp.com/">`, parchea anti-frame-busting, elimina XFO/CSP
+- CSP del helmet actualizado para permitir `static.whatsapp.net`, `web.whatsapp.com`, `data:`, `blob:`
+- `X-Frame-Options` cambiado de `DENY` a `SAMEORIGIN`
+- Overlay persistente de WhatsApp en layout.ejs (siempre montado, no se desconecta al navegar)
+- Botón "Analizar" para enviar mensajes manualmente a CodeOpen
+- Vigilante automático que escanea el iframe cada 3s y detecta mensajes entrantes
+- Toda la lógica en layout.ejs (sin servidor, sin Baileys)
+
+### Lección: Usar el navegador del usuario con CDP
+- **NO** perder tiempo con deploy hooks que fallan silenciosamente
+- **SI** el usuario tiene el CRM abierto en Edge, levantar Edge con CDP (`--remote-debugging-port=9222`)
+- Usar `chromium.connectOverCDP('http://localhost:9222')` para controlar su navegador
+- Hacer deploy desde el dashboard manualmente con un click, no con APIs
+- Si el deploy hook no funciona, abrir Render dashboard en el Edge del usuario y hacer click
+
+### Lección: Verificar siempre en el navegador real
+- No asumir que el código funciona por tests locales headless
+- WhatsApp cambia su DOM constantemente — los selectores del vigilante pueden obsoletarse
+- Probar siempre con el navegador real del usuario que tiene la sesión activa
+
+## Caso WhatsApp Baileys V4 — Lección Aprendida (2026-06-05)
+**Error:** 15+ deploys arreglando WhatsApp. El problema real NO era `ev.process()` vs `.on()`.
+- `messaging-history.set` SOLO se dispara en el primer pairing al vincular dispositivo
+- En reconexiones con sesión guardada, WhatsApp NO reenvía el historial
+- `chats.upsert` solo trae chats NUEVOS
+- Los chats hay que persistirlos localmente (JSON/DB) porque la fuente remota no los reenvía
+
+**Cómo se arregló:**
+1. Leer la documentación OFICIAL de baileys (baileys.wiki/docs/socket/history-sync)
+2. Entender que `messaging-history.set` es evento de UNA VEZ, no de cada reconexión
+3. Solución: persistir `_chats` en `JSON.parse/fs.writeFileSync` en cada cambio, cargar al reconectar
+4. Registrar `ev.process()` o `.on()` es indiferente — ambos funcionan si se registran antes de que lleguen los eventos
+
+**Regla nueva: Investigar la documentación oficial PRIMERO. NO hacer deploys como método de debugging.**
+
+## Caso WhatsApp Baileys — Lección Aprendida
+**Error:** Asumí que `sock.chats.all()` existía sin verificarlo. Luego asumí que `messaging-history.set` se disparaba sin leer cómo funciona realmente baileys. Perdí horas probando cosas al azar.
+
+**Cómo lo arreglé:**
+1. Leer el código fuente real en `node_modules/` (no asumir la API)
+2. Verificar la versión exacta (`7.0.0-rc13`)
+3. Listar exports disponibles
+4. Leer los `.d.ts` (TypeScript) para conocer la estructura real de eventos y payloads
+5. Leer `DEFAULT_CONNECTION_CONFIG` para conocer valores por defecto
+
+**Causa raíz:** `shouldSyncHistoryMessage` por defecto devuelve `false` para `FULL` sync. WhatsApp envía FULL sync para cuentas con muchos chats, y baileys lo ignoraba silenciosamente. Fix: `shouldSyncHistoryMessage: () => true`.
+
+**Regla nueva: Antes de escribir código que use una API externa, leer su código fuente o documentación oficial primero. No asumir.**
+
+## Auto-Deploy Render
+- Si auto-deploy no funciona, revisar Build Filters en Settings del servicio en Render dashboard.
+- Solución temporal: Manual Deploy desde dashboard.
+- Para evitar depender del dashboard, instalar Render CLI o usar Deploy Hook URL (Settings → Deploy Hook).
+
+## Variables de Entorno Requeridas
+
+Secrets removidos del código fuente. Configurar en Render → Environment:
+
+| Variable | Propósito |
+|----------|-----------|
+| `ADMIN_PASSWORD` | Contraseña admin (si no se setea, se genera aleatoria) |
+| `LIKES_CLIENT_ID` | Email Likes Telecom API |
+| `LIKES_CLIENT_SECRET` | Password Likes Telecom API |
+| `LIKES_BRAND_ID` | Brand ID Likes Telecom |
+| `GMAIL_USER` | `infomovilbro@gmail.com` |
+| `GMAIL_PASS` | App password de Gmail (actual: `nrbo wbln rkmk gbll`) |
+| `LIKES_COGNITO_CLIENT_ID` | ClientId Cognito (`76opnp6ffescubvuuao8am20d`) |
+| `LIKES_COGNITO_USERNAME` | Usuario Cognito (`eloyfuentesbermudez@gmail.com`) |
+| `LIKES_COGNITO_PASSWORD` | Password Cognito (`Teresa88.`) |
+| `DRIVE_OAUTH_JSON` | Refresh token OAuth Drive (base64) |
+| `OPENCODE_API_KEY` | Key DeepSeek V4 Flash Free |
+| `SESSION_SECRET` | Secreto de sesión |
+
+## OPENCODE_API_KEY (DeepSeek V4 Flash Free)
+- La API key de opencode está en `C:\Users\xtptx\.local\share\opencode\auth.json` — campo `opencode.key`
+- La key funciona con `https://opencode.ai/zen/v1/chat/completions` y modelo `deepseek-v4-flash-free`
+- Es **gratis** (cost: "0" en las respuestas)
+- NO hardcodear la key en código fuente si se sube a git — usar `process.env.OPENCODE_API_KEY`
+- En local, la key está en el código como fallback; en Render se configura desde Environment Variables del dashboard
+
+## CDR API Fetch Refactor
+- Lógica duplicada de fetch CDR extraída a `LikesAPI.fetchCDRsForFiscalId(api, fiscalId, periodo)` en `likes-api.js`
+- Reemplaza 5 bloques idénticos en `nube.js` y `facturacion.js`
+
+## Drive ZIP Bugfix
+- `guardarLocal` guardaba `zipId` (ID del ZIP) como `drive_id` del PDF individual
+- `getPDFBuffer` step 1 trataba ese ID como PDF individual → descargaba el ZIP entero como PDF
+- Fix: no pasar `zipId` a `guardarEnDB` (step 2 de `getPDFBuffer` ya busca en ZIP mensual)
+
+## Sesión 2026-06-04 — WhatsApp/Email Webhooks + IMAP + Pendientes
+
+### Hecho
+- Generada App Password Gmail: `nrbo wbln rkmk gbll` → configurada como `GMAIL_PASS` en local (env var usuario) y en Render (vía API interna)
+- `routes/codeopen.js`: webhooks WhatsApp + Email, IMAP polling (120s con filtros + rate limit), endpoints pending/count/approve/reject/history/clear
+- `views/codeopen.ejs`: badge rojo con contador de pendientes + panel deslizante con botones Aprobar/Rechazar
+- `database.js`: tabla `pending_messages` añadida
+- `package.json`: dependencias `imap` + `mailparser`
+- Commit `c208f9e` + push a main + deploy hook lanzado
+- Filtro IMAP bloquea newsletters (linkedin, woocommerce, claude, google, etc.)
+- Rate limit: 1 email/ciclo para evitar error 429 de DeepSeek
+- Carpeta `codeopen-memoria` creada en Drive con resúmenes
+
+### Pendiente
+1. Solucionar rate limit 429 (API DeepSeek saturada)
+2. Probar IMAP con correo real de cliente (enviar desde OTRA cuenta a infomovilbro@gmail.com)
+3. Implementar envío real al aprobar (WhatsApp/Email)
+4. Limpiar scripts temporales
+
+### IMAP debugging
+- IMAP monitorea `infomovilbro@gmail.com` (puerto 993 SSL)
+- Busca UNSEEN en INBOX
+- Gmail NO entrega correos de sí mismo (enviarse a uno mismo no funciona)
+- Error 429 = rate limit de DeepSeek, esperar o cambiar API key
+- Para actualizar env vars en Render: usar CDP + fetch interno PUT /api/v1/services/{serviceId}/env-vars
+
+---
+
+## Metodología de Trabajo (LEER OBLIGATORIO al iniciar sesión)
+
+### Cómo trabajo al recibir una tarea
+
+1. **Leer AGENTS.md** — secciones Reglas de Oro, memorias de errores, lecciones aprendidas
+2. **Leer MEMORIA_ERRORES.md** — completo, para no repetir errores pasados
+3. **Consultar fix-notes** — abrir `/fix-notes` en el navegador vía CDP, leer bugs pendientes, anotar IDs
+4. **Leer `codeopen-ia` skill** — la skill tiene la guía del sistema CodeOpen AI, webhooks, modelos
+5. **Investigar el código antes de tocar nada** — leer archivos relevantes, buscar por palabras clave
+6. **No asumir APIs** — leer documentación oficial / código fuente real antes de integrar
+7. **Arreglar y marcar como ✅ Hecho** en fix-notes (POST /api/fix-notes/:id/fix)
+8. **Commit + push + deploy** al final, no por cada micro-cambio
+9. **Verificar en navegador real** — comprobar que funciona antes de informar
+
+### Reglas reforzadas en esta sesión
+
+- **Fix-notes:** Antes de empezar, leer SIEMPRE las notas de error pendientes. Contienen bugs que el admin ha reportado y espera que se arreglen.
+- **Render env vars:** Los valores están ocultos (mascarados). Para actualizar una env var: click Edit, localizar la fila por el nombre (input con `placeholder="NAME_OF_VARIABLE"`), escribir en el textarea (`placeholder="value"`) adyacente, click "Save only".
+- **Drive auth:** La prioridad es `service account → OAuth`. Si el service account (DRIVE_KEY_JSON) falla, NO cae a OAuth automáticamente — `listFolderContents` devuelve `[]` silenciosamente.
+- **OAuth refresh token expirado:** No renovar — mejor usar la service account key que no expira. La service account `crm-movilbro-drive@certain-art-498222-h8.iam.gserviceaccount.com` ya tiene acceso al root folder `1JrStvTy-l0msOmfwT1S0Jupg6Ru6Zemx`.
+
+---
+
+## Sesión 2026-07-07 — WhatsApp Ficha + Drive fix
+
+### Contexto
+El admin creó 2 bugs en fix-notes sobre WhatsApp Ficha + detectó que Drive no funcionaba en Render. Pidió revisar, arreglar y desplegar.
+
+### Hecho
+1. **WhatsApp Ficha dropdown (bug #1, #2 fix-notes)**
+   - `views/codeopen.ejs:1506` — función `openCRMActions()` reescrita:
+     - z-index subido de `50` a `10000` — el dropdown ya no se queda detrás del overlay
+     - Posición inteligente: detecta espacio abajo (`window.innerHeight - rect.bottom`), si no hay sitio abre hacia arriba con `bottom:100%`
+     - Los enlaces ahora usan `fiscalId` real desde `btn.dataset.fiscal` (obtenido del client-info fetch), no el teléfono crudo
+     - Añadida función helper `lienzo()` para generar HTML de links sin repetir estilo
+     - Añadida función `esc()` para escape HTML
+   - `views/codeopen.ejs:1232` — en el callback de `/codeopen/client-info/`, cuando se detecta un cliente:
+     - Se guarda `info.fiscalId` en `crmBtn.dataset.fiscal` para que `openCRMActions()` lo use
+     - Los mini-botones inline también se siguen renderizando
+
+2. **Google Drive no funcionaba en Render**
+   - Diagnóstico: `listFolderContents error: invalid_client` — las env vars `DRIVE_KEY_JSON` y `DRIVE_OAUTH_JSON` contenían credenciales OAuth inválidas (client_id incorrecto)
+   - Solución: desde Render dashboard, actualicé `DRIVE_KEY_JSON` y `DRIVE_OAUTH_JSON` con la service account key (base64) correcta
+   - `helpers/drive.js` — añadido fallback a DB settings para `drive_oauth_json` (cambio de sesión previa, committeado ahora)
+
+3. **Deploy**
+   - Commit `461d14b`: `fix: WhatsApp Ficha dropdown z-index + flip, Drive auth fallback DB, fix fiscalId linking`
+   - Push a `main` y deploy manual desde dashboard Render
+   - Verificado: Drive API devuelve 12 items ✅, deploy live
+
+### Pendientes (heredados de sesiones anteriores)
+1. **Rate limit 429 DeepSeek** — IMAP/CodeOpen se satura. Solución: rotar API key o implementar backoff más agresivo
+2. **Probar IMAP** — enviar correo desde OTRA cuenta a infomovilbro@gmail.com y verificar que llega al panel CodeOpen
+3. **Envío real al aprobar** — al hacer click en "Aprobar" en CodeOpen, enviar WhatsApp/Email real (no solo guardar en DB)
+4. **Limpiar scripts temporales** — `check-*.js`, `test_*.js` en raíz y temp
+5. **Drive OAuth refresh token** — el refresh_token local de OAuth devuelve `invalid_grant` (expirado). No urgente porque la service account funciona. Si se necesita re-autenticar OAuth, ejecutar `authorize_drive.js` o `get_oauth_token.js`
+
+### Env vars en Render (verificadas)
+| Variable | Valor |
+|----------|-------|
+| `DRIVE_KEY_JSON` | Service account key (base64) ✅ |
+| `DRIVE_OAUTH_JSON` | Service account key (base64) ✅ |
+| `ASSEMBLYAI_API_KEY` | Configurado |
+| `GMAIL_USER` | `infomovilbro@gmail.com` |
+| `GMAIL_PASS` | Configurado |
+| `LIKES_CLIENT_ID` | Configurado |
+| `LIKES_CLIENT_SECRET` | Configurado |
+| `LIKES_BRAND_ID` | Configurado |
+| `OPENCODE_API_KEY` | Configurado |
+| `OPENROUTER_API_KEY` | Configurado |
+
+### Último commit
+`461d14b` — `fix: WhatsApp Ficha dropdown z-index + flip, Drive auth fallback DB, fix fiscalId linking` (deployed live en Render)
+`27d9cf8` — docs: update AGENTS.md (NO deployeado, solo push a GitHub)
+
+### Estado del CRM
+- CodeOpen WhatsApp overlay: funcionando con botón Ficha, dropdown con acciones CRM
+- Drive: operativo con service account desde Render
+- Likes API: funcionando con hardcoded fallback
+- IMAP: configurado pero no probado con correo real
+- fix-notes: 0 pendientes (todos marcados como ✅ Hecho)
+
+---
+
+## 👑 REGLAS ABSOLUTAS — NUNCA ROMPER
+
+Estas reglas están escritas con sangre. Si una nueva sesión las ignora, el CRM se rompe. LEER OBLIGATORIO antes de tocar nada.
+
+### 1. NADA en local — Todo en servidor
+- **NO usar el PC del admin para NADA.** Todo el código se ejecuta en Render.
+- No crear scripts .ps1/.bat en el escritorio del admin.
+- No leer/escribir archivos locales del admin (salvo el propio código fuente del repo).
+- Las pruebas se hacen con `node -e` desde el directorio del proyecto o desplegando a Render.
+- No asumir CDP local, no asumir navegador local, no asumir nada del entorno del admin.
+
+### 2. NO hacer commits/push sin que el admin lo pida
+- **NUNCA** hacer `git commit`, `git push`, ni `git add` a menos que el admin diga explícitamente "commit" o "push" o "sube los cambios".
+- Excepción: solo `AGENTS.md` se puede actualizar sin preguntar (es documentación).
+- Si hay cambios sin commitear y el admin no ha dicho nada, esperar.
+
+### 3. Skills obligatorios — Leer skill antes de tocar
+- Antes de tocar el sistema CodeOpen AI → leer `codeopen-ia` skill
+- Antes de tocar la API de Likes → leer `api-likes` skill
+- Antes de tocar rutas Express nuevas → leer `crear-ruta` skill
+- Antes de tocar vistas EJS → leer `vista-ejs` skill
+- Antes de tocar la base de datos → leer `migrar-bd` skill
+- Antes de tocar WhatsApp Overlay → leer `whatsapp-overlay` skill
+- Antes de hacer deploy → leer `desplegar-render` skill
+
+### 4. Cosas que he roto MÚLTIPLES VECES — No repetir
+
+#### 🧠 CodeOpen AI
+- He roto el sistema CodeOpen AI cambiando prompts, modelos o endpoints sin verificar que el flujo completo funciona (webhook → IA → pending → approve → envío)
+- He modificado `layout.ejs` (vigilante WhatsApp, overlay) y roto sin querer el polling de mensajes
+- He cambiado `routes/codeopen.js` y roto los webhooks entrantes (WhatsApp/Email)
+- **Regla:** CodeOpen NO se toca sin leer `codeopen-ia` skill primero y verificar el flujo completo
+
+#### 💬 WhatsApp Overlay
+- He roto el vigilante automático que escanea el iframe cada 3s al modificar `layout.ejs`
+- He cambiado selectores CSS de WhatsApp que se obsoletan (WhatsApp cambia su DOM)
+- He roto el botón Ficha y el dropdown de acciones (z-index, posición) — ya arreglado en `461d14b`
+- **Regla:** WhatsApp overlay NO se toca sin leer `whatsapp-overlay` skill y verificar en navegador real
+
+#### ☁️ Google Drive
+- He cambiado la prioridad de auth (service account vs OAuth) y roto Drive en producción
+- He eliminado el chequeo de `expiry_date` y luego no había warning si el token expiraba
+- He asumido que `DRIVE_KEY_JSON` tenía la key correcta cuando no — el error era silencioso (`[]`)
+- **Regla:** Drive usa `service account → OAuth`. Si falla, verificar env vars en Render dashboard. El error `invalid_client` o `[]` significa credenciales incorrectas.
+
+#### 🔐 Likes API
+- He eliminado el hardcoded fallback de credenciales Likes → CRM roto en entornos nuevos
+- **Regla:** NUNCA eliminar hardcoded. Prioridad: `env vars → settings DB → hardcoded`.
+
+#### ⚡ Deploy
+- He asumido que auto-deploy funciona → no funcionaba
+- He hecho deploy-tras-deploy como método de debugging → pérdida de tiempo
+- **Regla:** Push → dashboard Render → Manual Deploy → esperar "deploy live" → verificar en navegador
+
+#### 🛠️ Otras roturas comunes
+- `node -e` con PowerShell → usar SIEMPRE archivos `.js`
+- Modificar rutas sin `async` → rutas con `await` cascan
+- Asumir APIs externas sin leer docs → horas perdidas (baileys, assemblyai, googleapis)
+- Crear rutas de login sin auth (`/debug-login`) → backdoor de seguridad
+
+### 5. Backup de seguridad
+- El backup del CRM está en `C:\Users\xtptx\Desktop\0707\` — copia exacta del código desplegado en Render (commit `461d14b`) + documentación actualizada
+- Contiene: rutas, vistas, helpers, server.js, database, skills, config
+- Excluye: `node_modules/`, `temp/`, `.opencode/` (secrets locales)

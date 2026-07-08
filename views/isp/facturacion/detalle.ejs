@@ -1,0 +1,347 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-receipt-cutoff"></i> Factura <%= (factura.serie || 'F') + '-' + String(factura.numero_factura || factura.id).padStart(5, '0') %></h2>
+    <a href="/isp/facturacion/facturas" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Volver</a>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-8">
+      <div class="card h-100">
+        <div class="card-header"><i class="bi bi-info-circle"></i> Datos de la Factura</div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <small class="text-muted d-block">Nº Factura</small>
+              <span class="fw-bold"><%= (factura.serie || 'F') + '-' + String(factura.numero_factura || factura.id).padStart(5, '0') %></span>
+            </div>
+            <div class="col-md-4">
+              <small class="text-muted d-block">Cliente</small>
+              <span class="fw-bold"><%= factura.cliente_nombre || '-' %></span>
+            </div>
+            <div class="col-md-4">
+              <small class="text-muted d-block">Email</small>
+              <span><%= factura.cliente_email || '-' %></span>
+            </div>
+            <div class="col-md-4">
+              <small class="text-muted d-block">Periodo</small>
+              <span><%= factura.periodo || '-' %></span>
+            </div>
+            <div class="col-md-4">
+              <small class="text-muted d-block">Fecha Emisión</small>
+              <span><%= factura.fecha_emision ? new Date(factura.fecha_emision).toLocaleDateString('es-ES') : '-' %></span>
+            </div>
+            <div class="col-md-4">
+              <small class="text-muted d-block">Fecha Vencimiento</small>
+              <span><%= factura.fecha_vencimiento ? new Date(factura.fecha_vencimiento).toLocaleDateString('es-ES') : '-' %></span>
+            </div>
+            <div class="col-md-4">
+              <small class="text-muted d-block">Método Pago</small>
+              <div class="dropdown">
+                <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                  <%= factura.metodo_pago || 'Seleccionar' %>
+                </button>
+                <ul class="dropdown-menu">
+                  <li><a class="dropdown-item" href="#" onclick="cambiarMetodoPago(<%= factura.id %>, 'IBAN')">🏦 IBAN</a></li>
+                  <li><a class="dropdown-item" href="#" onclick="cambiarMetodoPago(<%= factura.id %>, 'Stripe')">💳 Stripe</a></li>
+                  <li><a class="dropdown-item" href="#" onclick="cambiarMetodoPago(<%= factura.id %>, 'Prepago')">📱 Prepago</a></li>
+                  <li><a class="dropdown-item" href="#" onclick="cambiarMetodoPago(<%= factura.id %>, 'Efectivo')">💵 Efectivo</a></li>
+                </ul>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <small class="text-muted d-block">Estado</small>
+              <span class="badge fs-6 bg-<%= factura.estado === 'pendiente' ? 'warning' : factura.estado === 'pagada' ? 'success' : 'danger' %>">
+                <%= factura.estado %>
+              </span>
+            </div>
+            <div class="col-md-4">
+              <small class="text-muted d-block">Email enviado</small>
+              <span><%- factura.email_enviado ? '<span class="badge bg-success"><i class="bi bi-check"></i> Sí</span>' : '<span class="badge bg-secondary">No</span>' %></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card h-100">
+        <div class="card-header"><i class="bi bi-lightning"></i> Acciones</div>
+        <div class="card-body d-flex flex-column gap-2">
+          <a href="/isp/nube/pdf/<%= factura.id %>" class="btn btn-info" target="_blank">
+            <i class="bi bi-file-pdf"></i> Descargar PDF
+          </a>
+          <a href="/isp/contratos?fiscal_id=<%= factura.fiscal_id %>" class="btn btn-outline-dark">
+            <i class="bi bi-file-text"></i> Ver Contrato
+          </a>
+          <a href="/isp/facturacion/facturas/<%= factura.id %>/view" class="btn btn-outline-info" target="_blank">
+            <i class="bi bi-eye"></i> Ver HTML Factura
+          </a>
+          <button class="btn btn-primary btn-enviar-email" data-id="<%= factura.id %>">
+            <i class="bi bi-envelope"></i> Enviar Email
+          </button>
+          <% if (factura.estado !== 'pagada') { %>
+          <button class="btn btn-success btn-pagar" data-id="<%= factura.id %>">
+            <i class="bi bi-check-lg"></i> Marcar Pagada
+          </button>
+          <% } %>
+          <% if (factura.stripe_invoice_id) { %>
+          <span class="text-success small text-center"><i class="bi bi-check-circle"></i> Stripe: <%= factura.stripe_invoice_id.substring(0,12) %>...</span>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><i class="bi bi-list-columns"></i> Líneas de Factura</div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-dark">
+            <tr>
+              <th>Concepto</th>
+              <th>Línea</th>
+              <th>Tipo</th>
+              <th class="text-end">Importe</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (lineas.length === 0) { %>
+            <tr><td colspan="4" class="text-center text-muted py-4"><i class="bi bi-inbox"></i> Sin líneas en esta factura</td></tr>
+            <% } else { lineas.forEach(function(l) { %>
+            <tr style="cursor:pointer;" onclick="verHistorialLinea(<%= factura.id %>, '<%= l.linea || '' %>')" title="Ver detalle de llamadas">
+              <td><%= l.concepto || '-' %></td>
+              <td><%= l.linea || '-' %></td>
+              <td><span class="badge bg-info"><%= l.tipo || '-' %></span></td>
+              <td class="fw-bold text-end"><%= parseFloat(l.importe || 0).toFixed(2) %>€</td>
+            </tr>
+            <% }) } %>
+          </tbody>
+          <tfoot>
+            <tr class="table-active">
+              <td colspan="3" class="fw-bold text-end">Total</td>
+              <td class="fw-bold text-end fs-5"><%= parseFloat(factura.importe_total || 0).toFixed(2) %>€</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <% if (cdrsDetalle && cdrsDetalle.length > 0) { %>
+  <div class="card mt-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span><i class="bi bi-graph-up"></i> CDRs - Consumos del periodo</span>
+      <span class="fw-bold text-primary">Total: <%= (typeof totalCdrs !== 'undefined' ? totalCdrs : cdrsDetalle.reduce(function(s,c){ return s + parseFloat(c.importe||0); }, 0)).toFixed(2) %>€</span>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive" style="max-height:400px;">
+        <table class="table table-sm table-hover mb-0 align-middle">
+          <thead class="table-light" style="position:sticky;top:0;">
+            <tr>
+              <th>Concepto</th>
+              <th>Línea</th>
+              <th>Tipo</th>
+              <th class="text-end">Unidades</th>
+              <th class="text-end">Importe</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% cdrsDetalle.forEach(function(c) { %>
+            <tr>
+              <td><%= c.concepto || '-' %></td>
+              <td><%= c.linea || '-' %></td>
+              <td><span class="badge bg-warning"><%= c.tipo || '-' %></span></td>
+              <td class="text-end"><%= c.unidades || '-' %></td>
+              <td class="fw-bold text-end"><%= parseFloat(c.importe || 0).toFixed(2) %>€</td>
+            </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <% if (usoDiario && usoDiario.length > 0) { %>
+  <div class="card mt-2">
+    <div class="card-header"><i class="bi bi-bar-chart"></i> CDRs - Uso diario</div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr><th>Fecha</th><th class="text-end">Datos</th><th class="text-end">Voz</th><th class="text-end">SMS</th><th class="text-end">Total</th></tr>
+          </thead>
+          <tbody>
+            <% usoDiario.forEach(function(d) { %>
+            <tr>
+              <td><%= d.fecha %></td>
+              <td class="text-end"><%= d.data.toFixed(2) %>€</td>
+              <td class="text-end"><%= d.voice.toFixed(2) %>€</td>
+              <td class="text-end"><%= d.sms.toFixed(2) %>€</td>
+              <td class="fw-bold text-end"><%= d.total.toFixed(2) %>€</td>
+            </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <% } %>
+  <% } %>
+
+  <% if (llamadas && llamadas.length > 0) { %>
+  <div class="card mt-3">
+    <div class="card-header"><i class="bi bi-telephone"></i> Historial de llamadas (<%= llamadas.length %> registros)</div>
+    <div class="card-body p-0">
+      <div class="table-responsive" style="max-height:400px;">
+        <table class="table table-sm table-hover mb-0 align-middle">
+          <thead class="table-light" style="position:sticky;top:0;">
+            <tr>
+              <th>Fecha</th>
+              <th>Hora</th>
+              <th>Destino</th>
+              <th>Grupo</th>
+              <th>Duración</th>
+              <th class="text-end">Importe</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% llamadas.forEach(function(c) { %>
+            <tr>
+              <td><%= c.fecha || '-' %></td>
+              <td><%= c.hora || '-' %></td>
+              <td><%= c.destino || '-' %></td>
+              <td><%= c.grupo || '-' %></td>
+              <td><%= c.duracion || '-' %></td>
+              <td class="fw-bold text-end"><%= parseFloat(c.importe || 0).toFixed(2) %>€</td>
+            </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <% } %>
+</section>
+
+<script>
+<% if (cdrsDetalle && cdrsDetalle.length > 0) { %>
+var cdrs = <%- JSON.stringify(cdrsDetalle) %>;
+var dailyData = {};
+cdrs.forEach(function(c) {
+  var d = c.fecha || c.fecha_cdr || c.created_at || '';
+  if (!d) return;
+  var day = new Date(d).toLocaleDateString('es-ES');
+  if (!dailyData[day]) dailyData[day] = { minutos: 0, datos: 0, sms: 0 };
+  var t = (c.tipo || '').toLowerCase();
+  var u = parseFloat(c.unidades) || 0;
+  if (t.indexOf('minuto') !== -1 || t.indexOf('llamada') !== -1 || t.indexOf('voz') !== -1) dailyData[day].minutos += u;
+  else if (t.indexOf('dato') !== -1 || t.indexOf('mb') !== -1 || t.indexOf('gb') !== -1 || t.indexOf('internet') !== -1) dailyData[day].datos += u;
+  else if (t.indexOf('sms') !== -1 || t.indexOf('mensaje') !== -1) dailyData[day].sms += u;
+  else dailyData[day].datos += u;
+});
+var days = Object.keys(dailyData).sort();
+if (days.length > 1 && typeof Chart !== 'undefined') {
+  var ctx = document.getElementById('cdrChart');
+  if (ctx) {
+    new Chart(ctx.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: days,
+        datasets: [
+          { label: 'Minutos', data: days.map(function(d){return dailyData[d].minutos;}), borderColor: '#0d6efd', backgroundColor: 'rgba(13,110,253,0.1)', fill: true, tension: 0.3 },
+          { label: 'Datos', data: days.map(function(d){return dailyData[d].datos;}), borderColor: '#198754', backgroundColor: 'rgba(25,135,84,0.1)', fill: true, tension: 0.3 },
+          { label: 'SMS', data: days.map(function(d){return dailyData[d].sms;}), borderColor: '#ffc107', backgroundColor: 'rgba(255,193,7,0.1)', fill: true, tension: 0.3 }
+        ]
+      },
+      options: { responsive: true, maintainAspectRatio: false, animation: false, resizeDelay: 0, plugins: { legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } } }, scales: { y: { beginAtZero: true, grid: { color: '#eee' } }, x: { grid: { display: false }, ticks: { font: { size: 9 } } } } }
+    });
+  }
+}
+<% } %>
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelector('.btn-enviar-email')?.addEventListener('click', function() {
+    const id = this.dataset.id;
+    const btn = this;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Enviando...';
+    fetch('/isp/facturacion/facturas/' + id + '/enviar', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+      .then(r => r.json())
+      .then(d => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-envelope"></i> Enviar Email';
+        if (d.ok) {
+          alert('✅ Email enviado correctamente');
+          location.reload();
+        } else {
+          alert('❌ Error: ' + (d.error || 'desconocido'));
+        }
+      })
+      .catch(function(err) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-envelope"></i> Enviar Email';
+        alert('❌ Error de conexión: ' + err.message);
+      });
+  });
+
+  document.querySelector('.btn-pagar')?.addEventListener('click', function() {
+    if (!confirm('¿Marcar esta factura como pagada?')) return;
+    const id = this.dataset.id;
+    fetch('/isp/facturacion/facturas/' + id + '/pagar', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+      .then(r => r.json())
+      .then(d => {
+        if (d.ok) { location.reload(); }
+        else { alert('Error: ' + (d.error || 'desconocido')); }
+      })
+      .catch(() => { alert('Error de conexión'); });
+  });
+});
+
+function cambiarMetodoPago(facturaId, metodo) {
+  if (!confirm('¿Cambiar método de pago a ' + metodo + '?')) return;
+  fetch('/isp/facturacion/facturas/' + facturaId + '/metodo-pago', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ metodo_pago: metodo })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d.ok) { location.reload(); }
+    else { alert('Error: ' + (d.error || 'desconocido')); }
+  })
+  .catch(function() { alert('Error de conexión'); });
+}
+
+// Ver historial de llamadas de una linea
+function verHistorialLinea(facturaId, linea) {
+  if (!linea) { alert('Línea no disponible'); return; }
+  fetch('/isp/facturacion/facturas/' + facturaId + '/linea/' + encodeURIComponent(linea))
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (!d.ok) { alert('Error: ' + (d.error || '')); return; }
+      var cdrs = d.cdrs || [];
+      var llamadas = d.llamadas || [];
+      var html = '<div class="table-responsive" style="max-height:400px;"><table class="table table-sm table-hover mb-0"><thead class="table-light" style="position:sticky;top:0;"><tr><th>Fecha</th><th>Hora</th><th>Destino</th><th>Duración</th><th>Importe</th></tr></thead><tbody>';
+      if (cdrs.length === 0) {
+        html += '<tr><td colspan="5" class="text-center text-muted py-3">Sin registros para esta línea en este periodo</td></tr>';
+      } else {
+        cdrs.forEach(function(c) {
+          var isVoice = c.tipo === 'voice' || c.tipo === 'llamada' || c.tipo === 'call';
+          html += '<tr>' +
+            '<td>' + (c.fecha || c.date || '-') + '</td>' +
+            '<td>' + (c.hora || c.time || c.startTime || '-') + '</td>' +
+            '<td>' + (c.destino || c.destination || c.number || c.phone || c.calledNumber || '-') + '</td>' +
+            '<td>' + (c.duracion || c.duration || c.seconds || c.unidades || '-') + '</td>' +
+            '<td class="fw-bold">' + parseFloat(c.importe || c.import || c.price || c.cost || 0).toFixed(2) + '€</td>' +
+            '</tr>';
+        });
+      }
+      html += '</tbody></table></div>';
+      // Show in modal
+      var modal = document.createElement('div');
+      modal.className = 'modal fade show d-block';
+      modal.style.background = 'rgba(0,0,0,0.5)';
+      modal.innerHTML = '<div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header"><h5 class="modal-title"><i class="bi bi-telephone"></i> Historial de línea ' + linea + '</h5><button type="button" class="btn-close" onclick="this.closest(\'.modal\').remove()"></button></div><div class="modal-body">' + html + '</div></div></div>';
+      document.body.appendChild(modal);
+    })
+    .catch(function(e) { alert('Error de conexión: ' + e.message); });
+}
+</script>

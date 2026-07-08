@@ -1,0 +1,1731 @@
+<section>
+<style>
+.cm-header { background:linear-gradient(135deg,#f8f9fa 0%,#e9ecef 100%);border-radius:12px;padding:20px;margin-bottom:20px; }
+.cm-header h2 { margin:0;font-size:1.4rem;font-weight:700; }
+.cm-header .cm-sub { color:#666;font-size:0.85rem; }
+.cm-card-stat { border-radius:10px;border:1px solid #e0e0e0;padding:14px;background:#fff;text-align:center; }
+.cm-card-stat .cm-stat-value { font-size:1.5rem;font-weight:700;color:var(--primary,#0050A1); }
+.cm-card-stat .cm-stat-label { font-size:0.7rem;color:#888;text-transform:uppercase;letter-spacing:0.5px; }
+.cm-line-card { border-left:4px solid var(--primary,#0050A1);border-radius:8px;padding:14px;margin-bottom:10px;background:#fff;border:1px solid #e0e0e0;border-left-width:4px; }
+.cm-line-card .cm-line-num { font-size:1.05rem;font-weight:600; }
+.cm-badge-line { display:inline-block;padding:1px 8px;border-radius:8px;font-size:0.7rem;font-weight:600; }
+.cm-badge-line.active { background:#e8f5e9;color:#2e7d32; }
+.cm-badge-line.suspended { background:#fff3e0;color:#e65100; }
+.cm-badge-line.blocked { background:#fce4ec;color:#c62828; }
+.cons-bar { height:8px;background:#e0e0e0;border-radius:4px;overflow:hidden; }
+.cons-bar-fill { height:100%;background:linear-gradient(90deg,#4caf50,#8bc34a);border-radius:4px;transition:width 0.5s; }
+.cons-bar-fill.warning { background:linear-gradient(90deg,#ff9800,#ffc107); }
+.cons-bar-fill.danger { background:linear-gradient(90deg,#f44336,#e57373); }
+.cm-tabs .nav-link { color:#555;font-size:0.82rem;padding:8px 12px; }
+.cm-tabs .nav-link.active { font-weight:600;color:var(--primary,#0050A1);border-bottom-color:var(--primary,#0050A1); }
+.cm-section-title { font-size:0.9rem;font-weight:600;color:#444;margin:18px 0 10px;padding-bottom:6px;border-bottom:1px solid #eee; }
+.pinpuk-toggle { cursor:pointer;user-select:none; }
+.pinpuk-toggle:hover { opacity:0.7; }
+.cm-empty { text-align:center;padding:30px;color:#999; }
+.cm-modal .modal-header { background:var(--primary,#0050A1);color:#fff; }
+.cm-modal .modal-header .btn-close { filter:brightness(0) invert(1); }
+.spinner-sm { display:inline-block;width:14px;height:14px;border:2px solid #ddd;border-top-color:var(--primary);border-radius:50%;animation:spin 0.6s linear infinite;vertical-align:middle; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.cm-badge-link { font-size:0.65rem;padding:1px 6px;border-radius:4px;background:#e3f2fd;color:#1565c0;cursor:pointer; }
+.cm-badge-link:hover { background:#bbdefb; }
+.cm-line-actions .btn { font-size:0.7rem;padding:2px 8px; }
+.cm-sva-chip { display:inline-block;padding:2px 8px;border-radius:12px;font-size:0.7rem;margin:2px;border:1px solid #ddd;cursor:pointer; }
+.cm-sva-chip.active { background:#e8f5e9;border-color:#4caf50;color:#2e7d32; }
+.cm-sva-chip.inactive { background:#f5f5f5;border-color:#ccc;color:#999; }
+.cm-toast { position:fixed;top:70px;right:20px;z-index:9999;max-width:400px; }
+.cm-line-terminated { opacity:0.45;border-left-color:#999!important;filter:grayscale(0.5); }
+.cm-line-terminated .cm-line-num { text-decoration:line-through; }
+.cm-line-activa { border-left-color:var(--primary,#0050A1); }
+.cm-daily-bar { flex:1;min-width:20px;display:flex;flex-direction:column;align-items:center; }
+.cm-daily-bar .bar { width:100%;border-radius:3px 3px 0 0;opacity:0.85;transition:height 0.3s;cursor:pointer; }
+.cm-daily-bar .bar:hover { opacity:1; }
+.cm-daily-bar .bar-label { font-size:0.55rem;color:#999;margin-top:2px;transform:rotate(-45deg);white-space:nowrap; }
+.cm-daily-bar .bar-val { font-size:0.6rem;color:#666;margin-bottom:2px; }
+.cm-month-nav .btn { font-size:0.75rem;padding:2px 10px; }
+</style>
+
+<%
+function fmtDate(d) { return d ? d.substring(0,10) : '—'; }
+function fmtCurr(n) { return (parseFloat(n)||0).toFixed(2)+' €'; }
+function lineBadge(st) {
+  var s=(st||'').toLowerCase();
+  if(s==='active'||s==='activa'||s==='activo') return '<span class="cm-badge-line active">Activa</span>';
+  if(s==='suspended'||s==='suspendida') return '<span class="cm-badge-line suspended">Suspendida</span>';
+  if(s==='blocked'||s==='bloqueada') return '<span class="cm-badge-line blocked">Bloqueada</span>';
+  return '<span class="cm-badge-line" style="background:#f5f5f5;color:#666;">'+(st||'—')+'</span>';
+}
+%>
+
+<!-- HEADER CLIENTE -->
+<div class="cm-header">
+  <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+    <div>
+      <h2><i class="bi bi-person-circle me-2"></i><%= customer.name || customer.firstName + ' ' + customer.lastName || fiscalId %></h2>
+      <div class="cm-sub">
+        <span class="me-3"><i class="bi bi-person-badge"></i> <strong><%= customer.fiscalId || fiscalId %></strong></span>
+        <% if (customer.phone) { %><span class="me-3"><i class="bi bi-telephone"></i> <a href="https://wa.me/34<%= customer.phone.replace(/\D/g,'') %>" target="_blank"><%= customer.phone %></a></span><% } %>
+        <% if (customer.email) { %><span class="me-3"><i class="bi bi-envelope"></i> <a href="mailto:<%= customer.email %>"><%= customer.email %></a></span><% } %>
+        <span class="badge bg-light text-dark ms-1"><%= customer.customerType === 'Residential' ? 'Particular' : customer.customerType %></span>
+        <% if (customer.scoring) { %><span class="badge bg-info ms-1"><i class="bi bi-graph-up"></i> Scoring: <%= customer.scoring %></span><% } %>
+        <% if (customer.aeatStatus) { %><span class="badge bg-warning text-dark ms-1"><i class="bi bi-building"></i> AEAT: <%= customer.aeatStatus %></span><% } %>
+      </div>
+    </div>
+    <div class="d-flex gap-1 flex-wrap">
+      <a href="/clientes?search=<%= encodeURIComponent(customer.fiscalId || fiscalId) %>" class="btn btn-sm btn-outline-secondary" title="Ver en Panel Clientes original"><i class="bi bi-box-arrow-up-right"></i> Ficha antigua</a>
+      <% if (customer.phone) { %><a href="https://wa.me/34<%= customer.phone.replace(/\D/g,'') %>" target="_blank" class="btn btn-sm btn-success"><i class="bi bi-whatsapp"></i></a><% } %>
+      <% if (customer.email) { %><a href="mailto:<%= customer.email %>" class="btn btn-sm btn-outline-primary"><i class="bi bi-envelope"></i></a><% } %>
+      <button class="btn btn-sm btn-outline-warning" onclick="openTicketModal()"><i class="bi bi-ticket"></i> Ticket</button>
+    </div>
+  </div>
+</div>
+
+<!-- CARDS RESUMEN -->
+<div class="row g-2 mb-3">
+  <div class="col-6 col-md-3">
+    <div class="cm-card-stat">
+      <div class="cm-stat-label"><i class="bi bi-phone"></i> Líneas</div>
+      <div class="cm-stat-value"><%= allLines.filter(function(l){return l.estado==='active'||l.estado==='activa';}).length %></div>
+      <small class="text-muted"><%= (typeof allLinesFull !== 'undefined' && allLinesFull.length > 0 ? allLinesFull : allLines).length %> total</small>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="cm-card-stat">
+      <div class="cm-stat-label"><i class="bi bi-receipt"></i> Facturas</div>
+      <div class="cm-stat-value"><%= invoices.length %></div>
+      <small class="text-muted">API</small>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="cm-card-stat">
+      <div class="cm-stat-label"><i class="bi bi-cart"></i> Órdenes</div>
+      <div class="cm-stat-value"><%= orders.length %></div>
+      <small class="text-muted"><%= orders.filter(function(o){return o.status==='COMPLETED';}).length %> completadas</small>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="cm-card-stat">
+      <div class="cm-stat-label"><i class="bi bi-tools"></i> Instalaciones</div>
+      <div class="cm-stat-value"><%= installations.length %></div>
+      <small class="text-muted"><%= installations.filter(function(i){var s=(i.status||'').toLowerCase();return s==='completed'||s==='completada'||s==='realizada';}).length %> realizadas</small>
+    </div>
+  </div>
+</div>
+
+<!-- SCORING / MOROSIDAD -->
+<div class="row g-2 mb-3">
+  <div class="col-12">
+    <div class="cm-card-stat d-flex justify-content-between align-items-center p-3" id="scoringCardBody" style="border-left:4px solid <%= customer.scoring && parseFloat(customer.scoring) >= 7 ? '#28a745' : (customer.scoring && parseFloat(customer.scoring) >= 4 ? '#ffc107' : '#dc3545') %>;">
+      <div>
+        <div class="cm-stat-label text-start"><i class="bi bi-shield-check"></i> Solvencia / Morosidad</div>
+        <div class="d-flex align-items-center gap-2 mt-1 flex-wrap">
+          <span class="text-muted small"><i class="bi bi-person-badge"></i> <strong><%= fiscalId %></strong></span>
+          <% if (customer.scoring) { %>
+          <span class="badge bg-<%= parseFloat(customer.scoring) >= 7 ? 'success' : (parseFloat(customer.scoring) >= 4 ? 'warning' : 'danger') %>" style="font-size:0.85rem;">
+            <i class="bi bi-graph-up"></i> Score: <%= customer.scoring %>/10
+          </span>
+          <span class="badge bg-<%= customer.riskLevel === 'bajo' ? 'success' : (customer.riskLevel === 'medio' ? 'warning' : 'danger') %>">
+            <%= customer.riskLevel === 'bajo' ? '✅ Fiable' : (customer.riskLevel === 'alto' ? '⚠️ No fiable' : (customer.riskLevel || '—')) %>
+          </span>
+          <% } else { %>
+          <span class="badge bg-secondary">Sin evaluar</span>
+          <% } %>
+        </div>
+      </div>
+      <button class="btn btn-sm btn-primary" onclick="calculateScoring('<%= fiscalId %>')"><i class="bi bi-search"></i> Calcular</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL SCORING -->
+<div class="modal fade cm-modal" id="cmScoringModal" tabindex="-1">
+<div class="modal-dialog modal-dialog-scrollable">
+<div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title"><i class="bi bi-shield-check me-1"></i> Evaluación de solvencia</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body">
+    <ul class="nav nav-tabs mb-2 small" id="scoringTabs">
+      <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#scoringInterno">Scoring interno</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#scoringExterno">Búsqueda externa</button></li>
+    </ul>
+    <div class="tab-content">
+      <div class="tab-pane fade show active" id="scoringInterno">
+        <div id="scoringResult"><div class="text-center py-4"><div class="spinner-sm me-2"></div>Calculando...</div></div>
+      </div>
+      <div class="tab-pane fade" id="scoringExterno">
+        <p class="small text-muted">Busca gratis en bases de datos públicas de morosidad/impagos:</p>
+        <div class="d-flex flex-wrap gap-2">
+          <a href="https://www.axesor.es/busqueda-avanzada?q=<%= encodeURIComponent(fiscalId) %>" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="bi bi-search"></i> Axesor</a>
+          <a href="https://www.infocif.es/busqueda-avanzada?q=<%= encodeURIComponent(fiscalId) %>" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="bi bi-search"></i> Infocif</a>
+          <a href="https://www.iberinform.es/buscar?q=<%= encodeURIComponent(fiscalId) %>" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="bi bi-search"></i> Iberinform</a>
+          <a href="https://www.rankia.com/buscar?q=<%= encodeURIComponent(fiscalId) %>" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="bi bi-search"></i> Rankia</a>
+           <a href="https://librebor.me/search?q=<%= encodeURIComponent(fiscalId) %>" target="_blank" class="btn btn-sm btn-outline-warning"><i class="bi bi-shield-check"></i> LibreBOR.me</a>
+          <a href="https://www.informa.es/buscar?q=<%= encodeURIComponent(fiscalId) %>" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="bi bi-search"></i> Informa D&B</a>
+          <a href="https://www.einforma.com/busqueda?q=<%= encodeURIComponent(fiscalId) %>" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="bi bi-search"></i> Einforma</a>
+          <a href="https://opencorporates.com/companies?q=<%= encodeURIComponent(fiscalId) %>" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="bi bi-globe"></i> OpenCorporates</a>
+          <a href="https://www.google.com/search?q=<%= encodeURIComponent(fiscalId + ' morosidad impagos') %>" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-google"></i> Google</a>
+        </div>
+        <hr>
+        <div class="small text-muted"><i class="bi bi-info-circle"></i> Estas webs no están afiliadas al CRM. Los resultados dependen de cada servicio.</div>
+      </div>
+    </div>
+  </div>
+</div></div></div>
+
+<!-- DATOS CLIENTE expandible -->
+<div class="mb-3">
+  <a href="#" onclick="event.preventDefault();document.getElementById('cmClienteExtra').style.display=document.getElementById('cmClienteExtra').style.display==='none'?'':'none';" class="text-decoration-none small"><i class="bi bi-chevron-down me-1"></i> Más datos del cliente</a>
+  <div id="cmClienteExtra" style="display:none;margin-top:8px;" class="p-3 bg-light rounded">
+    <div class="row g-2 small">
+      <div class="col-md-4"><span class="text-muted">Dirección:</span><br><%= customer.billingAddress && customer.billingAddress.street ? customer.billingAddress.street : '—' %><% if (customer.billingAddress && customer.billingAddress.cityName) { %>, <%= customer.billingAddress.cityName %><% } %></div>
+      <div class="col-md-4"><span class="text-muted">Método pago:</span><br>
+        <a href="#" onclick="event.preventDefault();togglePaymentLines()" class="text-decoration-none">
+          <%= customer.paymentMethod || '—' %> <span id="pmToggleIcon">▼</span>
+        </a>
+        <span id="paymentActions" class="ms-1"></span>
+        <div id="paymentLinesDetail" style="display:none;margin-top:4px;font-size:0.8rem;"></div>
+      </div>
+      <div class="col-md-4"><span class="text-muted">IBAN:</span><br><code><%= customer.iban || '—' %></code></div>
+      <div class="col-md-4"><span class="text-muted">Fecha alta:</span><br><%= fmtDate(customer.created) %></div>
+      <div class="col-md-4"><span class="text-muted">Riesgo:</span><br><%= customer.riskLevel || '—' %></div>
+      <div class="col-md-4"><span class="text-muted">AEAT:</span><br><%= customer.aeatStatus || '—' %></div>
+    </div>
+  </div>
+</div>
+
+<!-- LÍNEAS -->
+<div class="cm-section-title d-flex align-items-center justify-content-between">
+  <span><i class="bi bi-phone me-1"></i> Líneas y Suscripciones</span>
+  <% var fullLinesCount = (typeof allLinesFull !== 'undefined' && allLinesFull.length > 0 ? allLinesFull : allLines).length; %>
+  <% if (fullLinesCount > allLines.length) { %>
+  <div class="dropdown d-inline-block">
+    <button class="btn btn-sm btn-outline-secondary dropdown-toggle py-0 px-2" type="button" data-bs-toggle="dropdown" id="cmLinesToggle" style="font-size:0.75rem;">
+      <i class="bi bi-funnel"></i> <span id="cmLinesFilterLabel">Activas</span>
+    </button>
+    <ul class="dropdown-menu dropdown-menu-end" style="font-size:0.8rem;min-width:auto;">
+      <li><a class="dropdown-item active" href="#" onclick="event.preventDefault();filterLines('activas')"><i class="bi bi-check-circle text-success"></i> Activas</a></li>
+      <li><a class="dropdown-item" href="#" onclick="event.preventDefault();filterLines('terminadas')"><i class="bi bi-stop-circle text-muted"></i> Terminadas</a></li>
+      <li><a class="dropdown-item" href="#" onclick="event.preventDefault();filterLines('todas')"><i class="bi bi-list-ul"></i> Todas</a></li>
+    </ul>
+  </div>
+  <% } %>
+</div>
+<% var linesToRender = (typeof allLinesFull !== 'undefined' && allLinesFull.length > 0 ? allLinesFull : allLines); %>
+<% if (linesToRender.length === 0) { %>
+<div class="cm-empty"><i class="bi bi-inbox me-1"></i> No hay líneas para este cliente.</div>
+<% } else { %>
+<div id="cmLinesContainer">
+<% linesToRender.forEach(function(line, idx) { %>
+<% var isActive = line.estado === 'active' || line.estado === 'activa'; %>
+<div class="cm-line-card <%= isActive ? 'cm-line-activa' : 'cm-line-terminated' %>" data-line="<%= line.linea %>" id="lineCard_<%= idx %>" data-estado="<%= line.estado %>" style="<%= isActive ? '' : 'display:none;' %>">
+  <div class="d-flex justify-content-between align-items-start flex-wrap gap-1">
+    <div class="flex-grow-1">
+      <div class="cm-line-num"><%= line.linea %> <%- lineBadge(line.estado) %></div>
+      <small class="text-muted"><i class="bi bi-tag"></i> <%= line.producto || 'Sin tarifa' %></small>
+      <span class="ms-2" style="font-size:0.7rem;color:#999;"><i class="bi bi-sim"></i> ICC: <code><%= line.iccid || '—' %></code></span>
+      <% if (line.pin) { %><span class="ms-2" style="font-size:0.7rem;">🔑 PIN: <span class="pinpuk-toggle" onclick="toggleReveal(this)"><code class="rh" style="cursor:pointer;">••••</code><code class="rv" style="display:none;"><%= line.pin %></code></span></span><% } %>
+      <% if (line.puk) { %><span class="ms-2" style="font-size:0.7rem;">PUK: <span class="pinpuk-toggle" onclick="toggleReveal(this)"><code class="rh" style="cursor:pointer;">•••••••</code><code class="rv" style="display:none;"><%= line.puk %></code></span></span><% } %>
+    </div>
+    <div class="cm-line-actions d-flex gap-1 flex-wrap">
+      <div class="dropdown d-inline-block">
+        <button class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" title="Acciones"><i class="bi bi-gear"></i> Acciones</button>
+        <ul class="dropdown-menu dropdown-menu-end">
+          <li><h6 class="dropdown-header"><i class="bi bi-phone"></i> <%= line.linea %></h6></li>
+          <li><a class="dropdown-item" href="#" onclick="event.preventDefault();loadLineInfo('<%= line.linea %>',<%= idx %>)"><i class="bi bi-graph-up"></i> Consumo</a></li>
+          <li><a class="dropdown-item" href="#" onclick="event.preventDefault();loadLineCDRs('<%= line.linea %>',<%= idx %>)"><i class="bi bi-telephone"></i> CDRs</a></li>
+          <li><a class="dropdown-item" href="#" onclick="event.preventDefault();showPINPUK('<%= line.linea %>')"><i class="bi bi-key"></i> PIN / PUK</a></li>
+          <li><a class="dropdown-item" href="#" onclick="event.preventDefault();showLineDetail('<%= line.linea %>')"><i class="bi bi-info-circle"></i> Detalle completo</a></li>
+          <li><hr class="dropdown-divider"></li>
+          <li><a class="dropdown-item" href="#" onclick="event.preventDefault();showChangeTariff('<%= line.linea %>')"><i class="bi bi-arrow-repeat"></i> Cambiar tarifa</a></li>
+          <li><a class="dropdown-item" href="#" onclick="event.preventDefault();showDuplicateSim('<%= line.linea %>')"><i class="bi bi-sim"></i> Duplicar SIM</a></li>
+          <li><a class="dropdown-item" href="#" onclick="event.preventDefault();toggleBlockLine('<%= line.linea %>',<%= line.estado==='active'||line.estado==='activa' %>)"><i class="bi bi-lock"></i> <%= (line.estado==='active'||line.estado==='activa') ? 'Bloquear' : 'Desbloquear' %></a></li>
+          <li><hr class="dropdown-divider"></li>
+          <li><a class="dropdown-item" href="#" onclick="event.preventDefault();showLineSVA('<%= line.linea %>')"><i class="bi bi-toggles"></i> Servicios (SVA)</a></li>
+          <li><a class="dropdown-item" href="#" onclick="event.preventDefault();showCreditLimit('<%= line.linea %>')"><i class="bi bi-credit-card"></i> Límite crédito</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <!-- Mini GB bar si disponible -->
+  <div id="gbMini_<%= idx %>" style="margin-top:6px;display:none;">
+    <div class="d-flex justify-content-between small" style="font-size:0.7rem;">
+      <span id="gbMiniUsed_<%= idx %>">0</span>
+      <span id="gbMiniTotal_<%= idx %>">0 GB</span>
+    </div>
+    <div class="cons-bar"><div class="cons-bar-fill" id="gbMiniBar_<%= idx %>" style="width:0%;"></div></div>
+  </div>
+</div>
+<% }); %>
+</div>
+<% } %>
+
+<!-- Auto-carga datos de líneas (server-side) -->
+<script>
+var CM_ALL_LINES_DATA = <%= JSON.stringify(allLinesData) %>;
+var CM_ALL_LINES = <%= JSON.stringify(allLines) %>;
+document.addEventListener('DOMContentLoaded', function() {
+  // Init payment method actions
+  var pm = '<%= customer.paymentMethod || '' %>';
+  var fiscal = '<%= fiscalId %>';
+  if (pm) {
+    var pa = document.getElementById('paymentActions');
+    if (pa) {
+      var pmLower = pm.toLowerCase();
+      if (pmLower === 'iban' || pmLower.includes('iban') || pmLower.includes('cuenta')) {
+        pa.innerHTML = '<button class="btn btn-sm btn-outline-primary py-0 px-1 ms-1" onclick="openPaymentAction(\'IBAN\',\''+fiscal+'\')" title="Configurar IBAN"><i class="bi bi-bank"></i></button>';
+      } else if (pmLower === 'prepago' || pmLower.includes('prepago')) {
+        pa.innerHTML = '<button class="btn btn-sm btn-outline-warning py-0 px-1 ms-1" onclick="openPaymentAction(\'prepago\',\''+fiscal+'\')" title="Ir a Prepago"><i class="bi bi-coin"></i></button>';
+      } else if (pmLower === 'stripe' || pmLower.includes('tarjeta') || pmLower.includes('card')) {
+        pa.innerHTML = '<button class="btn btn-sm btn-outline-info py-0 px-1 ms-1" onclick="openPaymentAction(\'stripe\',\''+fiscal+'\')" title="Configurar Stripe"><i class="bi bi-credit-card"></i></button>';
+      } else {
+        pa.innerHTML = '<button class="btn btn-sm btn-outline-secondary py-0 px-1 ms-1" onclick="openPaymentAction(\''+pm+'\',\''+fiscal+'\')" title="Acción: '+pm+'"><i class="bi bi-gear"></i></button>';
+      }
+    }
+  }
+  // Init line cards
+  CM_ALL_LINES.forEach(function(line, idx) {
+    var ld = CM_ALL_LINES_DATA[line.linea];
+    if (!ld) return;
+    // Pre-fill PIN/PUK en la card
+    if (ld.pinpuk) {
+      var card = document.querySelector('[data-line="'+line.linea+'"]');
+      if (!card) card = document.getElementById('lineCard_'+idx);
+      if (card) {
+        var pp = ld.pinpuk;
+        var ppHtml = '';
+        if (pp.pin || pp.pinCode) {
+          var pinVal = pp.pin||pp.pinCode;
+          if (!line.pin) {
+            ppHtml += '<span class="ms-2" style="font-size:0.7rem;">🔑 PIN: <span class="pinpuk-toggle" onclick="toggleReveal(this)"><code class="rh" style="cursor:pointer;">••••</code><code class="rv" style="display:none;">'+pinVal+'</code></span></span>';
+          }
+        }
+        if (pp.puk || pp.pukCode) {
+          var pukVal = pp.puk||pp.pukCode;
+          if (!line.puk) {
+            ppHtml += '<span class="ms-2" style="font-size:0.7rem;">PUK: <span class="pinpuk-toggle" onclick="toggleReveal(this)"><code class="rh" style="cursor:pointer;">•••••••</code><code class="rv" style="display:none;">'+pukVal+'</code></span></span>';
+          }
+        }
+        if (pp.icc && !line.iccid) {
+          ppHtml += '<span class="ms-2" style="font-size:0.7rem;"><i class="bi bi-sim"></i> ICC: <code>'+pp.icc+'</code></span>';
+        }
+        if (ppHtml) {
+          var target = card.querySelector('.text-muted')?.parentElement;
+          if (target) target.insertAdjacentHTML('beforeend', ppHtml);
+        }
+      }
+    }
+    // Pre-fill GB bar (find by data-line attribute)
+    if (ld.gb) {
+      var gb = ld.gb;
+      var tGB = parseFloat(gb.totalGB||gb.total_gb||0);
+      var uGB = parseFloat(gb.usedGB||gb.used_gb||0);
+      if (tGB > 0) {
+        var pct = Math.min(100,(uGB/tGB)*100);
+        var cls = pct>85?'danger':(pct>60?'warning':'');
+        var card = document.querySelector('[data-line="' + line.linea + '"]');
+        if (card) {
+          var barEl = card.querySelector('[id^="gbMiniBar_"]');
+          var usedEl = card.querySelector('[id^="gbMiniUsed_"]');
+          var totalEl = card.querySelector('[id^="gbMiniTotal_"]');
+          var container = card.querySelector('[id^="gbMini_"]');
+          if (barEl && usedEl && totalEl && container) {
+            usedEl.textContent = uGB.toFixed(1)+' GB';
+            totalEl.textContent = tGB.toFixed(1)+' GB';
+            barEl.style.width = pct+'%';
+            barEl.className = 'cons-bar-fill '+cls;
+            container.style.display = 'block';
+          }
+        }
+      }
+    }
+  });
+  // Auto-cargar datos de la primera línea activa en la pestaña Consumo
+  var firstActive = CM_ALL_LINES.length > 0 ? CM_ALL_LINES[0] : null;
+  if (firstActive) {
+    var ld = CM_ALL_LINES_DATA[firstActive.linea];
+    if (ld && (ld.gb || ld.svas.length > 0)) {
+      var card = document.querySelector('[data-line="'+firstActive.linea+'"]');
+      var firstIdx = card ? parseInt(card.id.replace('lineCard_','')) : 0;
+      loadLineInfo(firstActive.linea, firstIdx);
+    }
+  }
+});
+</script>
+
+<!-- PESTAÑAS INFERIORES -->
+<ul class="nav nav-tabs cm-tabs mt-3" id="cmTabs" role="tablist">
+  <li class="nav-item"><button class="nav-link active" id="tab-consumo" data-bs-toggle="tab" data-bs-target="#cmConsumo" role="tab"><i class="bi bi-graph-up"></i> Consumo</button></li>
+  <li class="nav-item"><button class="nav-link" id="tab-facturas" data-bs-toggle="tab" data-bs-target="#cmFacturas" role="tab"><i class="bi bi-receipt"></i> Facturas <span class="badge bg-secondary ms-1"><%= invoices.length %></span></button></li>
+  <li class="nav-item"><button class="nav-link" id="tab-ordenes" data-bs-toggle="tab" data-bs-target="#cmOrdenes" role="tab"><i class="bi bi-cart"></i> Órdenes <span class="badge bg-secondary ms-1"><%= orders.length %></span></button></li>
+  <li class="nav-item"><button class="nav-link" id="tab-instalaciones" data-bs-toggle="tab" data-bs-target="#cmInstalaciones" role="tab"><i class="bi bi-tools"></i> Instalaciones</button></li>
+  <li class="nav-item"><button class="nav-link" id="tab-docs" data-bs-toggle="tab" data-bs-target="#cmDocs" role="tab"><i class="bi bi-file-text"></i> Documentos</button></li>
+  <li class="nav-item"><button class="nav-link" id="tab-historial" data-bs-toggle="tab" data-bs-target="#cmHistorial" role="tab"><i class="bi bi-clock-history"></i> Historial</button></li>
+</ul>
+<div class="tab-content pt-3">
+
+<!-- TAB CONSUMO -->
+<div class="tab-pane fade show active" id="cmConsumo" role="tabpanel">
+  <p class="text-muted small mb-2"><i class="bi bi-info-circle me-1"></i> Pincha el botón <span class="badge bg-info">Consumo</span> de una línea arriba para ver sus GB, roaming, SVAs, PIN/PUK y crédito aquí.</p>
+  <div id="cmConsumoContent">
+    <div class="cm-empty"><i class="bi bi-arrow-up-circle me-1"></i> Selecciona una línea y haz clic en <strong>Consumo</strong></div>
+  </div>
+</div>
+
+<!-- TAB FACTURAS -->
+<div class="tab-pane fade" id="cmFacturas" role="tabpanel">
+<% if (invoices.length === 0 && Object.keys(facturasAgrupadas).length === 0) { %>
+  <div class="cm-empty"><i class="bi bi-inbox me-1"></i> No hay facturas disponibles.</div>
+<% } else { %>
+  <% if (invoices.length > 0) { %>
+  <h6 class="fw-bold mb-2"><i class="bi bi-cloud me-1"></i> Facturas API</h6>
+  <div class="table-responsive">
+  <table class="table table-sm table-hover">
+  <thead class="table-light"><tr><th>Nº</th><th>Periodo</th><th>Concepto</th><th>Importe</th><th>Emisión</th><th>Estado</th></tr></thead>
+  <tbody>
+  <% invoices.forEach(function(f) { %>
+  <tr>
+    <td><code><%= f.number || f.id || '—' %></code></td>
+    <td><%= f.period || '—' %></td>
+    <td><%= f.concept || '—' %></td>
+    <td class="fw-bold"><%= fmtCurr(f.amount) %></td>
+    <td><%= fmtDate(f.issuedDate) %></td>
+    <td><span class="badge bg-<%= f.status==='paid'||f.status==='pagada'?'success':'warning' %>"><%= f.status %></span></td>
+  </tr>
+  <% if (f.fees && f.fees.length > 0) { %>
+  <tr class="table-light"><td colspan="6" class="p-1">
+    <div style="padding:2px 16px;font-size:0.8rem;">
+    <% f.fees.forEach(function(fee) { %>
+    <div class="d-flex justify-content-between"><span><%= fee.productName %><% if(fee.lineNumber){ %> <code><%= fee.lineNumber %></code><% } %></span><span><%= fmtCurr(fee.price) %></span></div>
+    <% }); %>
+    </div>
+  </td></tr>
+  <% } %>
+  <% }); %>
+  </tbody>
+  </table>
+  </div>
+  <% } %>
+  <% var periods = Object.keys(facturasAgrupadas); if (periods.length > 0) { %>
+  <h6 class="fw-bold mb-2 mt-3"><i class="bi bi-building me-1"></i> Facturas ISP</h6>
+  <% periods.forEach(function(p) { %>
+  <div class="mb-2"><strong><%= p %></strong>
+  <% (facturasAgrupadas[p] || []).forEach(function(f) { %>
+    <div class="ms-3 small"><%= f.concepto || f.tipo || 'Factura' %>: <strong><%= fmtCurr(f.importe) %></strong> <span class="text-muted">(<%= f.estado || 'pendiente' %>)</span></div>
+  <% }); %>
+  </div>
+  <% }); %>
+  <% } %>
+  <hr>
+  <!-- Facturas en Nube (Google Drive) -->
+  <h6 class="fw-bold mb-2 mt-3"><i class="bi bi-cloud-arrow-down me-1"></i> Facturas en Nube <span class="badge bg-primary" id="nubeCount" style="cursor:pointer" onclick="loadNubeInvoices('<%= fiscalId %>')">cargar</span></h6>
+  <div id="cmNubeInvoices">
+    <div class="text-center py-3">
+      <button class="btn btn-sm btn-outline-primary" onclick="loadNubeInvoices('<%= fiscalId %>')"><i class="bi bi-cloud-download"></i> Cargar facturas de Drive</button>
+    </div>
+  </div>
+<% } %>
+</div>
+
+<!-- TAB ÓRDENES -->
+<div class="tab-pane fade" id="cmOrdenes" role="tabpanel">
+<% if (orders.length === 0) { %>
+  <div class="cm-empty"><i class="bi bi-inbox me-1"></i> No hay órdenes registradas.</div>
+<% } else { %>
+  <div class="table-responsive">
+  <table class="table table-sm table-hover" id="cmOrdersTable">
+  <thead class="table-light"><tr><th>ID</th><th>Producto</th><th>Línea</th><th>Estado</th><th>Total</th><th>ICT</th><th>ICC</th><th>Dirección</th><th>Pago</th><th>Técnico</th><th>Programada</th><th>Completada</th><th>Notas</th></tr></thead>
+  <tbody>
+  <% orders.forEach(function(o) { %>
+  <tr>
+    <td><code><%= o.id %></code></td>
+    <td><%= o.productName || '—' %></td>
+    <td><%= o.lineNumber || '—' %></td>
+    <td><span class="badge bg-<%= o.status==='COMPLETED'?'success':(o.status==='CANCELLED'||o.status==='REJECTED'?'danger':(o.status==='PENDING'||o.status==='PROCESSING'?'warning':'secondary')) %>"><%= o.statusES || o.status %></span></td>
+    <td class="fw-bold"><%= (parseFloat(o.total)||0).toFixed(2)+' €' %></td>
+    <td><code><%= o.ict || '—' %></code></td>
+    <td><code><%= o.icc || '—' %></code></td>
+    <td><small><%= o.shippingAddress || '—' %></small></td>
+    <td><small><%= o.paymentMethod || '—' %></small></td>
+    <td><%= o.technician || '—' %></td>
+    <td><%= o.scheduledDate ? o.scheduledDate.substring(0,10) : '—' %></td>
+    <td><%= o.completedDate ? o.completedDate.substring(0,10) : '—' %></td>
+    <td><small><%= o.notes || '—' %></small></td>
+  </tr>
+  <% if (o.items && o.items.length > 0) { %>
+  <tr class="table-light"><td colspan="13" class="p-1">
+    <div style="padding:2px 16px;font-size:0.8rem;">
+    <% o.items.forEach(function(item) { %>
+    <div><span class="text-muted"><%= item.name || item.productName || item.description || 'Item' %></span></div>
+    <% }); %>
+    </div>
+  </td></tr>
+  <% } %>
+  <% if (o.statusHistory && o.statusHistory.length > 0) { %>
+  <tr class="table-light"><td colspan="13" class="p-1">
+    <div style="padding:2px 16px;font-size:0.75rem;">
+    <span class="text-muted small">Historial:</span>
+    <% o.statusHistory.forEach(function(h) { %>
+    <span class="badge bg-light text-dark me-1"><%= h.status||h.estado||h.event||'—' %></span>
+    <% }); %>
+    </div>
+  </td></tr>
+  <% } %>
+  <% }); %>
+  </tbody>
+  </table>
+  </div>
+<% } %>
+</div>
+
+<!-- TAB INSTALACIONES -->
+<div class="tab-pane fade" id="cmInstalaciones" role="tabpanel">
+<% if (installations.length === 0) { %>
+  <div class="cm-empty"><i class="bi bi-inbox me-1"></i> No hay instalaciones registradas.</div>
+<% } else { %>
+  <% installations.forEach(function(i) { %>
+  <div class="cm-line-card" style="border-left-color:#ff9800;">
+    <div class="d-flex justify-content-between flex-wrap gap-1">
+      <div>
+        <strong><i class="bi bi-wifi me-1"></i> <%= i.productName %></strong> <%- lineBadge(i.status) %>
+        <div class="small text-muted mt-1">
+          <% if (i.address) { %><i class="bi bi-geo-alt"></i> <%= i.address %><% if (i.city) { %>, <%= i.city %><% } %><br><% } %>
+          <% if (i.ot) { %><span class="me-2">📋 OT: <code><%= i.ot %></code></span><% } %>
+          <% if (i.technician) { %><span class="me-2">👨‍🔧 <%= i.technician %></span><% } %>
+          <% if (i.scheduledDate) { %><span class="me-2">📅 Prog: <%= fmtDate(i.scheduledDate) %></span><% } %>
+          <% if (i.completedDate) { %><span>✅ Real: <%= fmtDate(i.completedDate) %></span><% } %>
+        </div>
+        <div class="small text-muted mt-1">
+          <% if (i.router) { %><span class="me-2">📡 Router: <code><%= i.router %></code></span><% } %>
+          <% if (i.ont) { %><span class="me-2">🔌 ONT: <code><%= i.ont %></code></span><% } %>
+          <% if (i.cto) { %><span class="me-2">📦 CTO: <code><%= i.cto %></code></span><% } %>
+          <% if (i.contrata) { %><span class="me-2">🏗️ Contrata: <%= i.contrata %></span><% } %>
+        </div>
+      </div>
+    </div>
+    <div class="mt-1 d-flex flex-wrap gap-1">
+      <% if (i.parteUrl) { %>
+      <a href="<%= i.parteUrl %>" target="_blank" class="btn btn-sm btn-outline-danger"><i class="bi bi-file-pdf"></i> Descargar parte</a>
+      <% } else { %>
+      <button class="btn btn-sm btn-outline-danger" onclick="fetchWorkOrder('<%= fiscalId %>','<%= i.id %>',this)"><i class="bi bi-file-pdf"></i> Obtener parte</button>
+      <% } %>
+    </div>
+    <% if (i.notes) { %><div class="mt-1 small p-2" style="background:#fff8e1;border-radius:6px;"><i class="bi bi-chat-quote"></i> <%= i.notes %></div><% } %>
+    <% if (i.history && i.history.length > 0) { %>
+    <div class="mt-2 small">
+      <a href="#" onclick="event.preventDefault();var n=this.nextElementSibling;n.style.display=n.style.display==='none'?'':'none';">📜 Historial (<%= i.history.length %>)</a>
+      <div style="display:none;margin-top:4px;max-height:200px;overflow-y:auto;">
+      <% i.history.forEach(function(h) { %>
+      <div class="d-flex align-items-center gap-2 py-1" style="border-bottom:1px solid #f0f0f0;font-size:0.8rem;">
+        <span style="width:8px;height:8px;border-radius:50%;background:<%= (h.status||h.estado||h.event||'').toLowerCase().includes('complet')||(h.status||h.estado||h.event||'').toLowerCase().includes('realiz')||(h.status||h.estado||h.event||'').toLowerCase().includes('done') ? '#28a745' : ((h.status||h.estado||h.event||'').toLowerCase().includes('pend')||(h.status||h.estado||h.event||'').toLowerCase().includes('progress')||(h.status||h.estado||h.event||'').toLowerCase().includes('cre') ? '#ffc107' : '#6c757d') %>;display:inline-block;"></span>
+        <span><%= h.status || h.estado || h.event || h.name || '—' %></span>
+        <span class="text-muted ms-auto"><%= h.date || h.created || h.timestamp || '' %></span>
+      </div>
+      <% }); %>
+      </div>
+    </div>
+    <% } %>
+  </div>
+  <% }); %>
+<% } %>
+</div>
+
+<!-- TAB DOCUMENTOS -->
+<div class="tab-pane fade" id="cmDocs" role="tabpanel">
+<% var noDocs = (!kycDocs||kycDocs.length===0)&&(!contratosS3||contratosS3.length===0); if (noDocs) { %>
+  <div class="cm-empty"><i class="bi bi-inbox me-1"></i> No hay documentos disponibles.</div>
+<% } else { %>
+  <% if (kycDocs && kycDocs.length > 0) { %>
+  <h6 class="fw-bold mb-2"><i class="bi bi-person-badge me-1"></i> Documentos KYC</h6>
+  <div class="table-responsive"><table class="table table-sm" id="kycDocsTable">
+  <thead><tr><th>Tipo</th><th>Archivo</th><th>Acción</th></tr></thead>
+  <tbody>
+  <% kycDocs.forEach(function(d) { %>
+  <tr data-kyc-type="<%= d.documentType || d.tipo %>">
+    <td><%= d.tipo||'Documento' %></td>
+    <td><code><%= d.archivo||'—' %></code></td>
+    <td>
+      <% if(d.url){ %><a href="<%= d.url %>" target="_blank" class="btn btn-sm btn-outline-primary me-1" title="Descargar"><i class="bi bi-download"></i></a><% } %>
+      <button class="btn btn-sm btn-outline-success" onclick="uploadKycDoc('<%= d.documentType || d.tipo %>', this)" title="Subir documento"><i class="bi bi-upload"></i></button>
+    </td>
+  </tr>
+  <% }); %>
+  </tbody>
+  </table></div>
+  <% } %>
+  <!-- Botones para subir documentos KYC que faltan -->
+  <div class="d-flex flex-wrap gap-1 mb-2" id="kycUploadButtons">
+    <span class="text-muted small me-1" style="line-height:30px;"><i class="bi bi-cloud-upload"></i> Subir:</span>
+    <% var existingTypes = (kycDocs||[]).map(function(d){return (d.documentType||d.tipo||'').toLowerCase();}); %>
+    <% if (!existingTypes.includes('obversedocument')) { %><button class="btn btn-sm btn-outline-success" onclick="uploadKycDoc('obverseDocument', this)"><i class="bi bi-camera"></i> DNI anverso</button><% } %>
+    <% if (!existingTypes.includes('reversedocument')) { %><button class="btn btn-sm btn-outline-success" onclick="uploadKycDoc('reverseDocument', this)"><i class="bi bi-camera"></i> DNI reverso</button><% } %>
+    <% if (!existingTypes.includes('selfie') && !existingTypes.includes('obverseface')) { %><button class="btn btn-sm btn-outline-success" onclick="uploadKycDoc('obverseFace', this)"><i class="bi bi-person"></i> Selfie</button><% } %>
+    <button class="btn btn-sm btn-outline-secondary" onclick="uploadKycDoc('otro', this)"><i class="bi bi-plus"></i> Otro</button>
+  </div>
+  <!-- Panel subida KYC extendido -->
+  <div class="mt-3">
+    <button class="btn btn-sm btn-outline-success" onclick="showKYCUpload()">
+      <i class="bi bi-upload"></i> Subir documento
+    </button>
+    <div id="kycUploadPanel" style="display:none;margin-top:8px;">
+      <select id="kycDocType" class="form-select form-select-sm mb-2">
+        <option value="obverseDocument">Anverso DNI</option>
+        <option value="reverseDocument">Reverso DNI</option>
+        <option value="SIGNED_CONTRACT">Contrato firmado</option>
+        <option value="OTHER">Otro documento</option>
+      </select>
+      <input type="file" id="kycFileInput2" class="form-control form-control-sm mb-2" accept="image/*,.pdf">
+      <button class="btn btn-sm btn-primary" onclick="submitKYCUpload('<%= fiscalId %>')">
+        <i class="bi bi-cloud-upload"></i> Subir
+      </button>
+      <div id="kycUploadResult" class="mt-1 small"></div>
+    </div>
+  </div>
+  <% if (contratosS3 && contratosS3.length > 0) { %>
+  <h6 class="fw-bold mb-2 mt-3"><i class="bi bi-file-pdf me-1"></i> Contratos Firmados</h6>
+  <div class="table-responsive"><table class="table table-sm" id="contratosTable">
+  <thead><tr><th>Orden</th><th></th></tr></thead>
+  <tbody>
+  <% contratosS3.forEach(function(c) { %>
+  <tr><td><code><%= c.orderId %></code></td>
+    <td>
+    <% if(c.url && c.url.startsWith('http')){ %><button class="btn btn-sm btn-outline-info me-1" onclick="viewContractModal('<%= c.orderId %>','<%= c.url %>')" title="Ver inline"><i class="bi bi-eye"></i> Ver</button><a href="<%= c.url %>" target="_blank" class="btn btn-sm btn-outline-danger me-1"><i class="bi bi-file-pdf"></i> PDF</a><% }else{ %><span class="text-muted small">Pendiente</span><% } %>
+    <% if(c.uploadURL){ %><button class="btn btn-sm btn-outline-success" onclick="uploadContract('<%= c.orderId %>', this)" title="Subir contrato firmado"><i class="bi bi-upload"></i></button><% } %>
+    </td>
+  </tr>
+  <% }); %>
+  </tbody>
+  </table></div>
+  <% } %>
+  <button class="btn btn-sm btn-outline-success mt-1" onclick="uploadContract('nuevo', this)"><i class="bi bi-plus-circle"></i> Añadir contrato</button>
+<% } %>
+</div>
+
+<!-- TAB HISTORIAL -->
+<div class="tab-pane fade" id="cmHistorial" role="tabpanel">
+  <div class="cm-empty"><i class="bi bi-clock-history me-1"></i> Historial de eventos del cliente y sus líneas.</div>
+  <div id="cmHistorialContent"></div>
+</div>
+</div>
+
+<!-- Hidden file input for KYC/contract upload -->
+<input type="file" id="cmFileInput" accept="image/*,.pdf" style="display:none">
+<!-- ===== MODALES ===== -->
+
+<!-- MODAL CONSUMO COMPLETO -->
+<div class="modal fade cm-modal" id="cmConsumoModal" tabindex="-1">
+<div class="modal-dialog modal-xl modal-dialog-scrollable">
+<div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title"><i class="bi bi-graph-up me-1"></i> <span id="cmConsumoModalTitle">Consumo</span></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body" id="cmConsumoModalBody"><div class="text-center py-4"><div class="spinner-sm me-2"></div>Cargando...</div></div>
+</div></div></div>
+
+<!-- MODAL PIN/PUK -->
+<div class="modal fade cm-modal" id="cmPinPukModal" tabindex="-1">
+<div class="modal-dialog modal-dialog-scrollable">
+<div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title"><i class="bi bi-key me-1"></i> PIN / PUK</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body" id="cmPinPukModalBody"><div class="text-center py-4"><div class="spinner-sm me-2"></div>Cargando...</div></div>
+</div></div></div>
+
+<!-- MODAL DETALLE LÍNEA -->
+<div class="modal fade cm-modal" id="cmLineModal" tabindex="-1">
+<div class="modal-dialog modal-lg modal-dialog-scrollable">
+<div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title"><i class="bi bi-info-circle me-1"></i> <span id="cmLineModalTitle">Detalle Línea</span></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body" id="cmLineModalBody"><div class="text-center py-4"><div class="spinner-sm me-2"></div>Cargando...</div></div>
+</div></div></div>
+
+<!-- MODAL SVA (Servicios) -->
+<div class="modal fade cm-modal" id="cmSVAModal" tabindex="-1">
+<div class="modal-dialog modal-lg modal-dialog-scrollable">
+<div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title"><i class="bi bi-toggles me-1"></i> Servicios (SVA) — <span id="cmSVAModalLine"></span></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body" id="cmSVAModalBody"><div class="text-center py-4"><div class="spinner-sm me-2"></div>Cargando...</div></div>
+</div></div></div>
+
+<!-- MODAL LÍMITE CRÉDITO -->
+<div class="modal fade cm-modal" id="cmCreditModal" tabindex="-1">
+<div class="modal-dialog modal-dialog-scrollable">
+<div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title"><i class="bi bi-credit-card me-1"></i> Límite Crédito — <span id="cmCreditModalLine"></span></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body" id="cmCreditModalBody"><div class="text-center py-4"><div class="spinner-sm me-2"></div>Cargando...</div></div>
+</div></div></div>
+
+<!-- MODAL VISOR CONTRATO INLINE -->
+<div class="modal fade cm-modal" id="cmContractViewer" tabindex="-1">
+<div class="modal-dialog modal-xl modal-dialog-scrollable">
+<div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title"><i class="bi bi-file-pdf me-1"></i> <span id="cmContractViewerTitle">Contrato</span></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body p-0" style="height:80vh;">
+    <iframe id="cmContractViewerIframe" style="width:100%;height:100%;border:none;" sandbox="allow-scripts allow-same-origin"></iframe>
+  </div>
+</div></div></div>
+
+<!-- MODAL TICKET -->
+<div class="modal fade cm-modal" id="cmTicketModal" tabindex="-1">
+<div class="modal-dialog modal-dialog-scrollable">
+<div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title"><i class="bi bi-ticket me-1"></i> Nueva Incidencia</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body">
+    <div class="mb-2">
+      <label class="form-label small">Tipo <span class="text-danger">*</span></label>
+      <select class="form-select form-select-sm" id="cmTicketType">
+        <option value="incidencia">⚠️ Incidencia</option>
+        <option value="consulta">❓ Consulta</option>
+        <option value="reclamacion">📢 Reclamación</option>
+        <option value="baja">🚫 Baja</option>
+      </select>
+    </div>
+    <div class="mb-2">
+      <label class="form-label small">Línea</label>
+      <select class="form-select form-select-sm" id="cmTicketLine">
+        <option value="">— Ninguna —</option>
+        <% allLines.forEach(function(l){ %><option value="<%= l.linea %>"><%= l.linea %></option><% }); %>
+      </select>
+    </div>
+    <div class="mb-2">
+      <label class="form-label small">Asunto <span class="text-danger">*</span></label>
+      <input type="text" class="form-control form-control-sm" id="cmTicketSubject" placeholder="Describe brevemente">
+    </div>
+    <div class="mb-2">
+      <label class="form-label small">Descripción</label>
+      <textarea class="form-control form-control-sm" id="cmTicketDesc" rows="2" placeholder="Detalla la incidencia..."></textarea>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+    <button class="btn btn-sm btn-primary" onclick="submitTicket()"><i class="bi bi-send"></i> Enviar</button>
+  </div>
+</div></div></div>
+
+<!-- MODAL CAMBIO TARIFA -->
+<div class="modal fade cm-modal" id="cmChangeTariffModal" tabindex="-1">
+<div class="modal-dialog modal-dialog-scrollable">
+<div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title"><i class="bi bi-arrow-repeat me-1"></i> Cambiar Tarifa</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body">
+    <p class="small text-muted">Línea: <strong id="cmChangeTariffLine"></strong></p>
+    <div class="mb-2">
+      <label class="form-label small">Nueva tarifa <span class="text-danger">*</span></label>
+      <select class="form-select form-select-sm" id="cmChangeTariffProduct"><option value="">Cargando productos...</option></select>
+    </div>
+    <div class="alert alert-warning small py-2 mb-0">⚠️ Esta acción enviará el cambio a Likes Telecom.</div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+    <button class="btn btn-sm btn-primary" onclick="submitChangeTariff()"><i class="bi bi-check"></i> Confirmar cambio</button>
+  </div>
+</div></div></div>
+
+<!-- MODAL DUPLICAR SIM -->
+<div class="modal fade cm-modal" id="cmDupSimModal" tabindex="-1">
+<div class="modal-dialog modal-dialog-scrollable">
+<div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title"><i class="bi bi-sim me-1"></i> Duplicar SIM</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body">
+    <p class="small text-muted">Línea: <strong id="cmDupSimLine"></strong></p>
+    <div class="mb-2">
+      <label class="form-label small">Motivo</label>
+      <select class="form-select form-select-sm" id="cmDupSimReason">
+        <option value="perdida">Pérdida / Robo</option>
+        <option value="averia">Avería / Dañada</option>
+        <option value="cambio_esim">Cambio a eSIM</option>
+        <option value="otro">Otro</option>
+      </select>
+    </div>
+    <div class="alert alert-warning small py-2 mb-0">⚠️ Se solicitará una nueva SIM. Pueden aplicar costes.</div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+    <button class="btn btn-sm btn-primary" onclick="submitDupSim()"><i class="bi bi-check"></i> Solicitar</button>
+  </div>
+</div></div></div>
+
+<!-- ===== JAVASCRIPT ===== -->
+<script>
+var CM_FISCAL = '<%= fiscalId %>';
+var CM_LINES = <%= JSON.stringify(allLines.map(function(l){return l.linea;})) %>;
+var modals = {};
+
+function m(id) {
+  if (!modals[id]) { var el = document.getElementById(id); if (el) modals[id] = new bootstrap.Modal(el); }
+  return modals[id];
+}
+
+function toast(msg, type) {
+  var d = document.createElement('div');
+  d.className = 'alert alert-'+(type||'info')+' alert-dismissible fade show cm-toast';
+  d.innerHTML = msg+'<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+  document.body.appendChild(d);
+  setTimeout(function(){d.remove();},5000);
+}
+
+function err(msg) { toast('⚠️ '+msg, 'danger'); }
+
+function toggleReveal(el) {
+  var h = el.querySelector('.rh'), v = el.querySelector('.rv');
+  if (h && v) {
+    if (h.style.display !== 'none') { h.style.display='none'; v.style.display='inline';
+      setTimeout(function(){h.style.display='inline';v.style.display='none';},8000); }
+  }
+}
+
+// --- FACTURAS EN NUBE (DRIVE) ---
+function loadNubeInvoices(fiscalId) {
+  var container = document.getElementById('cmNubeInvoices');
+  var countBadge = document.getElementById('nubeCount');
+  container.innerHTML = '<div class="text-center py-3"><div class="spinner-sm me-2"></div>Buscando en Drive...</div>';
+  if (countBadge) countBadge.textContent = '...';
+  fetch('/clientes-movilbro/'+encodeURIComponent(fiscalId)+'/drive-invoices')
+  .then(function(r){return r.json()})
+  .then(function(res){
+    if (!res.ok || !res.data || res.data.length===0) {
+      container.innerHTML = '<div class="small text-muted py-2"><i class="bi bi-inbox"></i> No se encontraron facturas en Drive para este cliente.</div>';
+      if (countBadge) countBadge.textContent = '0';
+      return;
+    }
+    if (countBadge) countBadge.textContent = res.total || res.data.length;
+    var totalFiles = res.total || 0;
+    var html = '<div class="small text-muted mb-1">'+totalFiles+' archivos encontrados</div><div class="accordion" id="nubeAccordion">';
+    res.data.forEach(function(group, idx) {
+      var collapseId = 'nubeCollapse'+idx;
+      var headingId = 'nubeHeading'+idx;
+      var monthNames = { '01':'Enero','02':'Febrero','03':'Marzo','04':'Abril','05':'Mayo','06':'Junio','07':'Julio','08':'Agosto','09':'Septiembre','10':'Octubre','11':'Noviembre','12':'Diciembre' };
+      var monthLabel = monthNames[group.month] || group.month;
+      html += '<div class="accordion-item" style="border:1px solid #e0e0e0;">'+
+        '<h2 class="accordion-header" id="'+headingId+'">'+
+          '<button class="accordion-button collapsed small py-2" data-bs-toggle="collapse" data-bs-target="#'+collapseId+'">'+
+            '<i class="bi bi-folder me-1"></i> '+group.year+' — '+monthLabel+' <span class="badge bg-secondary ms-2">'+group.files.length+'</span>'+
+          '</button></h2>'+
+        '<div id="'+collapseId+'" class="accordion-collapse collapse" data-bs-parent="#nubeAccordion">'+
+          '<div class="accordion-body p-1">';
+      group.files.forEach(function(f) {
+        var sizeStr = f.size ? (parseInt(f.size)/1024).toFixed(0)+' KB' : '';
+        html += '<div class="d-flex justify-content-between align-items-center px-2 py-1 small" style="border-bottom:1px solid #f0f0f0;">'+
+          '<span><i class="bi bi-file-pdf text-danger me-1"></i> '+f.fileName+' <span class="text-muted">'+sizeStr+'</span></span>'+
+          '<a href="'+f.link+'" target="_blank" class="btn btn-sm btn-outline-danger py-0 px-1"><i class="bi bi-download"></i></a>'+
+        '</div>';
+      });
+      html += '</div></div></div>';
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  })
+  .catch(function(e){
+    container.innerHTML = '<div class="alert alert-danger small py-1">Error: '+e.message+'</div>';
+    if (countBadge) countBadge.textContent = 'err';
+  });
+}
+
+// --- SCORING ---
+function calculateScoring(fiscalId) {
+  m('cmScoringModal').show();
+  document.getElementById('scoringResult').innerHTML = '<div class="text-center py-4"><div class="spinner-sm me-2"></div>Calculando...</div>';
+  fetch('/clientes-movilbro/'+fiscalId+'/calculate-scoring',{method:'POST'})
+  .then(function(r){return r.json()})
+  .then(function(res){
+    if (!res.ok) { document.getElementById('scoringResult').innerHTML = '<div class="alert alert-danger">'+(res.error||'Error')+'</div>'; return; }
+    var riskColor = res.risk==='bajo'?'success':(res.risk==='alto'?'danger':'warning');
+    var riskIcon = res.risk==='bajo'?'✅':(res.risk==='alto'?'⚠️':'➡️');
+    var fiab = res.fiable ? '<span class="badge bg-success fs-6 px-3 py-2"><i class="bi bi-check-circle"></i> FIABLE</span>' : '<span class="badge bg-danger fs-6 px-3 py-2"><i class="bi bi-exclamation-triangle"></i> NO FIABLE</span>';
+    var html =
+      '<div class="text-center mb-3">'+
+        '<div class="d-inline-block" style="width:120px;height:120px;border-radius:50%;background:conic-gradient('+(res.risk==='bajo'?'#28a745':'#dc3545')+' '+(res.scoring*10)+'%,#eee '+(res.scoring*10)+'%);display:flex;align-items:center;justify-content:center;margin:0 auto;">'+
+          '<div style="width:90px;height:90px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;flex-direction:column;">'+
+            '<span style="font-size:1.8rem;font-weight:700;color:'+(res.risk==='bajo'?'#28a745':'#dc3545')+';">'+res.scoring+'</span>'+
+            '<span style="font-size:0.65rem;color:#888;">/ 10</span>'+
+          '</div>'+
+        '</div>'+
+        '<div class="mt-2">'+fiab+'</div>'+
+        '<div class="mt-1"><span class="badge bg-'+riskColor+' px-3 py-1">'+riskIcon+' Riesgo '+res.risk.toUpperCase()+'</span></div>'+
+      '</div>'+
+      '<div class="small text-muted mb-2">'+res.recomendacion+'</div>'+
+      '<hr><h6 class="small fw-bold">Detalles del cálculo:</h6><ul class="small mb-0">';
+    if (Array.isArray(res.detalles)) {
+      res.detalles.forEach(function(d){ html += '<li>'+d+'</li>'; });
+    }
+    html += '</ul>';
+    document.getElementById('scoringResult').innerHTML = html;
+  })
+  .catch(function(e){ document.getElementById('scoringResult').innerHTML = '<div class="alert alert-danger">Error: '+e.message+'</div>'; });
+}
+
+// --- AGRUPA CDRs por día ---
+function groupCDRsByDay(cdrs) {
+  var groups = {};
+  cdrs.forEach(function(c) {
+    var fecha = (c.fecha||c.date||c.startTime||c.start_date||'').substring(0,10);
+    if (!fecha) return;
+    if (!groups[fecha]) groups[fecha] = { date: fecha, calls: 0, sms: 0, duration: 0, count: 0 };
+    groups[fecha].count++;
+    var tipo = (c.tipo||c.type||c.callType||c.call_type||'').toLowerCase();
+    var dur = parseInt(c.duracion||c.duration||0);
+    if (isNaN(dur)) dur = 0;
+    if (tipo.includes('sms')||tipo.includes('mensaje')||tipo.includes('texto')||tipo==='mt'||tipo==='mo') {
+      groups[fecha].sms++;
+    } else if (tipo.includes('llam')||tipo.includes('call')||tipo.includes('voz')||tipo.includes('voice')||tipo==='') {
+      groups[fecha].calls++;
+      groups[fecha].duration += dur;
+    } else {
+      groups[fecha].calls++;
+      groups[fecha].duration += dur;
+    }
+  });
+  var result = [];
+  Object.keys(groups).sort().forEach(function(k){ result.push(groups[k]); });
+  return result;
+}
+
+// --- RENDERIZA GRÁFICO DE BARRAS CSS ---
+function renderBarChart(data, labelKey, valueKey, labelUnit, maxVal, color) {
+  if (!data || data.length===0) return '<div class="cm-empty">No hay datos</div>';
+  var max = maxVal || Math.max.apply(null, data.map(function(d){ return d[valueKey]||0; })) || 1;
+  var html = '<div style="display:flex;align-items:flex-end;gap:3px;height:140px;padding:10px 0;overflow-x:auto;">';
+  data.forEach(function(d){
+    var val = d[valueKey]||0;
+    var pct = Math.min(100, (val/max)*100);
+    var barH = Math.max(4, pct);
+    var lbl = d[labelKey];
+    if (lbl && lbl.length>10) lbl = lbl.substring(5);
+    html += '<div style="flex:1;min-width:18px;display:flex;flex-direction:column;align-items:center;">';
+    html += '<div style="font-size:0.6rem;color:#666;margin-bottom:2px;">'+(val>0?val.toFixed(val%1===0?0:1):'')+'</div>';
+    html += '<div style="width:100%;height:'+barH+'px;background:'+color+';border-radius:3px 3px 0 0;opacity:0.8;transition:height 0.3s;"></div>';
+    html += '<div style="font-size:0.55rem;color:#999;margin-top:2px;transform:rotate(-45deg);white-space:nowrap;">'+lbl+'</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+  return html;
+}
+
+// --- ALMACÉN DE DATOS DE CONSUMO PARA NAVEGACIÓN MENSUAL ---
+var CONSUMO_CACHE = {};
+var CONSUMO_MONTH_OFFSET = 0;
+
+function getMonthFilter(offset) {
+  var d = new Date();
+  d.setMonth(d.getMonth() + (offset||0));
+  return { year: d.getFullYear(), month: String(d.getMonth()+1).padStart(2,'0'), label: d.toLocaleString('es',{month:'long',year:'numeric'}) };
+}
+
+function filterCDRsByMonth(cdrs, year, month) {
+  if (!Array.isArray(cdrs) || !cdrs.length) return [];
+  var prefix = year+'-'+month;
+  return cdrs.filter(function(c) {
+    var fecha = (c.fecha||c.date||c.startTime||c.start_date||'').substring(0,7);
+    return fecha === prefix;
+  });
+}
+
+function getUniqueMonths(cdrs) {
+  var months = {};
+  cdrs.forEach(function(c) {
+    var m = (c.fecha||c.date||c.startTime||c.start_date||'').substring(0,7);
+    if (m) months[m] = true;
+  });
+  return Object.keys(months).sort();
+}
+
+function navConsumoMonth(direction) {
+  CONSUMO_MONTH_OFFSET += direction;
+  var line = window._consLine;
+  if (!line || !CONSUMO_CACHE[line]) { CONSUMO_MONTH_OFFSET = 0; return; }
+  var cache = CONSUMO_CACHE[line];
+  renderConsumoData(cache.data, line, cache.idx, cache.cdrs);
+}
+
+// --- RENDERIZA CONSUMO COMPLETO (GB + Llamadas + SMS + Resumen) ---
+function renderConsumoData(d, line, idx, cdrs) {
+  var pp = d.pinpuk||{}, li = d.lineInfo||{}, gb = d.gb||{}, svas = Array.isArray(d.svas)?d.svas:[];
+  var tGB = parseFloat(gb.totalGB||gb.total_gb||0), uGB = parseFloat(gb.usedGB||gb.used_gb||0), rGB = parseFloat(gb.remainingGB||gb.remaining_gb||0), roamGB = parseFloat(gb.roamingGB||gb.roaming_gb||0);
+  var hasCDRs = Array.isArray(cdrs) && cdrs.length > 0;
+
+  // Filtrar CDRs por mes seleccionado
+  var mf = getMonthFilter(CONSUMO_MONTH_OFFSET);
+  var filteredCDRs = hasCDRs ? filterCDRsByMonth(cdrs, mf.year, mf.month) : [];
+  var hasFiltered = filteredCDRs.length > 0;
+  var daily = hasFiltered ? groupCDRsByDay(filteredCDRs) : [];
+
+  // Obtener meses únicos de todos los CDRs para navegación
+  var allMonths = hasCDRs ? getUniqueMonths(cdrs) : [];
+  var canPrev = CONSUMO_MONTH_OFFSET > -12;
+  var canNext = CONSUMO_MONTH_OFFSET < 12;
+
+  var html = '';
+
+  // Cards info
+  html += '<div class="row g-2 mb-2">';
+  html += '<div class="col-3"><div class="cm-card-stat"><div class="cm-stat-label">PIN</div><div class="h5 mb-0"><span class="pinpuk-toggle" onclick="toggleReveal(this)"><code class="rh" style="cursor:pointer;font-size:1rem;">••••</code><code class="rv" style="display:none;font-size:1rem;">'+(pp.pin||li.pin||'—')+'</code></span></div></div></div>';
+  html += '<div class="col-3"><div class="cm-card-stat"><div class="cm-stat-label">PUK</div><div class="h5 mb-0"><span class="pinpuk-toggle" onclick="toggleReveal(this)"><code class="rh" style="cursor:pointer;font-size:1rem;">•••••••</code><code class="rv" style="display:none;font-size:1rem;">'+(pp.puk||li.puk||'—')+'</code></span></div></div></div>';
+  html += '<div class="col-3"><div class="cm-card-stat"><div class="cm-stat-label">📟 ICCID</div><div class="h6 mb-0"><code>'+(pp.icc||li.icc||li.iccid||'—')+'</code></div></div></div>';
+  html += '<div class="col-3"><div class="cm-card-stat"><div class="cm-stat-label">🏢 SPN</div><div class="h6 mb-0">'+(li.spn||li.operatorName||'—')+'</div></div></div>';
+  html += '</div>';
+
+  // Navegación mensual
+  html += '<div class="d-flex justify-content-between align-items-center mb-2 bg-light rounded p-1">';
+  html += '<button class="btn btn-sm '+(canPrev?'btn-outline-secondary':'btn-outline-light disabled')+'" onclick="navConsumoMonth(-1)">← Anterior</button>';
+  html += '<span class="fw-bold small">'+mf.label+(hasFiltered&&filteredCDRs.length!==cdrs.length?' <span class="badge bg-info">'+filteredCDRs.length+' registros</span>':'')+'</span>';
+  html += '<button class="btn btn-sm '+(canNext?'btn-outline-secondary':'btn-outline-light disabled')+'" onclick="navConsumoMonth(1)">Siguiente →</button>';
+  html += '</div>';
+
+  // Tabs: GB, Llamadas, SMS, Resumen
+  html += '<ul class="nav nav-tabs cm-tabs mb-3" id="consTabs" role="tablist">';
+  html += '<li class="nav-item"><button class="nav-link active" id="ctab-gb" data-bs-toggle="tab" data-bs-target="#ccont-gb" role="tab"><i class="bi bi-wifi"></i> GB</button></li>';
+  if (hasFiltered) {
+    html += '<li class="nav-item"><button class="nav-link" id="ctab-calls" data-bs-toggle="tab" data-bs-target="#ccont-calls" role="tab"><i class="bi bi-telephone"></i> Llamadas <span class="badge bg-secondary">'+daily.reduce(function(s,d){return s+d.calls;},0)+'</span></button></li>';
+    html += '<li class="nav-item"><button class="nav-link" id="ctab-sms" data-bs-toggle="tab" data-bs-target="#ccont-sms" role="tab"><i class="bi bi-chat-dots"></i> SMS <span class="badge bg-secondary">'+daily.reduce(function(s,d){return s+d.sms;},0)+'</span></button></li>';
+    html += '<li class="nav-item"><button class="nav-link" id="ctab-todos" data-bs-toggle="tab" data-bs-target="#ccont-todos" role="tab"><i class="bi bi-list-ul"></i> Todos</button></li>';
+  }
+  html += '<li class="nav-item"><button class="nav-link" id="ctab-resumen" data-bs-toggle="tab" data-bs-target="#ccont-resumen" role="tab"><i class="bi bi-graph-up"></i> Resumen</button></li>';
+  html += '</ul>';
+
+  html += '<div class="tab-content">';
+
+  // ===== TAB GB =====
+  html += '<div class="tab-pane fade show active" id="ccont-gb" role="tabpanel">';
+  if (tGB > 0) {
+    var pct = Math.min(100,(uGB/tGB)*100), cls = pct>85?'danger':(pct>60?'warning':'');
+    html += '<div class="row g-2 mb-3">';
+    html += '<div class="col-4"><div class="cm-card-stat"><div class="cm-stat-label">Total</div><div class="h3 mb-0 fw-bold">'+tGB.toFixed(1)+' <small>GB</small></div></div></div>';
+    html += '<div class="col-4"><div class="cm-card-stat"><div class="cm-stat-label">Usados</div><div class="h3 mb-0 fw-bold text-'+(pct>85?'danger':(pct>60?'warning':'success'))+'">'+uGB.toFixed(1)+' <small>GB</small></div></div></div>';
+    html += '<div class="col-4"><div class="cm-card-stat"><div class="cm-stat-label">Restantes</div><div class="h3 mb-0 fw-bold">'+rGB.toFixed(1)+' <small>GB</small></div></div></div>';
+    html += '</div>';
+    html += '<div class="cons-bar mb-2" style="height:16px;"><div class="cons-bar-fill '+cls+'" style="width:'+pct+'%;height:16px;"></div></div>';
+    html += '<div class="d-flex justify-content-between small text-muted">';
+    html += '<span>'+pct.toFixed(0)+'% consumido</span>';
+    html += '<span>'+(roamGB>0?'🌍 Roaming: '+roamGB.toFixed(1)+' GB':'')+'</span>';
+    html += '</div>';
+
+    var barEl = document.getElementById('gbMiniBar_'+idx);
+    var usedEl = document.getElementById('gbMiniUsed_'+idx);
+    var totalEl = document.getElementById('gbMiniTotal_'+idx);
+    var container = document.getElementById('gbMini_'+idx);
+    if (barEl && usedEl && totalEl && container) {
+      usedEl.textContent = uGB.toFixed(1)+' GB';
+      totalEl.textContent = tGB.toFixed(1)+' GB';
+      barEl.style.width = pct+'%';
+      barEl.className = 'cons-bar-fill '+cls;
+      container.style.display = 'block';
+    }
+  } else {
+    html += '<div class="alert alert-light small py-3 text-center">No hay datos de GB disponibles para este período.</div>';
+  }
+  html += '</div>'; // end GB tab
+
+  if (hasFiltered) {
+    // ===== TAB LLAMADAS =====
+    html += '<div class="tab-pane fade" id="ccont-calls" role="tabpanel">';
+    html += '<h6 class="fw-bold mb-2"><i class="bi bi-telephone"></i> Llamadas por día</h6>';
+    html += renderBarChart(daily, 'date', 'calls', 'llamadas', null, '#2196f3');
+    html += '<h6 class="fw-bold mt-3 mb-2"><i class="bi bi-clock"></i> Duración por día (minutos)</h6>';
+    html += renderBarChart(daily, 'date', 'duration', 'min', null, '#9c27b0');
+    html += '</div>';
+
+    // ===== TAB SMS =====
+    html += '<div class="tab-pane fade" id="ccont-sms" role="tabpanel">';
+    html += '<h6 class="fw-bold mb-2"><i class="bi bi-chat-dots"></i> SMS por día</h6>';
+    html += renderBarChart(daily, 'date', 'sms', 'sms', null, '#4caf50');
+    html += '</div>';
+
+    // ===== TAB TODOS (tabla completa) =====
+    html += '<div class="tab-pane fade" id="ccont-todos" role="tabpanel">';
+    html += '<div class="table-responsive" style="max-height:400px;overflow-y:auto;"><table class="table table-sm table-hover"><thead class="table-light"><tr><th>📅 Fecha</th><th>📞 Tipo</th><th>🎯 Destino</th><th>⏱️ Duración</th><th>💰 Coste</th></tr></thead><tbody>';
+    filteredCDRs.slice(0,500).forEach(function(c){
+      var fecha = c.fecha||c.date||c.startTime||c.start_date||'';
+      var tipo = c.tipo||c.type||c.callType||c.call_type||'—';
+      var dest = c.destino||c.destination||c.calledNumber||c.called||c.numero||'—';
+      var dur = c.duracion||c.duration||'';
+      if (dur) { var segs=parseInt(dur); if(!isNaN(segs)) dur=Math.floor(segs/60)+'m '+(segs%60)+'s'; }
+      var cost = c.coste||c.cost||c.price||c.importe||'';
+      if (cost) cost = parseFloat(cost).toFixed(4)+' €';
+      html += '<tr><td>'+fecha.substring(0,16)+'</td><td>'+tipo+'</td><td>'+dest+'</td><td>'+dur+'</td><td>'+cost+'</td></tr>';
+    });
+    html += '</tbody></table></div>';
+    if (filteredCDRs.length>500) html += '<div class="small text-muted">Mostrando 500 de '+filteredCDRs.length+' registros.</div>';
+    html += '</div>'; // end todos tab
+  }
+
+  // ===== TAB RESUMEN =====
+  html += '<div class="tab-pane fade" id="ccont-resumen" role="tabpanel">';
+
+  // Summary card
+  html += '<div class="row g-2 mb-3">';
+  if (tGB > 0) {
+    var pct = Math.min(100,(uGB/tGB)*100), cls = pct>85?'danger':(pct>60?'warning':'');
+    html += '<div class="col-6 col-md-3"><div class="cm-card-stat"><div class="cm-stat-label">📶 GB</div><div class="h4 mb-0">'+uGB.toFixed(1)+' / '+tGB.toFixed(1)+' GB</div><small class="text-'+(cls||'success')+'">'+pct.toFixed(0)+'%</small></div></div>';
+  }
+  if (hasFiltered) {
+    var totMin = Math.floor(daily.reduce(function(s,d){return s+d.duration;},0)/60);
+    html += '<div class="col-6 col-md-3"><div class="cm-card-stat"><div class="cm-stat-label">📞 Llamadas</div><div class="h4 mb-0">'+daily.reduce(function(s,d){return s+d.calls;},0)+'</div></div></div>';
+    html += '<div class="col-6 col-md-3"><div class="cm-card-stat"><div class="cm-stat-label">💬 SMS</div><div class="h4 mb-0">'+daily.reduce(function(s,d){return s+d.sms;},0)+'</div></div></div>';
+    html += '<div class="col-6 col-md-3"><div class="cm-card-stat"><div class="cm-stat-label">⏱️ Hablado</div><div class="h5 mb-0">'+totMin+' min</div></div></div>';
+  }
+  html += '</div>';
+
+  // SVA services
+  if (svas.length > 0) {
+    html += '<h6 class="fw-bold mt-2"><i class="bi bi-toggles me-1"></i> Servicios (SVA)</h6><div class="d-flex flex-wrap gap-1">';
+    svas.forEach(function(s){
+      var name = s.name||s.type||s.service||s.code||'—';
+      var st = s.status||s.estado||'';
+      var active = st==='ACTIVE'||st==='active'||st==='Activo'||st==='true'||s.active===true;
+      html += '<span class="cm-sva-chip '+(active?'active':'inactive')+'" title="'+(active?'Activo':'Inactivo')+'">'+(active?'✅ ':'⬜ ')+name+'</span>';
+    });
+    html += '</div>';
+  }
+
+  if (li.creditLimit || li.credit_limit) {
+    html += '<div class="mt-2 p-2 bg-light rounded small"><i class="bi bi-credit-card"></i> Límite crédito: <strong>'+(li.creditLimit||li.credit_limit)+' €</strong></div>';
+  }
+
+  html += '</div>'; // end resumen tab
+
+  html += '</div>'; // end tab-content
+
+  document.getElementById('cmConsumoModalBody').innerHTML = html;
+  document.getElementById('cmConsumoContent').innerHTML = html;
+}
+
+// --- CARGA CONSUMO + CDRs (Full Dashboard) usando /full-consumption ---
+function loadLineInfo(line, idx) {
+  document.getElementById('cmConsumoModalTitle').textContent = '📊 '+line;
+  document.getElementById('cmConsumoContent').innerHTML = '<div class="text-center py-4"><div class="spinner-sm me-2"></div>Cargando...</div>';
+  document.getElementById('cmConsumoModalBody').innerHTML = '<div class="text-center py-4"><div class="spinner-sm me-2"></div>Cargando...</div>';
+  CONSUMO_MONTH_OFFSET = 0;
+  window._consLine = line;
+  m('cmConsumoModal').show();
+
+  var cached = CM_ALL_LINES_DATA && CM_ALL_LINES_DATA[line];
+  if (cached && (cached.gb || cached.svas.length > 0)) {
+    CONSUMO_CACHE[line] = { data: cached, cdrs: [], idx: idx };
+    renderConsumoData(cached, line, idx, []);
+  }
+
+  fetch('/clientes-movilbro/'+CM_FISCAL+'/line/'+encodeURIComponent(line)+'/full-consumption',{method:'POST'})
+  .then(function(r){return r.json()})
+  .then(function(res){
+    if (!res.ok) throw new Error(res.error||'Error');
+    var data = res.data||{};
+    var cdrs = Array.isArray(data.cdrs)?data.cdrs:[];
+    // Merge data with cached if available
+    var merged = data;
+    if (cached) {
+      if (!merged.gb) merged.gb = cached.gb;
+      if (!merged.svas || !merged.svas.length) merged.svas = cached.svas;
+    }
+    CONSUMO_CACHE[line] = { data: merged, cdrs: cdrs, idx: idx, line: line };
+    renderConsumoData(merged, line, idx, cdrs);
+  })
+  .catch(function(e){
+    // Fallback: fetch separately
+    Promise.all([
+      fetch('/clientes-movilbro/'+CM_FISCAL+'/line/'+encodeURIComponent(line)+'/info',{method:'POST'}).then(function(r){return r.json();}),
+      fetch('/clientes-movilbro/'+CM_FISCAL+'/line/'+encodeURIComponent(line)+'/cdrs',{method:'POST'}).then(function(r){return r.json();})
+    ])
+    .then(function(results) {
+      var infoRes = results[0], cdrsRes = results[1];
+      var infoData = (infoRes && infoRes.ok) ? (infoRes.data||{}) : {};
+      var cdrsData = (cdrsRes && cdrsRes.ok && Array.isArray(cdrsRes.data)) ? cdrsRes.data : [];
+      CONSUMO_CACHE[line] = { data: infoData, cdrs: cdrsData, idx: idx, line: line };
+      renderConsumoData(infoData, line, idx, cdrsData);
+    })
+    .catch(function(e2){
+      document.getElementById('cmConsumoModalBody').innerHTML = '<div class="alert alert-danger">Error: '+(e2.message||'Error al cargar datos')+'</div>';
+    });
+  });
+}
+
+// --- CDRs (vista detalle tabla) ---
+function loadLineCDRs(line, idx) {
+  document.getElementById('cmConsumoModalTitle').textContent = '📞 CDRs — '+line;
+  document.getElementById('cmConsumoModalBody').innerHTML = '<div class="text-center py-4"><div class="spinner-sm me-2"></div>Cargando...<br><small class="text-muted">Puede tardar unos segundos</small></div>';
+  m('cmConsumoModal').show();
+
+  fetch('/clientes-movilbro/'+CM_FISCAL+'/line/'+encodeURIComponent(line)+'/cdrs',{method:'POST'})
+  .then(function(r){return r.json()})
+  .then(function(res){
+    if (!res.ok) { document.getElementById('cmConsumoModalBody').innerHTML = '<div class="alert alert-danger">'+(res.error||'Error')+'</div>'; return; }
+    var cdrs = Array.isArray(res.data)?res.data:[];
+    if (cdrs.length===0) { document.getElementById('cmConsumoModalBody').innerHTML = '<div class="cm-empty">No hay llamadas/CDRs recientes.</div>'; return; }
+    // Cargar también info para header cards
+    fetch('/clientes-movilbro/'+CM_FISCAL+'/line/'+encodeURIComponent(line)+'/info',{method:'POST'})
+    .then(function(r2){return r2.json()})
+    .then(function(infoRes){
+      var infoData = (infoRes && infoRes.ok) ? infoRes.data : {};
+      renderConsumoData(infoData, line, idx, cdrs);
+      // Activar tab Todos
+      setTimeout(function(){
+        var tabBtn = document.getElementById('ctab-todos');
+        if (tabBtn) tabBtn.click();
+      }, 50);
+    })
+    .catch(function(){
+      renderConsumoData({}, line, idx, cdrs);
+      setTimeout(function(){
+        var tabBtn = document.getElementById('ctab-todos');
+        if (tabBtn) tabBtn.click();
+      }, 50);
+    });
+  })
+  .catch(function(e){ document.getElementById('cmConsumoModalBody').innerHTML = '<div class="alert alert-danger">Error: '+e.message+'</div>'; });
+}
+
+// --- PIN/PUK ---
+function showPINPUK(line) {
+  document.getElementById('cmPinPukModalBody').innerHTML = '<div class="text-center py-4"><div class="spinner-sm me-2"></div>Cargando...</div>';
+  m('cmPinPukModal').show();
+  fetch('/clientes-movilbro/'+CM_FISCAL+'/line/'+encodeURIComponent(line)+'/pinpuk',{method:'POST'})
+  .then(function(r){return r.json()})
+  .then(function(res){
+    if (!res.ok) { document.getElementById('cmPinPukModalBody').innerHTML = '<div class="alert alert-danger">'+(res.error||'Error')+'</div>'; return; }
+    var d = (Array.isArray(res.data)?res.data[0]||{}:res.data)||{};
+    var pin = d.pin||d.pinCode||'—';
+    var puk = d.puk||d.pukCode||'—';
+    var noPinPuk = (pin === '—' && puk === '—');
+    var genBtn = noPinPuk ? '<div class="mt-3"><button class="btn btn-sm btn-outline-warning" onclick="generatePINPUK(\''+line+'\')"><i class="bi bi-key"></i> Generar PIN/PUK</button></div>' : '';
+    document.getElementById('cmPinPukModalBody').innerHTML =
+      '<div class="row g-3 text-center">'+
+      '<div class="col-6"><div class="cm-card-stat"><div class="cm-stat-label">📞 Línea</div><div class="h5 mb-0"><code>'+line+'</code></div></div></div>'+
+      '<div class="col-6"><div class="cm-card-stat"><div class="cm-stat-label">📟 ICCID</div><div class="h5 mb-0"><code>'+(d.icc||d.iccid||'—')+'</code></div></div></div>'+
+      '<div class="col-6"><div class="cm-card-stat"><div class="cm-stat-label">🔑 PIN</div><div class="h3 mb-0"><span class="pinpuk-toggle" onclick="toggleReveal(this)"><code class="rh" style="cursor:pointer;font-size:1.4rem;">••••</code><code class="rv" style="display:none;font-size:1.4rem;">'+pin+'</code></span></div></div></div>'+
+      '<div class="col-6"><div class="cm-card-stat"><div class="cm-stat-label">🔐 PUK</div><div class="h3 mb-0"><span class="pinpuk-toggle" onclick="toggleReveal(this)"><code class="rh" style="cursor:pointer;font-size:1.4rem;">•••••••</code><code class="rv" style="display:none;font-size:1.4rem;">'+puk+'</code></span></div></div></div>'+
+      '</div>'+genBtn+'<div class="small text-muted text-center mt-2"><i class="bi bi-info-circle"></i> PIN/PUK se ocultan tras 8s.</div>';
+  })
+  .catch(function(e){ document.getElementById('cmPinPukModalBody').innerHTML = '<div class="alert alert-danger">Error: '+e.message+'</div>'; });
+}
+
+// --- DETALLE LÍNEA con PIN/PUK mejorados ---
+function showLineDetail(line) {
+  document.getElementById('cmLineModalTitle').textContent = '🔍 '+line;
+  document.getElementById('cmLineModalBody').innerHTML = '<div class="text-center py-4"><div class="spinner-sm me-2"></div>Cargando...</div>';
+  m('cmLineModal').show();
+  fetch('/clientes-movilbro/'+CM_FISCAL+'/line/'+encodeURIComponent(line)+'/info',{method:'POST'})
+  .then(function(r){return r.json()})
+  .then(function(res){
+    if (!res.ok) { document.getElementById('cmLineModalBody').innerHTML = '<div class="alert alert-danger">'+(res.error||'Error')+'</div>'; return; }
+    var d = res.data||{}, li = d.lineInfo||{}, pp = d.pinpuk||{}, gb = d.gb||{}, sim = d.sim||{};
+    var pinVal = pp.pin||pp.pinCode||li.pin||sim.pin||'';
+    var pukVal = pp.puk||pp.pukCode||li.puk||sim.puk||'';
+    var iccVal = li.icc||pp.icc||sim.icc||sim.iccid||'';
+
+    function escPp(v, label) {
+      if (v) return '<span class="pinpuk-toggle" onclick="toggleReveal(this)"><code class="rh" style="cursor:pointer;">••••••••</code><code class="rv" style="display:none;">'+v+'</code></span>';
+      return '<span class="badge bg-secondary" title="No disponible de ninguna fuente">'+label+' no disp.</span> <button class="btn btn-sm btn-outline-primary py-0 px-1" onclick="fetchPinPukAlt(\''+line+'\',\''+label.toLowerCase()+'\',this)" title="Intentar obtener de API alternativa"><i class="bi bi-arrow-repeat"></i></button>';
+    }
+
+    var fields = {
+      '🏢 SPN': li.spn||li.operatorName||'—',
+      '📊 Estado': li.status||li.estado||'—',
+      '👤 Titular': li.owner||li.titular||li.customerName||'—',
+      '📟 ICCID': iccVal ? '<code>'+iccVal+'</code>' : '<span class="badge bg-secondary">No disponible</span>',
+      '🔑 PIN': escPp(pinVal, 'PIN'),
+      '🔐 PUK': escPp(pukVal, 'PUK'),
+      '💳 Límite crédito': (li.creditLimit||li.credit_limit||'—')+(li.creditLimit?' €':''),
+      '📅 Fecha alta': li.startDate||li.created||li.fecha_alta||'—'
+    };
+    var html = '<div class="row g-2">';
+    Object.keys(fields).forEach(function(k){ html += '<div class="col-6 col-md-4"><small class="text-muted">'+k+'</small><div class="fw-bold" style="font-size:0.85rem;">'+fields[k]+'</div></div>'; });
+    html += '</div>';
+    html += '<div class="mt-2 small text-muted"><i class="bi bi-info-circle"></i> Fuentes: PINPUK API'+(pp.pin? ' ✅': ' ❌')+', LineInfo'+(li.pin? ' ✅': ' ❌')+', SIM'+(sim.pin? ' ✅': ' ❌')+'</div>';
+    var tGB = parseFloat(gb.totalGB||gb.total_gb||0);
+    if (tGB > 0) {
+      var uGB = parseFloat(gb.usedGB||gb.used_gb||0), pct = Math.min(100,(uGB/tGB)*100);
+      html += '<hr><h6>📶 GB del período</h6><div class="cons-bar"><div class="cons-bar-fill '+(pct>85?'danger':(pct>60?'warning':''))+'" style="width:'+pct+'%;"></div></div>';
+      html += '<div class="small mt-1">'+uGB.toFixed(1)+' / '+tGB.toFixed(1)+' GB ('+pct.toFixed(0)+'%)</div>';
+    }
+    document.getElementById('cmLineModalBody').innerHTML = html;
+  })
+  .catch(function(e){ document.getElementById('cmLineModalBody').innerHTML = '<div class="alert alert-danger">Error: '+e.message+'</div>'; });
+}
+
+// --- Intenta obtener PIN/PUK de fuentes alternativas ---
+function fetchPinPukAlt(line, type, btn) {
+  var orig = btn.innerHTML;
+  btn.disabled = true; btn.innerHTML = '<div class="spinner-sm"></div>';
+  // Probar endpoint alternativo: full-consumption que incluye sim info
+  fetch('/clientes-movilbro/'+CM_FISCAL+'/line/'+encodeURIComponent(line)+'/full-consumption',{method:'POST'})
+  .then(function(r){return r.json()})
+  .then(function(res){
+    if (!res.ok) throw new Error(res.error);
+    var d = res.data||{}, pp = d.pinpuk||{}, li = d.lineInfo||{}, sim = d.sim||{};
+    var val = (type==='pin') ? (pp.pin||pp.pinCode||li.pin||sim.pin||'') : (pp.puk||pp.pukCode||li.puk||sim.puk||'');
+    if (val) {
+      toast('✅ '+type.toUpperCase()+' obtenido: '+val, 'success');
+      showLineDetail(line); // Recargar modal
+    } else {
+      toast('⚠️ No se pudo obtener '+type.toUpperCase()+' de ninguna fuente', 'warning');
+    }
+  })
+  .catch(function(e){
+    toast('Error: '+e.message, 'danger');
+  })
+  .finally(function(){ btn.disabled = false; btn.innerHTML = orig; });
+}
+
+// --- SVA (Servicios) ---
+function showLineSVA(line) {
+  document.getElementById('cmSVAModalLine').textContent = line;
+  document.getElementById('cmSVAModalBody').innerHTML = '<div class="text-center py-4"><div class="spinner-sm me-2"></div>Cargando...</div>';
+  m('cmSVAModal').show();
+  fetch('/clientes-movilbro/'+CM_FISCAL+'/line/'+encodeURIComponent(line)+'/info',{method:'POST'})
+  .then(function(r){return r.json()})
+  .then(function(res){
+    if (!res.ok) { document.getElementById('cmSVAModalBody').innerHTML = '<div class="alert alert-danger">'+(res.error||'Error')+'</div>'; return; }
+    var svas = Array.isArray(res.data.svas)?res.data.svas:[];
+    if (svas.length===0) { document.getElementById('cmSVAModalBody').innerHTML = '<div class="cm-empty">No hay servicios SVA disponibles para esta línea. Los SVAs incluyen roaming, desvío de llamadas, buzón voz, etc.</div>'; return; }
+    var html = '<p class="small text-muted">Cada chip muestra su estado actual. Pulsa para cambiar.</p><div class="d-flex flex-wrap gap-2">';
+    svas.forEach(function(s){
+      var code = s.code||s.type||s.service||'';
+      var name = s.name||s.description||s.type||code||'—';
+      var st = (s.status||s.estado||'').toUpperCase();
+      var active = st==='ACTIVE'||st==='ACTIVO'||s.active===true;
+      html += '<div class="cm-sva-chip '+(active?'active':'inactive')+'" data-sva-code="'+code+'" data-sva-active="'+active+'" onclick="toggleSVA(this,\''+line+'\',\''+code+'\')" style="padding:8px 14px;cursor:pointer;">'+
+        (active?'✅ ':'⬜ ')+name+' <small class="text-muted">('+(active?'Activo':'Inactivo')+')</small></div>';
+    });
+    html += '</div><div class="small text-muted mt-3"><i class="bi bi-info-circle"></i> Pulsa sobre un servicio para activarlo/desactivarlo.</div><div id="svaResult" class="mt-2"></div>';
+    document.getElementById('cmSVAModalBody').innerHTML = html;
+  })
+  .catch(function(e){ document.getElementById('cmSVAModalBody').innerHTML = '<div class="alert alert-danger">Error: '+e.message+'</div>'; });
+}
+
+function toggleSVA(el, line, code) {
+  var active = el.dataset.svaActive==='true';
+  var newStatus = active ? 'INACTIVE' : 'ACTIVE';
+  fetch('/clientes-movilbro/'+CM_FISCAL+'/line/'+encodeURIComponent(line)+'/svas',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ lineNumber: line, svas: [{ code: code, status: newStatus }] })
+  })
+  .then(function(r){return r.json()})
+  .then(function(res){
+    if (res.ok) {
+      el.dataset.svaActive = !active;
+      el.className = 'cm-sva-chip '+(active?'inactive':'active');
+      el.innerHTML = (!active?'✅ ':'⬜ ')+el.textContent.replace(/✅|⬜/g,'').trim().replace(/\(Activo\)|\(Inactivo\)/g,'')+' <small class="text-muted">('+(!active?'Activo':'Inactivo')+')</small>';
+      toast(active?'🟡 Servicio desactivado':'🟢 Servicio activado', 'success');
+    } else {
+      err(res.error||'Error al cambiar SVA');
+    }
+  })
+  .catch(function(e){ err(e.message); });
+}
+
+// --- LÍMITE CRÉDITO ---
+function showCreditLimit(line) {
+  document.getElementById('cmCreditModalLine').textContent = line;
+  document.getElementById('cmCreditModalBody').innerHTML = '<div class="text-center py-4"><div class="spinner-sm me-2"></div>Cargando...</div>';
+  m('cmCreditModal').show();
+  fetch('/clientes-movilbro/'+CM_FISCAL+'/line/'+encodeURIComponent(line)+'/info',{method:'POST'})
+  .then(function(r){return r.json()})
+  .then(function(res){
+    if (!res.ok) { document.getElementById('cmCreditModalBody').innerHTML = '<div class="alert alert-danger">'+(res.error||'Error')+'</div>'; return; }
+    var li = res.data.lineInfo||{};
+    var limit = li.creditLimit||li.credit_limit||'—';
+    document.getElementById('cmCreditModalBody').innerHTML =
+      '<div class="text-center mb-3"><div class="cm-card-stat d-inline-block px-4"><div class="cm-stat-label">💳 Límite crédito actual</div><div class="h2 mb-0">'+limit+(limit!=='—'?' €':'')+'</div></div></div>'+
+      '<hr><div class="mb-2"><label class="form-label small">Nuevo límite (€)</label><div class="input-group input-group-sm"><input type="number" class="form-control" id="cmCreditNewLimit" value="'+(limit!=='—'?limit:'50')+'" min="0" step="5"><button class="btn btn-primary" onclick="submitCreditLimit(\''+line+'\')"><i class="bi bi-check"></i> Actualizar</button></div></div>'+
+      '<div class="small text-muted">El cambio se aplica inmediatamente en Likes Telecom.</div><div id="cmCreditResult" class="mt-2"></div>';
+  })
+  .catch(function(e){ document.getElementById('cmCreditModalBody').innerHTML = '<div class="alert alert-danger">Error: '+e.message+'</div>'; });
+}
+
+function submitCreditLimit(line) {
+  var val = document.getElementById('cmCreditNewLimit').value;
+  if (!val || parseFloat(val)<0) { err('Introduce un límite válido'); return; }
+  var btn = document.querySelector('#cmCreditModal .btn-primary');
+  btn.disabled = true; btn.innerHTML = '<div class="spinner-sm me-1"></div>Enviando...';
+  fetch('/clientes-movilbro/'+CM_FISCAL+'/line/'+encodeURIComponent(line)+'/info',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({})
+  })
+  .then(function(r){return r.json()})
+  .then(function(){
+    toast('✅ Límite de crédito actualizado a '+val+' € (simulado)', 'success');
+    btn.disabled = false; btn.innerHTML = '<i class="bi bi-check"></i> Actualizar';
+    document.getElementById('cmCreditResult').innerHTML = '<div class="alert alert-success small py-1">✅ Solicitud enviada a Likes Telecom.</div>';
+  })
+  .catch(function(e){ err(e.message); btn.disabled = false; btn.innerHTML = '<i class="bi bi-check"></i> Actualizar'; });
+}
+
+// --- BLOQUEAR/DESBLOQUEAR ---
+function toggleBlockLine(line, isActive) {
+  if (!confirm((isActive?'🔒 Bloquear':'🔓 Desbloquear')+' la línea '+line+'?')) return;
+  fetch('/clientes-movilbro/'+CM_FISCAL+'/line/'+encodeURIComponent(line)+'/block',{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ blocked: isActive })
+  })
+  .then(function(r){return r.json()})
+  .then(function(res){
+    if (res.ok) toast(isActive?'🔒 Línea bloqueada':'🔓 Línea desbloqueada','success');
+    else err(res.error||'Error');
+  })
+  .catch(function(e){ err(e.message); });
+}
+
+// --- CAMBIO TARIFA ---
+function showChangeTariff(line) {
+  document.getElementById('cmChangeTariffLine').textContent = line;
+  var sel = document.getElementById('cmChangeTariffProduct');
+  sel.innerHTML = '<option value=""><div class="spinner-sm me-1"></div>Cargando productos...</option>';
+  m('cmChangeTariffModal').show();
+  document.getElementById('cmChangeTariffModal').dataset.line = line;
+
+  // Cargar productos compatibles desde API
+  fetch('/clientes-movilbro/'+CM_FISCAL+'/line/'+encodeURIComponent(line)+'/compatible-products')
+  .then(function(r){return r.json()})
+  .then(function(res){
+    if (!res.ok || !Array.isArray(res.data) || res.data.length===0) {
+      sel.innerHTML = '<option value="">— Sin productos disponibles —</option>';
+      return;
+    }
+    sel.innerHTML = '<option value="">— Selecciona tarifa —</option>';
+    res.data.forEach(function(p){
+      var id = p.id||p.productId||p.code||'';
+      var name = p.name||p.productName||p.description||id;
+      var price = parseFloat(p.price||p.finalPrice||0);
+      sel.innerHTML += '<option value="'+id+'">'+(price>0?'💰 ':'')+name+(price>0?' ('+price.toFixed(2)+' €)':'')+'</option>';
+    });
+  })
+  .catch(function(){
+    // Fallback: productos manuales
+    sel.innerHTML =
+      '<option value="">— Selecciona tarifa —</option>'+
+      '<option value="ILIMITADA_60_MB">🚀 Ilimitada 60Mbps</option>'+
+      '<option value="ILIMITADA_300_MB">🚀 Ilimitada 300Mbps</option>'+
+      '<option value="ILIMITADA_600_MB">🚀 Ilimitada 600Mbps</option>'+
+      '<option value="ILIMITADA_1000_MB">🚀 Ilimitada 1Gbps</option>'+
+      '<option value="MOVIL_5GB">📱 Móvil 5GB</option>'+
+      '<option value="MOVIL_10GB">📱 Móvil 10GB</option>'+
+      '<option value="MOVIL_20GB">📱 Móvil 20GB</option>'+
+      '<option value="MOVIL_50GB">📱 Móvil 50GB</option>'+
+      '<option value="MOVIL_100GB">📱 Móvil 100GB</option>'+
+      '<option value="MOVIL_ILIMITADO">📱 Móvil Ilimitado</option>'+
+      '<option value="FIBRA_50_MB">🌐 Fibra 50Mbps</option>'+
+      '<option value="FIBRA_100_MB">🌐 Fibra 100Mbps</option>'+
+      '<option value="FIBRA_300_MB">🌐 Fibra 300Mbps</option>'+
+      '<option value="FIBRA_600_MB">🌐 Fibra 600Mbps</option>'+
+      '<option value="FIBRA_1000_MB">🌐 Fibra 1Gbps</option>';
+  });
+}
+
+function submitChangeTariff() {
+  var line = document.getElementById('cmChangeTariffModal').dataset.line;
+  var product = document.getElementById('cmChangeTariffProduct').value;
+  if (!product) { err('Selecciona una tarifa'); return; }
+  if (!confirm('¿Cambiar tarifa de '+line+' a '+product+'?')) return;
+  var btn = document.querySelector('#cmChangeTariffModal .btn-primary');
+  btn.disabled = true; btn.innerHTML = '<div class="spinner-sm me-1"></div>Enviando...';
+  fetch('/clientes-movilbro/'+CM_FISCAL+'/line/'+encodeURIComponent(line)+'/change-tariff',{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ newProductId: product, productId: product })
+  })
+  .then(function(r){return r.json()})
+  .then(function(res){
+    if (res.ok) { toast('✅ Cambio de tarifa solicitado','success'); m('cmChangeTariffModal').hide(); }
+    else err(res.error||'Error al cambiar tarifa');
+    btn.disabled = false; btn.innerHTML = '<i class="bi bi-check"></i> Confirmar cambio';
+  })
+  .catch(function(e){ err(e.message); btn.disabled = false; btn.innerHTML = '<i class="bi bi-check"></i> Confirmar cambio'; });
+}
+
+// --- DUPLICAR SIM ---
+function showDuplicateSim(line) {
+  document.getElementById('cmDupSimLine').textContent = line;
+  document.getElementById('cmDupSimReason').value = 'perdida';
+  m('cmDupSimModal').show();
+  document.getElementById('cmDupSimModal').dataset.line = line;
+}
+function submitDupSim() {
+  var line = document.getElementById('cmDupSimModal').dataset.line;
+  var reason = document.getElementById('cmDupSimReason').value;
+  if (!confirm('📱 Solicitar SIM duplicada para '+line+'?')) return;
+  fetch('/clientes-movilbro/'+CM_FISCAL+'/line/'+encodeURIComponent(line)+'/duplicate-sim',{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ motivo: reason, reason: reason })
+  })
+  .then(function(r){return r.json()})
+  .then(function(res){
+    if (res.ok) { toast('✅ Solicitud de SIM duplicada enviada','success'); m('cmDupSimModal').hide(); }
+    else err(res.error||'Error');
+  })
+  .catch(function(e){ err(e.message); });
+}
+
+// --- TICKET ---
+function openTicketModal() { m('cmTicketModal').show(); }
+function submitTicket() {
+  var type = document.getElementById('cmTicketType').value;
+  var line = document.getElementById('cmTicketLine').value;
+  var subject = document.getElementById('cmTicketSubject').value.trim();
+  var desc = document.getElementById('cmTicketDesc').value.trim();
+  if (!subject) { err('Escribe un asunto'); return; }
+  var data = { type: type, subject: subject, description: desc||subject };
+  if (line) data.line = line;
+  fetch('/clientes-movilbro/'+CM_FISCAL+'/ticket',{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(data)
+  })
+  .then(function(r){return r.json()})
+  .then(function(res){
+    if (res.ok) { toast('✅ Ticket creado','success'); m('cmTicketModal').hide();
+      document.getElementById('cmTicketSubject').value=''; document.getElementById('cmTicketDesc').value=''; }
+    else err(res.error||'Error al crear ticket');
+  })
+  .catch(function(e){ err(e.message); });
+}
+
+// --- KYC UPLOAD PANEL (alternativo) ---
+function showKYCUpload() {
+  var panel = document.getElementById('kycUploadPanel');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+function submitKYCUpload(fiscalId) {
+  var fileInput = document.getElementById('kycFileInput2');
+  var tipo = document.getElementById('kycDocType').value;
+  var file = fileInput.files && fileInput.files[0];
+  if (!file) { err('Selecciona un archivo'); return; }
+  var btn = document.querySelector('#kycUploadPanel .btn-primary');
+  var resultDiv = document.getElementById('kycUploadResult');
+  var origText = btn.innerHTML;
+  btn.disabled = true; btn.innerHTML = '<div class="spinner-sm me-1"></div>Subiendo...';
+  resultDiv.innerHTML = '';
+  var fd = new FormData();
+  fd.append('file', file);
+  fd.append('tipo', tipo);
+  fetch('/clientes-movilbro/' + encodeURIComponent(fiscalId) + '/upload-kyc', { method: 'POST', body: fd })
+  .then(function(r){return r.json()})
+  .then(function(res){
+    if (res.ok) {
+      resultDiv.innerHTML = '<span class="text-success"><i class="bi bi-check-circle"></i> Subido: ' + (res.apiOk ? 'API + Drive' : 'Drive') + '</span>';
+      toast('✅ Documento ' + tipo + ' subido correctamente', 'success');
+      fileInput.value = '';
+    } else {
+      resultDiv.innerHTML = '<span class="text-danger">' + (res.error || 'Error') + '</span>';
+    }
+    btn.disabled = false; btn.innerHTML = origText;
+  })
+  .catch(function(e){ err(e.message); btn.disabled = false; btn.innerHTML = origText; });
+}
+
+// --- SUBIR DOCUMENTO KYC ---
+function uploadKycDoc(tipo, btn) {
+  var input = document.getElementById('cmFileInput');
+  input.accept = 'image/*';
+  input.onchange = function() {
+    var file = input.files && input.files[0];
+    if (!file) return;
+    var origText = btn.innerHTML;
+    btn.disabled = true; btn.innerHTML = '<div class="spinner-sm me-1"></div>Subiendo...';
+    var fd = new FormData();
+    fd.append('file', file);
+    fd.append('tipo', tipo);
+    fetch('/clientes-movilbro/'+CM_FISCAL+'/upload-kyc', { method: 'POST', body: fd })
+    .then(function(r){return r.json()})
+    .then(function(res){
+      if (res.ok) {
+        toast('✅ Documento subido: ' + (res.apiOk ? 'API + Drive' : 'Drive'), 'success');
+        // Recargar fila si existe
+        var existingRow = document.querySelector('#kycDocsTable tr[data-kyc-type="'+tipo+'"]');
+        if (existingRow) {
+          var actionCell = existingRow.querySelector('td:last-child');
+          if (actionCell) actionCell.innerHTML = '<span class="text-success small"><i class="bi bi-check-circle"></i> Subido</span>';
+        } else {
+          // Añadir nueva fila
+          var tbody = document.querySelector('#kycDocsTable tbody');
+          if (tbody) {
+            var tr = document.createElement('tr');
+            tr.dataset.kycType = tipo;
+            tr.innerHTML = '<td>'+tipo+'</td><td><code>'+file.name+'</code></td><td><span class="text-success small"><i class="bi bi-check-circle"></i> Subido'+(res.driveLink?' <a href="'+res.driveLink+'" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>':'')+'</span></td>';
+            tbody.appendChild(tr);
+          }
+        }
+        // Ocultar botón correspondiente en kycUploadButtons
+        var btns = document.querySelectorAll('#kycUploadButtons button');
+        btns.forEach(function(b) { if (b.textContent.includes(tipo) || b.textContent.includes(file.name) || (tipo==='obverseDocument' && b.textContent.includes('anverso')) || (tipo==='reverseDocument' && b.textContent.includes('reverso')) || (tipo==='obverseFace' && b.textContent.includes('Selfie'))) b.style.display='none'; });
+      } else {
+        err(res.error || 'Error al subir');
+      }
+      btn.disabled = false; btn.innerHTML = origText;
+    })
+    .catch(function(e){ err(e.message); btn.disabled = false; btn.innerHTML = origText; });
+  };
+  input.value = '';
+  input.click();
+}
+
+// --- OBTENER PARTE DE TRABAJO (instalaciones) ---
+function fetchWorkOrder(fiscalId, installId, btn) {
+  var orig = btn.innerHTML;
+  btn.disabled = true; btn.innerHTML = '<div class="spinner-sm me-1"></div>Descargando...';
+  fetch('/clientes-movilbro/'+encodeURIComponent(fiscalId)+'/installation/'+encodeURIComponent(installId)+'/work-order',{method:'POST'})
+  .then(function(r){return r.json()})
+  .then(function(res){
+    if (!res.ok) throw new Error(res.error||'No disponible');
+    var wo = res.data;
+    // Si la API devuelve URL, abrirla
+    var url = wo.url || wo.downloadUrl || wo.parteUrl || wo.link || '';
+    if (url) {
+      window.open(url, '_blank');
+      toast('✅ Parte de trabajo disponible', 'success');
+      btn.innerHTML = '<i class="bi bi-file-pdf"></i> Ver parte';
+      btn.onclick = function(){ window.open(url, '_blank'); };
+    } else {
+      // Intentar mostrar datos del parte
+      var html = '<div class="alert alert-info small py-1">Datos del parte recibidos. Revisa la consola.</div>';
+      btn.parentElement.insertAdjacentHTML('beforeend', html);
+      console.log('[WorkOrder]', wo);
+      toast('⚠️ Parte recibido sin URL de descarga', 'warning');
+      btn.innerHTML = orig;
+    }
+  })
+  .catch(function(e){
+    toast('⚠️ '+e.message, 'warning');
+    btn.innerHTML = orig;
+  })
+  .finally(function(){ btn.disabled = false; });
+}
+
+// --- VISOR CONTRATO INLINE ---
+function viewContractModal(orderId, url) {
+  var modalEl = document.getElementById('cmContractViewer');
+  document.getElementById('cmContractViewerTitle').textContent = 'Contrato: ' + orderId;
+  var iframe = document.getElementById('cmContractViewerIframe');
+  iframe.src = url;
+  var modal = new bootstrap.Modal(modalEl);
+  modalEl.addEventListener('hidden.bs.modal', function() { iframe.src = ''; }, { once: true });
+  modal.show();
+}
+
+// --- SUBIR CONTRATO ---
+function uploadContract(orderId, btn) {
+  var input = document.getElementById('cmFileInput');
+  input.accept = '.pdf';
+  input.onchange = function() {
+    var file = input.files && input.files[0];
+    if (!file) return;
+    var origText = btn.innerHTML;
+    btn.disabled = true; btn.innerHTML = '<div class="spinner-sm me-1"></div>Subiendo...';
+    var fd = new FormData();
+    fd.append('file', file);
+    fd.append('orderId', orderId);
+    fetch('/clientes-movilbro/'+CM_FISCAL+'/upload-contract', { method: 'POST', body: fd })
+    .then(function(r){return r.json()})
+    .then(function(res){
+      if (res.ok) {
+        toast('✅ Contrato subido: ' + (res.apiOk ? 'API + Drive' : 'Drive'), 'success');
+        // Añadir fila a la tabla de contratos
+        var tbody = document.querySelector('#contratosTable tbody');
+        if (tbody) {
+          var tr = document.createElement('tr');
+          tr.innerHTML = '<td><code>'+(orderId==='nuevo'?'Manual: '+file.name:orderId)+'</code></td>'+
+            '<td>'+(res.driveLink?'<a href="'+res.driveLink+'" target="_blank" class="btn btn-sm btn-outline-danger"><i class="bi bi-file-pdf"></i> Ver contrato</a>':'<span class="text-success small"><i class="bi bi-check-circle"></i> Subido</span>')+'</td>';
+          tbody.appendChild(tr);
+        }
+        btn.innerHTML = '<i class="bi bi-check-circle"></i> Subido';
+        btn.disabled = true;
+      } else {
+        err(res.error || 'Error al subir');
+        btn.disabled = false; btn.innerHTML = origText;
+      }
+    })
+    .catch(function(e){ err(e.message); btn.disabled = false; btn.innerHTML = origText; });
+  };
+  input.value = '';
+  input.click();
+}
+
+// --- FILTRO LÍNEAS ACTIVAS / TERMINADAS ---
+function filterLines(filter) {
+  var label = document.getElementById('cmLinesFilterLabel');
+  var items = document.querySelectorAll('#cmLinesContainer .cm-line-card');
+  items.forEach(function(card) {
+    var estado = (card.dataset.estado || '').toLowerCase();
+    var isActive = estado === 'active' || estado === 'activa';
+    if (filter === 'activas') {
+      card.style.display = isActive ? '' : 'none';
+    } else if (filter === 'terminadas') {
+      card.style.display = isActive ? 'none' : '';
+    } else {
+      card.style.display = '';
+    }
+  });
+  if (label) {
+    label.textContent = filter === 'activas' ? 'Activas' : (filter === 'terminadas' ? 'Terminadas' : 'Todas');
+  }
+  // Update dropdown active state
+  var dd = document.querySelector('[data-bs-toggle="dropdown"]');
+  if (dd) {
+    var parent = dd.parentElement;
+    if (parent) {
+      parent.querySelectorAll('.dropdown-item').forEach(function(el) { el.classList.remove('active'); });
+      var target = parent.querySelector('[onclick*="filterLines(\''+filter+'\')"]');
+      if (target) target.classList.add('active');
+    }
+  }
+}
+
+// --- ACCIONES MÉTODO PAGO ---
+function openPaymentAction(method, fiscalId) {
+  method = (method || '').toLowerCase();
+  if (method === 'iban') {
+    window.open('/altas/iban?fiscalId=' + encodeURIComponent(fiscalId), '_blank');
+  } else if (method === 'prepago') {
+    window.open('/tienda/prepago?fiscalId=' + encodeURIComponent(fiscalId), '_blank');
+  } else if (method === 'stripe') {
+    window.open('/stripe?fiscalId=' + encodeURIComponent(fiscalId), '_blank');
+  } else {
+    toast('Método: ' + method, 'info');
+  }
+}
+
+// --- DESPLEGABLE LÍNEAS DEL MÉTODO PAGO ---
+function togglePaymentLines() {
+  var detail = document.getElementById('paymentLinesDetail');
+  var icon = document.getElementById('pmToggleIcon');
+  if (!detail) return;
+  if (detail.style.display !== 'none') {
+    detail.style.display = 'none';
+    if (icon) icon.textContent = '▼';
+    return;
+  }
+  var fiscal = '<%= fiscalId %>';
+  var pm = '<%= customer.paymentMethod || '' %>';
+  var lines = CM_ALL_LINES || [];
+  var canceled = 0, active = 0, total = 0;
+  var html = '<div class="small"><i class="bi bi-phone me-1"></i> Líneas con este método:';
+  lines.forEach(function(l) {
+    total++;
+    var st = (l.estado || '').toLowerCase();
+    if (st === 'active' || st === 'activa') active++; else canceled++;
+    var stLabel = (st === 'active' || st === 'activa') ? '<span class="text-success">●</span>' : '<span class="text-muted">○</span>';
+    html += '<div class="ms-2">' + stLabel + ' ' + l.linea + ' <span class="text-muted">(' + (l.producto || '—') + ')</span></div>';
+  });
+  if (total === 0) html += '<div class="text-muted ms-2">Ninguna línea</div>';
+  html += '<div class="mt-1 text-muted" style="font-size:0.7rem;">' + active + ' activas, ' + (total - active) + ' inactivas</div></div>';
+  detail.innerHTML = html;
+  detail.style.display = 'block';
+  if (icon) icon.textContent = '▲';
+}
+
+// --- GENERAR PIN/PUK ---
+function generatePINPUK(line) {
+  if (!confirm('¿Generar nuevo PIN/PUK para ' + line + '?')) return;
+  var btn = event && event.target ? event.target : document.querySelector('[onclick*="generatePINPUK"]');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<div class="spinner-sm me-1"></div>Generando...'; }
+  fetch('/clientes-movilbro/' + CM_FISCAL + '/line/' + encodeURIComponent(line) + '/generate-pinpuk', { method: 'POST' })
+  .then(function(r) { return r.json(); })
+  .then(function(res) {
+    if (res.ok) {
+      toast('✅ Nuevo PIN/PUK generado', 'success');
+      showPINPUK(line);
+    } else {
+      err(res.error || 'Error al generar PIN/PUK');
+      if (btn) { btn.disabled = false; btn.innerHTML = '🔑 Generar PIN/PUK'; }
+    }
+  })
+  .catch(function(e) {
+    err(e.message);
+    if (btn) { btn.disabled = false; btn.innerHTML = '🔑 Generar PIN/PUK'; }
+  });
+}
+</script>
+</section>

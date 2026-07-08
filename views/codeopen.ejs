@@ -1,0 +1,1707 @@
+<div class="container-fluid p-0" id="appRoot" style="height:calc(100vh - 60px);display:flex;flex-direction:column;">
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@4.5.0/fonts/remixicon.css" rel="stylesheet">
+
+  <!-- Top Bar -->
+  <div id="catBar" style="padding:12px 20px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex-shrink:0;">
+    <span style="font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-right:8px;">Categoría</span>
+
+    <div id="categoryPills" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+    <div style="flex-grow:1;"></div>
+    <button id="themeToggle" style="background:none;border:1px solid;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:0.85rem;display:flex;align-items:center;gap:4px;">
+      <i class="ri-moon-line"></i>
+    </button>
+    <button id="pendingBtn" style="background:none;border:1px solid;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:0.85rem;display:flex;align-items:center;gap:4px;position:relative;">
+      <i class="ri-inbox-line"></i>
+      <span id="pendingBadge" style="background:#ef4444;color:#fff;font-size:0.6rem;border-radius:50%;min-width:16px;height:16px;display:none;align-items:center;justify-content:center;position:absolute;top:-4px;right:-4px;font-weight:700;"></span>
+    </button>
+    <button id="whatsappBtn" style="background:none;border:1px solid var(--border);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:0.85rem;display:flex;align-items:center;gap:4px;color:#25D366;">
+      <i class="ri-whatsapp-line"></i>
+      <span id="waStatusText" style="font-size:0.7rem;">Descon.</span>
+    </button>
+    <span id="statusDot" style="width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block;"></span>
+    <div id="cerebroBtn" style="position:relative;display:inline-block;">
+      <button id="cerebroToggle" style="background:var(--bg-main);border:1px solid var(--border);border-radius:8px;padding:4px 10px;cursor:pointer;font-size:0.85rem;color:var(--text-muted);display:flex;align-items:center;gap:4px;" title="Seleccionar modelo de IA">
+        <span>🧠</span><span style="font-size:0.6rem;opacity:0.5;">▼</span>
+      </button>
+      <div id="cerebroDropdown" style="display:none;position:absolute;top:100%;right:0;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:6px;z-index:100;min-width:200px;box-shadow:0 8px 30px rgba(0,0,0,0.3);"></div>
+    </div>
+  </div>
+
+
+
+  <!-- Main -->
+  <div style="flex:1;display:flex;overflow:hidden;position:relative;">
+    <div id="canvasWrap" style="flex:1;overflow-y:auto;overflow-x:hidden;padding:20px;position:relative;">
+      <div id="emptyState" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center;">
+        <div style="font-size:4rem;margin-bottom:16px;opacity:0.4;">
+          <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/><path d="M8 3a3 3 0 0 1 3-3h2a3 3 0 0 1 3 3"/></svg>
+        </div>
+        <h3 style="font-weight:300;margin-bottom:8px;">Panel de Agentes Inteligentes</h3>
+        <p style="max-width:420px;font-size:0.9rem;">Selecciona una categoría y escribe tu consulta. Los agentes trabajarán en paralelo y verás su progreso en tiempo real.</p>
+        <div id="quickExamples" style="margin-top:16px;display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:500px;"></div>
+      </div>
+      <!-- Vista de Contactos -->
+      <div id="waContactsView" style="display:none;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border);">
+          <i id="waViewIcon" class="ri-inbox-2-line" style="color:#6366f1;font-size:1.3rem;"></i>
+          <span style="font-weight:600;font-size:0.9rem;">Mensajes <span class="filter-label" style="font-weight:400;color:var(--text-muted);">todos</span></span>
+          <span id="waContactsCount" style="background:var(--border);color:var(--text-muted);font-size:0.7rem;border-radius:10px;padding:2px 8px;"></span>
+        </div>
+        <div id="waContactsList"></div>
+      </div>
+      <div id="agentPipeline" style="display:none;flex-direction:column;gap:0;position:relative;padding:10px 0;"></div>
+      <div id="resultArea" style="display:none;margin-top:20px;"></div>
+    </div>
+    <div id="activitySidebar" style="width:280px;display:none;flex-direction:column;flex-shrink:0;">
+      <div style="padding:12px 16px;font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:1px;">Actividad</div>
+      <div id="activityFeed" style="flex:1;overflow-y:auto;padding:8px;font-size:0.8rem;"></div>
+    </div>
+  </div>
+
+  <!-- Input Bar -->
+  <div style="flex-shrink:0;padding:12px 20px;">
+    <form id="askForm" style="display:flex;gap:10px;align-items:center;">
+      <input type="text" id="askInput" class="form-control" placeholder="Escribe tu consulta para los agentes..." autocomplete="off" style="border-radius:10px;padding:12px 16px;font-size:0.9rem;">
+      <button type="submit" id="askBtn" style="background:linear-gradient(135deg,#6366f1,#0050A1);color:#fff;border:0;border-radius:10px;padding:12px 20px;font-size:0.9rem;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;">
+        <i class="ri-send-plane-2-line"></i> Ejecutar
+      </button>
+    </form>
+  </div>
+
+  <!-- WhatsApp QR Panel -->
+  <div id="waQRPanel" style="position:fixed;top:0;right:-400px;width:380px;height:100vh;background:var(--bg-card);border-left:1px solid var(--border);z-index:1000;transition:right 0.3s ease;display:flex;flex-direction:column;">
+    <div style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);flex-shrink:0;">
+      <span style="font-size:0.85rem;font-weight:600;display:flex;align-items:center;gap:6px;color:#25D366;"><i class="ri-whatsapp-line"></i> WhatsApp Conectar</span>
+      <div style="display:flex;align-items:center;gap:4px;">
+        <div id="waSettingsBtn" style="position:relative;display:inline-block;">
+          <button id="waSettingsToggle" style="background:none;border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:1rem;color:var(--text-dim);padding:4px 6px;display:flex;align-items:center;" title="Configuración">⚙️</button>
+          <div id="waSettingsDropdown" style="display:none;position:absolute;top:100%;right:0;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:6px;z-index:100;min-width:220px;box-shadow:0 8px 30px rgba(0,0,0,0.3);">
+            <div style="padding:6px 10px;font-size:0.7rem;color:var(--text-faint);border-bottom:1px solid var(--border);margin-bottom:4px;">WhatsApp</div>
+            <div id="waLogoutDropdown" style="padding:8px 10px;border-radius:8px;cursor:pointer;font-size:0.78rem;display:flex;align-items:center;gap:8px;color:var(--error);transition:background 0.2s;" onmouseover="this.style.background='var(--border)'" onmouseout="this.style.background='transparent'"><i class="ri-logout-circle-r-line"></i> Cerrar sesión WhatsApp</div>
+            <div id="waReconnectDropdown" style="padding:8px 10px;border-radius:8px;cursor:pointer;font-size:0.78rem;display:flex;align-items:center;gap:8px;color:var(--text);transition:background 0.2s;" onmouseover="this.style.background='var(--border)'" onmouseout="this.style.background='transparent'"><i class="ri-refresh-line"></i> Reconectar WhatsApp</div>
+            <div style="padding:6px 10px;font-size:0.7rem;color:var(--text-faint);border-bottom:1px solid var(--border);border-top:1px solid var(--border);margin:4px 0;">Email (GMAIL)</div>
+            <div style="padding:8px 10px;">
+              <div id="emailConfigStatus" style="font-size:0.7rem;color:var(--text-faint);margin-bottom:6px;"></div>
+              <input type="text" id="emailConfigUser" placeholder="GMAIL_USER (ej: infomovilbro@gmail.com)" style="width:100%;background:var(--bg-main);border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:0.75rem;color:var(--text);margin-bottom:6px;">
+              <input type="password" id="emailConfigPass" placeholder="Contraseña de Gmail o App Password" style="width:100%;background:var(--bg-main);border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:0.75rem;color:var(--text);margin-bottom:6px;">
+              <div style="display:flex;gap:4px;">
+                <button id="emailConfigLoginBtn" style="flex:1;padding:6px;border:0;border-radius:6px;background:var(--accent);color:#fff;font-size:0.75rem;cursor:pointer;font-weight:600;"><i class="ri-login-circle-line"></i> Iniciar sesión</button>
+                <button id="emailConfigLogoutBtn" style="flex:1;padding:6px;border:0;border-radius:6px;background:var(--error);color:#fff;font-size:0.75rem;cursor:pointer;font-weight:600;display:none;"><i class="ri-logout-circle-r-line"></i> Cerrar sesión</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <button id="closeWAQR" style="background:none;border:0;cursor:pointer;font-size:1.2rem;color:var(--text-dim);padding:4px;">&times;</button>
+      </div>
+    </div>
+    <div id="waQRContent" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;">
+      <div style="font-size:0.85rem;color:var(--text-muted);margin-bottom:16px;">
+        Escanea este código QR con tu WhatsApp para conectar el monitor de mensajes.
+      </div>
+      <div id="waQRImageWrap" style="background:#fff;padding:12px;border-radius:12px;display:none;">
+        <img id="waQRImage" src="" alt="QR WhatsApp" style="width:260px;height:260px;image-rendering:pixelated;">
+      </div>
+      <div id="waQRLoading" style="color:var(--text-faint);font-size:0.8rem;">
+        <div class="spinner-border spinner-border-sm"></div> Generando QR...
+      </div>
+      <div id="waQRConnected" style="display:none;color:var(--success);">
+        <i class="ri-checkbox-circle-line" style="font-size:3rem;display:block;margin-bottom:8px;"></i>
+        <strong>WhatsApp Conectado</strong>
+        <div style="font-size:0.8rem;color:var(--text-muted);margin-top:4px;">Los mensajes entrantes aparecerán en Pendientes</div>
+      </div>
+      <div id="waQRError" style="display:none;color:var(--error);font-size:0.8rem;"></div>
+      <div id="waSessionActions" style="display:none;margin-top:16px;width:100%;">
+        <button id="waLogoutBtn" style="width:100%;padding:8px;border:1px solid var(--error);border-radius:8px;background:transparent;color:var(--error);cursor:pointer;font-size:0.8rem;font-weight:600;"><i class="ri-logout-circle-r-line"></i> Cerrar sesión WhatsApp</button>
+        <button id="waReconnectBtn" style="width:100%;padding:8px;border:1px solid var(--accent);border-radius:8px;background:transparent;color:var(--accent);cursor:pointer;font-size:0.8rem;font-weight:600;margin-top:6px;"><i class="ri-refresh-line"></i> Reconectar con otro número</button>
+      </div>
+      <div id="waPhoneLogin" style="margin-top:20px;width:100%;border-top:1px solid var(--border);padding-top:16px;">
+        <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:8px;text-align:center;">O conéctate con número de teléfono:</div>
+        <div style="display:flex;gap:6px;">
+          <input type="tel" id="waPhoneInput" placeholder="Ej: 34600123123" style="flex:1;background:var(--bg-main);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:0.8rem;color:var(--text);" inputmode="numeric" pattern="[0-9]*">
+          <button id="waPhoneLoginBtn" style="background:#25D366;color:#fff;border:0;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:0.75rem;font-weight:600;white-space:nowrap;"><i class="ri-phone-line"></i> Vincular</button>
+        </div>
+        <div id="waPhoneStatus" style="font-size:0.7rem;color:var(--text-faint);margin-top:4px;"></div>
+      </div>
+    </div>
+  </div>
+  <div id="waQROverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:999;display:none;"></div>
+
+  <!-- Chat History Modal -->
+  <div id="chatHistoryModal" style="position:fixed;top:0;right:-500px;width:480px;height:100vh;background:var(--bg-card);border-left:1px solid var(--border);z-index:1000;transition:right 0.3s ease;display:flex;flex-direction:column;">
+    <div style="padding:14px 16px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);flex-shrink:0;">
+      <button id="closeChatHistory" style="background:none;border:0;cursor:pointer;font-size:1.2rem;color:var(--text-dim);padding:4px;">&larr;</button>
+      <div style="flex:1;min-width:0;">
+        <div id="chatHistoryContactName" style="font-weight:600;font-size:0.85rem;"></div>
+        <div style="font-size:0.65rem;color:var(--text-faint);">Historial de conversación</div>
+      </div>
+      <span id="chatHistoryStatus" style="font-size:0.7rem;color:var(--text-dim);"></span>
+    </div>
+    <div id="chatHistoryMessages" style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:6px;"></div>
+    <div style="padding:10px 12px;border-top:1px solid var(--border);display:flex;gap:8px;flex-shrink:0;">
+      <input type="text" id="chatHistoryInput" class="form-control" placeholder="Escribe un mensaje..." style="border-radius:8px;padding:8px 12px;font-size:0.8rem;">
+      <button id="chatHistorySendText" style="background:var(--accent);color:#fff;border:0;border-radius:8px;padding:8px 12px;cursor:pointer;font-size:0.8rem;"><i class="ri-send-plane-line"></i></button>
+      <button id="chatHistorySendAudio" style="background:#8B5CF6;color:#fff;border:0;border-radius:8px;padding:8px 12px;cursor:pointer;font-size:0.8rem;"><i class="ri-voiceprint-line"></i></button>
+    </div>
+  </div>
+  <div id="chatHistoryOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:999;display:none;"></div>
+
+  <!-- Pending Panel -->
+  <div id="pendingPanel" style="position:fixed;top:0;right:-400px;width:380px;height:100vh;background:var(--bg-card);border-left:1px solid var(--border);z-index:1000;transition:right 0.3s ease;display:flex;flex-direction:column;">
+    <div style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);flex-shrink:0;">
+      <span style="font-size:0.85rem;font-weight:600;display:flex;align-items:center;gap:6px;"><i class="ri-inbox-line"></i> Pendientes</span>
+      <div style="display:flex;gap:4px;">
+        <button id="refreshImapBtn" style="background:var(--accent);color:#fff;border:0;border-radius:6px;padding:4px 10px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-refresh-line"></i> Refrescar</button>
+        <button id="approveAllBtn" style="background:var(--success);color:#fff;border:0;border-radius:6px;padding:4px 10px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-check-double-line"></i> Leídos</button>
+        <button id="clearAllBtn" style="background:var(--error);color:#fff;border:0;border-radius:6px;padding:4px 10px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-delete-bin-line"></i> Borrar</button>
+        <button id="closePending" style="background:none;border:0;cursor:pointer;font-size:1.2rem;color:var(--text-dim);padding:4px;">&times;</button>
+      </div>
+    </div>
+    <div id="pendingList" style="flex:1;overflow-y:auto;padding:8px;"></div>
+  </div>
+  <div id="pendingOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:999;display:none;"></div>
+</div>
+
+<style>
+@keyframes spin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
+:root {
+  --bg-main: #0f0f1a; --bg-card: #1e1e3a; --bg-bar: #1a1a2e;
+  --bg-activity: #15152a; --bg-result: #1a1a3a; --bg-code: #12122a;
+  --border: #2a2a5a; --border-light: #2a2a4a;
+  --text: #ddd; --text-muted: #8888bb; --text-dim: #6666aa;
+  --text-faint: #5555aa; --text-strong: #f0f0ff;
+  --accent: #6366f1; --accent2: #0050A1;
+  --success: #22c55e; --error: #ef4444;
+  --code-bg: #1a1a3a; --code-color: #a78bfa;
+  --scrollbar: #2a2a4a;
+}
+.theme-light {
+  --bg-main: #f5f5ff; --bg-card: #ffffff; --bg-bar: #eef0ff;
+  --bg-activity: #f0f0ff; --bg-result: #ffffff; --bg-code: #f0f0fa;
+  --border: #d0d0e8; --border-light: #ddddf0;
+  --text: #222244; --text-muted: #555577; --text-dim: #7777aa;
+  --text-faint: #9999bb; --text-strong: #111133;
+  --accent: #4f46e5; --accent2: #0050A1;
+  --success: #16a34a; --error: #dc2626;
+  --code-bg: #f0f0fa; --code-color: #7c3aed;
+  --scrollbar: #ccccdd;
+}
+* { scrollbar-width:thin; scrollbar-color:var(--scrollbar) transparent; }
+body { background:var(--bg-main); color:var(--text); }
+#appRoot, #catBar, #activitySidebar, #canvasWrap { background:var(--bg-main); transition:background 0.3s,color 0.3s; }
+#catBar { background:var(--bg-bar); border-bottom:1px solid var(--border-light); color:var(--text-muted); }
+#catBar span:first-child { color:var(--text-dim); }
+#activitySidebar { background:var(--bg-activity); border-left:1px solid var(--border-light); }
+#canvasWrap::-webkit-scrollbar, #activityFeed::-webkit-scrollbar { width:5px; }
+#canvasWrap::-webkit-scrollbar-thumb, #activityFeed::-webkit-scrollbar-thumb { background:var(--scrollbar); border-radius:3px; }
+#emptyState { color:var(--text-faint); }
+#emptyState h3 { color:var(--text-muted); }
+#askInput { background:var(--bg-main); border:1px solid var(--border); color:var(--text); }
+#askInput::placeholder { color:var(--text-dim); }
+#askInput:focus { border-color:var(--accent); box-shadow:0 0 0 2px rgba(99,102,241,0.2); outline:0; }
+#activitySidebar > div:first-child { color:var(--text-dim); border-bottom:1px solid var(--border-light); }
+#themeToggle { border-color:var(--border); color:var(--text-muted); }
+#themeToggle:hover { background:var(--border); color:var(--text); }
+.theme-muted { color:var(--text-dim); }
+@keyframes pulse-ring { 0% { transform:scale(0.8); opacity:0.7; } 50% { transform:scale(1.15); opacity:0.3; } 100% { transform:scale(0.8); opacity:0.7; } }
+@keyframes glow-pulse { 0%,100% { box-shadow:0 0 8px rgba(99,102,241,0.3); } 50% { box-shadow:0 0 20px rgba(99,102,241,0.6); } }
+@keyframes slide-in { 0% { opacity:0; transform:translateY(10px); } 100% { opacity:1; transform:translateY(0); } }
+@keyframes shake { 0%,100% { transform:translateX(0); } 20% { transform:translateX(-4px); } 40% { transform:translateX(4px); } 60% { transform:translateX(-2px); } 80% { transform:translateX(2px); } }
+@keyframes fadeScale { 0% { opacity:0; transform:scale(0.95); } 100% { opacity:1; transform:scale(1); } }
+.agent-card { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:16px; transition:all 0.3s ease; animation:slide-in 0.3s ease; }
+.agent-card.working { border-color:var(--accent); animation:glow-pulse 1.5s infinite; }
+.agent-card.done { border-color:var(--success); }
+.agent-card.error { border-color:var(--error); animation:shake 0.4s ease; }
+.agent-card.waiting { opacity:0.6; }
+.agent-card .card-icon { width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.2rem; }
+.agent-card .card-name { font-weight:600; font-size:0.85rem; color:var(--text); }
+.agent-card .card-desc { font-size:0.75rem; color:var(--text-dim); }
+.agent-card .status-dot { width:10px;height:10px;border-radius:50%;flex-shrink:0; }
+.agent-connector { height:24px; position:relative; display:flex; align-items:center; justify-content:center; }
+.agent-connector::before { content:''; position:absolute; width:2px; height:100%; background:var(--border); }
+.agent-connector.active::before { background:linear-gradient(to bottom,var(--accent),var(--success)); }
+.agent-connector .dot { width:8px; height:8px; border-radius:50%; background:var(--border); position:relative; z-index:1; transition:all 0.3s; }
+.agent-connector.active .dot { background:var(--accent); box-shadow:0 0 10px var(--accent); }
+.progress-bar { height:3px; background:var(--bg-main); border-radius:2px; overflow:hidden; margin-top:8px; }
+.progress-fill { height:100%; border-radius:2px; transition:width 0.5s ease; background:linear-gradient(90deg,var(--accent),var(--success)); }
+.category-pill { padding:6px 16px; border-radius:20px; border:1px solid var(--border); background:transparent; color:var(--text-dim); cursor:pointer; font-size:0.8rem; transition:all 0.2s; display:flex; align-items:center; gap:6px; }
+.category-pill:hover { background:var(--border); color:var(--text); }
+.category-pill.active { background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#fff; border-color:transparent; }
+.step-text { font-size:0.75rem; color:var(--text-dim); margin-top:4px; }
+.result-markdown { line-height:1.7; font-size:0.9rem; color:var(--text); }
+.result-markdown code { background:var(--code-bg); padding:2px 6px; border-radius:4px; font-size:0.85em; color:var(--code-color); }
+.result-markdown pre { background:var(--bg-code); padding:14px; border-radius:10px; border:1px solid var(--border); overflow-x:auto; font-size:0.8rem; }
+.activity-item { padding:6px 10px; border-radius:6px; margin-bottom:4px; animation:slide-in 0.2s ease; display:flex; align-items:start; gap:8px; }
+.activity-item .time { color:var(--text-faint); font-size:0.7rem; white-space:nowrap; margin-top:1px; }
+.activity-item .msg { color:var(--text-muted); font-size:0.75rem; }
+.confirm-bar { display:flex; gap:10px; margin-top:16px; padding:16px; border-radius:12px; animation:fadeScale 0.4s ease; }
+.confirm-bar .btn-confirm { padding:10px 24px; border:0; border-radius:10px; cursor:pointer; font-size:0.9rem; font-weight:600; display:flex; align-items:center; gap:6px; }
+</style>
+
+<script>
+window.addEventListener('error', function(e) { console.error('[CodeOpen Error]', e.message, e.filename, e.lineno); });
+(function() {
+  var categories = {};
+  var currentCategory = 'general';
+  var currentTaskId = null;
+  var lastResponse = '';
+  var isDark = true;
+  var eventSource = null;
+  var pollingTimer = null;
+
+  var els = {};
+  'categoryPills,askForm,askInput,askBtn,agentPipeline,resultArea,emptyState,activityFeed,activitySidebar,quickExamples,statusDot,themeToggle,appRoot'.split(',').forEach(function(id) {
+    els[id] = document.getElementById(id === 'appRoot' ? 'appRoot' : id);
+  });
+
+  function $(id) { return document.getElementById(id); }
+
+  // Theme toggle
+  els.themeToggle.addEventListener('click', function() {
+    isDark = !isDark;
+    document.body.classList.toggle('theme-light', !isDark);
+    els.themeToggle.innerHTML = '<i class="' + (isDark ? 'ri-moon-line' : 'ri-sun-line') + '"></i>';
+    try { localStorage.setItem('codeopen_theme', isDark ? 'dark' : 'light'); } catch(e) {}
+  });
+  try {
+    if (localStorage.getItem('codeopen_theme') === 'light') { isDark = false; document.body.classList.add('theme-light'); els.themeToggle.innerHTML = '<i class="ri-sun-line"></i>'; }
+  } catch(e) {}
+
+  fetch('/codeopen/categories').then(function(r) { return r.json(); }).then(function(data) {
+    categories = data.categories;
+    renderCategoryPills();
+    renderExamples('general');
+  });
+
+  var TAB_DEFS = [
+    { id: 'todos', name: 'Todos', icon: 'ri-inbox-2-line', color: '#6366f1' },
+    { id: 'whatsapp', name: 'WhatsApp', icon: 'ri-whatsapp-line', color: '#25D366' },
+    { id: 'email', name: 'Correo', icon: 'ri-mail-send-line', color: '#EA4335' },
+    { id: 'altas', name: 'Altas', icon: 'ri-user-add-line', color: '#7C3AED' },
+    { id: 'general', name: 'General', icon: 'ri-robot-line', color: '#6366f1' }
+  ];
+  var TAB_PENDING = {}; // { tabId: count }
+
+  function renderCategoryPills() {
+    els.categoryPills.innerHTML = '';
+    TAB_DEFS.forEach(function(tabDef, idx) {
+      var pill = document.createElement('div');
+      pill.className = 'category-pill' + (idx === 0 ? ' active' : '');
+      pill.dataset.cat = tabDef.id;
+      var count = TAB_PENDING[tabDef.id] || 0;
+      pill.innerHTML = '<i class="' + tabDef.icon + '" style="color:' + tabDef.color + '"></i> ' + tabDef.name + (count > 0 ? ' <span style="background:#ef4444;color:#fff;font-size:0.6rem;border-radius:50%;min-width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;padding:0 4px;">' + (count > 99 ? '99+' : count) + '</span>' : '');
+      pill.addEventListener('click', function() { selectCategory(this.dataset.cat); });
+      els.categoryPills.appendChild(pill);
+    });
+    currentCategory = 'todos';
+    selectCategory('todos');
+  }
+
+  function updateTabBadges() {
+    fetch('/codeopen/pending/grouped').then(function(r) { return r.json(); }).then(function(d) {
+      var groups = d.groups || [];
+      TAB_PENDING = { todos: d.total || 0, whatsapp: 0, email: 0, altas: 0 };
+      groups.forEach(function(g) {
+        if (g.category === 'altas' || g.altas_score > 0.3) {
+          TAB_PENDING.altas += g.messages.length;
+        } else if (g.category === 'whatsapp') {
+          TAB_PENDING.whatsapp += g.messages.length;
+        } else if (g.category === 'email') {
+          TAB_PENDING.email += g.messages.length;
+        } else {
+          // Categoria desconocida: asignar por keywords
+          var kw = ['alta', 'contratar', 'contrataci', 'nuevo servicio', 'nueva linea', 'portabilida', 'fibra', 'movil', 'precio', 'tarifa', 'me interesa', 'quiero contrat', 'darme de alta', 'nuevo producto', 'presupuesto'];
+          var isAltas = g.messages.some(function(m) { return kw.some(function(k) { return (m.body || '').toLowerCase().indexOf(k) >= 0; }); });
+          if (isAltas) TAB_PENDING.altas += g.messages.length;
+          else if (g.address && g.address.includes('@s.whatsapp')) TAB_PENDING.whatsapp += g.messages.length;
+          else TAB_PENDING.email += g.messages.length;
+        }
+      });
+      // Re-render pills to update badges
+      renderCategoryPills();
+    });
+  }
+
+  var LIST_CATEGORIES = ['whatsapp', 'email', 'altas', 'todos'];
+  var AGENT_CATEGORIES_LIST = ['code', 'general'];
+
+  function selectCategory(key) {
+    if (currentTaskId) return;
+    currentCategory = key;
+    document.querySelectorAll('.category-pill').forEach(function(p) { p.classList.remove('active'); });
+    document.querySelector('.category-pill[data-cat="' + key + '"]').classList.add('active');
+    
+    // Si es categoría de listado (whatsapp/email/altas/todos), ocultar panel agentes y mostrar contactos filtrados
+    if (LIST_CATEGORIES.indexOf(key) >= 0) {
+      els.agentPipeline.style.display = 'none';
+      els.resultArea.style.display = 'none';
+      els.activitySidebar.style.display = 'none';
+      if (key === 'todos') {
+        loadFilteredContacts('all');
+      } else if (key === 'altas') {
+        loadFilteredContacts('altas');
+      } else {
+        loadFilteredContacts(key);
+      }
+      // Ocultar input bar en categorías de listado
+      els.askForm.style.display = 'none';
+      els.emptyState.style.display = 'none';
+      return;
+    }
+    
+    // Para Código y General: mostrar input bar y panel agentes
+    els.askForm.style.display = 'flex';
+    renderExamples(key);
+    if (key === 'code') {
+      waContactsView.style.display = 'none';
+      els.emptyState.style.display = 'none';
+      els.agentPipeline.style.display = 'flex';
+      showCodePlaceholder();
+    } else {
+      if (!els.agentPipeline.querySelector('.agent-card')) {
+        els.emptyState.style.display = 'flex';
+      }
+    }
+  }
+
+  function showCodePlaceholder() {
+    els.agentPipeline.style.display = 'flex';
+    els.agentPipeline.innerHTML = '<div style="padding:30px;text-align:center;color:var(--text-faint);font-size:0.9rem;"><i class="ri-code-line" style="font-size:3rem;display:block;margin-bottom:12px;opacity:0.3;"></i>Escribe tu consulta de código, SQL o cambios en el CRM en el campo de abajo y pulsa Ejecutar.</div>';
+  }
+
+  function loadFilteredContacts(filterCategory) {
+    waContactsView.style.display = 'block';
+    els.agentPipeline.style.display = 'none';
+    els.resultArea.style.display = 'none';
+    els.emptyState.style.display = 'none';
+    
+    var filterLabel = filterCategory === 'all' ? 'todos los mensajes' : (filterCategory === 'whatsapp' ? 'WhatsApp' : (filterCategory === 'email' ? 'Correo' : 'Altas'));
+    document.querySelector('#waContactsView .filter-label').textContent = filterLabel;
+    var iconEl = document.getElementById('waViewIcon');
+    if (iconEl) {
+      var iconMap = { all: 'ri-inbox-2-line', whatsapp: 'ri-whatsapp-line', email: 'ri-mail-send-line', altas: 'ri-user-add-line' };
+      var colorMap = { all: '#6366f1', whatsapp: '#25D366', email: '#EA4335', altas: '#7C3AED' };
+      iconEl.className = iconMap[filterCategory] || 'ri-inbox-2-line';
+      iconEl.style.color = colorMap[filterCategory] || '#6366f1';
+    }
+    
+    fetch('/codeopen/pending/grouped').then(function(r) { return r.json(); }).then(function(d) {
+      var groups = (d.groups || []).filter(function(g) {
+        if (filterCategory === 'all') return true;
+        if (filterCategory === 'altas') {
+          var kw = ['alta', 'contratar', 'contrataci', 'nuevo servicio', 'nueva linea', 'portabilida', 'fibra', 'movil', 'movilbro', 'precio', 'tarifa', 'me interesa', 'quiero contrat', 'darme de alta', 'nuevo producto', 'presupuesto'];
+          return g.messages.some(function(m) {
+            var body = (m.body || '').toLowerCase();
+            return kw.some(function(k) { return body.indexOf(k) >= 0; });
+          });
+        }
+        return g.category === filterCategory;
+      });
+      renderWAContacts(groups);
+      waContactsCount.textContent = groups.reduce(function(acc, g) { return acc + g.messages.length; }, 0) + ' mensajes';
+    });
+  }
+
+  function renderExamples(cat) {
+    fetch('/codeopen/examples/' + cat).then(function(r) { return r.json(); }).then(function(data) {
+      els.quickExamples.innerHTML = '';
+      (data.examples || []).slice(0, 4).forEach(function(ex) {
+        var btn = document.createElement('button');
+        btn.textContent = ex.length > 40 ? ex.substring(0, 40) + '...' : ex;
+        btn.style.cssText = 'padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-faint);font-size:0.75rem;cursor:pointer;transition:all 0.2s;';
+        btn.addEventListener('mouseenter', function() { this.style.borderColor = 'var(--accent)'; });
+        btn.addEventListener('mouseleave', function() { this.style.borderColor = 'var(--border)'; });
+        btn.addEventListener('click', function() { els.askInput.value = ex; els.askInput.focus(); });
+        els.quickExamples.appendChild(btn);
+      });
+    });
+  }
+
+  els.askForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    var msg = els.askInput.value.trim();
+    if (!msg || currentTaskId) return;
+    startAgentTask(msg);
+  });
+
+  function startAgentTask(question) {
+    currentTaskId = 'pending';
+    lastResponse = '';
+    els.askInput.disabled = true;
+    els.askBtn.disabled = true;
+    els.askBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    els.emptyState.style.display = 'none';
+    els.activitySidebar.style.display = 'flex';
+    els.resultArea.style.display = 'none';
+    els.resultArea.innerHTML = '';
+    els.agentPipeline.style.display = 'flex';
+    els.agentPipeline.innerHTML = '';
+
+    var cat = categories[currentCategory] || categories.general;
+    cat.agents.forEach(function(a, idx) {
+      if (idx > 0) {
+        var conn = document.createElement('div');
+        conn.className = 'agent-connector'; conn.id = 'conn_' + idx;
+        conn.innerHTML = '<div class="dot"></div>';
+        els.agentPipeline.appendChild(conn);
+      }
+      var card = document.createElement('div');
+      card.className = 'agent-card waiting'; card.id = 'agent_' + a.id;
+      card.innerHTML = '<div style="display:flex;align-items:center;gap:12px;"><div class="card-icon" style="background:var(--bg-main);color:' + cat.color + ';"><i class="' + a.icon + '"></i></div><div style="flex:1;min-width:0;"><div class="card-name">' + a.name + '</div><div class="card-desc">' + a.desc + '</div></div><div class="status-dot" id="sdot_' + a.id + '" style="background:var(--border);"></div></div><div class="progress-bar"><div id="prog_' + a.id + '" class="progress-fill" style="width:0%;"></div></div><div id="step_' + a.id + '" class="step-text">Esperando...</div>';
+      els.agentPipeline.appendChild(card);
+    });
+
+    fetch('/codeopen/ask', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: question, category: currentCategory })
+    }).then(function(r) { return r.json(); }).then(function(data) {
+      // Code category: resultado directo sin SSE
+      if (data.directResult) {
+        showCodeResult(data.directResult);
+        return;
+      }
+      currentTaskId = data.taskId;
+      startSSE(data.taskId);
+    }).catch(function() { resetUI(); showError('Error al iniciar tarea'); });
+  }
+
+  function showCodeResult(result) {
+    currentTaskId = null;
+    els.askInput.disabled = false;
+    els.askBtn.disabled = false;
+    els.askBtn.innerHTML = '<i class="ri-send-plane-2-line"></i> Ejecutar';
+    els.emptyState.style.display = 'none';
+    els.resultArea.style.display = 'block';
+    
+    var html = '<div style="background:var(--bg-result);border:1px solid var(--border);border-radius:14px;padding:20px;animation:fadeScale 0.4s ease;">';
+    if (result.ok) {
+      html += '<h4 style="color:#22c55e;margin-bottom:12px;display:flex;align-items:center;gap:8px;"><i class="ri-checkbox-circle-line"></i> Ejecutado</h4>';
+      if (result.plan && result.plan.actions) {
+        html += '<div style="margin-bottom:12px;"><strong style="font-size:0.8rem;">Acciones ejecutadas:</strong><div style="margin-top:6px;">';
+        result.plan.actions.forEach(function(a, i) {
+          var r = result.results && result.results[i];
+          var ok = r && r.status === 'ok';
+          var icon = ok ? '✅' : (r && r.status === 'error' ? '❌' : '⏭️');
+          html += '<div style="padding:4px 0;font-size:0.8rem;display:flex;align-items:center;gap:6px;">' + icon + ' <span style="color:var(--text);">' + a.type + '</span>';
+          if (a.path) html += ' <code style="font-size:0.7rem;">' + a.path + '</code>';
+          if (r && r.error) html += ' <span style="color:var(--error);font-size:0.75rem;">' + r.error + '</span>';
+          html += '</div>';
+        });
+        html += '</div></div>';
+      }
+      if (result.results) {
+        result.results.forEach(function(r, i) {
+          if (r.type === 'sql' && r.data) {
+            html += '<div style="margin-top:8px;padding:8px;background:var(--bg-code);border-radius:8px;font-size:0.75rem;"><strong>SQL Result:</strong> <pre style="margin:4px 0 0;">' + escHtml(JSON.stringify(r.data, null, 2)) + '</pre></div>';
+          }
+          if (r.type === 'read' && r.content) {
+            html += '<div style="margin-top:8px;padding:8px;background:var(--bg-code);border-radius:8px;font-size:0.75rem;"><strong>' + r.path + ':</strong> <pre style="margin:4px 0 0;max-height:200px;overflow-y:auto;">' + escHtml(r.content) + '</pre></div>';
+          }
+          if (r.type === 'write') {
+            html += '<div style="margin-top:4px;font-size:0.75rem;color:var(--text-muted);">✏️ ' + r.path + ' actualizado</div>';
+          }
+        });
+      }
+    } else {
+      html += '<h4 style="color:var(--error);margin-bottom:12px;"><i class="ri-close-circle-line"></i> Error</h4>';
+      html += '<div style="font-size:0.85rem;color:var(--text);">' + escHtml(result.error || 'Error desconocido') + '</div>';
+      if (result.raw) html += '<pre style="margin-top:8px;background:var(--bg-code);padding:10px;border-radius:8px;font-size:0.7rem;max-height:200px;overflow-y:auto;">' + escHtml(result.raw) + '</pre>';
+    }
+    html += '</div>';
+    els.resultArea.innerHTML = html;
+    resetUI(true);
+  }
+
+  function startSSE(taskId) {
+    if (eventSource) eventSource.close();
+    try {
+      eventSource = new EventSource('/codeopen/events/' + taskId);
+      eventSource.addEventListener('agent_step', function(e) { updateAgents(JSON.parse(e.data).agents); });
+      eventSource.addEventListener('agent_done', function(e) {
+        var d = JSON.parse(e.data); updateAgents(d.agents); addActivity(d.agentId, d.result && d.result.substring(0, 80), 'done');
+      });
+      eventSource.addEventListener('done', function(e) {
+        var d = JSON.parse(e.data); updateAgents(d.agents); lastResponse = d.finalResponse || '';
+        showFinalResult(lastResponse); addActivity('completado', 'Respuesta generada', 'done');
+        if (eventSource) { eventSource.close(); eventSource = null; }
+        resetUI(true);
+      });
+      eventSource.addEventListener('error', function() { if (eventSource) { eventSource.close(); eventSource = null; } startPolling(taskId); });
+    } catch(e) { startPolling(taskId); }
+  }
+
+  function startPolling(taskId) {
+    if (pollingTimer) clearInterval(pollingTimer);
+    pollingTimer = setInterval(function() {
+      fetch('/codeopen/status/' + taskId).then(function(r) { return r.json(); }).then(function(data) {
+        if (data.error) { clearInterval(pollingTimer); resetUI(); return; }
+        updateAgents(data.agents);
+        if (data.done) {
+          clearInterval(pollingTimer); lastResponse = data.finalResponse || '';
+          showFinalResult(lastResponse); resetUI(true);
+        }
+      });
+    }, 300);
+  }
+
+  function updateAgents(agents) {
+    for (var id in agents) {
+      var a = agents[id];
+      var card = $('agent_' + id); if (!card) continue;
+      card.className = 'agent-card ' + a.status;
+      var sd = $('sdot_' + id);
+      if (sd) {
+        sd.style.background = a.status === 'done' ? 'var(--success)' : a.status === 'error' ? 'var(--error)' : a.status === 'working' ? 'var(--accent)' : 'var(--border)';
+        sd.style.animation = a.status === 'working' ? 'pulse-ring 1.5s infinite' : 'none';
+      }
+      var p = $('prog_' + id); if (p) p.style.width = (a.progress || 0) + '%';
+      var s = $('step_' + id);
+      if (s) {
+        if (a.steps && a.steps.length > 0) s.textContent = a.steps[a.steps.length - 1].text;
+        else s.textContent = a.status === 'done' ? 'Completado' : a.status === 'error' ? 'Error' : a.status === 'working' ? 'Procesando...' : 'Esperando...';
+      }
+      var keys = Object.keys(agents);
+      var idx = keys.indexOf(id);
+      if (idx > 0) {
+        var conn = $('conn_' + idx);
+        if (conn) conn.className = 'agent-connector' + (a.status === 'working' || a.status === 'done' ? ' active' : '');
+      }
+    }
+  }
+
+  function showFinalResult(text) {
+    var isWhatsAppOrEmail = currentCategory === 'whatsapp' || currentCategory === 'email';
+    if (!text || text.startsWith('Error')) {
+      els.resultArea.innerHTML = '<div style="padding:20px;text-align:center;color:var(--error);">' + (text || 'Error al generar respuesta') + '</div>';
+    } else {
+      var html = '<div style="background:var(--bg-result);border:1px solid var(--border);border-radius:14px;padding:20px;animation:fadeScale 0.4s ease;"><h4 style="color:var(--text-dim);margin-bottom:12px;font-size:0.8rem;text-transform:uppercase;letter-spacing:1px;"><i class="ri-quote-text"></i> Resultado Final</h4><div class="result-markdown">' + formatMarkdown(text) + '</div>';
+      if (isWhatsAppOrEmail) {
+        html += '<div class="confirm-bar" style="background:var(--bg-card);border:1px solid var(--border);"><div style="flex:1;"><div style="font-size:0.8rem;color:var(--text-muted);">¿Quieres que envíe esta respuesta?</div><div style="font-size:0.7rem;color:var(--text-faint);margin-top:2px;">' + (currentCategory === 'whatsapp' ? 'Se enviaría como mensaje WhatsApp' : 'Se enviaría como correo electrónico') + '</div></div><div style="display:flex;gap:8px;"><button class="btn-confirm" onclick="window.confirmSend(true)" style="background:var(--success);color:#fff;">✓ Confirmar y enviar</button><button class="btn-confirm" onclick="window.confirmSend(false)" style="background:var(--error);color:#fff;">✕ Descartar</button></div></div>';
+      }
+      html += '</div>';
+      els.resultArea.innerHTML = html;
+    }
+    els.resultArea.style.display = 'block';
+    els.resultArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    addActivity('resultado', text.substring(0, 100), 'done');
+  }
+
+  window.confirmSend = function(approve) {
+    var bar = els.resultArea.querySelector('.confirm-bar');
+    if (!bar) return;
+    if (approve) {
+      bar.innerHTML = '<div style="display:flex;align-items:center;gap:10px;color:var(--success);"><i class="ri-checkbox-circle-line" style="font-size:1.5rem;"></i><div><strong>Respuesta confirmada</strong><div style="font-size:0.8rem;color:var(--text-muted);">' + (currentCategory === 'whatsapp' ? 'Mensaje listo para enviar por WhatsApp' : 'Correo listo para enviar') + '</div></div></div>';
+      bar.style.borderColor = 'var(--success)';
+      addActivity('confirmado', 'Respuesta aprobada para envío', 'done');
+    } else {
+      bar.innerHTML = '<div style="display:flex;align-items:center;gap:10px;color:var(--text-muted);"><i class="ri-close-circle-line" style="font-size:1.5rem;"></i><div><strong>Respuesta descartada</strong><div style="font-size:0.8rem;color:var(--text-muted);">Puedes pedir una nueva respuesta modificando la consulta</div></div></div>';
+      bar.style.borderColor = 'var(--border)';
+      addActivity('descartado', 'Respuesta no enviada', 'done');
+    }
+  };
+
+  function formatMarkdown(text) {
+    return text
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/### (.+)/g, '<h5 style="color:var(--code-color);margin:12px 0 6px;">$1</h5>')
+      .replace(/## (.+)/g, '<h4 style="color:var(--code-color);margin:14px 0 8px;">$1</h4>')
+      .replace(/# (.+)/g, '<h3 style="margin:16px 0 8px;">$1</h3>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--text-strong);">$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
+      .replace(/\n- (.+)/g, '\n• $1')
+      .replace(/\n/g, '<br>');
+  }
+
+  function addActivity(agentId, text, type) {
+    if (!text) return;
+    var item = document.createElement('div');
+    item.className = 'activity-item';
+    var time = new Date().toLocaleTimeString();
+    var icon = type === 'done' ? 'ri-check-line' : 'ri-arrow-right-line';
+    var color = type === 'done' ? 'var(--success)' : 'var(--accent)';
+    item.innerHTML = '<span class="time">' + time + '</span><i class="' + icon + '" style="color:' + color + ';font-size:0.7rem;margin-top:3px;"></i><span class="msg">' + (agentId !== 'completado' && agentId !== 'confirmado' && agentId !== 'descartado' ? '<strong style="color:' + color + ';">' + agentId + '</strong>: ' : '') + (text.length > 80 ? text.substring(0, 80) + '...' : text) + '</span>';
+    els.activityFeed.insertBefore(item, els.activityFeed.firstChild);
+  }
+
+  function showError(msg) {
+    els.agentPipeline.innerHTML = '<div style="padding:30px;text-align:center;color:var(--error);">' + msg + '</div>';
+  }
+
+  function resetUI(keepResult) {
+    currentTaskId = null;
+    els.askInput.disabled = false;
+    els.askBtn.disabled = false;
+    els.askBtn.innerHTML = '<i class="ri-send-plane-2-line"></i> Ejecutar';
+    if (!keepResult) {
+      els.agentPipeline.style.display = 'none';
+      els.emptyState.style.display = 'flex';
+      els.activitySidebar.style.display = 'none';
+      els.resultArea.style.display = 'none';
+    }
+  }
+
+  // Pending approvals
+  var pendingBtn = $('pendingBtn');
+  var pendingBadge = $('pendingBadge');
+  var pendingPanel = $('pendingPanel');
+  var pendingList = $('pendingList');
+  var pendingOverlay = $('pendingOverlay');
+  var closePending = $('closePending');
+
+  function pollPendingCount() {
+    fetch('/codeopen/pending/count').then(function(r) { return r.json(); }).then(function(d) {
+      if (d.count > 0) {
+        pendingBadge.style.display = 'flex';
+        pendingBadge.textContent = d.count > 99 ? '99+' : d.count;
+      } else {
+        pendingBadge.style.display = 'none';
+      }
+    });
+  }
+
+  try { pollPendingCount(); } catch(e) { console.error('[Init] pollPendingCount:', e); }
+  // Auto-refresh badge cada 5s sin interrumpir procesos en curso
+  var lastPendingCount = 0;
+  setInterval(function() {
+    fetch('/codeopen/pending/count').then(function(r) { return r.json(); }).then(function(d) {
+      if (d.count > 0) {
+        pendingBadge.style.display = 'flex';
+        pendingBadge.textContent = d.count > 99 ? '99+' : d.count;
+        // Si hay mensajes nuevos (aumentó el contador), hacer un breve destello
+        if (d.count > lastPendingCount && lastPendingCount > 0) {
+          pendingBadge.style.animation = 'none';
+          pendingBadge.offsetHeight;
+          pendingBadge.style.animation = 'pulse-ring 0.6s ease 2';
+        }
+        lastPendingCount = d.count;
+      } else {
+        pendingBadge.style.display = 'none';
+        lastPendingCount = 0;
+      }
+    }).catch(function() {});
+  }, 5000);
+
+  pendingBtn.addEventListener('click', function() {
+    pendingPanel.style.right = '0';
+    pendingOverlay.style.display = 'block';
+    loadPendingList();
+    startPendingAutoRefresh();
+  });
+
+  $('approveAllBtn').addEventListener('click', function() {
+    if (!confirm('¿Marcar todos como leídos?')) return;
+    fetch('/codeopen/pending/approve-all', { method: 'POST' }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.ok) { loadPendingList(); pollPendingCount(); }
+    });
+  });
+
+  $('clearAllBtn').addEventListener('click', function() {
+    if (!confirm('¿Borrar todos los mensajes pendientes? Esta acción no se puede deshacer.')) return;
+    fetch('/codeopen/pending/clear', { method: 'POST' }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.ok) { loadPendingList(); pollPendingCount(); }
+    });
+  });
+
+  $('refreshImapBtn').addEventListener('click', function() {
+    var btn = $('refreshImapBtn');
+    btn.disabled = true; btn.innerHTML = '<i class="ri-loader-4-line" style="animation:spin 1s linear infinite"></i> Refrescando...';
+    fetch('/codeopen/refresh-imap', { method: 'POST' }).then(function(r) { return r.json(); }).then(function(d) {
+      console.log('[IMAP] Refresh:', d);
+      setTimeout(function() { loadPendingList(); pollPendingCount(); }, 3000);
+      btn.disabled = false; btn.innerHTML = '<i class="ri-refresh-line"></i> Refrescar';
+    }).catch(function(e) {
+      btn.disabled = false; btn.innerHTML = '<i class="ri-refresh-line"></i> Refrescar';
+    });
+  });
+
+  function closePendingPanel() {
+    pendingPanel.style.right = '-400px';
+    pendingOverlay.style.display = 'none';
+    stopPendingAutoRefresh();
+  }
+
+  closePending.addEventListener('click', closePendingPanel);
+  pendingOverlay.addEventListener('click', closePendingPanel);
+
+  // Auto-refresh pending list while panel is open (cada 10s)
+  var pendingRefreshInterval = null;
+  function startPendingAutoRefresh() {
+    stopPendingAutoRefresh();
+    pendingRefreshInterval = setInterval(function() {
+      if (pendingPanel.style.right === '0px') {
+        loadPendingList();
+      } else {
+        stopPendingAutoRefresh();
+      }
+    }, 10000);
+  }
+  function stopPendingAutoRefresh() {
+    if (pendingRefreshInterval) { clearInterval(pendingRefreshInterval); pendingRefreshInterval = null; }
+  }
+
+  function loadPendingList() {
+    pendingList.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-faint);"><div class="spinner-border spinner-border-sm"></div> Cargando...</div>';
+    fetch('/codeopen/pending').then(function(r) { return r.json(); }).then(function(d) {
+      var items = d.pending || [];
+      if (items.length === 0) {
+        pendingList.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-faint);"><i class="ri-inbox-line" style="font-size:2rem;display:block;margin-bottom:8px;opacity:0.4;"></i>No hay pendientes</div>';
+        return;
+      }
+      pendingList.innerHTML = '';
+      items.forEach(function(item) {
+        var card = document.createElement('div');
+        card.style.cssText = 'background:var(--bg-main);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;animation:fadeScale 0.3s ease;';
+        var icon = item.category === 'whatsapp' ? 'ri-whatsapp-line' : 'ri-mail-line';
+        var catColor = item.category === 'whatsapp' ? '#25D366' : '#6366f1';
+        card.style.cursor = 'default';
+        card.onclick = null;
+        var ts = item.created_at || '';
+        try { var d = new Date(ts + 'Z'); ts = d.toLocaleString('es-ES', {timeZone:'Europe/Madrid', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'}); } catch(e) {}
+        // Botón de acceso CRM + lookup de cliente
+        var crmAccessHtml = '';
+        var lookupPhone = (item.from_address || '').replace(/[^0-9]/g, '');
+        var lookupName = encodeURIComponent(item.from_name || '');
+        // Siempre crear el span aunque no tengamos teléfono, el backend buscará por nombre también
+        var initial = (item.from_name || '?').charAt(0).toUpperCase();
+        var avatarColor = item.category === 'whatsapp' ? '#25D366' : '#6366f1';
+        var avatarHtml = '<div style="width:32px;height:32px;border-radius:50%;background:' + avatarColor + ';display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:0.8rem;flex-shrink:0;">' + initial + '</div>';
+        crmAccessHtml = '<span class="pending-crm-access" data-phone="' + lookupPhone + '" data-name="' + lookupName + '" style="display:none;margin-left:auto;"><button class="crm-access-btn" style="background:var(--accent);color:#fff;border:0;border-radius:6px;padding:3px 8px;font-size:0.65rem;cursor:pointer;font-weight:600;white-space:nowrap;"><i class="ri-external-link-line"></i> CRM</button></span>';
+        card.innerHTML = '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">' + avatarHtml + '<strong style="font-size:0.8rem;flex:1;">' + escHtml(item.from_name || 'desconocido') + '</strong>' + crmAccessHtml + '<span style="font-size:0.65rem;color:var(--text-faint);">' + ts + '</span></div>' +
+          (item.subject ? '<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;"><strong>Asunto:</strong> ' + escHtml(item.subject) + '</div>' : '') +
+          '<div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">' + escHtml(item.body || '').substring(0, 150) + '</div>' +
+          (item.proposed_response && item.proposed_response !== '' && item.proposed_response !== 'Sin respuesta' ? '<div style="background:var(--bg-card);border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:8px 10px;margin-bottom:8px;"><div style="font-size:0.65rem;color:#22c55e;margin-bottom:2px;">✓ Analizado:</div><div style="font-size:0.75rem;color:var(--text);">' + escHtml(item.proposed_response).substring(0, 200) + '</div></div>' : '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;"><div style="font-size:0.7rem;color:var(--text-faint);margin-bottom:4px;">Respuesta propuesta:</div><div style="font-size:0.75rem;color:var(--text-dim);font-style:italic;">Sin respuesta aún</div></div>') +
+          '<div style="display:flex;gap:4px;flex-wrap:wrap;">' +
+          '<button class="pending-analyze" data-id="' + item.id + '" style="flex:1;min-width:60px;padding:6px;border:0;border-radius:8px;background:var(--accent);color:#fff;font-size:0.75rem;cursor:pointer;font-weight:600;"><i class="ri-robot-line"></i> ' + (item.proposed_response && item.proposed_response !== '' && item.proposed_response !== 'Sin respuesta' ? 'Re-analizar' : 'Analizar') + '</button>' +
+          (item.proposed_response && item.proposed_response !== '' && item.proposed_response !== 'Sin respuesta' ? 
+            '<button class="pending-send" data-id="' + item.id + '" style="flex:1;min-width:50px;padding:6px;border:0;border-radius:8px;background:var(--success);color:#fff;font-size:0.7rem;cursor:pointer;font-weight:600;">✓ Enviar</button>' +
+            '<button class="pending-send-audio pending-send" data-id="' + item.id + '" data-audio="1" style="flex:1;min-width:50px;padding:6px;border:0;border-radius:8px;background:#8B5CF6;color:#fff;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-voiceprint-line"></i></button>' +
+            '<button class="pending-send-doc" data-id="' + item.id + '" style="flex:1;min-width:50px;padding:6px;border:0;border-radius:8px;background:#f59e0b;color:#fff;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-file-pdf-line"></i></button>'
+          : '') +
+          '<button class="pending-reject" data-id="' + item.id + '" style="flex:1;min-width:50px;padding:6px;border:0;border-radius:8px;background:var(--error);color:#fff;font-size:0.7rem;cursor:pointer;font-weight:600;">✕</button></div>';
+        pendingList.appendChild(card);
+      });
+      // Lookup CRM client for each pending item and show access button
+      pendingList.querySelectorAll('.pending-crm-access').forEach(function(el) {
+        var phone = el.dataset.phone;
+        var name = el.dataset.name;
+        var lookupParam = phone && phone.length >= 6 ? phone : (name ? name : '');
+        if (!lookupParam) return;
+        var searchUrl = '/codeopen/lookup-client/' + encodeURIComponent(lookupParam) + (name ? '?name=' + encodeURIComponent(name) : '');
+        fetch(searchUrl).then(function(r) { return r.json(); }).then(function(data) {
+          if (data.found && data.client) {
+            el.style.display = 'inline';
+            var btn = el.querySelector('.crm-access-btn');
+            if (btn) {
+              btn.title = 'Ir a ficha de ' + data.client.name;
+              btn.onclick = function(e) {
+                e.stopPropagation();
+                // Mostrar dropdown con opciones
+                var existing = el.querySelector('.crm-dropdown');
+                if (existing) { existing.remove(); return; }
+                var dd = document.createElement('div');
+                dd.className = 'crm-dropdown';
+                dd.style.cssText = 'position:absolute;top:100%;right:0;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;z-index:50;min-width:180px;box-shadow:0 8px 24px rgba(0,0,0,0.4);padding:4px;margin-top:4px;';
+                var phoneClean = (data.client.telefono || '').replace(/[^0-9]/g, '');
+                var dniClean = encodeURIComponent(data.client.dni || '');
+                dd.innerHTML = '<div style="padding:6px 10px;font-size:0.7rem;color:var(--text-faint);border-bottom:1px solid var(--border);margin-bottom:4px;">' + escHtml(data.client.name) + '</div>' +
+                  '<a href="' + (data.client.fiscalUrl || data.client.url) + '" target="_blank" style="display:block;padding:6px 10px;border-radius:6px;text-decoration:none;color:var(--text);font-size:0.75rem;transition:background 0.2s;" onmouseover="this.style.background=\'var(--border)\'" onmouseout="this.style.background=\'transparent\'"><i class="ri-user-line"></i> Ficha cliente</a>' +
+                  (dniClean ? '<a href="/isp/facturacion?fiscalId=' + dniClean + '" target="_blank" style="display:block;padding:6px 10px;border-radius:6px;text-decoration:none;color:var(--text);font-size:0.75rem;transition:background 0.2s;" onmouseover="this.style.background=\'var(--border)\'" onmouseout="this.style.background=\'transparent\'"><i class="ri-receipt-line"></i> Facturación</a>' : '') +
+                  (dniClean ? '<a href="/isp/facturacion/clientes-pago?dni=' + dniClean + '" target="_blank" style="display:block;padding:6px 10px;border-radius:6px;text-decoration:none;color:var(--text);font-size:0.75rem;transition:background 0.2s;" onmouseover="this.style.background=\'var(--border)\'" onmouseout="this.style.background=\'transparent\'"><i class="ri-bank-card-line"></i> Método pago</a>' : '') +
+                  '<a href="/isp/contratos?search=' + encodeURIComponent(data.client.name) + '" target="_blank" style="display:block;padding:6px 10px;border-radius:6px;text-decoration:none;color:var(--text);font-size:0.75rem;transition:background 0.2s;" onmouseover="this.style.background=\'var(--border)\'" onmouseout="this.style.background=\'transparent\'"><i class="ri-file-list-3-line"></i> Contratos</a>' +
+                  (dniClean ? '<a href="/clientes/fiscal/' + dniClean + '" target="_blank" style="display:block;padding:6px 10px;border-radius:6px;text-decoration:none;color:var(--text);font-size:0.75rem;transition:background 0.2s;" onmouseover="this.style.background=\'var(--border)\'" onmouseout="this.style.background=\'transparent\'"><i class="ri-price-tag-3-line"></i> Tarifas</a>' : '') +
+                  (dniClean ? '<a href="/isp/cdrs?fiscal=' + dniClean + '&show=1" target="_blank" style="display:block;padding:6px 10px;border-radius:6px;text-decoration:none;color:var(--text);font-size:0.75rem;transition:background 0.2s;" onmouseover="this.style.background=\'var(--border)\'" onmouseout="this.style.background=\'transparent\'"><i class="ri-phone-line"></i> CDRs</a>' : '') +
+                  (dniClean ? '<a href="/clientes/fiscal/' + dniClean + '#lineas" target="_blank" style="display:block;padding:6px 10px;border-radius:6px;text-decoration:none;color:var(--text);font-size:0.75rem;transition:background 0.2s;" onmouseover="this.style.background=\'var(--border)\'" onmouseout="this.style.background=\'transparent\'"><i class="ri-key-2-line"></i> PIN/PUK</a>' : '') +
+                  (dniClean ? '<a href="/clientes/fiscal/' + dniClean + '#instalaciones" target="_blank" style="display:block;padding:6px 10px;border-radius:6px;text-decoration:none;color:var(--text);font-size:0.75rem;transition:background 0.2s;" onmouseover="this.style.background=\'var(--border)\'" onmouseout="this.style.background=\'transparent\'"><i class="ri-tools-line"></i> Instalación</a>' : '') +
+                  (dniClean ? '<a href="/clientes/fiscal/' + dniClean + '#kyc" target="_blank" style="display:block;padding:6px 10px;border-radius:6px;text-decoration:none;color:var(--text);font-size:0.75rem;transition:background 0.2s;" onmouseover="this.style.background=\'var(--border)\'" onmouseout="this.style.background=\'transparent\'"><i class="ri-file-shield-2-line"></i> Documentos KYC</a>' : '') +
+                  (dniClean ? '<a href="/clientes/fiscal/' + dniClean + '#lineas" target="_blank" style="display:block;padding:6px 10px;border-radius:6px;text-decoration:none;color:var(--text);font-size:0.75rem;transition:background 0.2s;" onmouseover="this.style.background=\'var(--border)\'" onmouseout="this.style.background=\'transparent\'"><i class="ri-bar-chart-2-line"></i> Consumo</a>' : '') +
+                  (dniClean ? '<a href="/clientes/fiscal/' + dniClean + '#lineas" target="_blank" style="display:block;padding:6px 10px;border-radius:6px;text-decoration:none;color:var(--text);font-size:0.75rem;transition:background 0.2s;" onmouseover="this.style.background=\'var(--border)\'" onmouseout="this.style.background=\'transparent\'"><i class="ri-exchange-line"></i> Cambiar Tarifa</a>' : '') +
+                  '<a href="/isp/incidencias?search=' + (phoneClean || dniClean) + '" target="_blank" style="display:block;padding:6px 10px;border-radius:6px;text-decoration:none;color:var(--text);font-size:0.75rem;transition:background 0.2s;" onmouseover="this.style.background=\'var(--border)\'" onmouseout="this.style.background=\'transparent\'"><i class="ri-error-warning-line"></i> Incidencias</a>';
+                el.style.position = 'relative';
+                el.appendChild(dd);
+                // Cerrar al hacer clic fuera
+                var closeDd = function(ev) { if (!dd.contains(ev.target) && ev.target !== btn) { dd.remove(); document.removeEventListener('click', closeDd); } };
+                setTimeout(function() { document.addEventListener('click', closeDd); }, 10);
+              };
+            }
+          }
+        }).catch(function() {});
+      });
+      // Bind approve/reject/analyze/send
+      pendingList.querySelectorAll('.pending-approve, .pending-send').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation(); handlePending(this.dataset.id, 'approve'); });
+      });
+      pendingList.querySelectorAll('.pending-send-audio').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation(); handlePending(this.dataset.id, 'approve', this, true); });
+      });
+      pendingList.querySelectorAll('.pending-send-doc').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation(); sendDocument(this.dataset.id, this); });
+      });
+      pendingList.querySelectorAll('.pending-reject').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation(); handlePending(this.dataset.id, 'reject'); });
+      });
+      pendingList.querySelectorAll('.pending-analyze').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation(); analyzeMessage(this.dataset.id, this); });
+      });
+    }).catch(function() {
+      pendingList.innerHTML = '<div style="text-align:center;padding:30px;color:var(--error);">Error al cargar pendientes</div>';
+    });
+  }
+
+  function handlePending(id, action) {
+    fetch('/codeopen/' + action + '/' + id, { method: 'POST', credentials: 'same-origin' }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.ok) {
+        loadPendingList();
+        pollPendingCount();
+      } else {
+        alert(d.error || 'Error');
+      }
+    }).catch(function() { alert('Error de red'); });
+  }
+
+  function escHtml(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  els.askInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); els.askForm.dispatchEvent(new Event('submit')); }
+  });
+
+  // WhatsApp QR Panel
+  var whatsappBtn = $('whatsappBtn');
+  var waQRPanel = $('waQRPanel');
+  var waQROverlay = $('waQROverlay');
+  var closeWAQR = $('closeWAQR');
+  var waQRImage = $('waQRImage');
+  var waQRImageWrap = $('waQRImageWrap');
+  var waQRLoading = $('waQRLoading');
+  var waQRConnected = $('waQRConnected');
+  var waQRError = $('waQRError');
+  var waStatusText = $('waStatusText');
+
+  function pollWAStatus() {
+    fetch('/codeopen/baileys-qr').then(function(r) { return r.json(); }).then(function(d) {
+      var st = d.status || d;
+      var waSessionActions = document.getElementById('waSessionActions');
+      if (st.connected) {
+        waStatusText.textContent = 'Conect.';
+        waStatusText.style.color = '#22c55e';
+        waQRLoading.style.display = 'none';
+        waQRImageWrap.style.display = 'none';
+        waQRConnected.style.display = 'block';
+        waQRError.style.display = 'none';
+        if (waSessionActions) waSessionActions.style.display = 'block';
+      } else if (st.hasQR) {
+        waStatusText.textContent = 'QR';
+        waStatusText.style.color = '#f59e0b';
+        waQRImage.src = '/codeopen/baileys-qr-image?' + Date.now();
+        waQRImage.onload = function() {
+          waQRLoading.style.display = 'none';
+          waQRImageWrap.style.display = 'block';
+          waQRConnected.style.display = 'none';
+          waQRError.style.display = 'none';
+        };
+        waQRImage.onerror = function() {
+          waQRLoading.innerHTML = '<div>Error al cargar QR</div>';
+        };
+      } else if (st.error) {
+        waStatusText.textContent = 'Error';
+        waStatusText.style.color = '#ef4444';
+        waQRError.textContent = 'Error: ' + st.error;
+        waQRError.style.display = 'block';
+        waQRLoading.style.display = 'none';
+      } else {
+        waStatusText.textContent = 'Descon.';
+        waStatusText.style.color = '#888';
+      }
+    });
+  }
+
+  try { pollWAStatus(); } catch(e) { console.error('[Init] pollWAStatus:', e); }
+  // Polling QR cada 30s (antes 5s) para reducir carga
+  setInterval(function() { try { pollWAStatus(); } catch(e) {} }, 30000);
+
+  whatsappBtn.addEventListener('click', function() {
+    waQRPanel.style.right = '0';
+    waQROverlay.style.display = 'block';
+    pollWAStatus();
+  });
+
+  // WhatsApp logout/reconnect buttons
+  document.getElementById('waLogoutBtn')?.addEventListener('click', function() {
+    if (!confirm('¿Cerrar sesión de WhatsApp? Se borrará la sesión actual y los mensajes.')) return;
+    fetch('/codeopen/whatsapp/logout', { method: 'POST' }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.forceReload) { location.reload(true); }
+      else { pollWAStatus(); }
+    });
+  });
+  document.getElementById('waReconnectBtn')?.addEventListener('click', function() {
+    if (!confirm('¿Reconectar WhatsApp con otro número? Se borrará la sesión actual.')) return;
+    fetch('/codeopen/whatsapp/reconnect', { method: 'POST' }).then(function(r) { return r.json(); }).then(function(d) {
+      alert(d.message); pollWAStatus();
+    });
+  });
+
+  // WhatsApp Phone Login
+  document.getElementById('waPhoneLoginBtn')?.addEventListener('click', function() {
+    var phone = document.getElementById('waPhoneInput').value.replace(/[^0-9]/g, '');
+    if (phone.length < 10) { alert('Introduce un número completo con código de país (ej: 34600123123)'); return; }
+    var btn = this;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm" style="width:10px;height:10px;"></span>';
+    document.getElementById('waPhoneStatus').textContent = 'Enviando código...';
+    fetch('/codeopen/whatsapp/login-phone', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone: phone }) }).then(function(r) { return r.json(); }).then(function(d) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="ri-phone-line"></i> Vincular';
+      if (d.ok) {
+        document.getElementById('waPhoneStatus').textContent = d.pairingCode ? 'Código de 6 dígitos: ' + d.pairingCode + ' — Introdúcelo en WhatsApp Web → Dispositivos vinculados → Vincular dispositivo' : d.message || 'Sesión reiniciada. Escanea el QR.';
+        pollWAStatus();
+      } else {
+        document.getElementById('waPhoneStatus').textContent = 'Error: ' + (d.error || 'desconocido');
+      }
+    }).catch(function() {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="ri-phone-line"></i> Vincular';
+      document.getElementById('waPhoneStatus').textContent = 'Error de red';
+    });
+  });
+
+  // Settings gear dropdown
+  var waSettingsToggle = $('waSettingsToggle');
+  var waSettingsDropdown = $('waSettingsDropdown');
+  var waSettingsMenuOpen = false;
+  if (waSettingsToggle) {
+    waSettingsToggle.addEventListener('click', function(e) {
+      e.stopPropagation();
+      waSettingsMenuOpen = !waSettingsMenuOpen;
+      waSettingsDropdown.style.display = waSettingsMenuOpen ? 'block' : 'none';
+    });
+    document.addEventListener('click', function() {
+      waSettingsDropdown.style.display = 'none';
+      waSettingsMenuOpen = false;
+    });
+    waSettingsDropdown.addEventListener('click', function(e) { e.stopPropagation(); });
+  }
+  // Logout from dropdown
+  var waLogoutDropdown = $('waLogoutDropdown');
+  if (waLogoutDropdown) {
+    waLogoutDropdown.addEventListener('click', function() {
+      if (!confirm('¿Cerrar sesión de WhatsApp? Se borrará la sesión actual y los mensajes.')) return;
+      fetch('/codeopen/whatsapp/logout', { method: 'POST' }).then(function(r) { return r.json(); }).then(function(d) {
+        if (d.forceReload) { location.reload(true); }
+        waSettingsDropdown.style.display = 'none'; waSettingsMenuOpen = false;
+      });
+    });
+  }
+  // Reconnect from dropdown
+  var waReconnectDropdown = $('waReconnectDropdown');
+  if (waReconnectDropdown) {
+    waReconnectDropdown.addEventListener('click', function() {
+      if (!confirm('¿Reconectar WhatsApp con otro número? Se borrará la sesión actual.')) return;
+      fetch('/codeopen/whatsapp/reconnect', { method: 'POST' }).then(function(r) { return r.json(); }).then(function(d) {
+        alert(d.message); pollWAStatus(); waSettingsDropdown.style.display = 'none'; waSettingsMenuOpen = false;
+      });
+    });
+  }
+  // Email config
+  function loadEmailConfig() {
+    fetch('/codeopen/email/config').then(function(r) { return r.json(); }).then(function(d) {
+      var userEl = $('emailConfigUser');
+      var statusEl = $('emailConfigStatus');
+      var loginBtn = $('emailConfigLoginBtn');
+      var logoutBtn = $('emailConfigLogoutBtn');
+      if (userEl) userEl.value = d.user || '';
+      if (statusEl) {
+        if (d.passConfigured) {
+          statusEl.innerHTML = '<span style="color:var(--success);">✓ Conectado como ' + (d.user || '') + '</span>';
+          if (loginBtn) loginBtn.style.display = 'none';
+          if (logoutBtn) logoutBtn.style.display = 'block';
+        } else {
+          statusEl.innerHTML = '<span style="color:var(--text-faint);">No conectado</span>';
+          if (loginBtn) loginBtn.style.display = 'block';
+          if (logoutBtn) logoutBtn.style.display = 'none';
+        }
+      }
+    });
+  }
+  var emailConfigLoginBtn = $('emailConfigLoginBtn');
+  if (emailConfigLoginBtn) {
+    emailConfigLoginBtn.addEventListener('click', function() {
+      var user = $('emailConfigUser').value.trim();
+      var pass = $('emailConfigPass').value;
+      if (!user || !pass) { alert('Introduce email y contraseña'); return; }
+      fetch('/codeopen/email/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user: user, pass: pass }) }).then(function(r) { return r.json(); }).then(function(d) {
+        if (d.ok) { alert('Sesión de Gmail iniciada'); loadEmailConfig(); }
+        else { alert('Error: ' + (d.error || '')); }
+      });
+    });
+  }
+  var emailConfigLogoutBtn = $('emailConfigLogoutBtn');
+  if (emailConfigLogoutBtn) {
+    emailConfigLogoutBtn.addEventListener('click', function() {
+      if (!confirm('¿Cerrar sesión de Gmail?')) return;
+      fetch('/codeopen/email/logout', { method: 'POST' }).then(function(r) { return r.json(); }).then(function(d) {
+        if (d.ok) { alert('Sesión de Gmail cerrada'); loadEmailConfig(); }
+      });
+    });
+  }
+  try { loadEmailConfig(); } catch(e) {}
+
+  closeWAQR.addEventListener('click', function() {
+    waQRPanel.style.right = '-400px';
+    waQROverlay.style.display = 'none';
+  });
+  waQROverlay.addEventListener('click', function() {
+    waQRPanel.style.right = '-400px';
+    waQROverlay.style.display = 'none';
+  });
+
+  // ---- SELECTOR DE MODELO (CEREBRO) ----
+  var currentModelId = 'deepseek-v4-flash-free';
+  var cerebroToggle = $('cerebroToggle');
+  var cerebroDropdown = $('cerebroDropdown');
+  var cerebroMenuOpen = false;
+
+  document.addEventListener('click', function(e) {
+    if (!document.getElementById('cerebroBtn').contains(e.target)) {
+      cerebroDropdown.style.display = 'none';
+      cerebroMenuOpen = false;
+    }
+  });
+
+  cerebroToggle.addEventListener('click', function() {
+    cerebroMenuOpen = !cerebroMenuOpen;
+    cerebroDropdown.style.display = cerebroMenuOpen ? 'block' : 'none';
+    if (cerebroMenuOpen) loadModelDropdown();
+  });
+
+  function loadModelDropdown() {
+    fetch('/codeopen/models').then(function(r) { return r.json(); }).then(function(d) {
+      if (!d.models) return;
+      cerebroDropdown.innerHTML = '<div style="padding:6px 10px;font-size:0.7rem;color:var(--text-faint);border-bottom:1px solid var(--border);margin-bottom:4px;">🧠 Modelos</div>';
+      Object.keys(d.models).forEach(function(k) {
+        var m = d.models[k];
+        var item = document.createElement('div');
+        var isActive = k === d.current;
+        var needsKey = m.needsKey;
+        item.style.cssText = 'padding:8px 10px;border-radius:8px;cursor:' + (needsKey ? 'default' : 'pointer') + ';font-size:0.78rem;display:flex;align-items:center;gap:8px;' + (isActive ? 'background:rgba(99,102,241,0.15);border:1px solid var(--accent);' : '') + ';transition:background 0.2s;';
+        item.innerHTML = '<span style="flex-shrink:0;">' + (isActive ? '✅' : (needsKey ? '🔒' : '○')) + '</span>' +
+          '<div style="flex:1;min-width:0;"><div style="font-weight:' + (isActive ? '600' : '400') + ';">' + m.name + '</div>' +
+          (needsKey ? '<div style="font-size:0.65rem;color:#f59e0b;">🔑 ' + (m.keyHint || 'Necesita API key') + '</div>' : '') +
+          '<div id="usage_' + k.replace(/[^a-zA-Z0-9]/g, '_') + '" style="height:3px;background:var(--border);border-radius:2px;margin-top:4px;overflow:hidden;"><div style="width:30%;height:100%;background:var(--accent);border-radius:2px;"></div></div></div>';
+        if (!needsKey) {
+          item.addEventListener('click', (function(modelKey) {
+            return function() { selectModel(modelKey); };
+          })(k));
+        }
+        cerebroDropdown.appendChild(item);
+      });
+      loadModelUsage();
+    });
+  }
+
+  function selectModel(modelId) {
+    fetch('/codeopen/model/select', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: modelId }) }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.ok) {
+        currentModelId = modelId;
+        cerebroDropdown.style.display = 'none';
+        cerebroMenuOpen = false;
+        showToast('🧠 Modelo cambiado a ' + d.name);
+      }
+    });
+  }
+
+  function loadModelUsage() {
+    fetch('/codeopen/model-usage').then(function(r) { return r.json(); }).then(function(d) {
+      if (!d.usage) return;
+      for (var key in d.usage) {
+        var u = d.usage[key];
+        var el = document.getElementById('usage_' + key.replace(/[^a-zA-Z0-9]/g, '_'));
+        if (el) {
+          var bar = el.querySelector('div');
+          if (bar) {
+            var pct = u.percent || 0;
+            bar.style.width = pct + '%';
+            bar.style.background = pct > 80 ? '#ef4444' : pct > 50 ? '#f59e0b' : 'var(--accent)';
+          }
+        }
+      }
+    });
+  }
+  setInterval(function() { try { loadModelUsage(); } catch(e) {} }, 60000);
+
+  try { loadModelDropdown(); } catch(e) { console.error('[Init] loadModelDropdown:', e); }
+  try { loadModels(); } catch(e) { console.error('[Init] loadModels:', e); }
+
+  // Keep loadModels for compatibility
+  function loadModels() {}
+
+  // ---- VISTA DE CONTACTOS ----
+  var waContactsView = $('waContactsView');
+  var waContactsList = $('waContactsList');
+  var waContactsCount = $('waContactsCount');
+
+  var activeCategoryTab = 'all';
+  var isAnalyzing = false;
+
+  var profilePicCache = {};
+
+  function getProfilePic(address, imgEl) {
+    if (profilePicCache[address]) {
+      imgEl.src = profilePicCache[address] + '?t=' + Date.now();
+      imgEl.style.display = 'block';
+      return;
+    }
+    fetch('/codeopen/whatsapp/profile-pic/' + encodeURIComponent(address)).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.url) {
+        profilePicCache[address] = d.url;
+        imgEl.src = d.url + '?t=' + Date.now();
+        imgEl.style.display = 'block';
+      }
+    });
+  }
+
+  function renderWAContacts(groups) {
+    waContactsList.innerHTML = '';
+    groups.forEach(function(g) {
+      var unanalyzed = g.messages.filter(function(m) { return !m.proposed_response || m.proposed_response === 'Analizando con IA...' || m.proposed_response === ''; }).length;
+      var card = document.createElement('div');
+      card.style.cssText = 'background:var(--bg-card);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;overflow:hidden;animation:fadeScale 0.3s ease;';
+      var initial = g.contact.charAt(0).toUpperCase();
+      card.innerHTML = '<div class="wa-contact-header" style="display:flex;align-items:center;gap:8px;padding:12px 16px;cursor:pointer;transition:background 0.2s;" onclick="toggleContactGroup(this)">' +
+        '<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#25D366,#128C7E);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:0.85rem;flex-shrink:0;position:relative;overflow:hidden;"><img class="profile-pic" data-address="' + escHtml(g.address) + '" src="" style="width:100%;height:100%;object-fit:cover;display:none;position:absolute;top:0;left:0;" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'"><span class="profile-initial" style="display:block;">' + initial + '</span></div>' +
+        '<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:0.85rem;">' + escHtml(g.contact) + ' <span style="font-weight:400;font-size:0.7rem;color:var(--text-faint);">' + (g.address && g.address.includes('@s.whatsapp.net') ? g.address.replace('@s.whatsapp.net','').replace(/[^0-9]/g,'') : g.address && g.address.includes('@lid') ? '' : escHtml(g.address || '')) + '</span></div><div style="font-size:0.7rem;color:var(--text-dim);">' + g.messages.length + ' mensaje' + (g.messages.length !== 1 ? 's' : '') + (unanalyzed > 0 ? ' · <span style="color:#f59e0b;">' + unanalyzed + ' sin analizar</span>' : '') + '</div></div>' +
+        '<button class="btn-chat-history" data-address="' + escHtml(g.address) + '" data-name="' + escHtml(g.contact) + '" style="background:none;border:1px solid var(--border);border-radius:8px;padding:4px 8px;cursor:pointer;font-size:0.7rem;color:var(--text-muted);white-space:nowrap;" title="Ver historial completo de la conversación"><i class="ri-chat-history-line"></i> Historial</button>' +
+        '<div class="crm-actions-wrapper" style="position:relative;display:inline-block;">' +
+        '<button class="btn-crm-actions" data-address="' + escHtml(g.address) + '" data-name="' + escHtml(g.contact) + '" style="background:none;border:1px solid var(--accent);border-radius:8px;padding:4px 8px;cursor:pointer;font-size:0.7rem;color:var(--accent);white-space:nowrap;" title="Abrir ficha del cliente"><i class="ri-external-link-line"></i> Ficha</button>' +
+        '</div>' +
+        '<span class="client-actions-' + escHtml(g.address) + '" style="display:none;"></span>' +
+        '<button class="btn-delete-contact" data-address="' + escHtml(g.address) + '" style="background:none;border:1px solid var(--error);border-radius:8px;padding:4px 8px;cursor:pointer;font-size:0.7rem;color:var(--error);white-space:nowrap;" title="Borrar todos los mensajes de este contacto"><i class="ri-delete-bin-line"></i></button>' +
+        '<i class="ri-arrow-down-s-line" style="font-size:1.2rem;color:var(--text-dim);transition:transform 0.2s;"></i></div>' +
+        '<div class="wa-contact-messages" style="display:none;border-top:1px solid var(--border);padding:8px 16px 12px;"></div>';
+      waContactsList.appendChild(card);
+      var msgsContainer = card.querySelector('.wa-contact-messages');
+      g.messages.forEach(function(msg) {
+        var hasAnalysis = msg.proposed_response && msg.proposed_response !== 'Analizando con IA...' && msg.proposed_response !== '';
+        var msgCard = document.createElement('div');
+        msgCard.style.cssText = 'background:var(--bg-main);border:1px solid var(--border-light);border-radius:10px;padding:10px;margin-bottom:8px;';
+        var ts = msg.created_at || '';
+        try { var d = new Date(ts + 'Z'); ts = d.toLocaleString('es-ES', {timeZone:'Europe/Madrid', day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}); } catch(e) {}
+        msgCard.innerHTML = '<div style="font-size:0.7rem;color:var(--text-faint);margin-bottom:4px;">#' + msg.id + ' · ' + ts + 
+          ' <button class="btn-delete-msg" data-id="' + msg.id + '" style="background:none;border:0;color:var(--error);cursor:pointer;font-size:0.7rem;float:right;" title="Borrar este mensaje"><i class="ri-delete-bin-6-line"></i></button></div>' +
+          '<div style="font-size:0.8rem;color:var(--text);margin-bottom:8px;padding:6px 10px;background:var(--bg-card);border-radius:8px;border-left:3px solid #25D366;">' + escHtml(msg.body || '').substring(0, 300) + '</div>' +
+          '<div class="wa-msg-actions" data-id="' + msg.id + '">' +
+          '<button class="btn-analyze" data-id="' + msg.id + '" style="background:var(--accent);color:#fff;border:0;border-radius:8px;padding:6px 10px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-robot-line"></i>' + (hasAnalysis ? ' Re-analizar' : ' Analizar') + '</button>' +
+          '<div id="progress_' + msg.id + '" style="display:none;height:3px;background:var(--border);border-radius:2px;margin-top:4px;overflow:hidden;"><div style="width:0%;height:100%;background:var(--accent);border-radius:2px;transition:width 0.5s;"></div></div>' +
+          '</div>';
+        // Siempre mostrar editor si hay analisis (aunque sea error)
+        if (hasAnalysis || (msg.proposed_response && msg.proposed_response !== '')) {
+          var isError = (msg.proposed_response || '').indexOf('Error:') === 0;
+          var respDiv = document.createElement('div');
+          respDiv.style.cssText = 'margin-top:6px;padding:8px;border-radius:8px;border:1px solid ' + (isError ? 'var(--error)' : 'rgba(34,197,94,0.2)') + ';background:' + (isError ? 'rgba(239,68,68,0.05)' : 'rgba(34,197,94,0.08)') + ';';
+          respDiv.innerHTML = '<div style="font-size:0.7rem;color:' + (isError ? 'var(--error)' : '#22c55e') + ';margin-bottom:4px;"><i class="ri-' + (isError ? 'close' : 'check') + '-line"></i> ' + (isError ? 'Error al analizar - escribe tu respuesta:' : 'Respuesta lista - puedes editarla:') + '</div>' +
+            '<textarea class="response-editor" data-id="' + msg.id + '" style="width:100%;background:var(--bg-main);border:1px solid var(--border);border-radius:8px;padding:8px;font-size:0.75rem;color:var(--text);margin-bottom:6px;resize:vertical;min-height:50px;font-family:inherit;">' + (isError ? '' : escHtml(msg.proposed_response || '').substring(0, 500)) + '</textarea>' +
+            '<div style="display:flex;gap:4px;flex-wrap:wrap;">' +
+            '<button class="btn-send-no-fwd" data-id="' + msg.id + '" style="flex:1;min-width:80px;background:var(--accent);color:#fff;border:0;border-radius:8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-send-plane-line"></i> Enviar</button>' +
+            '<button class="btn-send-reply" data-id="' + msg.id + '" style="flex:1;min-width:80px;background:#0ea5e9;color:#fff;border:0;border-radius:8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;" title="Responder citando el mensaje original"><i class="ri-reply-line"></i> Responder</button>' +
+            '<button class="btn-send-audio" data-id="' + msg.id + '" style="flex:1;min-width:70px;background:#8B5CF6;color:#fff;border:0;border-radius:8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-voiceprint-line"></i> Audio</button>' +
+            '<button class="btn-send-doc" data-id="' + msg.id + '" style="flex:1;min-width:70px;background:#f59e0b;color:#fff;border:0;border-radius:8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-file-pdf-line"></i> Doc</button>' +
+            '<button class="btn-reject" data-id="' + msg.id + '" style="background:var(--error);color:#fff;border:0;border-radius:8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-close-line"></i></button>' +
+            '</div>';
+          msgCard.querySelector('.wa-msg-actions').after(respDiv);
+        }
+        msgsContainer.appendChild(msgCard);
+      });
+      // Load profile pictures for this contact
+      var ppImg = card.querySelector('.profile-pic');
+      if (ppImg && g.address) setTimeout(function() { getProfilePic(g.address, ppImg); }, 100);
+      
+      // Buscar cliente en API Likes por telefono
+      if (g.address) {
+        var phone = g.address.replace('@s.whatsapp.net', '').replace(/[^0-9]/g, '');
+        if (phone.length >= 9) {
+          (function(addr, ph) {
+            var contactName = g.contact || '';
+            fetch('/codeopen/client-info/' + ph + '?name=' + encodeURIComponent(contactName))
+              .then(function(r) { return r.json(); })
+              .then(function(info) {
+                  if (info && info.found) {
+                    var container = document.querySelector('.client-actions-' + escHtml(addr));
+                    if (container) {
+                      container.style.display = 'inline-flex';
+                      container.style.gap = '4px';
+                      container.style.flexWrap = 'wrap';
+                      // Guardar fiscalId en el boton Ficha para que openCRMActions lo use
+                      var crmBtn = container.parentElement.querySelector('.btn-crm-actions[data-address="' + escHtml(addr) + '"]');
+                      if (crmBtn && info.fiscalId) crmBtn.dataset.fiscal = info.fiscalId;
+                      container.innerHTML = 
+                        (info.fiscalId ? '<a href="/clientes/fiscal/' + encodeURIComponent(info.fiscalId) + '" target="_blank" class="btn-client-action" style="background:#0050A1;color:#fff;border:0;border-radius:6px;padding:4px 8px;font-size:0.65rem;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:2px;" title="Ficha del cliente"><i class="ri-user-line"></i></a>' : '') +
+                        (info.fiscalId ? '<a href="/isp/facturacion?fiscalId=' + encodeURIComponent(info.fiscalId) + '" target="_blank" class="btn-client-action" style="background:#f59e0b;color:#fff;border:0;border-radius:6px;padding:4px 8px;font-size:0.65rem;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:2px;" title="Facturación"><i class="ri-receipt-line"></i></a>' : '') +
+                        (info.fiscalId ? '<a href="/isp/contratos?search=' + encodeURIComponent(info.nombre || '') + '" target="_blank" class="btn-client-action" style="background:#10b981;color:#fff;border:0;border-radius:6px;padding:4px 8px;font-size:0.65rem;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:2px;" title="Contratos"><i class="ri-file-text-line"></i></a>' : '') +
+                        (info.fiscalId ? '<a href="/isp/cdrs?fiscal=' + encodeURIComponent(info.fiscalId) + '&show=1" target="_blank" class="btn-client-action" style="background:#8B5CF6;color:#fff;border:0;border-radius:6px;padding:4px 8px;font-size:0.65rem;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:2px;" title="Consumo/CDRs"><i class="ri-bar-chart-line"></i></a>' : '') +
+                        (info.fiscalId ? '<a href="/clientes/fiscal/' + encodeURIComponent(info.fiscalId) + '#lineas" target="_blank" class="btn-client-action" style="background:#6366f1;color:#fff;border:0;border-radius:6px;padding:4px 8px;font-size:0.65rem;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:2px;" title="PIN/PUK"><i class="ri-key-2-line"></i></a>' : '') +
+                        (info.fiscalId ? '<a href="/clientes/fiscal/' + encodeURIComponent(info.fiscalId) + '#instalaciones" target="_blank" class="btn-client-action" style="background:#f97316;color:#fff;border:0;border-radius:6px;padding:4px 8px;font-size:0.65rem;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:2px;" title="Instalación"><i class="ri-tools-line"></i></a>' : '') +
+                        (info.fiscalId ? '<a href="/clientes/fiscal/' + encodeURIComponent(info.fiscalId) + '#kyc" target="_blank" class="btn-client-action" style="background:#ec4899;color:#fff;border:0;border-radius:6px;padding:4px 8px;font-size:0.65rem;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:2px;" title="Documentos KYC"><i class="ri-file-shield-2-line"></i></a>' : '') +
+                        (info.fiscalId ? '<a href="/clientes/fiscal/' + encodeURIComponent(info.fiscalId) + '#lineas" target="_blank" class="btn-client-action" style="background:#14b8a6;color:#fff;border:0;border-radius:6px;padding:4px 8px;font-size:0.65rem;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:2px;" title="Cambiar Tarifa"><i class="ri-exchange-line"></i></a>' : '') +
+                        (info.fiscalId ? '<a href="/isp/nube?fiscal=' + encodeURIComponent(info.fiscalId) + '" target="_blank" class="btn-client-action" style="background:#06b6d4;color:#fff;border:0;border-radius:6px;padding:4px 8px;font-size:0.65rem;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:2px;" title="Documentos"><i class="ri-cloud-line"></i></a>' : '') +
+                        (ph ? '<a href="/coverage" target="_blank" class="btn-client-action" style="background:#22c55e;color:#fff;border:0;border-radius:6px;padding:4px 8px;font-size:0.65rem;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:2px;" title="Cobertura"><i class="ri-wifi-line"></i></a>' : '') +
+                        (ph ? '<a href="/portal" target="_blank" class="btn-client-action" style="background:#64748b;color:#fff;border:0;border-radius:6px;padding:4px 8px;font-size:0.65rem;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:2px;" title="Zona Clientes (lo que ve el cliente)"><i class="ri-eye-line"></i></a>' : '') +
+                        (info.fiscalId ? '<a href="/altas" target="_blank" class="btn-client-action" style="background:#ef4444;color:#fff;border:0;border-radius:6px;padding:4px 8px;font-size:0.65rem;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:2px;" title="Nueva alta/contratacion"><i class="ri-add-circle-line"></i></a>' : '');
+                    }
+                  }
+              }).catch(function() {});
+          })(g.address, phone);
+        }
+      }
+
+      // Bind events
+      msgsContainer.querySelectorAll('.btn-analyze').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation(); analyzeMessage(this.dataset.id, this); });
+      });
+      msgsContainer.querySelectorAll('.btn-send-with-fwd').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation(); approveMessage(this.dataset.id, 'with_forward', this); });
+      });
+      msgsContainer.querySelectorAll('.btn-send-no-fwd').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation(); approveMessage(this.dataset.id, 'without_forward', this); });
+      });
+      card.querySelectorAll('.btn-chat-history').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation(); openChatHistory(this.dataset.address, this.dataset.name); });
+      });
+      card.querySelectorAll('.btn-crm-actions').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation(); openCRMActions(this.dataset.address, this.dataset.name, this); });
+      });
+      card.querySelectorAll('.btn-delete-contact').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation(); deleteContact(this.dataset.address, this); });
+      });
+      msgsContainer.querySelectorAll('.btn-send-audio').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation(); approveMessage(this.dataset.id, 'without_forward', this, true); });
+      });
+      msgsContainer.querySelectorAll('.btn-send-reply').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation();
+          var msgId = this.dataset.id;
+          var editor = document.querySelector('.response-editor[data-id="' + msgId + '"]');
+          if (editor) {
+            // Buscar el texto original del mensaje en el DOM
+            var msgCard = this.closest('div[style*="background:var(--bg-main)"]') || this.closest('.wa-contact-messages > div');
+            var bodyEl = null;
+            if (msgCard) {
+              // Buscar el div del mensaje original (borde verde a la izquierda)
+              bodyEl = msgCard.querySelector('div[style*="border-left:3px solid #25D366"]');
+            }
+            var originalMsg = bodyEl ? bodyEl.textContent.trim() : '';
+            if (originalMsg) {
+              editor.value = 'En respuesta a: \"' + originalMsg + '\"\n\n' + (editor.value || '');
+              editor.focus();
+              editor.setSelectionRange(0, 0);
+            }
+          }
+          approveMessage(msgId, 'with_forward', this);
+        });
+      });
+      msgsContainer.querySelectorAll('.btn-send-doc').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation(); 
+          // Si el mensaje tiene document_ready, enviar directo sin preguntar
+          var msgId = this.dataset.id;
+          var hasDoc = this.dataset.docready === '1' || this.dataset.docready === 'true';
+          if (hasDoc) {
+            approveMessage(msgId, 'without_forward', this, false, true);
+          } else {
+            sendDocument(msgId, this);
+          }
+        });
+      });
+      msgsContainer.querySelectorAll('.btn-reject').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation(); rejectMessage(this.dataset.id, this); });
+      });
+      msgsContainer.querySelectorAll('.btn-delete-msg').forEach(function(b) {
+        b.addEventListener('click', function(e) { e.stopPropagation(); deleteMessage(this.dataset.id, this); });
+      });
+    });
+  }
+
+  window.toggleContactGroup = function(header) {
+    var msgs = header.parentElement.querySelector('.wa-contact-messages');
+    var arrow = header.querySelector('.ri-arrow-down-s-line');
+    if (msgs.style.display === 'none' || !msgs.style.display) {
+      msgs.style.display = 'block';
+      if (arrow) arrow.style.transform = 'rotate(180deg)';
+    } else {
+      msgs.style.display = 'none';
+      if (arrow) arrow.style.transform = 'rotate(0deg)';
+    }
+  };
+
+  function deleteMessage(id, btn) {
+    if (!confirm('¿Borrar este mensaje?')) return;
+    fetch('/codeopen/delete/' + id, { method: 'POST' }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.ok) { refreshCurrentView(); loadPendingList(); pollPendingCount(); }
+    });
+  }
+
+  function deleteContact(address, btn) {
+    if (!confirm('¿Borrar TODOS los mensajes de este contacto?')) return;
+    fetch('/codeopen/delete-contact/' + encodeURIComponent(address), { method: 'POST' }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.ok) { refreshCurrentView(); loadPendingList(); pollPendingCount(); }
+    });
+  }
+
+  function refreshCurrentView() {
+    // No recargar contactos - solo actualizar badges y pendientes
+    try { pollPendingCount(); } catch(e) {}
+    try { updateTabBadges(); } catch(e) {}
+  }
+
+  function analyzeMessage(id, btn) {
+    btn.disabled = true;
+    isAnalyzing = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm" style="width:10px;height:10px;"></span> Analizando...';
+    // Mostrar barra de progreso
+    var progBar = document.getElementById('progress_' + id);
+    if (progBar) {
+      progBar.style.display = 'block';
+      var fill = progBar.querySelector('div');
+      if (fill) { fill.style.width = '10%'; setTimeout(function() { fill.style.width = '50%'; }, 500); setTimeout(function() { fill.style.width = '80%'; }, 1500); }
+    }
+    fetch('/codeopen/analyze/' + id, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: currentModelId }) }).then(function(r) { return r.json(); }).then(function(d) {
+      isAnalyzing = false;
+      if (progBar) { var fill = progBar.querySelector('div'); if (fill) fill.style.width = '100%'; setTimeout(function() { if (progBar) progBar.style.display = 'none'; }, 500); }
+      if (d.ok) {
+        pollPendingCount();
+        // Cambiar boton Analizar a Re-analizar
+        btn.innerHTML = '<i class="ri-robot-line"></i> Re-analizar';
+        btn.disabled = false;
+        // Mostrar editor de respuesta debajo del mensaje, sin borrar el boton analizar
+        var respText = d.response || d.proposed_response || '';
+        var msgCard = btn.closest('[style*="background:var(--bg-main);border:1px solid var(--border-light)"]') || btn.closest('.wa-contact-messages > div') || btn.parentElement;
+        if (msgCard) {
+          var existingResp = msgCard.querySelector('.response-editor');
+          if (existingResp) existingResp.value = respText;
+          else {
+            var respDiv = document.createElement('div');
+            respDiv.style.cssText = 'margin-top:6px;padding:8px;border-radius:8px;border:1px solid rgba(34,197,94,0.2);background:rgba(34,197,94,0.08);';
+            respDiv.innerHTML = 
+              '<div style="font-size:0.7rem;color:#22c55e;margin-bottom:4px;"><i class="ri-check-line"></i> Respuesta lista - puedes editarla:</div>' +
+              '<textarea class="response-editor" data-id="' + btn.dataset.id + '" style="width:100%;background:var(--bg-main);border:1px solid var(--border);border-radius:8px;padding:8px;font-size:0.75rem;color:var(--text);margin-bottom:6px;resize:vertical;min-height:50px;font-family:inherit;">' + escHtml(respText) + '</textarea>' +
+              '<div style="display:flex;gap:4px;flex-wrap:wrap;">' +
+              '<button class="btn-send-no-fwd" data-id="' + btn.dataset.id + '" style="flex:1;min-width:80px;background:var(--accent);color:#fff;border:0;border-radius:8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-send-plane-line"></i> Enviar</button>' +
+              '<button class="btn-send-reply" data-id="' + btn.dataset.id + '" style="flex:1;min-width:80px;background:#0ea5e9;color:#fff;border:0;border-radius:8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;" title="Responder citando el mensaje original"><i class="ri-reply-line"></i> Responder</button>' +
+              '<div style="position:relative;display:inline-flex;gap:2px;">' +
+              '<button class="btn-send-audio" data-id="' + btn.dataset.id + '" style="min-width:70px;background:#8B5CF6;color:#fff;border:0;border-radius:8px 0 0 8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-voiceprint-line"></i> Audio ♀</button>' +
+              '<button class="btn-send-audio-male" data-id="' + btn.dataset.id + '" style="min-width:30px;background:#6D28D9;color:#fff;border:0;border-radius:0 8px 8px 0;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;border-left:1px solid rgba(255,255,255,0.2);" title="Enviar como audio con voz masculina">♂</button>' +
+              '</div>' +
+              '<button class="btn-send-doc" data-id="' + btn.dataset.id + '" style="flex:1;min-width:70px;background:#f59e0b;color:#fff;border:0;border-radius:8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-file-pdf-line"></i> Doc</button>' +
+              '<button class="btn-reject" data-id="' + btn.dataset.id + '" style="background:var(--error);color:#fff;border:0;border-radius:8px;padding:6px 8px;font-size:0.7rem;cursor:pointer;font-weight:600;"><i class="ri-close-line"></i></button>' +
+              '</div>';
+            // Insertar despues del contenedor de acciones actual
+            var actionsDiv = btn.closest('.wa-msg-actions') || btn.parentElement;
+            if (actionsDiv) actionsDiv.after(respDiv);
+            else msgCard.appendChild(respDiv);
+          }
+          // Bind buttons
+          respDiv.querySelector('.btn-send-no-fwd')?.addEventListener('click', function(e) { e.stopPropagation(); approveMessage(this.dataset.id, 'without_forward', this); });
+          respDiv.querySelector('.btn-send-audio')?.addEventListener('click', function(e) { e.stopPropagation(); approveMessage(this.dataset.id, 'without_forward', this, true); });
+          respDiv.querySelector('.btn-send-audio-male')?.addEventListener('click', function(e) { e.stopPropagation(); approveMessage(this.dataset.id, 'without_forward', this, true, false, true); });
+          respDiv.querySelector('.btn-send-doc')?.addEventListener('click', function(e) { e.stopPropagation(); approveMessage(this.dataset.id, 'without_forward', this, false, true); });
+          respDiv.querySelector('.btn-send-reply')?.addEventListener('click', function(e) { e.stopPropagation();
+            var msgId = this.dataset.id;
+            var editor = document.querySelector('.response-editor[data-id="' + msgId + '"]');
+            if (editor) {
+              var msgCard = this.closest('div[style*="background:var(--bg-main)"]') || this.closest('.wa-contact-messages > div');
+              var bodyEl = msgCard ? msgCard.querySelector('div[style*="border-left:3px solid #25D366"]') : null;
+              var originalMsg = bodyEl ? bodyEl.textContent.trim() : '';
+              if (originalMsg) {
+                editor.value = 'En respuesta a: \"' + originalMsg + '\"\n\n' + (editor.value || '');
+                editor.focus();
+                editor.setSelectionRange(0, 0);
+              }
+            }
+            approveMessage(msgId, 'with_forward', this);
+          });
+          respDiv.querySelector('.btn-reject')?.addEventListener('click', function(e) { e.stopPropagation(); rejectMessage(this.dataset.id, this); });
+        }
+        loadPendingList();
+      } else {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="ri-robot-line"></i> Analizar';
+        if (d.error) showToast('Error: ' + d.error);
+      }
+    }).catch(function() {
+      isAnalyzing = false;
+      btn.disabled = false;
+      btn.innerHTML = '<i class="ri-robot-line"></i> Analizar';
+      showToast('Error de red');
+    });
+  }
+
+  function approveMessage(id, mode, btn, asAudio, asDoc, asMale) {
+    btn.disabled = true;
+    var label = asAudio ? 'Generando audio...' : mode === 'with_forward' ? 'Enviando con reenvío...' : 'Enviando...';
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm" style="width:10px;height:10px;"></span> ' + label;
+    // Leer el texto editado del textarea si existe
+    var editor = document.querySelector('.response-editor[data-id="' + id + '"]');
+    var customText = editor ? editor.value.trim() : '';
+    fetch('/codeopen/approve/' + id, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode: mode, asAudio: asAudio || false, asMale: asMale || false, customText: customText }) }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.ok) {
+        refreshCurrentView();
+        loadPendingList();
+        pollPendingCount();
+        showToast(d.message || 'Enviado');
+      } else {
+        btn.disabled = false;
+        btn.innerHTML = asAudio ? 'Audio' : (mode === 'with_forward' ? 'Con reenvío' : 'Sin reenvío');
+        alert('Error: ' + (d.error || 'desconocido'));
+      }
+    }).catch(function() {
+      btn.disabled = false;
+      btn.innerHTML = asAudio ? 'Audio' : (mode === 'with_forward' ? 'Con reenvío' : 'Sin reenvío');
+      alert('Error de red');
+    });
+  }
+
+  function sendDocument(id, btn) {
+    var input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.pdf,.doc,.docx,.jpg,.png';
+    input.onchange = function() {
+      var file = input.files[0];
+      if (!file) return;
+      var formData = new FormData();
+      formData.append('document', file);
+      formData.append('message_id', id);
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm" style="width:10px;height:10px;"></span>';
+      fetch('/codeopen/send-document', { method: 'POST', body: formData }).then(function(r) { return r.json(); }).then(function(d) {
+        if (d.ok) { showToast('📄 Documento enviado'); refreshCurrentView(); }
+        else { alert('Error: ' + (d.error || '')); btn.disabled = false; btn.innerHTML = 'Doc'; }
+      }).catch(function() { btn.disabled = false; btn.innerHTML = 'Doc'; });
+    };
+    input.click();
+  }
+
+  function rejectMessage(id, btn) {
+    if (!confirm('¿Descartar este mensaje?')) return;
+    fetch('/codeopen/reject/' + id, { method: 'POST' }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.ok) { refreshCurrentView(); loadPendingList(); pollPendingCount(); }
+      else { alert(d.error || 'Error'); }
+    });
+  }
+
+  function showToast(msg) {
+    var t = document.createElement('div');
+    t.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--bg-card);border:1px solid var(--success);border-radius:10px;padding:10px 20px;font-size:0.85rem;z-index:9999;animation:fadeScale 0.3s ease;color:var(--text);box-shadow:0 4px 20px rgba(0,0,0,0.3);';
+    t.innerHTML = '<i class="ri-checkbox-circle-line" style="color:var(--success);margin-right:6px;"></i> ' + msg;
+    document.body.appendChild(t);
+    setTimeout(function() { t.style.opacity = '0'; t.style.transition = 'opacity 0.3s'; setTimeout(function() { t.remove(); }, 300); }, 2500);
+  }
+
+  // ---- CHAT HISTORY MODAL ----
+  var chatHistoryModal = $('chatHistoryModal');
+  var chatHistoryOverlay = $('chatHistoryOverlay');
+  var chatHistoryMessages = $('chatHistoryMessages');
+  var chatHistoryContactName = $('chatHistoryContactName');
+  var chatHistoryInput = $('chatHistoryInput');
+  var chatHistorySendText = $('chatHistorySendText');
+  var chatHistorySendAudio = $('chatHistorySendAudio');
+  var chatHistoryStatus = $('chatHistoryStatus');
+  var currentChatJid = null;
+
+  function openCRMActions(address, name, btn) {
+    var phone = address.replace('@s.whatsapp.net', '').replace('@lid', '').replace(/[^0-9]/g, '');
+    var fiscalId = btn.dataset.fiscal || '';
+    var existing = document.querySelector('.crm-dropdown');
+    if (existing) { existing.remove(); return; }
+    if (!fiscalId) {
+      fetch('/clientes-movilbro/api/find-by-phone/' + phone)
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          if (d && d.ok && d.fiscalId) {
+            btn.dataset.fiscal = d.fiscalId;
+            fiscalId = d.fiscalId;
+          }
+          buildDD(fiscalId || phone);
+        })
+        .catch(function() { buildDD(phone); });
+      return;
+    }
+    buildDD(fiscalId);
+    function buildDD(fid) {
+      var searchTerm = (address && address.includes('@lid')) ? encodeURIComponent(name) : (fid || phone);
+      var dd = document.createElement('div');
+      dd.className = 'crm-dropdown';
+      dd.style.cssText = 'position:fixed;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;z-index:1000000;min-width:190px;box-shadow:0 8px 24px rgba(0,0,0,0.4);padding:4px;';
+      var rect = btn.getBoundingClientRect();
+      var spaceBelow = window.innerHeight - rect.bottom;
+      var ddHeight = 320;
+      if (spaceBelow < ddHeight && rect.top > ddHeight) {
+        dd.style.bottom = (window.innerHeight - rect.top + 2) + 'px';
+        dd.style.right = (window.innerWidth - rect.right) + 'px';
+      } else {
+        dd.style.top = (rect.bottom + 2) + 'px';
+        dd.style.right = (window.innerWidth - rect.right) + 'px';
+      }
+      var esc = function(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
+      var lienzo = function(icon, label, url) {
+        return '<a href="' + esc(url) + '" target="_blank" style="display:flex;align-items:center;gap:6px;padding:7px 10px;border-radius:6px;text-decoration:none;color:var(--text);font-size:0.75rem;transition:background 0.15s;" onmouseover="this.style.background=\'var(--border)\'" onmouseout="this.style.background=\'transparent\'"><i class="' + esc(icon) + '" style="width:16px;text-align:center;"></i>' + esc(label) + '</a>';
+      };
+      var showCRM = fid && fid !== phone;
+      dd.innerHTML = '<div style="padding:6px 10px;font-size:0.7rem;color:var(--text-faint);border-bottom:1px solid var(--border);margin-bottom:4px;">' + esc(name) + ' (' + esc(phone) + ')</div>' +
+        (showCRM ? lienzo('ri-user-line', 'Ficha cliente', '/clientes-movilbro/' + encodeURIComponent(fid)) : '') +
+        (showCRM ? lienzo('ri-receipt-line', 'Facturaci\u00f3n', '/isp/facturacion?fiscalId=' + encodeURIComponent(fid)) : '') +
+        lienzo('ri-file-list-3-line', 'Contratos', '/isp/contratos?search=' + searchTerm) +
+        (showCRM ? lienzo('ri-price-tag-3-line', 'Tarifas', '/clientes-movilbro/' + encodeURIComponent(fid)) : '') +
+        (showCRM ? lienzo('ri-phone-line', 'CDRs', '/isp/cdrs?fiscal=' + encodeURIComponent(fid) + '&show=1') : '') +
+        (showCRM ? lienzo('ri-key-2-line', 'PIN/PUK', '/clientes-movilbro/' + encodeURIComponent(fid) + '#lineas') : '') +
+        (showCRM ? lienzo('ri-tools-line', 'Instalaci\u00f3n', '/clientes-movilbro/' + encodeURIComponent(fid) + '#instalaciones') : '') +
+        (showCRM ? lienzo('ri-file-shield-2-line', 'Documentos KYC', '/clientes-movilbro/' + encodeURIComponent(fid) + '#kyc') : '') +
+        (showCRM ? lienzo('ri-bar-chart-2-line', 'Consumo', '/clientes-movilbro/' + encodeURIComponent(fid) + '#lineas') : '') +
+        (showCRM ? lienzo('ri-exchange-line', 'Cambiar Tarifa', '/clientes-movilbro/' + encodeURIComponent(fid) + '#lineas') : '');
+      document.body.appendChild(dd);
+      var closeDD = function(e2) { if (!dd.contains(e2.target) && e2.target !== btn) { dd.remove(); document.removeEventListener('click', closeDD); } };
+      setTimeout(function() { document.addEventListener('click', closeDD); }, 100);
+    }
+  }
+
+  function openChatHistory(address, name) {
+    currentChatJid = address;
+    chatHistoryContactName.textContent = name;
+    chatHistoryMessages.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-faint);"><div class="spinner-border spinner-border-sm"></div> Cargando historial...</div>';
+    chatHistoryModal.style.right = '0';
+    chatHistoryOverlay.style.display = 'block';
+    chatHistoryStatus.textContent = 'cargando...';
+    loadChatHistory(address);
+  }
+
+  function closeChatHistory() {
+    chatHistoryModal.style.right = '-500px';
+    chatHistoryOverlay.style.display = 'none';
+    currentChatJid = null;
+  }
+
+  $('closeChatHistory').addEventListener('click', closeChatHistory);
+  chatHistoryOverlay.addEventListener('click', closeChatHistory);
+
+  function loadChatHistory(address) {
+    var encoded = encodeURIComponent(address);
+    fetch('/codeopen/whatsapp/chat/' + encoded + '/messages?count=40').then(function(r) { return r.json(); }).then(function(d) {
+      if (!d.ok || !d.messages || d.messages.length === 0) {
+        chatHistoryMessages.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-faint);"><i class="ri-chat-history-line" style="font-size:2rem;display:block;margin-bottom:8px;opacity:0.4;"></i>No hay historial disponible<br><span style="font-size:0.75rem;">Los mensajes nuevos se guardan automáticamente</span></div>';
+        chatHistoryStatus.textContent = '0 mensajes';
+        return;
+      }
+      chatHistoryMessages.innerHTML = '';
+      d.messages.forEach(function(m) {
+        var div = document.createElement('div');
+        var isMe = m.fromMe;
+        var ts = m.timestamp ? new Date(m.timestamp).toLocaleString('es-ES', {hour:'2-digit', minute:'2-digit', day:'2-digit', month:'2-digit'}) : '';
+        div.style.cssText = 'max-width:85%;padding:8px 12px;border-radius:12px;font-size:0.8rem;align-self:' + (isMe ? 'flex-end' : 'flex-start') + ';background:' + (isMe ? 'var(--accent)' : 'var(--bg-main)') + ';color:' + (isMe ? '#fff' : 'var(--text)') + ';border:1px solid ' + (isMe ? 'transparent' : 'var(--border)') + ';animation:fadeScale 0.2s ease;';
+        div.innerHTML = '<div style="word-break:break-word;">' + escHtml(m.text || '(sin texto)') + '</div><div style="font-size:0.6rem;opacity:0.6;margin-top:4px;text-align:' + (isMe ? 'right' : 'left') + ';">' + ts + (isMe ? ' · Yo' : '') + '</div>';
+        chatHistoryMessages.appendChild(div);
+      });
+      chatHistoryStatus.textContent = d.messages.length + ' mensajes';
+      chatHistoryMessages.scrollTop = chatHistoryMessages.scrollHeight;
+    }).catch(function() {
+      chatHistoryMessages.innerHTML = '<div style="text-align:center;padding:30px;color:var(--error);">Error al cargar historial</div>';
+    });
+  }
+
+  // Send message from chat history input
+  function sendChatMessage(asAudio) {
+    var text = chatHistoryInput.value.trim();
+    if (!text || !currentChatJid) return;
+    var btn = asAudio ? chatHistorySendAudio : chatHistorySendText;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm" style="width:12px;height:12px;"></span>';
+    fetch('/codeopen/whatsapp/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jid: currentChatJid, text: text, asAudio: asAudio }) }).then(function(r) { return r.json(); }).then(function(d) {
+      btn.disabled = false;
+      btn.innerHTML = asAudio ? '<i class="ri-voiceprint-line"></i>' : '<i class="ri-send-plane-line"></i>';
+      if (d.ok) {
+        chatHistoryInput.value = '';
+        loadChatHistory(currentChatJid);
+        showToast('Mensaje enviado' + (asAudio ? ' (audio)' : ''));
+      } else {
+        alert('Error: ' + (d.error || 'desconocido'));
+      }
+    }).catch(function() {
+      btn.disabled = false;
+      btn.innerHTML = asAudio ? '<i class="ri-voiceprint-line"></i>' : '<i class="ri-send-plane-line"></i>';
+      alert('Error de red');
+    });
+  }
+
+  chatHistorySendText.addEventListener('click', function() { sendChatMessage(false); });
+  chatHistorySendAudio.addEventListener('click', function() { sendChatMessage(true); });
+  chatHistoryInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(false); }
+  });
+
+  // ---- VOICE INPUT (Speech-to-Text en el input principal) ----
+  var recognition = null;
+  var isListening = false;
+  var voiceBtn = document.createElement('button');
+  voiceBtn.type = 'button';
+  voiceBtn.id = 'voiceInputBtn';
+  voiceBtn.innerHTML = '<i class="ri-mic-line"></i>';
+  voiceBtn.style.cssText = 'background:none;border:1px solid var(--border);border-radius:10px;padding:12px 14px;cursor:pointer;font-size:0.9rem;color:var(--text-muted);display:flex;align-items:center;';
+  voiceBtn.title = 'Dictar mensaje por voz';
+
+  // Insert voice button next to askBtn
+  try {
+    var askForm = els.askForm;
+    if (askForm && els.askBtn) askForm.insertBefore(voiceBtn, els.askBtn);
+  } catch(e) { console.error('[Init] voiceBtn:', e); }
+
+  voiceBtn.addEventListener('click', function() {
+    if (isListening) {
+      if (recognition) { recognition.stop(); }
+      return;
+    }
+    try {
+      var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) { alert('Tu navegador no soporta entrada por voz. Usa Chrome/Edge.'); return; }
+      recognition = new SpeechRecognition();
+      recognition.lang = 'es-ES';
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.onresult = function(event) {
+        var transcript = '';
+        for (var i = event.resultIndex; i < event.results.length; i++) {
+          transcript += event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            els.askInput.value = transcript;
+          } else {
+            els.askInput.value = transcript + '...';
+          }
+        }
+      };
+      recognition.onend = function() {
+        isListening = false;
+        voiceBtn.innerHTML = '<i class="ri-mic-line"></i>';
+        voiceBtn.style.color = 'var(--text-muted)';
+        voiceBtn.style.borderColor = 'var(--border)';
+      };
+      recognition.onerror = function() {
+        isListening = false;
+        voiceBtn.innerHTML = '<i class="ri-mic-line"></i>';
+        voiceBtn.style.color = 'var(--text-muted)';
+        voiceBtn.style.borderColor = 'var(--border)';
+      };
+      recognition.start();
+      isListening = true;
+      voiceBtn.innerHTML = '<i class="ri-mic-fill" style="color:#ef4444;animation:pulse 1s infinite;"></i>';
+      voiceBtn.style.borderColor = '#ef4444';
+    } catch(e) {
+      alert('Error al iniciar reconocimiento de voz: ' + e.message);
+    }
+  });
+
+  // Badges al cargar (una vez, sin auto-refresh)
+  try { updateTabBadges(); } catch(e) {}
+  // Actualizar badges tambien al abrir pendientes
+  if (pendingBtn) {
+    pendingBtn.addEventListener('click', function() { 
+      setTimeout(function() { try { updateTabBadges(); } catch(e) {} }, 200);
+    });
+  }
+})();
+</script>

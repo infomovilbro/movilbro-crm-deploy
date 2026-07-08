@@ -1,0 +1,185 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5><i class="bi bi-graph-up-arrow"></i> CDRs y Excedentes</h5>
+    <div>
+      <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalSubirCSV"><i class="bi bi-upload"></i> Importar CSV</button>
+      <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalNuevoCDR"><i class="bi bi-plus-lg"></i> Nuevo manual</button>
+      <a href="/isp/cdrs/ejemplo" class="btn btn-outline-secondary btn-sm"><i class="bi bi-download"></i> CSV ejemplo</a>
+    </div>
+  </div>
+
+  <div class="row g-2 mb-3">
+    <div class="col-md-2"><div class="stat-card"><div class="stat-value"><%= (typeof apiClientes !== 'undefined' ? apiClientes.length : 0) %></div><div class="stat-label">Clientes API</div></div></div>
+    <div class="col-md-2"><div class="stat-card"><div class="stat-value"><%= total.c || 0 %></div><div class="stat-label">Excesos pendientes</div></div></div>
+    <div class="col-md-2"><div class="stat-card"><div class="stat-value"><%= (total.t || 0).toFixed(2) %>€</div><div class="stat-label">Importe pendiente</div></div></div>
+  </div>
+
+  <!-- Buscador -->
+  <div class="mb-3">
+    <input type="text" id="buscadorCliente" class="form-control" placeholder="Buscar cliente por nombre, DNI o teléfono..." onkeyup="filtrarClientes()">
+  </div>
+
+  <!-- Lista de clientes API (accordion) -->
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span><i class="bi bi-people"></i> Clientes (<%= apiClientes ? apiClientes.length : 0 %>)</span>
+      <small class="text-muted">Haz clic en un cliente para ver sus CDRs</small>
+    </div>
+    <div class="card-body p-0" id="listaClientes">
+      <% if (!apiClientes || apiClientes.length === 0) { %>
+      <div class="text-center text-muted py-4"><i class="bi bi-inbox" style="font-size:2rem;"></i><br>No hay clientes en la API</div>
+      <% } else { %>
+        <% apiClientes.forEach(function(c) { %>
+        <div class="cliente-item" data-fiscal="<%= c.fiscal_id %>" data-nombre="<%= c.nombre.toLowerCase() %>">
+          <div class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom" style="cursor:pointer;" onclick="toggleCliente(this)">
+            <div>
+              <strong><%= c.nombre || 'Sin nombre' %></strong>
+              <small class="text-muted ms-2">(<%= c.fiscal_id %>)</small>
+            </div>
+            <div>
+              <span class="badge bg-secondary" id="badge-<%= c.fiscal_id.replace(/[^a-zA-Z0-9]/g,'_') %>"><i class="bi bi-chevron-down"></i></span>
+            </div>
+          </div>
+          <div class="cliente-cdrs" data-fiscal="<%= c.fiscal_id %>" style="display:none;background:#f8f9fa;border-bottom:1px solid #dee2e6;">
+            <div class="text-center py-3">
+              <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+              <small class="text-muted ms-2">Cargando CDRs...</small>
+            </div>
+          </div>
+        </div>
+        <% }); %>
+      <% } %>
+    </div>
+  </div>
+
+  <script>
+  var clientesCargados = {};
+  
+  function toggleCliente(el) {
+    var item = el.closest('.cliente-item');
+    var cdrsDiv = item.querySelector('.cliente-cdrs');
+    var badge = item.querySelector('.badge');
+    
+    if (cdrsDiv.style.display === 'block') {
+      cdrsDiv.style.display = 'none';
+      badge.innerHTML = '<i class="bi bi-chevron-down"></i>';
+      return;
+    }
+    
+    cdrsDiv.style.display = 'block';
+    badge.innerHTML = '<i class="bi bi-chevron-up"></i>';
+    
+    var fiscalId = cdrsDiv.dataset.fiscal;
+    if (clientesCargados[fiscalId]) {
+      cdrsDiv.innerHTML = clientesCargados[fiscalId];
+      return;
+    }
+    
+    fetch('/isp/cdrs/api-cliente/' + encodeURIComponent(fiscalId))
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (!d.ok) { cdrsDiv.innerHTML = '<div class="text-center text-danger py-3"><i class="bi bi-exclamation-triangle"></i> Error: ' + (d.error || 'desconocido') + '</div>'; return; }
+        var html = '<div class="p-3">';
+        html += '<div class="mb-2"><strong>Líneas:</strong> ' + (d.lineas.length > 0 ? d.lineas.join(', ') : 'Sin líneas') + '</div>';
+        html += '<div class="mb-2"><strong>Total CDRs:</strong> ' + d.total.toFixed(2) + '€</div>';
+        if (d.cdrs.length === 0) {
+          html += '<div class="text-muted">Sin CDRs en este periodo</div>';
+        } else {
+          html += '<div class="table-responsive" style="max-height:300px;"><table class="table table-sm table-hover mb-0"><thead class="table-light" style="position:sticky;top:0;"><tr><th>Fecha</th><th>Línea</th><th>Concepto</th><th>Tipo</th><th>Unidades</th><th>Importe</th></tr></thead><tbody>';
+          d.cdrs.forEach(function(c) {
+            html += '<tr><td>' + (c.fecha || '-') + '</td><td><code>' + c.linea + '</code></td><td>' + c.concepto + '</td><td><span class="badge bg-info">' + c.tipo + '</span></td><td>' + (c.unidades || '-') + '</td><td class="fw-bold">' + c.importe.toFixed(2) + '€</td></tr>';
+          });
+          html += '</tbody></table></div>';
+        }
+        html += '</div>';
+        cdrsDiv.innerHTML = html;
+        clientesCargados[fiscalId] = html;
+      })
+      .catch(function(e) { cdrsDiv.innerHTML = '<div class="text-center text-danger py-3"><i class="bi bi-exclamation-triangle"></i> Error de conexión</div>'; });
+  }
+  
+  function filtrarClientes() {
+    var q = document.getElementById('buscadorCliente').value.toLowerCase();
+    document.querySelectorAll('.cliente-item').forEach(function(item) {
+      var nombre = item.dataset.nombre || '';
+      var fiscal = item.dataset.fiscal || '';
+      item.style.display = (nombre.includes(q) || fiscal.includes(q)) ? '' : 'none';
+    });
+  }
+
+  // Auto-expand if fiscal param present
+  (function() {
+    var params = new URLSearchParams(window.location.search);
+    var fiscalId = params.get('fiscal');
+    var show = params.get('show');
+    if (fiscalId && show === '1') {
+      // Fill search
+      var buscador = document.getElementById('buscadorCliente');
+      if (buscador) buscador.value = fiscalId;
+      // Find and expand matching client item
+      setTimeout(function() {
+        filtrarClientes();
+        var items = document.querySelectorAll('.cliente-item');
+        for (var i = 0; i < items.length; i++) {
+          var itemFiscal = items[i].dataset.fiscal || '';
+          if (itemFiscal === fiscalId || itemFiscal.includes(fiscalId)) {
+            var header = items[i].querySelector('[onclick^="toggleCliente"]');
+            if (header) {
+              toggleCliente(header);
+              header.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            break;
+          }
+        }
+      }, 500);
+    }
+  })();
+
+  </script>
+</section>
+
+<!-- Modals existentes (Subir CSV, Nuevo CDR) -->
+<div class="modal" id="modalSubirCSV">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5>Importar CDRs desde CSV</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <form method="POST" action="/isp/cdrs/import" enctype="multipart/form-data">
+      <div class="modal-body">
+        <p class="text-muted">Formato CSV: <code>fiscalId,linea,concepto,tipo,importe,unidades,periodo</code></p>
+        <input type="file" name="csv" class="form-control" accept=".csv" required>
+      </div>
+      <div class="modal-footer"><button type="submit" class="btn btn-primary">Importar</button></div>
+    </form>
+  </div></div>
+</div>
+<div class="modal" id="modalNuevoCDR">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5>Añadir excedente manual</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <form method="POST" action="/isp/cdrs/create">
+      <div class="modal-body">
+        <div class="mb-2">
+          <label class="form-label">Cliente (fiscalId)</label>
+          <select name="fiscal_id" class="form-select">
+            <option value="">Seleccionar cliente</option>
+            <% clientes.forEach(function(c) { %>
+            <option value="<%= c.likes_customer_id %>"><%= c.nombre %> (<%= c.likes_customer_id %>)</option>
+            <% }) %>
+          </select>
+        </div>
+        <div class="mb-2"><label class="form-label">Línea</label><input type="text" name="linea" class="form-control"></div>
+        <div class="mb-2"><label class="form-label">Concepto</label><input type="text" name="concepto" class="form-control" required></div>
+        <div class="row g-2">
+          <div class="col-4"><label class="form-label">Tipo</label><select name="tipo" class="form-select"><option value="exceso">Exceso</option><option value="llamadas">Llamadas</option><option value="sms">SMS</option></select></div>
+          <div class="col-4"><label class="form-label">Unidades</label><input type="number" step="0.01" name="unidades" class="form-control"></div>
+          <div class="col-4"><label class="form-label">Importe</label><input type="number" step="0.01" name="importe" class="form-control" required></div>
+        </div>
+      </div>
+      <div class="modal-footer"><button type="submit" class="btn btn-primary">Guardar</button></div>
+    </form>
+  </div></div>
+</div>
+<style>
+.stat-card { background:#f8f9fa; border-radius:10px; padding:12px 16px; text-align:center; border:1px solid #dee2e6; }
+.stat-value { font-size:1.3rem; font-weight:700; color:#0d6efd; }
+.stat-label { font-size:0.75rem; color:#6c757d; }
+.cliente-item:hover { background:#f0f4ff; }
+</style>

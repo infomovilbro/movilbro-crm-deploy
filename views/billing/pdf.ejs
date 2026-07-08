@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Factura #<%= f.id %> - Movilbro</title>
+<style>
+@page { margin: 20mm 15mm; }
+body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 0; color: #222; font-size: 11pt; }
+.invoice { max-width: 800px; margin: 0 auto; }
+.top-bar { background: #0d6efd; color: #fff; padding: 20px 30px; display: flex; justify-content: space-between; align-items: center; }
+.top-bar h1 { margin: 0; font-size: 22pt; font-weight: 700; }
+.top-bar h2 { margin: 0; font-size: 14pt; font-weight: 400; opacity: 0.9; }
+.empresa { padding: 20px 30px; background: #f8f9ff; border-bottom: 2px solid #eef; }
+.empresa h3 { margin: 0 0 5px 0; color: #0d6efd; font-size: 14pt; }
+.empresa p { margin: 2px 0; color: #555; font-size: 9pt; }
+.datos { padding: 20px 30px; display: flex; justify-content: space-between; }
+.datos div { width: 45%; }
+.datos h4 { border-bottom: 2px solid #0d6efd; padding-bottom: 5px; color: #0d6efd; font-size: 10pt; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+.datos p { margin: 3px 0; font-size: 10pt; color: #333; }
+table { width: 100%; border-collapse: collapse; margin: 0 30px; width: calc(100% - 60px); }
+th { background: #0d6efd; color: #fff; padding: 10px 12px; text-align: left; font-size: 9pt; text-transform: uppercase; letter-spacing: 0.05em; }
+th:last-child { text-align: right; }
+td { padding: 10px 12px; border-bottom: 1px solid #e0e0e0; font-size: 10pt; }
+td:last-child { text-align: right; font-weight: 600; }
+.total-box { margin: 20px 30px; text-align: right; padding: 15px 20px; background: #f0f4ff; border-radius: 8px; border-left: 4px solid #0d6efd; }
+.total-box .label { font-size: 10pt; color: #555; }
+.total-box .amount { font-size: 18pt; font-weight: 700; color: #0d6efd; }
+.status-box { margin: 0 30px; padding: 10px 15px; border-radius: 6px; display: inline-block; font-weight: 600; font-size: 9pt; text-transform: uppercase; letter-spacing: 0.05em; }
+.status-pendiente { background: #fff3cd; color: #856404; }
+.status-pagada { background: #d4edda; color: #155724; }
+.status-vencida { background: #f8d7da; color: #721c24; }
+.status-cancelada { background: #e2e3e5; color: #383d41; }
+.footer { margin: 30px 30px 0; text-align: center; color: #999; font-size: 8pt; border-top: 1px solid #ddd; padding-top: 15px; }
+.footer p { margin: 2px 0; }
+.payment-info { margin: 15px 30px; padding: 12px 15px; background: #e8f5e9; border-radius: 6px; border-left: 4px solid #198754; font-size: 9pt; color: #155724; }
+.payment-info strong { display: block; margin-bottom: 4px; font-size: 10pt; }
+</style></head><body>
+<div class="invoice">
+  <div class="top-bar">
+    <div><h1>Movilbro</h1><h2>Factura #<%= f.id.toFixed ? ''.padStart(4,'0') : ('0000'+f.id).slice(-4) %></h2></div>
+    <div style="text-align:right;"><div style="font-size:9pt;opacity:0.8;">Fecha emisión</div><div style="font-size:12pt;font-weight:600;"><%= f.fecha_emision ? new Date(f.fecha_emision).toLocaleDateString('es-ES',{day:'2-digit',month:'long',year:'numeric'}) : new Date().toLocaleDateString('es-ES',{day:'2-digit',month:'long',year:'numeric'}) %></div></div>
+  </div>
+
+  <div class="empresa">
+    <h3>Calle Cantareros nº29, 29200 Antequera, Málaga</h3>
+    <p>Tel: 694 29 70 48 &bull; Email: info@movilbro.com &bull; Web: movilbro.com</p>
+    <p>NIF: B75559955</p>
+  </div>
+
+  <div class="datos">
+    <div><h4>Cliente</h4>
+      <p><strong><%= f.cn %> <%= f.ca || '' %></strong></p>
+      <% if (f.dni_nif) { %><p>NIF: <%= f.dni_nif %></p><% } %>
+      <% if (f.direccion) { %><p><%= f.direccion %></p><% } %>
+      <% if (f.telefono) { %><p>Tel: <%= f.telefono %></p><% } %>
+      <% if (f.email) { %><p>Email: <%= f.email %></p><% } %>
+    </div>
+    <div><h4>Detalles factura</h4>
+      <p><strong>Número:</strong> <%= ('0000'+f.id).slice(-4) %></p>
+      <p><strong>Emisión:</strong> <%= f.fecha_emision ? new Date(f.fecha_emision).toLocaleDateString('es-ES') : '-' %></p>
+      <p><strong>Vencimiento:</strong> <%= f.fecha_vencimiento ? new Date(f.fecha_vencimiento).toLocaleDateString('es-ES') : '-' %></p>
+    </div>
+  </div>
+
+  <div class="status-box status-<%= f.estado %>"><%= f.estado %></div>
+
+  <table><thead><tr><th>Concepto</th><th>Importe</th></tr></thead>
+  <tbody><tr><td><%= f.concepto %></td><td><%= f.importe.toFixed(2) %> €</td></tr></tbody></table>
+
+  <div class="total-box">
+    <div class="label">Total a pagar</div>
+    <div class="amount"><%= f.importe.toFixed(2) %> €</div>
+  </div>
+
+  <% if (f.stripe_payment_link) { %>
+  <div class="payment-info">
+    <strong><i class="bi bi-credit-card"></i> Pago online disponible</strong>
+    Puedes pagar esta factura online a través de Stripe en el siguiente enlace:<br>
+    <a href="<%= f.stripe_payment_link %>" style="color:#198754;font-weight:600;"><%= f.stripe_payment_link %></a>
+  </div>
+  <% } %>
+
+  <div class="footer">
+    <p><strong>Movilbro</strong> &mdash; Telecomunicaciones</p>
+    <p>Calle Cantareros nº29, 29200 Antequera, Málaga &bull; NIF: B75559955</p>
+    <p>Tel: 694 29 70 48 &bull; Email: info@movilbro.com</p>
+    <p style="margin-top:8px;color:#ccc;">Gracias por confiar en nosotros</p>
+  </div>
+</div>
+<script>window.print();</script>
+</body></html>

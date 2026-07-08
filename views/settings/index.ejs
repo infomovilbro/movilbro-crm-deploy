@@ -1,0 +1,640 @@
+<section>
+  <h2 class="mb-4"><i class="bi bi-gear"></i> Configuracion</h2>
+
+  <% if (success) { %><div class="alert alert-success"><%= success %></div><% } %>
+  <% if (error) { %><div class="alert alert-danger"><%= error %></div><% } %>
+
+  <ul class="nav nav-tabs mb-3" id="configTabs">
+    <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#empresa"><i class="bi bi-building"></i> Empresa</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#ui"><i class="bi bi-palette"></i> Personalizar</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#api"><i class="bi bi-plug"></i> API Likes Telecom</a></li>
+
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#gmail"><i class="bi bi-google"></i> Gmail</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#stripe-tab"><i class="bi bi-credit-card"></i> Stripe</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#telegram"><i class="bi bi-telegram"></i> Telegram Backup</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#temas"><i class="bi bi-palette2"></i> Temas</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#usuarios"><i class="bi bi-people"></i> Usuarios</a></li>
+  </ul>
+
+  <div class="tab-content">
+    <div class="tab-pane active" id="empresa">
+      <div class="card">
+        <div class="card-body">
+          <form method="POST" action="/configuracion/empresa">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">Nombre de la empresa</label>
+                <input type="text" name="empresa_nombre" class="form-control" value="<%= settings.empresa_nombre || '' %>">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">CIF</label>
+                <input type="text" name="empresa_cif" class="form-control" value="<%= settings.empresa_cif || '' %>">
+              </div>
+              <div class="col-12">
+                <label class="form-label">Direccion</label>
+                <input type="text" name="empresa_direccion" class="form-control" value="<%= settings.empresa_direccion || '' %>">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Telefono</label>
+                <input type="text" name="empresa_telefono" class="form-control" value="<%= settings.empresa_telefono || '' %>">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Email</label>
+                <input type="email" name="empresa_email" class="form-control" value="<%= settings.empresa_email || '' %>">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Web</label>
+                <input type="url" name="empresa_web" class="form-control" value="<%= settings.empresa_web || '' %>">
+              </div>
+            </div>
+            <div class="mt-4"><button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Guardar</button></div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-pane" id="ui">
+      <div class="card">
+        <div class="card-body">
+          <p class="text-muted">Personaliza los colores y nombres del CRM sin necesidad de codigo.</p>
+          <form method="POST" action="/configuracion/ui">
+            <h6 class="border-bottom pb-2 mb-3"><i class="bi bi-palette"></i> Colores</h6>
+            <div class="row g-3 mb-4">
+              <div class="col-md-4">
+                <label class="form-label">Color barra lateral</label>
+                <div class="input-group">
+                  <input type="color" name="ui_sidebar_bg" class="form-control form-control-color" value="<%= settings.ui_sidebar_bg || '#1a1d23' %>">
+                  <input type="text" class="form-control" value="<%= settings.ui_sidebar_bg || '#1a1d23' %>" readonly style="background:<%= settings.ui_sidebar_bg || '#1a1d23' %>;color:#fff;">
+                </div>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Color activo sidebar</label>
+                <div class="input-group">
+                  <input type="color" name="ui_sidebar_active" class="form-control form-control-color" value="<%= settings.ui_sidebar_active || '#0d6efd' %>">
+                  <input type="text" class="form-control" value="<%= settings.ui_sidebar_active || '#0d6efd' %>" readonly style="background:<%= settings.ui_sidebar_active || '#0d6efd' %>;color:#fff;">
+                </div>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Color principal</label>
+                <div class="input-group">
+                  <input type="color" name="ui_primary_color" class="form-control form-control-color" value="<%= settings.ui_primary_color || '#0d6efd' %>">
+                  <input type="text" class="form-control" value="<%= settings.ui_primary_color || '#0d6efd' %>" readonly style="background:<%= settings.ui_primary_color || '#0d6efd' %>;color:#fff;">
+                </div>
+              </div>
+            </div>
+
+            <h6 class="border-bottom pb-2 mb-3"><i class="bi bi-fonts"></i> Nombres de los modulos</h6>
+            <div class="row g-3 mb-4">
+              <div class="col-md-3"><label class="form-label">Panel</label><input type="text" name="ui_module_name_panel" class="form-control" value="<%= settings.ui_module_name_panel || 'Panel' %>"></div>
+              <div class="col-md-3"><label class="form-label">Altas</label><input type="text" name="ui_module_name_altas" class="form-control" value="<%= settings.ui_module_name_altas || 'Altas' %>"></div>
+              <div class="col-md-3"><label class="form-label">Analitica</label><input type="text" name="ui_module_name_analytics" class="form-control" value="<%= settings.ui_module_name_analytics || 'Analitica' %>"></div>
+              <div class="col-md-3"><label class="form-label">Clientes</label><input type="text" name="ui_module_name_clients" class="form-control" value="<%= settings.ui_module_name_clients || 'Clientes' %>"></div>
+              <div class="col-md-3"><label class="form-label">Productos</label><input type="text" name="ui_module_name_products" class="form-control" value="<%= settings.ui_module_name_products || 'Productos' %>"></div>
+              <div class="col-md-3"><label class="form-label">Ordenes</label><input type="text" name="ui_module_name_orders" class="form-control" value="<%= settings.ui_module_name_orders || 'Ordenes' %>"></div>
+              <div class="col-md-3"><label class="form-label">Suscripciones</label><input type="text" name="ui_module_name_subscriptions" class="form-control" value="<%= settings.ui_module_name_subscriptions || 'Suscripciones' %>"></div>
+              <div class="col-md-3"><label class="form-label">Tickets</label><input type="text" name="ui_module_name_tickets" class="form-control" value="<%= settings.ui_module_name_tickets || 'Tickets' %>"></div>
+              <div class="col-md-3"><label class="form-label">Cobertura</label><input type="text" name="ui_module_name_coverage" class="form-control" value="<%= settings.ui_module_name_coverage || 'Cobertura' %>"></div>
+              <div class="col-md-3"><label class="form-label">Facturacion</label><input type="text" name="ui_module_name_billing" class="form-control" value="<%= settings.ui_module_name_billing || 'Facturacion' %>"></div>
+              <div class="col-md-3"><label class="form-label">Configuracion</label><input type="text" name="ui_module_name_settings" class="form-control" value="<%= settings.ui_module_name_settings || 'Configuracion' %>"></div>
+            </div>
+
+            <h6 class="border-bottom pb-2 mb-3"><i class="bi bi-box-arrow-up-right"></i> Modulos externos</h6>
+            <div class="row g-3 mb-4">
+              <div class="col-md-4"><label class="form-label">Nombre seccion externos</label><input type="text" name="ui_external_section_name" class="form-control" value="<%= settings.ui_external_section_name || 'EXTERNOS' %>"></div>
+              <div class="col-md-4"><label class="form-label">Historial</label><input type="text" name="ui_module_name_history" class="form-control" value="<%= settings.ui_module_name_history || 'Historial' %>"></div>
+              <div class="col-md-4"><label class="form-label">WhatsApp</label><input type="text" name="ui_module_name_whatsapp" class="form-control" value="<%= settings.ui_module_name_whatsapp || 'WhatsApp' %>"></div>
+              <div class="col-md-4"><label class="form-label">Correo</label><input type="text" name="ui_module_name_email" class="form-control" value="<%= settings.ui_module_name_email || 'Correo' %>"></div>
+              <div class="col-md-4"><label class="form-label">Stripe</label><input type="text" name="ui_module_name_stripe" class="form-control" value="<%= settings.ui_module_name_stripe || 'Stripe' %>"></div>
+            </div>
+
+            <h6 class="border-bottom pb-2 mb-3"><i class="bi bi-layout-sidebar"></i> Editor visual del menu</h6>
+            <p class="text-muted small">Arrastra grupos y elementos entre columnas. Usa los botones <span class="badge bg-success"><i class="bi bi-eye"></i></span>/<span class="badge bg-secondary"><i class="bi bi-eye-slash"></i></span> para mostrar/ocultar grupos o elementos individuales.</p>
+            <div id="uiEditor" class="row g-3 mb-4"></div>
+
+            <h6 class="border-bottom pb-2 mb-3"><i class="bi bi-grid-1x2"></i> Botones personalizados (barra superior)</h6>
+            <div class="row g-2 align-items-end mb-3">
+              <div class="col-md-3"><label class="form-label">Texto</label><input id="btnLabel" type="text" class="form-control" placeholder="Ej: PostVenta"></div>
+              <div class="col-md-3"><label class="form-label">Ruta / URL</label><input id="btnUrl" type="text" class="form-control" placeholder="/aftersales/portabilities"></div>
+              <div class="col-md-2"><label class="form-label">Icono</label><input id="btnIcon" type="text" class="form-control" placeholder="bi bi-tools"></div>
+              <div class="col-md-2"><label class="form-label">Estilo</label>
+                <select id="btnStyle" class="form-select">
+                  <option value="btn-outline-primary">Azul</option>
+                  <option value="btn-outline-success">Verde</option>
+                  <option value="btn-outline-warning">Amarillo</option>
+                  <option value="btn-outline-danger">Rojo</option>
+                  <option value="btn-outline-info">Info</option>
+                </select>
+              </div>
+              <div class="col-md-2"><button type="button" id="addCustomBtn" class="btn btn-outline-primary w-100"><i class="bi bi-plus"></i> Añadir</button></div>
+            </div>
+            <div class="table-responsive mb-3">
+              <table class="table table-sm" id="customBtnsTable">
+                <thead><tr><th>Texto</th><th>Ruta</th><th>Icono</th><th>Estilo</th><th></th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+
+            <input type="hidden" name="ui_nav_config" id="ui_nav_config" value="<%= settings.ui_nav_config || '' %>">
+            <input type="hidden" name="ui_custom_buttons" id="ui_custom_buttons" value="<%= settings.ui_custom_buttons || '[]' %>">
+
+            <div class="mt-4"><button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Guardar personalizacion</button></div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-pane" id="api">
+      <div class="card">
+        <div class="card-body">
+          <p class="text-muted">Configura las credenciales de la API de Likes Telecom para integrar el CRM con tu plataforma.</p>
+          <form method="POST" action="/configuracion/api">
+            <div class="row g-3">
+              <div class="col-12">
+                <label class="form-label">URL de la API</label>
+                <input type="text" name="likes_api_url" class="form-control" value="<%= settings.likes_api_url || 'https://api.likestelecom.com' %>">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Email (usuario Likes Telecom)</label>
+                <input type="email" name="likes_client_id" class="form-control" value="<%= settings.likes_client_id || '' %>" placeholder="tu@email.com">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Contrasena</label>
+                <input type="password" name="likes_client_secret" class="form-control" value="<%= settings.likes_client_secret || '' %>">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Brand ID</label>
+                <input type="text" name="likes_brand_id" class="form-control" value="<%= settings.likes_brand_id || '' %>">
+              </div>
+            </div>
+            <div class="mt-4"><button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Guardar API</button></div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+
+
+    <div class="tab-pane" id="gmail">
+      <div class="card">
+        <div class="card-body">
+          <h5><i class="bi bi-google"></i> Configuraci&oacute;n Gmail para env&iacute;o de facturas</h5>
+          <p class="text-muted">Configura tu cuenta de Gmail para enviar facturas a los clientes. Necesitas una <strong>contrase&ntilde;a de aplicaci&oacute;n</strong> de Google.</p>
+          <div class="alert alert-info">
+            <strong>C&oacute;mo crear una contrase&ntilde;a de aplicaci&oacute;n:</strong>
+            <ol class="mb-0 mt-1 small">
+              <li>Ve a <a href="https://myaccount.google.com/security" target="_blank">Seguridad de Google</a></li>
+              <li>Activa la <strong>Verificaci&oacute;n en dos pasos</strong></li>
+              <li>Ve a "Contrase&ntilde;as de aplicaciones"</li>
+              <li>Selecciona "Correo" y "PC"</li>
+              <li>Copia la contrase&ntilde;a de 16 letras que te da Google</li>
+            </ol>
+          </div>
+          <form method="POST" action="/configuracion/gmail">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">Direcci&oacute;n Gmail</label>
+                <input type="email" name="gmail_user" class="form-control" value="<%= settings.gmail_user || 'infomovilbro@gmail.com' %>" placeholder="tucuenta@gmail.com">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Contrase&ntilde;a de aplicaci&oacute;n</label>
+                <input type="password" name="gmail_pass" class="form-control" value="<%= settings.gmail_pass || '' %>" placeholder="16 caracteres sin espacios">
+                <small class="text-muted">Es la contrase&ntilde;a de 16 letras que generaste en Google</small>
+              </div>
+            </div>
+            <div class="mt-4">
+              <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Guardar configuraci&oacute;n Gmail</button>
+            </div>
+          </form>
+          <% if (settings.gmail_user) { %>
+          <div class="mt-3 p-3 bg-light rounded">
+            <span class="badge bg-success fs-6"><i class="bi bi-check-circle"></i> Gmail configurado: <%= settings.gmail_user %></span>
+          </div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+      <div class="card">
+        <div class="card-body">
+          <p class="text-muted">Configuraci&oacute;n de Stripe para cobro autom&aacute;tico de facturas.</p>
+          <form method="POST" action="/configuracion/stripe">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">Clave secreta (sk_live_xxx / sk_test_xxx)</label>
+                <input type="password" name="stripe_secret_key" class="form-control" value="<%= settings.stripe_secret_key || '' %>">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Clave publicable (pk_live_xxx / pk_test_xxx)</label>
+                <input type="text" name="stripe_public_key" class="form-control" value="<%= settings.stripe_public_key || '' %>">
+              </div>
+              <div class="col-12">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Guardar Stripe</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-pane" id="telegram">
+      <div class="card">
+        <div class="card-body">
+          <h5><i class="bi bi-telegram"></i> Backup por Telegram</h5>
+          <p class="text-muted">Configura un bot de Telegram para recibir la base de datos del CRM autom&aacute;ticamente cada d&iacute;a a las 23:59.</p>
+          <div class="mb-3">
+            <label class="form-label">Token del Bot</label>
+            <input type="text" id="tgToken" class="form-control" placeholder="123456:ABCdef...">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Chat ID</label>
+            <input type="text" id="tgChatId" class="form-control" placeholder="-1001234567890">
+          </div>
+          <button class="btn btn-primary me-2" id="btnGuardarTelegram"><i class="bi bi-save"></i> Guardar</button>
+          <button class="btn btn-outline-secondary" id="btnProbarTelegram"><i class="bi bi-send"></i> Enviar backup ahora</button>
+          <div id="tgStatus" class="mt-2 small"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-pane" id="temas">
+      <div class="card">
+        <div class="card-body">
+          <p class="text-muted">Elige un tema completo para cambiar el aspecto de todo el CRM. El tema "Movilbro" restaura el diseño original.</p>
+          <div class="row g-3" id="temasGrid"></div>
+          <div class="mt-3">
+            <button type="button" class="btn btn-success" id="temasAplicarBtn" disabled><i class="bi bi-check2"></i> Aplicar tema seleccionado</button>
+            <button type="button" class="btn btn-outline-danger" id="temasRestaurarBtn"><i class="bi bi-arrow-counterclockwise"></i> Restaurar Movilbro original</button>
+            <span id="temasStatus" class="ms-2 small text-muted"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-pane" id="usuarios">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between">
+          <span>Usuarios del sistema</span>
+          <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#newUserModal"><i class="bi bi-plus"></i> Nuevo Usuario</button>
+        </div>
+        <div class="card-body p-0">
+          <table class="table table-hover mb-0">
+            <thead class="table-light"><tr><th>Usuario</th><th>Nombre</th><th>Email</th><th>Rol</th></tr></thead>
+            <tbody>
+              <% users.forEach(u => { %>
+              <tr><td><%= u.username %></td><td><%= u.nombre %></td><td><%= u.email || '-' %></td><td><span class="badge bg-<%= u.rol === 'admin' ? 'danger' : 'info' %>"><%= u.rol %></span></td></tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="modal fade" id="newUserModal">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" action="/configuracion/usuario/nuevo">
+        <div class="modal-header"><h5>Nuevo Usuario</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body">
+          <div class="mb-3"><label class="form-label">Usuario</label><input type="text" name="username" class="form-control" required></div>
+          <div class="mb-3"><label class="form-label">Contrasena</label><input type="password" name="password" class="form-control" required></div>
+          <div class="mb-3"><label class="form-label">Nombre</label><input type="text" name="nombre" class="form-control" required></div>
+          <div class="mb-3"><label class="form-label">Email</label><input type="email" name="email" class="form-control"></div>
+          <div class="mb-3"><label class="form-label">Rol</label><select name="rol" class="form-select"><option value="user">Usuario</option><option value="admin">Administrador</option></select></div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Crear</button>
+        </div>
+      </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/js/themes.js?v=3"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script>
+(function() {
+  const form = document.querySelector('form[action="/configuracion/ui"]');
+  if (!form) return;
+
+  const defaultConfig = {
+    groups: [
+      { key: 'tienda', label: 'Panel Tienda', icon: '🏪', items: ['tienda_dashboard','tienda_agenda','tienda_prepago','tienda_caja','tienda_presupuestos','tienda_inventario','tienda_historial','tienda_agentes','tienda_cierres','tienda_perfil'] },
+      { key: 'clientes', label: 'Panel Clientes', icon: '🖥️', items: ['clientes_kpis','clientes_coverage','clientes_customers','clientes_tickets','clientes_settings'] },
+      { key: 'postventa', label: 'PostVenta', icon: '🛠️', items: ['postventa_portabilidades','postventa_masivos'] },
+      { key: 'redes', label: 'Redes y Herramientas', icon: '🌐', items: ['redes_canales','redes_ia'] }
+    ]
+  };
+
+  const labels = {
+    tienda_dashboard: 'Panel', tienda_agenda: 'Agenda', tienda_prepago: 'Clientes Prepago', tienda_caja: 'Caja / Operaciones', tienda_presupuestos: 'Presupuestos',
+    tienda_inventario: 'Inventario', tienda_historial: 'Historial Día', tienda_agentes: 'Agentes', tienda_cierres: 'Cierres', tienda_perfil: 'Perfil',
+    clientes_kpis: 'Indicadores', clientes_coverage: 'Cobertura', clientes_customers: 'Clientes', clientes_tickets: 'Tickets', clientes_settings: 'Configuración',
+    postventa_portabilidades: 'Portabilidades', postventa_masivos: 'Procesos Masivos', redes_canales: 'Canales', redes_ia: 'IA'
+  };
+
+  let navCfg;
+  try { navCfg = JSON.parse(document.getElementById('ui_nav_config').value || ''); } catch(e) { navCfg = null; }
+  if (!navCfg || !Array.isArray(navCfg.groups)) navCfg = defaultConfig;
+
+  const container = document.getElementById('uiEditor');
+  const groupsOrder = document.createElement('div');
+  groupsOrder.className = 'col-12 d-flex flex-wrap gap-2';
+  container.appendChild(groupsOrder);
+
+  navCfg.groups.forEach(group => {
+    const col = document.createElement('div');
+    col.className = 'col-md-6';
+    col.dataset.group = group.key;
+    var gHidden = group.hidden ? true : false;
+    col.innerHTML = `
+      <div class="card h-100 ${gHidden ? 'opacity-50' : ''}">
+        <div class="card-header d-flex gap-2 align-items-center">
+          <span class="drag-handle" style="cursor:grab">☰</span>
+          <input class="form-control form-control-sm group-label" value="${group.label || ''}">
+          <input class="form-control form-control-sm group-icon" value="${group.icon || ''}" style="max-width:90px" title="Emoji/Icono">
+          <button class="btn btn-sm ${gHidden ? 'btn-outline-secondary' : 'btn-outline-success'} toggle-group-vis" title="${gHidden ? 'Mostrar grupo' : 'Ocultar grupo'}"><i class="bi ${gHidden ? 'bi-eye-slash' : 'bi-eye'}"></i></button>
+        </div>
+        <div class="card-body p-2">
+          <ul class="list-group item-list" style="min-height:120px"></ul>
+        </div>
+      </div>`;
+    const ul = col.querySelector('.item-list');
+    var itemHiddenList = group.hiddenItems || [];
+    (group.items || []).forEach(itemKey => {
+      var iHidden = itemHiddenList.indexOf(itemKey) !== -1;
+      const li = document.createElement('li');
+      li.className = 'list-group-item d-flex justify-content-between align-items-center py-1';
+      li.dataset.itemKey = itemKey;
+      li.style.opacity = iHidden ? '0.4' : '1';
+      li.innerHTML = `<span>${labels[itemKey] || itemKey}</span>
+        <div><small class="text-muted me-2">${itemKey}</small>
+        <button class="btn btn-sm ${iHidden ? 'btn-outline-secondary' : 'btn-outline-success'} toggle-item-vis" title="${iHidden ? 'Mostrar' : 'Ocultar'}"><i class="bi ${iHidden ? 'bi-eye-slash' : 'bi-eye'}"></i></button></div>`;
+      ul.appendChild(li);
+    });
+    groupsOrder.appendChild(col);
+  });
+
+  // Visibility toggles for groups
+  document.querySelectorAll('.toggle-group-vis').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var card = this.closest('.card');
+      card.classList.toggle('opacity-50');
+      var hidden = card.classList.contains('opacity-50');
+      this.className = 'btn btn-sm ' + (hidden ? 'btn-outline-secondary' : 'btn-outline-success');
+      this.title = hidden ? 'Mostrar grupo' : 'Ocultar grupo';
+      this.innerHTML = '<i class="bi ' + (hidden ? 'bi-eye-slash' : 'bi-eye') + '"></i>';
+    });
+  });
+
+  // Visibility toggles for items
+  document.querySelectorAll('.toggle-item-vis').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var li = this.closest('li');
+      li.style.opacity = li.style.opacity === '0.4' ? '1' : '0.4';
+      var hidden = li.style.opacity === '0.4';
+      this.className = 'btn btn-sm ' + (hidden ? 'btn-outline-secondary' : 'btn-outline-success');
+      this.title = hidden ? 'Mostrar' : 'Ocultar';
+      this.innerHTML = '<i class="bi ' + (hidden ? 'bi-eye-slash' : 'bi-eye') + '"></i>';
+    });
+  });
+
+  Sortable.create(groupsOrder, {
+    handle: '.drag-handle',
+    animation: 120,
+    onEnd: function() { reindexGroups(); }
+  });
+  groupsOrder.querySelectorAll('.item-list').forEach(ul => {
+    Sortable.create(ul, { group: 'menu-items', animation: 120 });
+  });
+
+  function reindexGroups() {
+    groupsOrder.querySelectorAll('[data-group]').forEach(function(col, idx) {
+      col.className = 'col-md-6';
+    });
+  }
+
+  let customButtons;
+  try { customButtons = JSON.parse(document.getElementById('ui_custom_buttons').value || '[]'); } catch(e) { customButtons = []; }
+  if (!Array.isArray(customButtons)) customButtons = [];
+
+  const tbody = document.querySelector('#customBtnsTable tbody');
+  function renderBtns() {
+    tbody.innerHTML = '';
+    customButtons.forEach((b, idx) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${b.label || ''}</td><td>${b.url || ''}</td><td>${b.icon || ''}</td><td>${b.style || ''}</td><td><button type="button" class="btn btn-sm btn-outline-danger" data-del="${idx}">Quitar</button></td>`;
+      tbody.appendChild(tr);
+    });
+    document.getElementById('ui_custom_buttons').value = JSON.stringify(customButtons);
+  }
+  renderBtns();
+
+  document.getElementById('addCustomBtn').addEventListener('click', function() {
+    const label = document.getElementById('btnLabel').value.trim();
+    const url = document.getElementById('btnUrl').value.trim();
+    const icon = document.getElementById('btnIcon').value.trim() || 'bi bi-link';
+    const style = document.getElementById('btnStyle').value;
+    if (!label || !url) return;
+    customButtons.push({ label, url, icon, style });
+    document.getElementById('btnLabel').value = '';
+    document.getElementById('btnUrl').value = '';
+    document.getElementById('btnIcon').value = '';
+    renderBtns();
+  });
+
+  tbody.addEventListener('click', function(e) {
+    const idx = e.target.getAttribute('data-del');
+    if (idx === null) return;
+    customButtons.splice(parseInt(idx, 10), 1);
+    renderBtns();
+  });
+
+  form.addEventListener('submit', function() {
+    const groups = [];
+    groupsOrder.querySelectorAll('[data-group]').forEach(col => {
+      const key = col.dataset.group;
+      const label = col.querySelector('.group-label').value.trim() || key;
+      const icon = col.querySelector('.group-icon').value.trim() || '•';
+      const card = col.querySelector('.card');
+      const gHidden = card.classList.contains('opacity-50');
+      const items = [];
+      const hiddenItems = [];
+      col.querySelectorAll('.item-list li').forEach(li => {
+        items.push(li.dataset.itemKey);
+        if (li.style.opacity === '0.4') hiddenItems.push(li.dataset.itemKey);
+      });
+      var groupObj = { key, label, icon, items };
+      if (gHidden) groupObj.hidden = true;
+      if (hiddenItems.length) groupObj.hiddenItems = hiddenItems;
+      groups.push(groupObj);
+    });
+    document.getElementById('ui_nav_config').value = JSON.stringify({ groups });
+    document.getElementById('ui_custom_buttons').value = JSON.stringify(customButtons);
+  });
+})();
+</script>
+<script>
+(function() {
+  var temas = (typeof TEMAS_CRM !== 'undefined') ? TEMAS_CRM : [];
+  if (!temas.length) return;
+  var grid = document.getElementById('temasGrid');
+  var aplicarBtn = document.getElementById('temasAplicarBtn');
+  var restaurarBtn = document.getElementById('temasRestaurarBtn');
+  var statusEl = document.getElementById('temasStatus');
+  if (!grid) return;
+  var selectedTheme = null;
+
+  function renderTemas() {
+    grid.innerHTML = '';
+    temas.forEach(function(t, idx) {
+      var col = document.createElement('div');
+      col.className = 'col-md-4 col-lg-3';
+      var preview = (t.sidebarBg && t.sidebarBg.startsWith('#')) ? t.sidebarBg : '#f0f0f0';
+      var preview2 = (t.primary && t.primary.startsWith('#')) ? t.primary : '#666';
+      var isDark = preview2 === '#000000' || (parseInt(preview2.slice(1,3),16) < 100);
+      col.innerHTML = '<div class="card tema-card" data-idx="' + idx + '" style="cursor:pointer;border:2px solid transparent;transition:all 0.2s">' +
+        '<div class="card-body text-center p-3">' +
+        '<div class="d-flex justify-content-center gap-2 mb-2">' +
+        '<span style="display:inline-block;width:28px;height:28px;border-radius:6px;background:' + preview + ';border:1px solid #ddd"></span>' +
+        '<span style="display:inline-block;width:28px;height:28px;border-radius:6px;background:' + preview2 + '"></span>' +
+        '</div>' +
+        '<h6 class="mb-1" style="font-size:13px">' + t.name + '</h6>' +
+        '<small class="text-muted" style="font-size:11px">' + (t.desc || '') + '</small>' +
+        '</div></div>';
+      col.addEventListener('click', function() {
+        document.querySelectorAll('.tema-card').forEach(function(c) { c.style.borderColor = 'transparent'; });
+        col.querySelector('.tema-card').style.borderColor = preview2;
+        selectedTheme = idx;
+        aplicarBtn.disabled = false;
+        statusEl.textContent = 'Tema: ' + t.name;
+        // Preview in real time
+        applyThemePreview(t);
+      });
+      grid.appendChild(col);
+    });
+  }
+
+  function applyThemePreview(t) {
+    if (typeof applyTheme === 'function') {
+      applyTheme(t);
+    } else {
+      var root = document.documentElement;
+      root.style.setProperty('--sidebar-bg', t.sidebarBg);
+      root.style.setProperty('--sidebar-active', t.sidebarActive);
+      root.style.setProperty('--primary', t.primary);
+      root.style.setProperty('--primary-gradient', t.primaryGradient);
+      root.style.setProperty('--bg-body', t.bgBody);
+      root.style.setProperty('--topbar-bg', t.topbarBg);
+      root.style.setProperty('--card-bg', t.cardBg);
+      root.style.setProperty('--text-primary', t.textPrimary);
+      root.style.setProperty('--text-secondary', t.textSecondary);
+      root.style.setProperty('--border-color', t.borderColor);
+      root.style.setProperty('--sidebar-hover', t.sidebarHover);
+      root.style.setProperty('--topbar-border', t.topbarBorder);
+      root.style.setProperty('--table-hover-bg', t.tableHoverBg);
+      root.style.setProperty('--table-stripe', t.tableStripe);
+    }
+  }
+
+  renderTemas();
+
+  if (aplicarBtn) {
+    aplicarBtn.addEventListener('click', async function() {
+      if (selectedTheme === null || !temas[selectedTheme]) return;
+      var t = temas[selectedTheme];
+      aplicarBtn.disabled = true;
+      aplicarBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Aplicando...';
+      try {
+        var r = await fetch('/configuracion/ui-editor-save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            theme: t,
+            layout: {},
+            sidebarBg: t.sidebarBg,
+            sidebarActive: t.sidebarActive,
+            primaryColor: t.primary,
+            sidebarHover: t.sidebarHover,
+            topbarBg: t.topbarBg,
+            topbarBorder: t.topbarBorder,
+            bgBody: t.bgBody,
+            cardBg: t.cardBg,
+            textPrimary: t.textPrimary,
+            textSecondary: t.textSecondary,
+            borderColor: t.borderColor,
+            tableHoverBg: t.tableHoverBg,
+            tableStripe: t.tableStripe,
+            inputFocusShadow: t.inputFocusShadow,
+            shadowSm: t.shadowSm,
+            shadowMd: t.shadowMd,
+            cardRadius: t.cardRadius,
+            font: t.font,
+            success: t.success,
+            danger: t.danger,
+            warning: t.warning,
+            info: t.info,
+            navConfig: null,
+            customButtons: []
+          })
+        });
+        if (!r.ok) throw new Error('Error');
+        statusEl.textContent = 'Tema "' + t.name + '" aplicado y guardado';
+        aplicarBtn.innerHTML = '<i class="bi bi-check2"></i> Aplicar tema seleccionado';
+        setTimeout(function() { aplicarBtn.disabled = false; }, 1500);
+      } catch(e) {
+        alert('Error al guardar el tema');
+        aplicarBtn.disabled = false;
+        aplicarBtn.innerHTML = '<i class="bi bi-check2"></i> Aplicar tema seleccionado';
+      }
+    });
+  }
+
+  if (restaurarBtn) {
+    restaurarBtn.addEventListener('click', async function() {
+      if (!confirm('¿Restaurar el tema original Movilbro?')) return;
+      var t = temas[0];
+      if (!t) return;
+      restaurarBtn.disabled = true;
+      restaurarBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+      try {
+        var r = await fetch('/configuracion/ui-editor-reset', { method: 'POST' });
+        if (!r.ok) throw new Error('Error');
+        window.location.reload();
+      } catch(e) {
+        alert('Error al restaurar');
+        restaurarBtn.disabled = false;
+        restaurarBtn.innerHTML = '<i class="bi bi-arrow-counterclockwise"></i> Restaurar Movilbro original';
+      }
+    });
+  }
+})();
+
+// Telegram Backup
+document.getElementById('btnGuardarTelegram')?.addEventListener('click', function() {
+  var token = document.getElementById('tgToken').value.trim();
+  var chatId = document.getElementById('tgChatId').value.trim();
+  var st = document.getElementById('tgStatus');
+  if (!token || !chatId) { st.innerHTML = '<span class="text-danger">Completa ambos campos</span>'; return; }
+  fetch('/backup/telegram-config', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: token, chatId: chatId })
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    st.innerHTML = d.success ? '<span class="text-success">Configurado correctamente</span>' : '<span class="text-danger">Error: ' + d.error + '</span>';
+  });
+});
+
+document.getElementById('btnProbarTelegram')?.addEventListener('click', function() {
+  var st = document.getElementById('tgStatus');
+  st.innerHTML = '<span class="text-muted">Enviando backup...</span>';
+  this.disabled = true;
+  fetch('/backup/send', { method: 'POST' }).then(function(r) { return r.json(); }).then(function(d) {
+    st.innerHTML = d.success ? '<span class="text-success">Backup enviado a Telegram</span>' : '<span class="text-danger">Error: ' + (d.error || 'desconocido') + '</span>';
+    document.getElementById('btnProbarTelegram').disabled = false;
+  }).catch(function(e) {
+    st.innerHTML = '<span class="text-danger">Error de conexi\u00f3n</span>';
+    document.getElementById('btnProbarTelegram').disabled = false;
+  });
+});
+</script>

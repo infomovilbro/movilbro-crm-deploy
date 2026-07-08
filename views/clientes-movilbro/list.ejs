@@ -1,0 +1,87 @@
+<section>
+<style>
+.cm-search-form { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.cm-table td, .cm-table th { vertical-align:middle; white-space:nowrap; }
+.cm-table .cm-name-col { max-width:250px; overflow:hidden; text-overflow:ellipsis; }
+.cm-status { display:inline-block;padding:2px 10px;border-radius:10px;font-size:0.75rem;font-weight:600; }
+.cm-status-active { background:#e8f5e9;color:#2e7d32; }
+.cm-status-created { background:#e3f2fd;color:#1565c0; }
+.cm-status-other { background:#f5f5f5;color:#666; }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <h4 class="mb-0"><i class="bi bi-people-fill me-2"></i> Clientes Movilbro</h4>
+  <span class="text-muted small"><i class="bi bi-database me-1"></i><%= total %> cliente(s)</span>
+</div>
+
+<% if (locals.success) { %><div class="alert alert-success"><i class="bi bi-check-circle me-1"></i> <%= success %></div><% } %>
+<% if (locals.error) { %><div class="alert alert-danger"><i class="bi bi-exclamation-triangle me-1"></i> <%= error %></div><% } %>
+
+<form class="cm-search-form mb-3" method="GET" action="/clientes-movilbro">
+  <div class="input-group input-group-sm" style="max-width:350px;">
+    <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+    <input type="text" name="search" class="form-control" placeholder="Buscar por nombre, NIF, teléfono o email..." value="<%= search %>">
+    <% if (search) { %>
+    <a href="/clientes-movilbro" class="btn btn-outline-secondary"><i class="bi bi-x-lg"></i></a>
+    <% } %>
+    <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i> Buscar</button>
+  </div>
+</form>
+
+<% if (clientes.length === 0) { %>
+<div class="alert alert-info"><i class="bi bi-inbox me-1"></i> No se encontraron clientes<%= search ? ' para "' + search + '"' : '' %>.</div>
+<% } else { %>
+<div class="table-responsive">
+<table class="table table-hover table-sm cm-table">
+<thead class="table-light">
+<tr>
+  <th><i class="bi bi-person me-1"></i>Nombre</th>
+  <th><i class="bi bi-person-badge me-1"></i>NIF / CIF</th>
+  <th><i class="bi bi-telephone me-1"></i>Teléfono</th>
+  <th><i class="bi bi-envelope me-1"></i>Email</th>
+  <th><i class="bi bi-geo-alt me-1"></i>Dirección</th>
+  <th><i class="bi bi-tag me-1"></i>Tipo</th>
+  <th><i class="bi bi-activity me-1"></i>Estado</th>
+  <th class="text-end"><i class="bi bi-tools me-1"></i>Acción</th>
+</tr>
+</thead>
+<tbody>
+<% clientes.forEach(function(c) { %>
+<tr>
+  <td class="cm-name-col fw-bold"><%= (c.nombre || '') + ' ' + (c.apellidos || '') %></td>
+  <td><code><%= c.dni_nif || '—' %></code></td>
+  <td><%= c.telefono || '—' %></td>
+  <td style="max-width:180px;" class="text-truncate"><%= c.email || '—' %></td>
+  <td style="max-width:200px;" class="text-truncate"><%= c.direccion || '—' %></td>
+  <td><%= c.tipo === 'Residential' ? 'Particular' : c.tipo %></td>
+  <td>
+    <% var st = (c.estado || '').toLowerCase(); %>
+    <span class="cm-status <%= st === 'active' || st === 'activa' ? 'cm-status-active' : (st === 'created' ? 'cm-status-created' : 'cm-status-other') %>"><%= st %></span>
+  </td>
+  <td class="text-end">
+    <a href="/clientes-movilbro/<%= encodeURIComponent(c.dni_nif) %>" class="btn btn-sm btn-outline-primary" title="Ver ficha 360°"><i class="bi bi-eye"></i></a>
+    <% if (c.telefono) { var waTel = String(c.telefono).replace(/\D/g,''); if (!waTel.startsWith('34')) waTel = '34' + waTel; %><a href="https://wa.me/<%= waTel %>" target="_blank" class="btn btn-sm btn-outline-success" title="WhatsApp"><i class="bi bi-whatsapp"></i></a><% } %>
+  </td>
+</tr>
+<% }); %>
+</tbody>
+</table>
+</div>
+
+<% if (totalPages > 1) { %>
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2">
+  <div class="btn-group btn-group-sm">
+    <% var baseUrl = '/clientes-movilbro?search=' + encodeURIComponent(search) + '&'; %>
+    <% if (page > 1) { %><a href="<%= baseUrl %>page=1&limit=<%= limit %>" class="btn btn-outline-secondary" title="Primera página">&laquo;&laquo;</a><% } %>
+    <% if (page > 1) { %><a href="<%= baseUrl %>page=<%= page-1 %>&limit=<%= limit %>" class="btn btn-outline-secondary">&laquo;</a><% } %>
+    <% for (var p = Math.max(1, page-2); p <= Math.min(totalPages, page+2); p++) { %>
+      <a href="<%= baseUrl %>page=<%= p %>&limit=<%= limit %>" class="btn <%= p === page ? 'btn-primary' : 'btn-outline-secondary' %>"><%= p %></a>
+    <% } %>
+    <% if (page < totalPages) { %><a href="<%= baseUrl %>page=<%= page+1 %>&limit=<%= limit %>" class="btn btn-outline-secondary">&raquo;</a><% } %>
+    <% if (page < totalPages) { %><a href="<%= baseUrl %>page=<%= totalPages %>&limit=<%= limit %>" class="btn btn-outline-secondary" title="Última página">&raquo;&raquo;</a><% } %>
+  </div>
+  <small class="text-muted">Pág. <%= page %> de <%= totalPages %> (<%= total %> resultados)</small>
+</div>
+<% } %>
+<% } %>
+</section>

@@ -1,0 +1,103 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0"><i class="bi bi-tag"></i> Tarifas <span class="badge bg-secondary fs-6"><%= tarifas.length %></span></h5>
+    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalCrear"><i class="bi bi-plus-lg"></i> Nueva</button>
+  </div>
+
+  <div class="card">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-dark">
+            <tr>
+              <th>Nombre</th>
+              <th>Tipo</th>
+              <th>Descripción</th>
+              <th>Precio</th>
+              <th>Permanencia</th>
+              <th>Velocidad</th>
+              <th>Datos (GB)</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (tarifas.length === 0) { %>
+            <tr><td colspan="8" class="text-center text-muted py-4"><i class="bi bi-inbox"></i> No hay tarifas registradas</td></tr>
+            <% } else { %>
+              <% tarifas.forEach(function(t) { %>
+              <tr>
+                <td class="fw-semibold"><%= t.nombre %></td>
+                <td><span class="badge bg-secondary"><%= t.tipo %></span></td>
+                <td class="small"><%= t.descripcion || '-' %></td>
+                <td><%= t.precio ? t.precio + '€' : '-' %></td>
+                <td><%= t.permanencia_meses ? t.permanencia_meses + ' meses' : '-' %></td>
+                <td><%= t.velocidad || '-' %></td>
+                <td><%= t.datos_gb ? t.datos_gb + ' GB' : '-' %></td>
+                <td class="text-end">
+                  <form method="POST" action="/isp/tarifas/<%= t.id %>/delete" class="d-inline" onsubmit="return confirm('¿Eliminar tarifa?')">
+                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                  </form>
+                </td>
+              </tr>
+              <% }) %>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Modal Crear -->
+<div class="modal fade" id="modalCrear" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" action="/isp/tarifas">
+        <div class="modal-header">
+          <h5 class="modal-title">Nueva Tarifa</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label">Nombre *</label>
+              <input type="text" name="nombre" class="form-control" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Tipo</label>
+              <select name="tipo" class="form-select">
+                <option value="movil">Móvil</option>
+                <option value="fibra">Fibra</option>
+                <option value="fijo">Fijo</option>
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Precio</label>
+              <input type="number" step="0.01" name="precio" class="form-control">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Descripción</label>
+              <textarea name="descripcion" class="form-control" rows="2"></textarea>
+            </div>
+            <div class="col-4">
+              <label class="form-label">Permanencia (meses)</label>
+              <input type="number" name="permanencia_meses" class="form-control" value="0">
+            </div>
+            <div class="col-4">
+              <label class="form-label">Velocidad</label>
+              <input type="text" name="velocidad" class="form-control" placeholder="ej: 300Mb">
+            </div>
+            <div class="col-4">
+              <label class="form-label">Datos (GB)</label>
+              <input type="number" name="datos_gb" class="form-control" placeholder="ej: 50">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Crear</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

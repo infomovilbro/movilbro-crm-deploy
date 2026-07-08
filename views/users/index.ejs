@@ -1,0 +1,217 @@
+<section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="ri-admin-line"></i> Usuarios</h2>
+    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createUserModal"><i class="ri-add-line"></i> Nuevo Usuario</button>
+  </div>
+
+  <% if (typeof success !== 'undefined' && success) { %><div class="alert alert-success"><%= success %></div><% } %>
+  <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-danger"><%= error %></div><% } %>
+
+  <div class="card">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover">
+          <thead><tr><th>ID</th><th>Nombre</th><th>Email</th><th>Usuario</th><th>Rol</th><th>Activo</th><th></th></tr></thead>
+          <tbody>
+            <% if (!users || users.length === 0) { %><tr><td colspan="7" class="text-center text-muted py-4">No hay usuarios</td></tr>
+            <% } else { users.forEach(function(u) { %>
+            <tr>
+              <td><%= u.id %></td>
+              <td><%= u.nombre || '-' %></td>
+              <td><%= u.email || '-' %></td>
+              <td><%= u.username %></td>
+              <td><span class="badge bg-<%= (u.rol||'').toLowerCase() === 'admin' ? 'danger' : (u.rol||'').toLowerCase() === 'agent' ? 'primary' : 'secondary' %>"><%= u.rol || '-' %></span></td>
+              <td><span class="badge bg-<%= u.active ? 'success' : 'secondary' %>"><%= u.active ? 'Sí' : 'No' %></span></td>
+              <td class="text-end">
+                <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editUserModal"
+                  data-user='<%- JSON.stringify(u).replace(/'/g, "\\u0027") %>'
+                  title="Editar"><i class="ri-edit-line"></i></button>
+                <form method="POST" action="/users/<%= u.id %>/eliminar" class="d-inline" onsubmit="return confirm('¿Eliminar este usuario?')">
+                  <button type="submit" class="btn btn-sm btn-outline-danger" title="Eliminar"><i class="ri-delete-bin-line"></i></button>
+                </form>
+              </td>
+            </tr>
+            <% }); } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CREATE MODAL -->
+<div class="modal fade" id="createUserModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <form method="POST" action="/users/nuevo">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="ri-user-add-line"></i> Nuevo Usuario</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Nombre <span class="text-danger">*</span></label>
+              <input type="text" name="nombre" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Email</label>
+              <input type="email" name="email" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Usuario <span class="text-danger">*</span></label>
+              <input type="text" name="username" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Contraseña <span class="text-danger">*</span></label>
+              <input type="password" name="password" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Rol</label>
+              <select name="rol" class="form-select">
+                <option value="user">Usuario</option>
+                <option value="agent">Agente</option>
+                <option value="admin">Administrador</option>
+              </select>
+            </div>
+          </div>
+          <hr class="my-3">
+          <h6 class="mb-2"><i class="ri-shield-check-line"></i> Permisos</h6>
+          <div class="row g-2">
+            <% var groups = [
+              { title: 'Panel', perms: ['dashboard','kpis'] },
+              { title: 'Altas', perms: ['altas'] },
+              { title: 'PostVenta', perms: ['aftersales'] },
+              { title: 'Procesos', perms: ['massive_processes'] },
+              { title: 'Suscripciones', perms: ['subscriptions'] },
+              { title: 'Productos', perms: ['products'] },
+              { title: 'Clientes', perms: ['clients'] },
+              { title: 'Encuestas', perms: ['surveys'] },
+              { title: 'Leads', perms: ['leads'] },
+              { title: 'WhatsApp', perms: ['whatsapp'] },
+              { title: 'Canales', perms: ['channel'] },
+              { title: 'Usuarios', perms: ['users'] },
+              { title: 'Facturación', perms: ['invoices','payments','remittances'] },
+              { title: 'Recursos', perms: ['resources'] },
+              { title: 'Tickets', perms: ['tickets'] },
+              { title: 'Configuración', perms: ['settings'] },
+              { title: 'Panel Tienda', perms: ['tienda'] }
+            ]; %>
+            <% groups.forEach(function(g) { %>
+            <div class="col-md-4 col-lg-3">
+              <div class="card border">
+                <div class="card-body py-2 px-3">
+                  <strong class="d-block mb-1 small"><%= g.title %></strong>
+                  <% g.perms.forEach(function(p) { %>
+                  <div class="form-check">
+                    <input type="checkbox" class="form-check-input" id="c_perm_<%= p %>" name="perm_<%= p %>" value="1">
+                    <label class="form-check-label small" for="c_perm_<%= p %>"><%= p.charAt(0).toUpperCase() + p.slice(1).replace(/_/g, ' ') %></label>
+                  </div>
+                  <% }); %>
+                </div>
+              </div>
+            </div>
+            <% }); %>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary"><i class="ri-save-line"></i> Crear usuario</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div class="modal fade" id="editUserModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <form method="POST" action="" id="editUserForm">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="ri-edit-line"></i> Editar Usuario</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" name="_method" value="POST">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Nombre <span class="text-danger">*</span></label>
+              <input type="text" name="nombre" class="form-control" id="edit_nombre" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Email</label>
+              <input type="email" name="email" class="form-control" id="edit_email">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Usuario</label>
+              <input type="text" class="form-control" id="edit_username" readonly>
+              <div class="form-text">El nombre de usuario no se puede cambiar.</div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Nueva contraseña</label>
+              <input type="password" name="password" class="form-control" placeholder="Dejar vacío para mantener">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Rol</label>
+              <select name="rol" class="form-select" id="edit_rol">
+                <option value="user">Usuario</option>
+                <option value="agent">Agente</option>
+                <option value="admin">Administrador</option>
+              </select>
+            </div>
+          </div>
+          <hr class="my-3">
+          <h6 class="mb-2"><i class="ri-shield-check-line"></i> Permisos</h6>
+          <div class="row g-2" id="edit_permissions_container">
+            <% groups.forEach(function(g) { %>
+            <div class="col-md-4 col-lg-3">
+              <div class="card border">
+                <div class="card-body py-2 px-3">
+                  <strong class="d-block mb-1 small"><%= g.title %></strong>
+                  <% g.perms.forEach(function(p) { %>
+                  <div class="form-check">
+                    <input type="checkbox" class="form-check-input perm-check" id="e_perm_<%= p %>" name="perm_<%= p %>" value="1" data-perm="<%= p %>">
+                    <label class="form-check-label small" for="e_perm_<%= p %>"><%= p.charAt(0).toUpperCase() + p.slice(1).replace(/_/g, ' ') %></label>
+                  </div>
+                  <% }); %>
+                </div>
+              </div>
+            </div>
+            <% }); %>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary"><i class="ri-save-line"></i> Guardar cambios</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var editModal = document.getElementById('editUserModal');
+  if (!editModal) return;
+  editModal.addEventListener('show.bs.modal', function(event) {
+    var button = event.relatedTarget;
+    if (!button) return;
+    var userData = button.getAttribute('data-user');
+    if (!userData) return;
+    try {
+      var user = JSON.parse(userData);
+      document.getElementById('editUserForm').action = '/users/' + user.id + '/editar';
+      document.getElementById('edit_nombre').value = user.nombre || '';
+      document.getElementById('edit_email').value = user.email || '';
+      document.getElementById('edit_username').value = user.username || '';
+      document.getElementById('edit_rol').value = user.rol || 'user';
+      document.getElementById('editUserForm').querySelector('input[name="password"]').value = '';
+      var perms = user.permissions || {};
+      document.querySelectorAll('#edit_permissions_container .perm-check').forEach(function(cb) {
+        cb.checked = !!perms[cb.getAttribute('data-perm')];
+      });
+    } catch(e) { console.error('Error parsing user data', e); }
+  });
+});
+</script>
