@@ -449,6 +449,17 @@ router.get('/fiscal/:fiscalId', requireAuth, async (req, res) => {
       }
     });
   });
+  // Si no hay lineas de API, anadir desde altas_ordenes (DB local)
+  if (allLines.length === 0) {
+    try {
+      var altasLines = db.prepare("SELECT DISTINCT o.linea, o.producto, o.estado FROM altas_ordenes o WHERE o.likes_customer_id=? OR o.datos_cliente LIKE ?").all(fiscalId, '%' + fiscalId + '%');
+      altasLines.forEach(function(al) {
+        if (al.linea && !allLines.find(function(l) { return l.linea === al.linea; })) {
+          allLines.push({ linea: al.linea, producto: al.producto || '', estado: (al.estado || '').toLowerCase(), iccid: '', pin: '', puk: '', contrato_id: null, fecha_alta: null });
+        }
+      });
+    } catch(e) {}
+  }
   var linesByStatus = {};
   var lineNumbers = [];
   allLines.forEach(function(l) {

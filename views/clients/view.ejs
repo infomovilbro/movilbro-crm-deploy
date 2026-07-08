@@ -287,6 +287,7 @@
                     <canvas id="gbChart" width="300" height="120" style="width:100%;height:100%;"></canvas>
                   </div>
                   <div id="consPerLine" class="mt-1 small text-start"></div>
+                  <button class="btn btn-sm btn-outline-info mt-1" onclick="abrirConsumoModal()" title="Abrir consumo detallado"><i class="bi bi-graph-up"></i> Ver consumo detallado</button>
                 </div>
               </div>
             </div>
@@ -1782,6 +1783,20 @@ document.addEventListener('DOMContentLoaded', function() {
       loadGB(linesArr[0]);
     }
   }
+  // Funcion para abrir consumo detallado desde la tarjeta GB
+  window.abrirConsumoModal = function() {
+    var sel = document.getElementById('gbLineSelect');
+    var line = sel ? sel.value : '';
+    if (!line && linesArr.length > 0) line = linesArr[0];
+    if (line) {
+      // Simular clic en el boton de consumo correspondiente
+      var btn = document.querySelector('.ver-consumo[data-line="' + line.replace(/"/g, '') + '"]');
+      if (btn) { btn.click(); return; }
+      // Si no hay boton, abrir modal directamente
+      document.getElementById('consLineNumber').textContent = line;
+      new bootstrap.Modal(document.getElementById('consumptionModal')).show();
+    }
+  };
   // ========== CONSUMPTION MODAL ==========
   var _consChartInstance = null;
 
