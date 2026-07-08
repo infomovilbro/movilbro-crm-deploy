@@ -111,8 +111,11 @@
             </div>
             <div class="col-md-6">
               <div class="card h-100 border">
-                <div class="card-header fw-semibold"><i class="bi bi-geo-alt"></i> Direcci&oacute;n y pago</div>
-                <div class="card-body">
+                <div class="card-header d-flex justify-content-between align-items-center py-1" style="cursor:pointer;" onclick="toggleSection('dirPagoBody')">
+                  <span class="fw-semibold small"><i class="bi bi-geo-alt"></i> Direcci&oacute;n y pago</span>
+                  <i class="bi bi-chevron-down" id="dirPagoIcon"></i>
+                </div>
+                <div class="card-body p-2" id="dirPagoBody">
                   <table class="table table-sm mb-0">
                     <% var addr = apiCustomer.billingAddress || {}; %>
                     <tr><th style="width:100px;">Direcci&oacute;n</th><td>
@@ -122,7 +125,7 @@
                       <%= addr.zipCode || addr.zip || cliente.codigo_postal ? ' (' + (addr.zipCode || addr.zip || cliente.codigo_postal) + ')' : '' %>
                     </td></tr>
 
-<tr><th>Líneas activas</th><td>
+<tr><th>L&iacute;neas activas</th><td>
                       <% if (apiSubscriptions.length > 0) { %>
                         <% apiSubscriptions.forEach(function(s) { %>
                           <% var prods = s.products && s.products.length ? s.products : [{productName: s.productName, lineNumber: s.lineNumber, status: s.status, icc: s.icc}]; %>
@@ -315,8 +318,8 @@
                 <% var prods = s.products && s.products.length ? s.products : [{productName: s.productName, lineNumber: s.lineNumber, status: s.status, icc: s.icc}]; %>
                 <% prods.forEach(function(p) { %>
                 <% var linea = p.lineNumber || s.lineNumber || ''; %>
-                <% var _est = (p.status || s.status || '').toLowerCase(); if (_est === 'terminada' || _est === 'baja' || _est === 'cancelled' || _est === 'cancelada') return; %>
-                <tr>
+                <% var _est = ({'active':'activa','activa':'activa','suspended':'suspendida','cancelled':'cancelada','terminated':'terminada','baja':'baja'})[(p.status || s.status || '').toLowerCase()] || (p.status || s.status || 'activa'); %>
+                <tr class="<%= (_est === 'terminada' || _est === 'cancelada' || _est === 'baja') ? 'table-secondary text-muted' : '' %>">
                   <td>
                     <% var pname = (p.productName || s.productName || '').toLowerCase(); %>
                     <% if (pname.includes('fibra') || pname.includes('ftth')) { %><span>🌐</span><% } else if (pname.includes('tv') || pname.includes('television')) { %><span>📺</span><% } else if (pname.includes('fijo') || pname.includes('voip')) { %><span>📞</span><% } else if (pname.includes('movil') || pname.includes('mobile') || pname.includes('tarifa')) { %><span>📱</span><% } else { %><span>📡</span><% } %>
@@ -325,8 +328,8 @@
                   <td><%= p.productName || s.productName || '-' %></td>
                   <td>
                     <% var est = (p.status || s.status || 'activa').toLowerCase(); %>
-                    <span class="badge bg-<%= est === 'activa' || est === 'activo' || est === 'active' ? 'success' : est === 'suspendida' || est === 'suspended' ? 'warning' : est === 'baja' || est === 'cancelled' || est === 'cancelada' ? 'secondary' : 'danger' %> fs-6">
-                      <%= est %>
+                    <span class="badge bg-<%= est === 'activa' || est === 'activo' || est === 'active' ? 'success' : est === 'suspendida' || est === 'suspended' ? 'warning' : est === 'baja' || est === 'cancelled' || est === 'cancelada' || est === 'terminated' || est === 'terminada' ? 'secondary' : 'danger' %> fs-6">
+                      <%= ({'activa':'Activa','active':'Activa','activo':'Activa','suspendida':'Suspendida','suspended':'Suspendida','cancelled':'Cancelada','cancelada':'Cancelada','terminated':'Cancelada','terminada':'Cancelada','baja':'Cancelada','created':'Creada'})[est] || est %>
                     </span>
                   </td>
                   <td><small class="text-muted"><%= p.icc || s.icc || '-' %></small></td>
@@ -428,7 +431,7 @@
               <tbody>
                 <% apiOrders.forEach(function(o) { %>
                 <tr>
-                  <td><small class="text-muted"><%= o.productName !== '-' ? o.productName : (o.idShort || o.id || '-') %></small></td>
+                  <td><small class="text-muted"><%= o.idShort || o.id || '-' %></small></td>
                   <td>
                     <% var os = (o.status || '').toLowerCase(); %>
                     <span class="badge bg-<%= os === 'completed' || os === 'completada' || os === 'delivered' ? 'success' : os === 'pending' || os === 'pendiente' || os === 'processing' || os === 'pending_provider' ? 'warning' : os === 'cancelled' || os === 'cancelada' || os === 'rejected' ? 'danger' : os === 'shipped' || os === 'enviado' ? 'info' : 'secondary' %> fs-6">
@@ -714,9 +717,7 @@
                             <a href="<%= d.download_url %>" target="_blank" class="btn btn-sm btn-outline-primary" title="Ver">
                               <i class="bi bi-eye"></i>
                             </a>
-                            <a href="<%= d.download_url %>" download target="_blank" class="btn btn-sm btn-outline-secondary" title="Descargar">
-                              <i class="bi bi-download"></i>
-                            </a>
+                            <button class="btn btn-sm btn-outline-secondary" title="Descargar" onclick="var u='<%= d.download_url || '' %>';var m=u.match(/[-\w]{25,}/);window.location.href=(m?'/clientes/drive-download?fileId='+m[0]+'&name='+encodeURIComponent('<%= (d.tipo || 'documento').replace(/'/g,'') %>')+'&download=1':u)"><i class="bi bi-download"></i></button>
                             <% } else if (d.archivo) { %>
                             <a href="/uploads/kyc/<%= d.archivo %>" target="_blank" class="btn btn-sm btn-outline-primary" title="Ver">
                               <i class="bi bi-eye"></i>
@@ -757,7 +758,7 @@
                     <% if (d.download_url) { %>
                     <div class="mt-2 d-flex gap-1 justify-content-center">
                       <a href="<%= d.download_url %>" target="_blank" class="btn btn-sm btn-outline-primary" title="Ver"><i class="bi bi-eye"></i></a>
-                      <a href="<%= d.download_url %>" download target="_blank" class="btn btn-sm btn-outline-secondary" title="Descargar"><i class="bi bi-download"></i></a>
+                      <button class="btn btn-sm btn-outline-secondary" title="Descargar" onclick="var u='<%= d.download_url || '' %>';var m=u.match(/[-\w]{25,}/);window.location.href=(m?'/clientes/drive-download?fileId='+m[0]+'&name='+encodeURIComponent('<%= (d.tipo || 'documento').replace(/'/g,'') %>')+'&download=1':u)"><i class="bi bi-download"></i></button>
                     </div>
                     <% } %>
                   </div>
@@ -1063,7 +1064,20 @@
         <hr>
         
         <!-- Consumo Diario -->
-        <h6 class="mt-3"><i class="bi bi-calendar-day"></i> Consumo Diario</h6>
+        <h6 class="mt-3">
+          <i class="bi bi-calendar-day"></i> Consumo Diario
+          <div class="btn-group btn-group-sm float-end" role="group">
+            <input type="radio" class="btn-check" name="dailyChartType" id="dailyChartGB" value="gb" checked autocomplete="off">
+            <label class="btn btn-outline-secondary btn-sm py-0" for="dailyChartGB">GB</label>
+            <input type="radio" class="btn-check" name="dailyChartType" id="dailyChartCalls" value="calls" autocomplete="off">
+            <label class="btn btn-outline-secondary btn-sm py-0" for="dailyChartCalls">Llamadas</label>
+            <input type="radio" class="btn-check" name="dailyChartType" id="dailyChartSms" value="sms" autocomplete="off">
+            <label class="btn btn-outline-secondary btn-sm py-0" for="dailyChartSms">SMS</label>
+          </div>
+        </h6>
+        <div style="height:100px;margin-bottom:8px;">
+          <canvas id="consDailyChart" height="100"></canvas>
+        </div>
         <div style="max-height:250px;overflow:auto">
           <table class="table table-sm table-striped mb-0">
             <thead><tr><th>Fecha</th><th class="text-end">GB</th><th class="text-end">Llamadas</th><th class="text-end">SMS</th><th></th></tr></thead>
@@ -1241,13 +1255,28 @@
 </div>
 
 <script>
+function toggleSection(id) {
+  var el = document.getElementById(id);
+  var icon = document.getElementById(id.replace('Body', 'Icon'));
+  if (!el) return;
+  if (el.style.display === 'none') {
+    el.style.display = '';
+    if (icon) icon.className = 'bi bi-chevron-down';
+  } else {
+    el.style.display = 'none';
+    if (icon) icon.className = 'bi bi-chevron-up';
+  }
+}
 function mostrarPinPuk(linea, pin, puk, icc) {
   document.getElementById('pinPukLinea').textContent = linea || '-';
   document.getElementById('pinPukPin').textContent = pin || '-';
   document.getElementById('pinPukPuk').textContent = puk || '-';
   document.getElementById('pinPukIcc').textContent = icc || '-';
   document.getElementById('pinPukModal').dataset.line = linea || '';
-  new bootstrap.Modal(document.getElementById('pinPukModal')).show();
+  var modalEl = document.getElementById('pinPukModal');
+  var inst = bootstrap.Modal.getInstance(modalEl);
+  if (inst) inst.dispose();
+  new bootstrap.Modal(modalEl).show();
 }
 
 function generarPinPuk() {
@@ -1465,7 +1494,7 @@ function calcularScoring(clienteId) {
   document.getElementById('scoringResultRisk').innerHTML = '';
   document.getElementById('scoringResultDetails').innerHTML = '<li class="text-muted">Calculando...</li>';
   modal.show();
-  fetch('/clientes/' + clienteId + '/scoring')
+  fetch('/clientes/' + clienteId + '/calculate-scoring', { method: 'POST' })
     .then(function(r) { return r.json(); })
     .then(function(res) {
       if (res.ok) {
@@ -1881,7 +1910,13 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(function(res) {
           if (res.ok && res.data && res.data.length > 0) {
             var html = '';
+            var dailyLabels = [];
+            var dailyData = { gb: [], calls: [], sms: [] };
             res.data.forEach(function(d, idx) {
+              dailyLabels.push(d.date ? d.date.substring(5) : idx);
+              dailyData.gb.push(d.gb || 0);
+              dailyData.calls.push(d.calls || 0);
+              dailyData.sms.push(d.sms || 0);
               html += '<tr class="cons-day-row" style="cursor:pointer;" data-idx="' + idx + '">' +
                 '<td>' + d.date + '</td>' +
                 '<td class="text-end">' + (d.gb || 0).toFixed(4) + '</td>' +
@@ -1892,19 +1927,66 @@ document.addEventListener('DOMContentLoaded', function() {
                 '<td colspan="5" class="p-2 bg-light"><div class="small text-muted">Detalle del día ' + d.date + ': ' + (d.gb || 0).toFixed(4) + ' GB, ' + (d.calls || 0) + ' llamadas, ' + (d.sms || 0) + ' SMS</div></td></tr>';
             });
             dailyBody2.innerHTML = html;
-            // Add click expand/collapse
+            // Daily chart with view switching
+            var dailyCtx = document.getElementById('consDailyChart');
+            var chartColors = { gb: '#06b6d4', calls: '#8b5cf6', sms: '#10b981' };
+            function renderDailyChart(type) {
+              if (window._consDailyChartInstance) { window._consDailyChartInstance.destroy(); }
+              if (!dailyCtx) return;
+              window._consDailyChartInstance = new Chart(dailyCtx, {
+                type: 'bar',
+                data: {
+                  labels: dailyLabels,
+                  datasets: [{ label: { gb: 'GB/día', calls: 'Llamadas/día', sms: 'SMS/día' }[type] || 'GB/día', data: dailyData[type] || dailyData.gb, backgroundColor: chartColors[type] || '#06b6d4', borderRadius: 3 }]
+                },
+                options: {
+                  animation: false, responsive: true, maintainAspectRatio: false,
+                  plugins: { legend: { display: false } },
+                  scales: {
+                    x: { grid: { display: false }, ticks: { font: { size: 8 }, maxRotation: 0 } },
+                    y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 8 } } }
+                  }
+                }
+              });
+            }
+            renderDailyChart('gb');
+            // Radio buttons for chart type
+            document.querySelectorAll('input[name="dailyChartType"]').forEach(function(rb) {
+              rb.addEventListener('change', function() { if (this.checked) renderDailyChart(this.value); });
+            });
+            // Add click expand/collapse with CDR data
+            var _dailyCdrsCache = {}; // cache: date → cdrs array
             dailyBody2.querySelectorAll('.cons-day-row').forEach(function(row) {
               row.addEventListener('click', function() {
                 var idx = this.dataset.idx;
                 var detailRow = dailyBody2.querySelector('.cons-day-detail[data-idx="' + idx + '"]');
-                if (detailRow) {
-                  if (detailRow.style.display === 'none') {
-                    detailRow.style.display = '';
-                    this.querySelector('.bi').className = 'bi bi-chevron-up';
-                  } else {
-                    detailRow.style.display = 'none';
-                    this.querySelector('.bi').className = 'bi bi-chevron-down';
+                if (!detailRow) return;
+                if (detailRow.style.display !== 'none') {
+                  detailRow.style.display = 'none';
+                  this.querySelector('.bi').className = 'bi bi-chevron-down';
+                  return;
+                }
+                // Show detail and load CDRs for this date
+                detailRow.style.display = '';
+                this.querySelector('.bi').className = 'bi bi-chevron-up';
+                var dateStr = this.querySelector('td:first-child').textContent.trim();
+                if (detailRow.dataset.loaded) return;
+                detailRow.dataset.loaded = '1';
+                detailRow.innerHTML = '<div class="small text-muted text-center py-2">Cargando llamadas de ' + dateStr + '...</div>';
+                // Use already-loaded CDR data if available, otherwise fetch
+                var cdrTableBody = document.getElementById('cdrsBody');
+                var existingRows = cdrTableBody ? Array.from(cdrTableBody.querySelectorAll('tr')) : [];
+                var dayCdrs = [];
+                existingRows.forEach(function(tr) {
+                  var dateCell = tr.querySelector('td:first-child');
+                  if (dateCell && dateCell.textContent.trim().startsWith(dateStr)) {
+                    dayCdrs.push({ date: dateCell.textContent.trim(), type: (tr.cells[1]||{}).textContent||'', dest: (tr.cells[2]||{}).textContent||'', dur: (tr.cells[3]||{}).textContent||'', cost: (tr.cells[4]||{}).textContent||'' });
                   }
+                });
+                if (dayCdrs.length > 0) {
+                  detailRow.innerHTML = '<td colspan="5" class="p-2 bg-light"><table class="table table-sm mb-0"><thead><tr><th>Hora</th><th>Tipo</th><th>Destino</th><th>Duración</th><th>Coste</th></tr></thead><tbody>' + dayCdrs.map(function(c) { return '<tr><td class="small">' + c.date + '</td><td>' + c.type + '</td><td>' + c.dest + '</td><td>' + c.dur + '</td><td>' + c.cost + '</td></tr>'; }).join('') + '</tbody></table></td>';
+                } else {
+                  detailRow.innerHTML = '<td colspan="5" class="p-2 bg-light"><div class="small text-muted py-2">' + dateStr + ': sin llamadas registradas</div></td>';
                 }
               });
             });

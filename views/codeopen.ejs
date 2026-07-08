@@ -276,7 +276,9 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
     try { localStorage.setItem('codeopen_theme', isDark ? 'dark' : 'light'); } catch(e) {}
   });
   try {
-    if (localStorage.getItem('codeopen_theme') === 'light') { isDark = false; document.body.classList.add('theme-light'); els.themeToggle.innerHTML = '<i class="ri-sun-line"></i>'; }
+    var savedTheme = localStorage.getItem('codeopen_theme');
+    if (savedTheme === 'dark') { isDark = true; }
+    else { isDark = false; document.body.classList.add('theme-light'); els.themeToggle.innerHTML = '<i class="ri-sun-line"></i>'; }
   } catch(e) {}
 
   fetch('/codeopen/categories').then(function(r) { return r.json(); }).then(function(data) {
@@ -695,11 +697,8 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
     }).catch(function() {});
   }, 5000);
 
-  pendingBtn.addEventListener('click', function() {
-    pendingPanel.style.right = '0';
-    pendingOverlay.style.display = 'block';
-    loadPendingList();
-    startPendingAutoRefresh();
+  pendingBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
   });
 
   $('approveAllBtn').addEventListener('click', function() {
@@ -1748,11 +1747,5 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
 
   // Badges al cargar (una vez, sin auto-refresh)
   try { updateTabBadges(); } catch(e) {}
-  // Actualizar badges tambien al abrir pendientes
-  if (pendingBtn) {
-    pendingBtn.addEventListener('click', function() { 
-      setTimeout(function() { try { updateTabBadges(); } catch(e) {} }, 200);
-    });
-  }
 })();
 </script>

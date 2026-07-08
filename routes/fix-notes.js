@@ -2,15 +2,25 @@ const express = require('express');
 var router = express.Router();
 const { db } = require('../database');
 const drive = require('../helpers/drive');
+const nube = require('../helpers/nube');
 const ROOT_ID = process.env.DRIVE_ROOT_FOLDER_ID || '1JrStvTy-l0msOmfwT1S0Jupg6Ru6Zemx';
 
 // POST — guardar nota de error
-router.post('/api/fix-notes', (req, res) => {
+router.post('/api/fix-notes', async (req, res) => {
   try {
     var { url, selector, element_text, note } = req.body;
     if (!url || !note) return res.json({ ok: false, error: 'url y note requeridos' });
     var info = db.prepare("INSERT INTO fix_notes (url, selector, element_text, note) VALUES (?,?,?,?)").run(url, selector || '', element_text || '', note);
-    res.json({ ok: true, id: info.lastInsertRowid });
+    var id = info.lastInsertRowid;
+    // Guardar tambien en nube (local + DB + Drive) como los demas documentos
+    try {
+      var now = new Date();
+      var periodo = now.toISOString().substring(0, 7);
+      var jsonBuf = Buffer.from(JSON.stringify({ id, url, selector, element_text, note, created_at: now.toISOString() }, null, 2), 'utf8');
+      var nomArchivo = 'fixnote-' + id + '-' + now.toISOString().replace(/[:.]/g, '-').substring(0, 19) + '.json';
+      await nube.guardarLocal(jsonBuf, periodo, nomArchivo);
+    } catch(e) { console.error('[FixNotes] Error guardando en nube:', e.message); }
+    res.json({ ok: true, id });
   } catch(e) { res.json({ ok: false, error: e.message }); }
 });
 
@@ -19,6 +29,22 @@ router.get('/api/fix-notes', (req, res) => {
   try {
     var pending = db.prepare("SELECT * FROM fix_notes WHERE status='pending' ORDER BY created_at DESC").all();
     var fixed = db.prepare("SELECT * FROM fix_notes WHERE status='fixed' ORDER BY fixed_at DESC LIMIT 50").all();
+    // Si no hay notas en DB, restaurar desde backup
+    if (pending.length === 0 && fixed.length === 0) {
+      try {
+        var backup = db.prepare("SELECT value FROM settings WHERE key='fix_notes_backup'").get();
+        if (backup && backup.value) {
+          var notes = JSON.parse(backup.value);
+          pending = notes.filter(function(n) { return n.status === 'pending'; });
+          fixed = notes.filter(function(n) { return n.status === 'fixed'; }).slice(0, 50);
+          // Restaurar a la tabla
+          notes.forEach(function(n) {
+            try { db.prepare("INSERT OR IGNORE INTO fix_notes (id, url, selector, element_text, note, status, created_at, fixed_at) VALUES (?,?,?,?,?,?,?,?)").run(n.id, n.url, n.selector || '', n.element_text || '', n.note, n.status || 'pending', n.created_at, n.fixed_at || null); } catch(e) {}
+          });
+          console.log('[FixNotes] Restauradas', notes.length, 'notas desde backup');
+        }
+      } catch(e) {}
+    }
     res.json({ ok: true, pending, fixed });
   } catch(e) { res.json({ ok: false, error: e.message }); }
 });

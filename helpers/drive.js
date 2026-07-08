@@ -48,18 +48,20 @@ function getOAuthConfig() {
       const parsed = JSON.parse(decoded);
       console.log('[Drive] OAuth config keys:', Object.keys(parsed).join(', '));
       console.log('[Drive] Has refresh_token:', !!parsed.refresh_token, 'has client_id:', !!parsed.client_id, 'has client_secret:', !!parsed.client_secret);
-      return parsed;
+      if (parsed.refresh_token && parsed.client_id && parsed.client_secret) return parsed;
+      console.log('[Drive] DRIVE_OAUTH_JSON has no refresh_token, checking other sources...');
     }
-    // Try DRIVE_KEY_JSON as fallback for OAuth if DRIVE_OAUTH_JSON not set
+    // Try DRIVE_KEY_JSON for OAuth fields if DRIVE_OAUTH_JSON didn't work
     if (process.env.DRIVE_KEY_JSON) {
-      console.log('[Drive] DRIVE_OAUTH_JSON not found, checking DRIVE_KEY_JSON for OAuth config...');
+      console.log('[Drive] Checking DRIVE_KEY_JSON for OAuth config...');
       const raw = process.env.DRIVE_KEY_JSON;
       const decoded = Buffer.from(raw, 'base64').toString();
       const parsed = JSON.parse(decoded);
-      if (parsed.refresh_token || parsed.client_id) {
-        console.log('[Drive] DRIVE_KEY_JSON contains OAuth fields, using it as fallback');
+      if (parsed.refresh_token && parsed.client_id) {
+        console.log('[Drive] DRIVE_KEY_JSON contains OAuth fields, using it');
         return parsed;
       }
+      console.log('[Drive] DRIVE_KEY_JSON has no refresh_token either');
     }
     if (fs.existsSync(OAUTH_CONFIG_PATH)) {
       console.log('[Drive] Using OAuth config file:', OAUTH_CONFIG_PATH);

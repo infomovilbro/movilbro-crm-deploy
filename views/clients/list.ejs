@@ -73,11 +73,8 @@
                 </td>
                 <td class="text-end" style="white-space:nowrap;">
                   <a href="<%= fiscalLink %>" class="btn btn-sm btn-outline-info" title="Ver"><i class="ri-eye-line"></i></a>
-                  <% var coId = encodeURIComponent(c.dni_nif || c.id_local || c.id_api || ''); if (coId) { %><a href="/codeopen?clientId=<%= coId %>" class="btn btn-sm btn-outline-primary" title="Abrir en CodeOpen">🚀</a><% } %>
-                  <% if (phoneClean) { %>
-                    <a href="/whatsapp?phone=<%= phoneClean %>" class="btn btn-sm btn-outline-success" target="_blank" title="WhatsApp: <%= c.telefono %>"><i class="ri-whatsapp-line"></i></a>
-                  <% } else { %>
-                    <span class="btn btn-sm btn-outline-secondary disabled" title="Sin teléfono"><i class="ri-whatsapp-line"></i></span>
+                  <% var coId = encodeURIComponent(c.dni_nif || c.id_local || c.id_api || ''); if (coId) { %>
+                  <button class="btn btn-sm btn-outline-primary" onclick="<% if (phoneClean) { %>window.open('/whatsapp?phone=<%= phoneClean %>','_blank');<% } %>window.location.href='/codeopen?clientId=<%= coId %>'" title="Abrir CodeOpen + WhatsApp">🚀</button>
                   <% } %>
                 </td>
               </tr>
@@ -94,6 +91,9 @@
 <nav class="mt-3">
   <ul class="pagination pagination-sm justify-content-center mb-0">
     <li class="page-item <%= page <= 1 ? 'disabled' : '' %>">
+      <a class="page-link" href="?page=1<%= search ? '&search=' + encodeURIComponent(search) : '' %>" title="Primera p&aacute;gina">&laquo;</a>
+    </li>
+    <li class="page-item <%= page <= 1 ? 'disabled' : '' %>">
       <a class="page-link" href="?page=<%= page - 1 %><%= search ? '&search=' + encodeURIComponent(search) : '' %>">Anterior</a>
     </li>
     <% for (var p = Math.max(1, page-2); p <= Math.min(totalPages, page+2); p++) { %>
@@ -103,6 +103,9 @@
     <% } %>
     <li class="page-item <%= page >= totalPages ? 'disabled' : '' %>">
       <a class="page-link" href="?page=<%= page + 1 %><%= search ? '&search=' + encodeURIComponent(search) : '' %>">Siguiente</a>
+    </li>
+    <li class="page-item <%= page >= totalPages ? 'disabled' : '' %>">
+      <a class="page-link" href="?page=<%= totalPages %><%= search ? '&search=' + encodeURIComponent(search) : '' %>" title="&Uacute;ltima p&aacute;gina">&raquo;</a>
     </li>
   </ul>
 </nav>
@@ -179,39 +182,26 @@ document.addEventListener('DOMContentLoaded', function() {
   var tipoLabels = Object.keys(tipos);
   var tipoData = tipoLabels.map(function(k){return tipos[k]});
   var chartTipoCtx = document.getElementById('chartTipo').getContext('2d');
-  var gradientTipo = chartTipoCtx.createLinearGradient(0,0,0,160);
-  gradientTipo.addColorStop(0, '#7c3aed');
-  gradientTipo.addColorStop(0.4, '#06b6d4');
-  gradientTipo.addColorStop(0.7, '#ec4899');
-  gradientTipo.addColorStop(1, '#10b981');
 
   var chartTipo = new Chart(chartTipoCtx, {
-    type: 'bar',
+    type: 'doughnut',
     data: {
       labels: tipoLabels,
       datasets: [{
-        label: 'Clientes',
         data: tipoData,
-        backgroundColor: tipoLabels.map(function(_,i){
-          var grad = chartTipoCtx.createLinearGradient(0,0,0,160);
-          var hue = (i * 60) % 360;
-          grad.addColorStop(0, 'hsl('+hue+',85%,55%)');
-          grad.addColorStop(1, 'hsl('+((hue+40)%360)+',85%,65%)');
-          return grad;
-        }),
-        borderRadius: 6,
-        borderSkipped: false,
-        barPercentage: 0.6
+        backgroundColor: ['#7c3aed', '#06b6d4', '#ec4899', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6'],
+        borderWidth: 0,
+        hoverOffset: 8
       }]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
+      cutout: '60%',
       plugins: {
-        legend: { display: false }
-      },
-      scales: {
-        y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.06)' } },
-        x: { grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 30 } }
+        legend: {
+          position: 'bottom',
+          labels: { padding: 12, usePointStyle: true, font: { size: 11 } }
+        }
       },
       onClick: function(e) {
         var active = chartTipo.getElementsAtEventForMode(e, 'index', {intersect: true});
@@ -219,8 +209,9 @@ document.addEventListener('DOMContentLoaded', function() {
           var idx = active[0].index;
           var label = chartTipo.data.labels[idx];
           var value = chartTipo.data.datasets[0].data[idx];
+          var pct = totalClientes > 0 ? ((value / totalClientes) * 100).toFixed(1) : 0;
           document.getElementById('chartDetailTitle').textContent = 'Clientes por Tipo';
-          document.getElementById('chartDetailBody').innerHTML = '<strong>' + label + '</strong>: ' + value + ' clientes';
+          document.getElementById('chartDetailBody').innerHTML = '<strong>' + label + '</strong>: ' + value + ' clientes (' + pct + '%)';
           var modal = new bootstrap.Modal(document.getElementById('chartDetailModal'));
           modal.show();
         }

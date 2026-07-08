@@ -439,13 +439,11 @@ router.get('/fiscal/:fiscalId', requireAuth, async (req, res) => {
     } catch(e) {}
   }
 
-  var terminatedStatuses = ['terminada', 'baja', 'cancelled', 'cancelada'];
   var allLines = [];
   apiSubscriptions.forEach(function(s) {
     var prods = s.products && s.products.length ? s.products : (s.productName ? [{productName: s.productName, lineNumber: s.lineNumber, status: s.status, icc: s.icc}] : []);
     prods.forEach(function(p) {
       var st = (p.status || s.status || '').toLowerCase();
-      if (terminatedStatuses.includes(st)) return;
       if (p.lineNumber && !allLines.find(function(l) { return l.linea === p.lineNumber; })) {
         allLines.push({ linea: p.lineNumber, producto: p.productName || '', estado: st, iccid: p.icc || '', pin: '', puk: '', contrato_id: null, fecha_alta: null });
       }
@@ -1189,27 +1187,59 @@ router.post("/:id/line/:line/info", requireAuth, async (req, res) => {
 router.get('/contrato/s3/:orderId', requireAuth, async (req, res) => {
   try {
     var orderId = req.params.orderId;
-    // Obtener URL presignada desde la API de Likes
     var api = LikesAPI.getApiInstance();
-    var ordersResp = await api.request('GET', '/draft-order-v2?orderId=' + encodeURIComponent(orderId) + '&withDocumentation=true');
-    var order = ordersResp.data || ordersResp;
-    var docs = order.documentation || order.documents || [];
     var pdfUrl = null;
-    for (var doc of docs) {
-      if (doc.downloadURL && doc.downloadURL.includes('signedContract')) {
-        pdfUrl = doc.downloadURL;
-        break;
+    // 1. Intentar con API de Likes - multiples endpoints
+    try {
+      var api = LikesAPI.getApiInstance();
+      // 1a. Intentar con documentation
+      var ordersResp = await api.request('GET', '/draft-order-v2?orderId=' + encodeURIComponent(orderId) + '&withDocumentation=true');
+      var order = ordersResp.data || ordersResp;
+      var docs = order.documentation || order.documents || [];
+      for (var doc of docs) {
+        if (doc.downloadURL) { pdfUrl = doc.downloadURL; break; }
+        if (doc.url) { pdfUrl = doc.url; break; }
+        if (doc.uploadURL) { pdfUrl = doc.uploadURL; break; }
       }
+      // 1b. Si no hay docs, intentar order detail
+      if (!pdfUrl) {
+        try {
+          var detailResp = await api.request('GET', '/draft-order-v2/' + encodeURIComponent(orderId));
+          var detail = detailResp.data || detailResp;
+          if (detail.downloadURL) pdfUrl = detail.downloadURL;
+          else if (detail.signedContractUrl) pdfUrl = detail.signedContractUrl;
+          else if (detail.contractUrl) pdfUrl = detail.contractUrl;
+          else if (detail.pdfUrl) pdfUrl = detail.pdfUrl;
+          else if (detail.documentUrl) pdfUrl = detail.documentUrl;
+        } catch(e) {}
+      }
+      if (pdfUrl) console.log('[Contrato] URL desde API para', orderId);
+    } catch(e) { console.log('[Contrato] API falló, usando fallback S3'); }
+    // 2. Fallback: probar multiples rutas S3
+    var s3base = 'https://prod-likes-customer-documents.s3.eu-central-1.amazonaws.com/264/';
+    var rutasS3 = [
+      s3base + orderId + '/signedContract.pdf',
+      s3base + orderId + '/contract.pdf',
+      s3base + orderId + '/contrato.pdf',
+      s3base + orderId + '/document.pdf',
+      s3base + orderId + '/signed_contract.pdf',
+    ];
+    for (var r of rutasS3) {
+      if (pdfUrl) break;
+      try {
+        var exists = await new Promise(function(resolve) {
+          var https = require('https');
+          https.get(r, function(proxyRes) {
+            resolve(proxyRes.statusCode === 200);
+          }).on('error', function() { resolve(false); });
+        });
+        if (exists) pdfUrl = r;
+      } catch(e) {}
     }
-    if (!pdfUrl) {
-      // Fallback: intentar directo
-      pdfUrl = 'https://prod-likes-customer-documents.s3.eu-central-1.amazonaws.com/264/' + orderId + '/signedContract.pdf';
-    }
+    if (!pdfUrl) return res.status(404).send('Contrato no disponible');
     var https = require('https');
     https.get(pdfUrl, function(proxyRes) {
-      if (proxyRes.statusCode !== 200) {
-        return res.status(404).send('Contrato no disponible');
-      }
+      if (proxyRes.statusCode !== 200) return res.status(404).send('Contrato no disponible');
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', 'inline; filename="contrato-' + orderId + '.pdf"');
       proxyRes.pipe(res);
@@ -1581,6 +1611,22 @@ router.post('/:id/installation/:installId/work-order', requireAuth, async (req, 
     res.json({ ok: true, data: workOrder });
   } catch(e) {
     res.json({ ok: false, error: e.message });
+  }
+});
+
+// Proxy para descargar archivos KYC desde Drive (evita cross-origin)
+router.get('/drive-download', requireAuth, async (req, res) => {
+  try {
+    var fileId = req.query.fileId;
+    if (!fileId) return res.status(400).send('fileId requerido');
+    var dApi = require('../helpers/drive').getDrive();
+    if (!dApi) return res.status(502).send('Drive no disponible');
+    var result = await dApi.files.get({ fileId: fileId, alt: 'media' }, { responseType: 'stream' });
+    res.setHeader('Content-Type', result.headers['content-type'] || 'application/octet-stream');
+    res.setHeader('Content-Disposition', 'attachment; filename="' + (req.query.name || 'documento') + '"');
+    result.data.pipe(res);
+  } catch(e) {
+    res.status(500).send('Error: ' + e.message);
   }
 });
 
