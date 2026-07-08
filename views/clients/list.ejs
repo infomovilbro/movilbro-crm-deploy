@@ -74,7 +74,7 @@
                 <td class="text-end" style="white-space:nowrap;">
                   <a href="<%= fiscalLink %>" class="btn btn-sm btn-outline-info" title="Ver"><i class="ri-eye-line"></i></a>
                   <% var coId = encodeURIComponent(c.dni_nif || c.id_local || c.id_api || ''); if (coId) { %>
-                  <button class="btn btn-sm btn-outline-primary" onclick="<% if (phoneClean) { %>window.open('/whatsapp?phone=<%= phoneClean %>','_blank');<% } %>window.location.href='/codeopen?clientId=<%= coId %>'" title="Abrir CodeOpen + WhatsApp">🚀</button>
+                  <button class="btn btn-sm btn-outline-success" onclick="<% if (phoneClean) { %>window.open('/whatsapp?phone=<%= phoneClean %>','whatsapp_window');<% } %>window.location.href='/codeopen?clientId=<%= coId %>'" title="Abrir WhatsApp + CodeOpen"><i class="ri-whatsapp-line"></i></button>
                   <% } %>
                 </td>
               </tr>

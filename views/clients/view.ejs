@@ -242,8 +242,11 @@
             <% } %>
             <div class="col-md-6">
               <div class="card border">
-                <div class="card-header py-1"><small><i class="bi bi-pie-chart"></i> Estado de L&iacute;neas</small></div>
-                <div class="card-body p-2">
+                <div class="card-header py-1 d-flex justify-content-between align-items-center" style="cursor:pointer;" onclick="toggleSection('estadoLineasBody')">
+                  <small><i class="bi bi-pie-chart"></i> Estado de L&iacute;neas</small>
+                  <i class="bi bi-chevron-down" id="estadoLineasIcon"></i>
+                </div>
+                <div class="card-body p-2" id="estadoLineasBody">
                   <% if (apiSubscriptions && apiSubscriptions.length > 0) { %>
                     <% apiSubscriptions.forEach(function(s) { %>
                       <% var prods = s.products && s.products.length ? s.products : [{productName: s.productName, lineNumber: s.lineNumber, status: s.status, icc: s.icc}]; %>
@@ -259,11 +262,6 @@
                               <%= est %>
                             </span>
                             <% if (p.icc || s.icc) { %><br><small class="text-muted">ICC: <%= (p.icc || s.icc).substring(0,15) %>...</small><% } %>
-                            <div class="d-flex gap-1 mt-1 justify-content-end">
-                              <button class="btn btn-sm btn-outline-warning py-0 toggle-block" style="font-size:0.65rem;line-height:1;" data-line="<%= p.lineNumber || s.lineNumber || '' %>" data-client="<%= _cid %>" data-blocked="<%= est !== 'activa' && est !== 'active' %>" title="<%= (est === 'activa' || est === 'active') ? 'Bloquear' : 'Desbloquear' %>"><i class="bi <%= (est === 'activa' || est === 'active') ? 'bi-lock' : 'bi-unlock' %>"></i></button>
-                              <button class="btn btn-sm btn-outline-primary py-0 cambiar-tarifa-btn" style="font-size:0.65rem;line-height:1;" data-line="<%= p.lineNumber || s.lineNumber || '' %>" title="Cambiar tarifa"><i class="bi bi-arrow-left-right"></i></button>
-                              <button class="btn btn-sm btn-outline-dark py-0 mostrar-pinpuk" style="font-size:0.65rem;line-height:1;" data-line="<%= p.lineNumber || s.lineNumber || '' %>" data-pin="<%= p.pin || s.pin || '' %>" data-puk="<%= p.puk || s.puk || '' %>" data-icc="<%= p.icc || s.icc || '' %>" title="PIN/PUK"><i class="bi bi-key"></i></button>
-                            </div>
                           </div>
                         </div>
                       <% }); %>
@@ -970,11 +968,13 @@
               <a href="https://www.axesor.es/busqueda-avanzada?q=<%= encodeURIComponent(_dn) %>" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="bi bi-search"></i> Axesor</a>
               <a href="https://www.infocif.es/busqueda-avanzada?q=<%= encodeURIComponent(_dn) %>" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="bi bi-search"></i> Infocif</a>
               <a href="https://www.iberinform.es/buscar?q=<%= encodeURIComponent(_dn) %>" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="bi bi-search"></i> Iberinform</a>
-              <a href="https://www.rankia.com/buscar?q=<%= encodeURIComponent(_dn) %>" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="bi bi-search"></i> Rankia</a>
               <a href="https://librebor.me/search?q=<%= encodeURIComponent(_dn) %>" target="_blank" class="btn btn-sm btn-outline-warning"><i class="bi bi-shield-check"></i> LibreBOR.me</a>
-              <a href="https://www.informa.es/buscar?q=<%= encodeURIComponent(_dn) %>" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="bi bi-search"></i> Informa D&amp;B</a>
               <a href="https://www.einforma.com/busqueda?q=<%= encodeURIComponent(_dn) %>" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="bi bi-search"></i> Einforma</a>
               <a href="https://opencorporates.com/companies?q=<%= encodeURIComponent(_dn) %>" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="bi bi-globe"></i> OpenCorporates</a>
+              <a href="https://www.rankia.com/buscar?q=<%= encodeURIComponent(_dn) %>" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="bi bi-search"></i> Rankia</a>
+              <a href="https://www.borme.es/borme/busqueda?q=<%= encodeURIComponent(_dn) %>" target="_blank" class="btn btn-sm btn-outline-info"><i class="bi bi-file-text"></i> BORME</a>
+              <a href="https://www.asnef.com/buscar-deudores?q=<%= encodeURIComponent(_dn) %>" target="_blank" class="btn btn-sm btn-outline-danger"><i class="bi bi-exclamation-triangle"></i> ASNEF</a>
+              <a href="https://www.rai.es/consulta?q=<%= encodeURIComponent(_dn) %>" target="_blank" class="btn btn-sm btn-outline-danger"><i class="bi bi-exclamation-circle"></i> RAI</a>
               <a href="https://www.google.com/search?q=<%= encodeURIComponent(_dn + ' morosidad impagos') %>" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-google"></i> Google</a>
             </div>
             <hr>

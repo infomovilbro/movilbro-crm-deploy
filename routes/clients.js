@@ -226,28 +226,30 @@ function mapApiSubscriptions(subArr) {
 function mapApiOrders(orderArr) {
   if (!Array.isArray(orderArr)) return [];
   return orderArr.map(function(o) {
+    // Extraer datos de posibles estructuras anidadas
+    var src = o.data || o.attributes || o.order || o;
+    if (Array.isArray(src)) src = src[0] || src;
     var statusHistory = [];
-    if (Array.isArray(o.statusHistory)) {
-      statusHistory = o.statusHistory;
-    } else if (Array.isArray(o.status_history)) {
-      statusHistory = o.status_history;
-    } else if (Array.isArray(o.history)) {
-      statusHistory = o.history;
-    }
-    var estado = (o.status || o.estado || o.state || 'desconocido').toUpperCase();
+    if (Array.isArray(src.statusHistory)) statusHistory = src.statusHistory;
+    else if (Array.isArray(src.status_history)) statusHistory = src.status_history;
+    else if (Array.isArray(src.history)) statusHistory = src.history;
+    else if (Array.isArray(o.statusHistory)) statusHistory = o.statusHistory;
+    else if (Array.isArray(o.status_history)) statusHistory = o.status_history;
+    else if (Array.isArray(o.history)) statusHistory = o.history;
+    var estado = (src.status || src.estado || src.state || o.status || o.estado || o.state || 'desconocido').toUpperCase();
     var estadoMap = { 'COMPLETED':'Completado','PENDING_PROVIDER':'Pendiente proveedor','PENDING':'Pendiente','PROCESSING':'Procesando','ACTIVE':'Activo','CANCELLED':'Cancelado','CANCELED':'Cancelado','REJECTED':'Rechazado','CREATED':'Creado','DRAFT':'Borrador','ERROR':'Error' };
-    var prodName = o.productName || o.product || o.description || o.service || o.tarifa || o.offerName || o.offer_name || o.planName || o.plan_name || '-';
-    var lineaNum = o.lineNumber || o.line || o.phone || o.numero || o.msisdn || o.fixedNumber || o.linea || '-';
+    var prodName = src.productName || src.product || src.description || src.service || src.tarifa || src.offerName || src.offer_name || src.planName || src.plan_name || o.productName || o.product || '-';
+    var lineaNum = src.lineNumber || src.line || src.phone || src.numero || src.msisdn || src.fixedNumber || src.linea || o.lineNumber || o.line || o.phone || '-';
     return {
-      id: o.id || o.orderId || o.order_id,
-      idShort: (o.id || o.orderId || o.order_id || '').toString().substring(0, 8) + '...',
+      id: src.id || src.orderId || src.order_id || o.id || o.orderId || o.order_id,
+      idShort: (src.id || src.orderId || src.order_id || o.id || o.orderId || o.order_id || '').toString().substring(0, 8) + '...',
       status: estado,
       statusES: estadoMap[estado] || estado,
       productName: prodName,
       lineNumber: lineaNum,
-      total: o.total || o.amount || o.price || o.importe || 0,
-      created: o.created || o.created_at || o.createdAt || o.date || o.fecha || o.fecha_creacion,
-      updated: o.updated || o.updated_at || o.updatedAt || o.modified || o.lastUpdated,
+      total: src.total || src.amount || src.price || src.importe || o.total || o.amount || 0,
+      created: src.created || src.created_at || src.createdAt || src.date || src.fecha || src.fecha_creacion || o.created || o.created_at,
+      updated: src.updated || src.updated_at || src.updatedAt || src.modified || src.lastUpdated || o.updated,
       statusHistory: statusHistory
     };
   });
