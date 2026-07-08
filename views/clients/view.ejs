@@ -23,7 +23,7 @@
     </div>
     <div class="d-flex gap-2 flex-wrap">
       <a href="/clientes/<%= _cid %>/editar" class="btn btn-warning"><i class="bi bi-pencil"></i> Editar</a>
-      <% var fiscalIdLink = apiCustomer.fiscalId || cliente.dni_nif || ''; if (fiscalIdLink) { %><a href="/clientes-movilbro/<%= encodeURIComponent(fiscalIdLink) %>" class="btn btn-outline-primary" title="Ver en Clientes Movilbro">🚀 Movilbro</a><% } %>
+      <button class="btn btn-outline-warning" onclick="openTicketModal()"><i class="bi bi-ticket"></i> Ticket</button>
       <a href="/clientes" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Volver</a>
     </div>
   </div>
@@ -503,7 +503,11 @@
             <a href="/isp/nube" class="btn btn-sm btn-outline-info" target="_blank">
               <i class="bi bi-cloud"></i> Ver nube/Drive
             </a>
+            <button class="btn btn-sm btn-outline-danger" onclick="loadNubeInvoices(<%= _cid %>)">
+              <i class="bi bi-google-drive"></i> Facturas en Drive
+            </button>
           </div>
+          <div id="nubeInvoicesContainer" class="mt-2"></div>
           <% } %>
           <% if (apiInvoices.length > 0) { %>
           <div class="table-responsive">
@@ -601,8 +605,8 @@
                       <i class="bi bi-file-earmark-pdf"></i> Descargar Parte
                     </a>
                     <% } else { %>
-                    <button class="btn btn-sm btn-outline-secondary" disabled title="No disponible">
-                      <i class="bi bi-file-earmark-pdf"></i> Parte
+                    <button class="btn btn-sm btn-outline-secondary fetch-parte-btn" data-installationid="<%= i.installationId || i.id || '' %>" data-clientid="<%= _cid %>" title="Buscar parte en la API">
+                      <i class="bi bi-search"></i> Buscar parte
                     </button>
                     <% } %>
                   </td>
@@ -772,6 +776,18 @@
             </div>
             <% } %>
           <% } %>
+          <!-- KYC Upload buttons -->
+          <hr class="my-3">
+          <h6><i class="bi bi-cloud-upload"></i> Subir documentos KYC</h6>
+          <div class="d-flex flex-wrap gap-1 mb-2" id="kycUploadButtons">
+            <span class="text-muted small me-1" style="line-height:30px;">Subir:</span>
+            <button class="btn btn-sm btn-outline-success" onclick="uploadKycDoc('obverseDocument', this)"><i class="bi bi-camera"></i> DNI anverso</button>
+            <button class="btn btn-sm btn-outline-success" onclick="uploadKycDoc('reverseDocument', this)"><i class="bi bi-camera"></i> DNI reverso</button>
+            <button class="btn btn-sm btn-outline-success" onclick="uploadKycDoc('obverseFace', this)"><i class="bi bi-person"></i> Selfie</button>
+            <button class="btn btn-sm btn-outline-secondary" onclick="uploadKycDoc('otro', this)"><i class="bi bi-plus"></i> Otro</button>
+          </div>
+          <input type="file" id="kycFileInput" accept="image/*,.pdf" style="display:none;">
+          <div id="kycUploadResult" class="small mt-1"></div>
         </div>
 
         <!-- ==================== TAB 7: CONTRATO ==================== -->
@@ -889,6 +905,9 @@
         <a id="instDetParteLink" href="#" target="_blank" class="btn btn-success d-none">
           <i class="bi bi-file-earmark-pdf"></i> Descargar Parte
         </a>
+        <button id="instDetFetchParteBtn" class="btn btn-outline-success d-none" onclick="fetchWorkOrder(this)">
+          <i class="bi bi-search"></i> Buscar parte
+        </button>
         <button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
       </div>
     </div>
@@ -897,22 +916,47 @@
 
 <!-- Scoring Result Modal -->
 <div class="modal fade" id="scoringModal" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title"><i class="bi bi-calculator"></i> Resultado Scoring</h5>
+        <h5 class="modal-title"><i class="bi bi-calculator"></i> Evaluaci&oacute;n de solvencia</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <div class="text-center mb-3">
-          <div style="font-size:3rem;font-weight:bold;" id="scoringResultValue">-</div>
-          <div id="scoringResultRisk" class="mt-1"></div>
-        </div>
-        <hr>
-        <h6><i class="bi bi-list-check"></i> Detalles del cálculo</h6>
-        <ul id="scoringResultDetails" style="max-height:250px;overflow:auto;">
-          <li class="text-muted">Calculando...</li>
+        <ul class="nav nav-tabs mb-2 small" id="scoringTabs">
+          <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#scoringInterno" type="button">Scoring interno</button></li>
+          <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#scoringExterno" type="button">B&uacute;squeda externa</button></li>
         </ul>
+        <div class="tab-content">
+          <div class="tab-pane fade show active" id="scoringInterno">
+            <div class="text-center mb-3">
+              <div style="font-size:3rem;font-weight:bold;" id="scoringResultValue">-</div>
+              <div id="scoringResultRisk" class="mt-1"></div>
+            </div>
+            <hr>
+            <h6><i class="bi bi-list-check"></i> Detalles del c&aacute;lculo</h6>
+            <ul id="scoringResultDetails" style="max-height:250px;overflow:auto;">
+              <li class="text-muted">Calculando...</li>
+            </ul>
+          </div>
+          <div class="tab-pane fade" id="scoringExterno">
+            <p class="small text-muted">Busca gratis en bases de datos p&uacute;blicas de morosidad/impagos:</p>
+            <div class="d-flex flex-wrap gap-2">
+              <% var _dn = (apiCustomer.fiscalId || cliente.dni_nif || '').toUpperCase(); %>
+              <a href="https://www.axesor.es/busqueda-avanzada?q=<%= encodeURIComponent(_dn) %>" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="bi bi-search"></i> Axesor</a>
+              <a href="https://www.infocif.es/busqueda-avanzada?q=<%= encodeURIComponent(_dn) %>" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="bi bi-search"></i> Infocif</a>
+              <a href="https://www.iberinform.es/buscar?q=<%= encodeURIComponent(_dn) %>" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="bi bi-search"></i> Iberinform</a>
+              <a href="https://www.rankia.com/buscar?q=<%= encodeURIComponent(_dn) %>" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="bi bi-search"></i> Rankia</a>
+              <a href="https://librebor.me/search?q=<%= encodeURIComponent(_dn) %>" target="_blank" class="btn btn-sm btn-outline-warning"><i class="bi bi-shield-check"></i> LibreBOR.me</a>
+              <a href="https://www.informa.es/buscar?q=<%= encodeURIComponent(_dn) %>" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="bi bi-search"></i> Informa D&amp;B</a>
+              <a href="https://www.einforma.com/busqueda?q=<%= encodeURIComponent(_dn) %>" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="bi bi-search"></i> Einforma</a>
+              <a href="https://opencorporates.com/companies?q=<%= encodeURIComponent(_dn) %>" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="bi bi-globe"></i> OpenCorporates</a>
+              <a href="https://www.google.com/search?q=<%= encodeURIComponent(_dn + ' morosidad impagos') %>" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-google"></i> Google</a>
+            </div>
+            <hr>
+            <div class="small text-muted"><i class="bi bi-info-circle"></i> Estas webs no est&aacute;n afiliadas al CRM. Los resultados dependen de cada servicio.</div>
+          </div>
+        </div>
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
@@ -945,7 +989,8 @@
           </div>
         </div>
       </div>
-      <div class="modal-footer justify-content-center">
+      <div class="modal-footer justify-content-center gap-2">
+        <button class="btn btn-outline-warning" onclick="generarPinPuk()"><i class="bi bi-arrow-repeat"></i> Generar nuevo PIN/PUK</button>
         <button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
       </div>
     </div>
@@ -1131,12 +1176,211 @@
   </div>
 </div>
 
+<!-- Ticket Modal -->
+<div class="modal fade" id="ticketModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-ticket"></i> Nueva Incidencia</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-2">
+          <label class="form-label small">Tipo <span class="text-danger">*</span></label>
+          <select class="form-select form-select-sm" id="ticketType">
+            <option value="incidencia">Incidencia</option>
+            <option value="consulta">Consulta</option>
+            <option value="reclamacion">Reclamaci&oacute;n</option>
+            <option value="baja">Baja</option>
+          </select>
+        </div>
+        <div class="mb-2">
+          <label class="form-label small">L&iacute;nea</label>
+          <select class="form-select form-select-sm" id="ticketLine">
+            <option value="">Seleccionar l&iacute;nea...</option>
+          </select>
+        </div>
+        <div class="mb-2">
+          <label class="form-label small">Asunto <span class="text-danger">*</span></label>
+          <input type="text" class="form-control form-control-sm" id="ticketSubject" placeholder="Describe brevemente">
+        </div>
+        <div class="mb-2">
+          <label class="form-label small">Descripci&oacute;n</label>
+          <textarea class="form-control form-control-sm" id="ticketDesc" rows="2" placeholder="Detalla la incidencia..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-primary" onclick="submitTicket()"><i class="bi bi-send"></i> Enviar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 function mostrarPinPuk(linea, pin, puk) {
   document.getElementById('pinPukLinea').textContent = linea || '-';
   document.getElementById('pinPukPin').textContent = pin || '-';
   document.getElementById('pinPukPuk').textContent = puk || '-';
+  // Store line for generatePinPuk
+  document.getElementById('pinPukModal').dataset.line = linea || '';
   new bootstrap.Modal(document.getElementById('pinPukModal')).show();
+}
+
+function generarPinPuk() {
+  var line = document.getElementById('pinPukModal').dataset.line;
+  if (!line) return alert('Seleccione una l&iacute;nea');
+  if (!confirm('Generar nuevo PIN/PUK para ' + line + '?')) return;
+  fetch('/clientes/' + clientId + '/line/' + encodeURIComponent(line) + '/generate-pinpuk', { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+      if (res.ok && res.data) {
+        var d = res.data.data || res.data;
+        document.getElementById('pinPukPin').textContent = d.pin || d.pinCode || 'Generado';
+        document.getElementById('pinPukPuk').textContent = d.puk || d.pukCode || 'Generado';
+        alert('Nuevo PIN/PUK generado correctamente');
+      } else {
+        alert('Error: ' + (res.error || 'No se pudo generar'));
+      }
+    })
+    .catch(function(err) { alert('Error: ' + err.message); });
+}
+
+function uploadKycDoc(tipo, btn) {
+  var input = document.getElementById('kycFileInput');
+  input.accept = 'image/*,.pdf';
+  input.onchange = function() {
+    var file = input.files && input.files[0];
+    if (!file) return;
+    var origText = btn.innerHTML;
+    btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Subiendo...';
+    var fd = new FormData();
+    fd.append('file', file);
+    fd.append('tipo', tipo);
+    fetch('/clientes/' + clientId + '/upload-kyc', { method: 'POST', body: fd })
+      .then(function(r) { return r.json(); })
+      .then(function(res) {
+        if (res.ok) {
+          var msg = 'Documento subido' + (res.apiOk ? ' (API + Drive)' : ' (solo Drive)');
+          document.getElementById('kycUploadResult').innerHTML = '<span class="text-success">' + msg + '</span>';
+          setTimeout(function() { location.reload(); }, 1500);
+        } else {
+          alert(res.error || 'Error al subir');
+        }
+        btn.disabled = false; btn.innerHTML = origText;
+      })
+      .catch(function(e) { alert(e.message); btn.disabled = false; btn.innerHTML = origText; });
+  };
+  input.value = '';
+  input.click();
+}
+
+function fetchWorkOrder(btn) {
+  var installId = document.getElementById('instalacionDetailModal').dataset.installId;
+  if (!installId) return alert('ID de instalaci&oacute;n no disponible');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Buscando...';
+  fetch('/clientes/' + clientId + '/installation/' + encodeURIComponent(installId) + '/work-order', { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+      if (res.ok && res.data) {
+        var url = res.data.url || res.data.downloadUrl || res.data.parteUrl || res.data.link || '';
+        if (url) {
+          window.open(url, '_blank');
+          document.getElementById('instDetParteLink').href = url;
+          document.getElementById('instDetParteLink').classList.remove('d-none');
+          btn.parentElement.removeChild(btn);
+        } else {
+          alert('Parte de trabajo encontrado pero sin URL disponible');
+          btn.disabled = false; btn.innerHTML = '<i class="bi bi-search"></i> Buscar parte';
+        }
+      } else {
+        alert(res.error || 'No se encontr&oacute; parte de trabajo');
+        btn.disabled = false; btn.innerHTML = '<i class="bi bi-search"></i> Buscar parte';
+      }
+    })
+    .catch(function(err) {
+      alert('Error: ' + err.message);
+      btn.disabled = false; btn.innerHTML = '<i class="bi bi-search"></i> Buscar parte';
+    });
+}
+
+function openTicketModal() {
+  var sel = document.getElementById('ticketLine');
+  sel.innerHTML = '<option value="">Seleccionar l&iacute;nea...</option>';
+  linesArr.forEach(function(ln) {
+    if (!ln) return;
+    var opt = document.createElement('option');
+    opt.value = ln;
+    opt.textContent = ln;
+    sel.appendChild(opt);
+  });
+  new bootstrap.Modal(document.getElementById('ticketModal')).show();
+}
+
+function submitTicket() {
+  var type = document.getElementById('ticketType').value;
+  var line = document.getElementById('ticketLine').value;
+  var subject = document.getElementById('ticketSubject').value.trim();
+  var desc = document.getElementById('ticketDesc').value.trim();
+  if (!subject) { alert('Escribe un asunto'); return; }
+  var data = { type: type, subject: subject, description: desc || subject };
+  if (line) data.line = line;
+  fetch('/clientes/' + clientId + '/ticket', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(res) {
+    if (res.ok) {
+      alert('Ticket creado correctamente');
+      bootstrap.Modal.getInstance(document.getElementById('ticketModal')).hide();
+      document.getElementById('ticketSubject').value = '';
+      document.getElementById('ticketDesc').value = '';
+    } else {
+      alert(res.error || 'Error al crear ticket');
+    }
+  })
+  .catch(function(e) { alert(e.message); });
+}
+
+function loadNubeInvoices(cid) {
+  var container = document.getElementById('nubeInvoicesContainer');
+  container.innerHTML = '<div class="text-center py-3"><span class="spinner-border spinner-border-sm me-2"></span>Buscando en Drive...</div>';
+  fetch('/clientes/' + cid + '/drive-invoices')
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+      if (!res.ok || !res.data || res.data.length === 0) {
+        container.innerHTML = '<div class="small text-muted py-2"><i class="bi bi-inbox"></i> No se encontraron facturas en Drive para este cliente.</div>';
+        return;
+      }
+      var html = '<div class="small text-muted mb-1">' + (res.total || res.data.length) + ' archivos encontrados</div><div class="accordion" id="nubeAccordion">';
+      res.data.forEach(function(group, idx) {
+        var collapseId = 'nubeCollapse' + idx;
+        var headingId = 'nubeHeading' + idx;
+        var monthNames = { '01':'Enero','02':'Febrero','03':'Marzo','04':'Abril','05':'Mayo','06':'Junio','07':'Julio','08':'Agosto','09':'Septiembre','10':'Octubre','11':'Noviembre','12':'Diciembre' };
+        var monthLabel = monthNames[group.month] || group.month;
+        html += '<div class="accordion-item" style="border:1px solid #e0e0e0;">' +
+          '<h2 class="accordion-header" id="' + headingId + '">' +
+            '<button class="accordion-button collapsed small py-2" data-bs-toggle="collapse" data-bs-target="#' + collapseId + '">' +
+              '<i class="bi bi-folder me-1"></i> ' + group.year + ' - ' + monthLabel + ' <span class="badge bg-secondary ms-2">' + group.files.length + '</span>' +
+            '</button></h2>' +
+          '<div id="' + collapseId + '" class="accordion-collapse collapse" data-bs-parent="#nubeAccordion">' +
+            '<div class="accordion-body p-1">';
+        group.files.forEach(function(f) {
+          var sizeStr = f.size ? (parseInt(f.size) / 1024).toFixed(0) + ' KB' : '';
+          html += '<div class="d-flex justify-content-between align-items-center px-2 py-1 small" style="border-bottom:1px solid #f0f0f0;">' +
+            '<span><i class="bi bi-file-pdf text-danger me-1"></i> ' + f.fileName + ' <span class="text-muted">' + sizeStr + '</span></span>' +
+            '<a href="' + f.link + '" target="_blank" class="btn btn-sm btn-outline-danger py-0 px-1"><i class="bi bi-download"></i></a>' +
+          '</div>';
+        });
+        html += '</div></div></div>';
+      });
+      html += '</div>';
+      container.innerHTML = html;
+    })
+    .catch(function(e) {
+      container.innerHTML = '<div class="alert alert-danger small py-1">Error: ' + e.message + '</div>';
+    });
 }
 
 function editarCampo(campo, clienteId) {
@@ -1280,12 +1524,18 @@ document.addEventListener('DOMContentLoaded', function() {
       // Parte link
       var parteUrl = this.dataset.parteUrl || '';
       var parteLink = document.getElementById('instDetParteLink');
+      var fetchBtn = document.getElementById('instDetFetchParteBtn');
+      var installId = this.dataset.installationid || this.dataset.id || '';
+      document.getElementById('instalacionDetailModal').dataset.installId = installId;
       if (parteUrl) {
         parteLink.href = parteUrl;
         parteLink.classList.remove('d-none');
+        if (fetchBtn) fetchBtn.classList.add('d-none');
       } else {
         parteLink.href = '#';
         parteLink.classList.add('d-none');
+        if (fetchBtn && installId) fetchBtn.classList.remove('d-none');
+        else if (fetchBtn) fetchBtn.classList.add('d-none');
       }
       // History
       var historyDiv = document.getElementById('instDetHistory');
@@ -1311,6 +1561,38 @@ document.addEventListener('DOMContentLoaded', function() {
       } catch(e) { historyDiv.innerHTML = '<div class="text-center text-muted py-2">Sin historial</div>'; }
 
       new bootstrap.Modal(document.getElementById('instalacionDetailModal')).show();
+    });
+  });
+
+  // ========== FETCH PARTE DE TRABAJO ==========
+  document.querySelectorAll('.fetch-parte-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var installId = this.dataset.installationid;
+      var cid = this.dataset.clientid || clientId;
+      if (!installId) { alert('ID de instalaci&oacute;n no disponible'); return; }
+      this.disabled = true;
+      this.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+      fetch('/clientes/' + cid + '/installation/' + encodeURIComponent(installId) + '/work-order', { method: 'POST' })
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+          if (res.ok && res.data) {
+            var url = res.data.url || res.data.downloadUrl || res.data.parteUrl || res.data.link || '';
+            if (url) {
+              window.open(url, '_blank');
+              btn.outerHTML = '<a href="' + url + '" target="_blank" class="btn btn-sm btn-outline-success"><i class="bi bi-file-earmark-pdf"></i> Descargar Parte</a>';
+            } else {
+              alert('Parte encontrado pero sin URL');
+              btn.disabled = false; btn.innerHTML = '<i class="bi bi-search"></i> Buscar parte';
+            }
+          } else {
+            alert(res.error || 'No se encontr&oacute; parte de trabajo');
+            btn.disabled = false; btn.innerHTML = '<i class="bi bi-search"></i> Buscar parte';
+          }
+        })
+        .catch(function(err) {
+          alert('Error: ' + err.message);
+          btn.disabled = false; btn.innerHTML = '<i class="bi bi-search"></i> Buscar parte';
+        });
     });
   });
 

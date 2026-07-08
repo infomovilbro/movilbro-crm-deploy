@@ -104,7 +104,19 @@ function getAuth() {
   if (oauthCfg) console.log('[Drive] OAuth config found, has refresh_token:', !!oauthCfg.refresh_token);
   if (!oauthCfg && !keyFile) console.log('[Drive] No auth credentials found - check DRIVE_KEY_JSON or DRIVE_OAUTH_JSON env vars');
 
-  // Try service account first (more reliable than OAuth)
+  // Try OAuth first (can write to Drive, unlike Service Account)
+  if (oauthCfg && oauthCfg.refresh_token && oauthCfg.client_id && oauthCfg.client_secret) {
+    try {
+      const oauth2Client = new google.auth.OAuth2(oauthCfg.client_id, oauthCfg.client_secret, 'urn:ietf:wg:oauth:2.0:oob');
+      oauth2Client.setCredentials({ refresh_token: oauthCfg.refresh_token });
+      console.log('[Drive] Using OAuth auth (can write to Drive)');
+      return oauth2Client;
+    } catch (e) {
+      console.error('[Drive] OAuth auth error:', e.message);
+    }
+  }
+
+  // Fallback to Service Account (read-only for regular Drive folders)
   if (keyFile && keyFile.client_email) {
     try {
       console.log('[Drive] Using service account auth with email:', keyFile.client_email);
@@ -115,17 +127,6 @@ function getAuth() {
       return auth;
     } catch (e) {
       console.error('[Drive] Service account auth error:', e.message);
-    }
-  }
-
-  // Fallback to OAuth if service account not available
-  if (oauthCfg && oauthCfg.refresh_token && oauthCfg.client_id && oauthCfg.client_secret) {
-    try {
-      const oauth2Client = new google.auth.OAuth2(oauthCfg.client_id, oauthCfg.client_secret, 'urn:ietf:wg:oauth:2.0:oob');
-      oauth2Client.setCredentials({ refresh_token: oauthCfg.refresh_token });
-      return oauth2Client;
-    } catch (e) {
-      console.error('[Drive] OAuth auth error:', e.message);
     }
   }
 

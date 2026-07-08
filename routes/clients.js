@@ -2,7 +2,14 @@ const express = require('express');
 const { db } = require('../database');
 const { requireAuth } = require('../middleware/auth');
 const LikesAPI = require('../likes-api');
+const drive = require('../helpers/drive');
+const multer = require('multer');
+const fs = require('fs');
+const path = require('path');
 const router = express.Router();
+var uploadsDir = path.join(__dirname, '..', 'public', 'uploads', 'cm-docs');
+try { if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true }); } catch(e) {}
+var cmUpload = multer({ dest: uploadsDir });
 
 // Test endpoint to debug API customers count
 router.get('/api-test', requireAuth, async (req, res) => {
@@ -1213,6 +1220,344 @@ router.get('/:id/kyc', requireAuth, async (req, res) => {
     res.json({ ok: true, data: result });
   } catch(e) {
     res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ============================================================
+// NUEVOS ENDPOINTS (migrados de clientes-movilbro)
+// ============================================================
+
+// Buscar cliente por teléfono (para CodeOpen overlay)
+router.get('/api/find-by-phone/:phone', requireAuth, async (req, res) => {
+  try {
+    var phone = req.params.phone.replace(/[^0-9]/g, '');
+    if (phone.length < 9) return res.json({ ok: false });
+    var api = LikesAPI.getApiInstance();
+    var customers = await api.getCustomers();
+    if (Array.isArray(customers)) {
+      for (var c of customers) {
+        var cPhone = String(c.phone || c.mobile || c.telefono || c.contactInfo?.phone || '').replace(/[^0-9]/g, '');
+        if (cPhone && (cPhone.includes(phone) || phone.includes(cPhone) || phone.slice(-9) === cPhone.slice(-9))) {
+          var fiscalId = c.fiscalId || c.fiscal_id || c.dni || c.fiscalNumber || '';
+          if (fiscalId) return res.json({ ok: true, fiscalId: fiscalId, name: c.name || c.firstName || '' });
+        }
+      }
+    }
+    res.json({ ok: false });
+  } catch(e) {
+    res.json({ ok: false, error: e.message });
+  }
+});
+
+// PIN/PUK con 4 fallbacks
+router.post('/:id/line/:line/pinpuk', requireAuth, async (req, res) => {
+  var api = LikesAPI.getApiInstance();
+  var lineNum = req.params.line;
+  try {
+    var pp = await api.getLinePINPUK(lineNum);
+    if (pp) {
+      var ppd = pp.data || pp;
+      if (Array.isArray(ppd)) ppd = ppd[0];
+      if (ppd && (ppd.pin || ppd.puk || ppd.pinCode || ppd.pukCode)) return res.json({ ok: true, data: ppd });
+    }
+  } catch(e) {}
+  try {
+    var li = await api.getLineInfo(lineNum);
+    if (li) {
+      var lid = li.data || li;
+      if (Array.isArray(lid)) lid = lid[0];
+      if (lid && (lid.pin || lid.puk)) return res.json({ ok: true, data: lid });
+    }
+  } catch(e2) {}
+  try {
+    var sim = await api.request('GET', '/line/sim?lineNumber=' + encodeURIComponent(lineNum));
+    if (sim) {
+      var simd = sim.data || sim;
+      if (Array.isArray(simd)) simd = simd[0];
+      if (simd && (simd.pin || simd.puk || simd.pinCode || simd.pukCode)) return res.json({ ok: true, data: simd });
+    }
+  } catch(e3) {}
+  try {
+    var inf2 = await api.request('GET', '/line?lineNumber=' + encodeURIComponent(lineNum) + '&withSims=true');
+    if (inf2) {
+      var i2d = inf2.data || inf2;
+      if (Array.isArray(i2d)) i2d = i2d[0];
+      if (i2d && (i2d.pin || i2d.puk)) return res.json({ ok: true, data: i2d });
+    }
+  } catch(e4) {}
+  res.json({ ok: false, error: 'No se pudo obtener PIN/PUK tras 4 intentos' });
+});
+
+// Generar nuevo PIN/PUK
+router.post('/:id/line/:line/generate-pinpuk', requireAuth, async (req, res) => {
+  try {
+    var api = LikesAPI.getApiInstance();
+    var result = await api.request('POST', '/line/generatePinPuk', { lineNumber: req.params.line });
+    res.json({ ok: true, data: result && result.data ? result.data : result });
+  } catch(e) {
+    res.json({ ok: false, error: e.message });
+  }
+});
+
+// Full consumption: GB + CDRs + PINPUK + Info + SVAs + SIM
+router.post('/:id/line/:line/full-consumption', requireAuth, async (req, res) => {
+  try {
+    var api = LikesAPI.getApiInstance();
+    var lineNumber = req.params.line;
+    var results = { gb: null, pinpuk: null, lineInfo: null, svas: [], cdrs: [], sim: null };
+    try { var gb = await api.getLineGB(lineNumber); results.gb = gb && gb.data ? gb.data : gb; } catch(e) {}
+    try { var cdrs = await api.getLineCDRs(lineNumber); results.cdrs = Array.isArray(cdrs) ? cdrs : (cdrs && cdrs.data ? cdrs.data : []); } catch(e) {}
+    try { var pinpuk = await api.getLinePINPUK(lineNumber); results.pinpuk = pinpuk && pinpuk.data ? pinpuk.data : pinpuk; } catch(e) {}
+    try { var info = await api.getLineInfo(lineNumber); results.lineInfo = Array.isArray(info) ? info[0] : (info && info.data ? info.data : info); } catch(e) {}
+    try { var svas = await api.getLineSVAs(lineNumber); results.svas = Array.isArray(svas) ? svas : (svas && svas.data ? svas.data : []); } catch(e) {}
+    try { var sim = await api.request('GET', '/line/sim?lineNumber=' + encodeURIComponent(lineNumber)); results.sim = sim && sim.data ? sim.data : sim; } catch(e) {}
+    res.json({ ok: true, data: results });
+  } catch(e) {
+    res.json({ ok: false, error: e.message });
+  }
+});
+
+// SVAs (roaming, etc.)
+router.post('/:id/line/:line/svas', requireAuth, async (req, res) => {
+  try {
+    var api = LikesAPI.getApiInstance();
+    var result = await api.updateLineSVAs(req.params.line, req.body);
+    res.json({ ok: true, data: result });
+  } catch(e) {
+    res.json({ ok: false, error: e.message });
+  }
+});
+
+// Crear ticket
+router.post('/:id/ticket', requireAuth, async (req, res) => {
+  try {
+    var api = LikesAPI.getApiInstance();
+    var cliente = db.prepare("SELECT * FROM clients WHERE id=?").get(req.params.id);
+    if (!cliente) cliente = db.prepare("SELECT * FROM clients WHERE dni_nif=?").get(req.params.id);
+    var fiscalId = (cliente && (cliente.dni_nif || cliente.likes_customer_id)) || req.params.id;
+    var result = await api.createTicket({ fiscalId: fiscalId, ...req.body });
+    res.json({ ok: true, data: result });
+  } catch(e) {
+    res.json({ ok: false, error: e.message });
+  }
+});
+
+// Productos opcionales compatibles (bonos)
+router.get('/:id/line/:line/compatible-optional-products', requireAuth, async (req, res) => {
+  try {
+    var api = LikesAPI.getApiInstance();
+    var cliente = db.prepare("SELECT * FROM clients WHERE id=?").get(req.params.id);
+    if (!cliente) cliente = db.prepare("SELECT * FROM clients WHERE dni_nif=?").get(req.params.id);
+    var fiscalId = (cliente && (cliente.dni_nif || cliente.likes_customer_id)) || req.params.id;
+    var optional = await api.request('GET', '/subscription/getCompatibleOptionalProducts?fiscalId=' + encodeURIComponent(fiscalId) + '&lineNumber=' + encodeURIComponent(req.params.line));
+    var products = optional && optional.data ? optional.data : (Array.isArray(optional) ? optional : []);
+    res.json({ ok: true, data: products });
+  } catch(e) {
+    res.json({ ok: false, error: e.message });
+  }
+});
+
+// Añadir producto opcional (bono)
+router.post('/:id/line/:line/add-optional-product', requireAuth, async (req, res) => {
+  try {
+    var api = LikesAPI.getApiInstance();
+    var cliente = db.prepare("SELECT * FROM clients WHERE id=?").get(req.params.id);
+    if (!cliente) cliente = db.prepare("SELECT * FROM clients WHERE dni_nif=?").get(req.params.id);
+    var fiscalId = (cliente && (cliente.dni_nif || cliente.likes_customer_id)) || req.params.id;
+    var result = await api.addOptionalProduct({ fiscalId: fiscalId, lineNumber: req.params.line, ...req.body });
+    res.json({ ok: true, data: result });
+  } catch(e) {
+    res.json({ ok: false, error: e.message });
+  }
+});
+
+// Tipologías de tickets
+router.get('/:id/ticket-typologies', requireAuth, async (req, res) => {
+  try {
+    var api = LikesAPI.getApiInstance();
+    var result = await api.getTicketTypologies();
+    res.json({ ok: true, data: Array.isArray(result) ? result : (result && result.data ? result.data : []) });
+  } catch(e) {
+    res.json({ ok: false, error: e.message });
+  }
+});
+
+// Subir documento KYC
+router.post('/:id/upload-kyc', requireAuth, cmUpload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ ok: false, error: 'No se recibió archivo' });
+    var cliente = db.prepare("SELECT * FROM clients WHERE id=?").get(req.params.id);
+    if (!cliente) cliente = db.prepare("SELECT * FROM clients WHERE dni_nif=?").get(req.params.id);
+    var fiscalId = (cliente && (cliente.dni_nif || cliente.likes_customer_id)) || req.params.id;
+    var tipo = req.body.tipo || 'obverseDocument';
+    var api = LikesAPI.getApiInstance();
+    var fileBuf = fs.readFileSync(req.file.path);
+    var apiOk = false, driveId = null, driveLink = '';
+    try {
+      var custResp = await api.getCustomerDocuments(fiscalId);
+      var cust = custResp && custResp.data ? custResp.data : custResp;
+      var docs = Array.isArray(cust.documentation) ? cust.documentation : (Array.isArray(cust.documents) ? cust.documents : []);
+      var docInfo = docs.find(function(d) { return (d.type === tipo || d.documentType === tipo); }) || docs[0];
+      if (docInfo && docInfo.uploadURL) {
+        var axios = require('axios');
+        await axios.put(docInfo.uploadURL, fileBuf, { headers: { 'Content-Type': req.file.mimetype || 'image/jpeg' } });
+        apiOk = true;
+      }
+    } catch(apiErr) { console.error('[Clientes] API KYC upload error:', apiErr.message); }
+    try {
+      if (drive.isAvailable()) {
+        var folderName = 'KYC_' + fiscalId.replace(/[^a-zA-Z0-9]/g, '_');
+        var driveRootId = process.env.DRIVE_ROOT_FOLDER_ID || '1JrStvTy-l0msOmfwT1S0Jupg6Ru6Zemx';
+        var kycFolder = await drive.ensureFolder(driveRootId, folderName);
+        if (kycFolder) {
+          var google = require('googleapis').google;
+          var d2 = google.drive({ version: 'v3', auth: drive.getAuth() });
+          var result = await d2.files.create({
+            requestBody: { name: (req.file.originalname || tipo + '_' + Date.now() + '.jpg'), parents: [kycFolder] },
+            media: { mimeType: req.file.mimetype || 'image/jpeg', body: fs.createReadStream(req.file.path) },
+            fields: 'id, webViewLink'
+          });
+          if (result && result.data) { driveId = result.data.id; driveLink = result.data.webViewLink; }
+        }
+      }
+    } catch(driveErr) { console.error('[Clientes] Drive KYC upload error:', driveErr.message); }
+    try { fs.unlinkSync(req.file.path); } catch(e) {}
+    res.json({ ok: true, message: 'Documento subido' + (apiOk ? ' (API + Drive)' : ' (solo Drive)'), apiOk: apiOk, driveId: driveId, driveLink: driveLink });
+  } catch(e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Subir contrato firmado
+router.post('/:id/upload-contract', requireAuth, cmUpload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ ok: false, error: 'No se recibió archivo' });
+    var cliente = db.prepare("SELECT * FROM clients WHERE id=?").get(req.params.id);
+    if (!cliente) cliente = db.prepare("SELECT * FROM clients WHERE dni_nif=?").get(req.params.id);
+    var fiscalId = (cliente && (cliente.dni_nif || cliente.likes_customer_id)) || req.params.id;
+    var api = LikesAPI.getApiInstance();
+    var fileBuf = fs.readFileSync(req.file.path);
+    var apiOk = false, driveId = null, driveLink = '';
+    try {
+      var custResp = await api.getCustomerDocuments(fiscalId);
+      var cust = custResp && custResp.data ? custResp.data : custResp;
+      var docs = Array.isArray(cust.documentation) ? cust.documentation : (Array.isArray(cust.documents) ? cust.documents : []);
+      var docFirma = docs.find(function(d) { var t = (d.type || d.documentType || '').toLowerCase(); return t.includes('firma') || t.includes('contract') || t.includes('contrato'); });
+      if (docFirma && docFirma.uploadURL) {
+        var axios = require('axios');
+        await axios.put(docFirma.uploadURL, fileBuf, { headers: { 'Content-Type': 'application/pdf' } });
+        apiOk = true;
+      }
+    } catch(apiErr) { console.error('[Clientes] API contract upload error:', apiErr.message); }
+    try {
+      if (drive.isAvailable()) {
+        var now = new Date();
+        var year = now.getFullYear(), month = String(now.getMonth() + 1).padStart(2, '0');
+        var uploadResult = await drive.uploadToDrive(fileBuf, 'contrato_' + fiscalId + '_' + Date.now() + '.pdf', year, month);
+        if (uploadResult) { driveId = uploadResult.id; driveLink = uploadResult.webViewLink; }
+      }
+    } catch(driveErr) { console.error('[Clientes] Drive contract upload error:', driveErr.message); }
+    try { fs.unlinkSync(req.file.path); } catch(e) {}
+    res.json({ ok: true, message: 'Contrato subido' + (apiOk ? ' (API + Drive)' : ' (solo Drive)'), apiOk: apiOk, driveId: driveId, driveLink: driveLink });
+  } catch(e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Calcular scoring online
+router.post('/:id/calculate-scoring', requireAuth, async (req, res) => {
+  try {
+    var cliente = db.prepare("SELECT * FROM clients WHERE id=?").get(req.params.id);
+    if (!cliente) cliente = db.prepare("SELECT * FROM clients WHERE dni_nif=?").get(req.params.id);
+    var fiscalId = (cliente && (cliente.dni_nif || cliente.likes_customer_id)) || req.params.id;
+    var api = LikesAPI.getApiInstance();
+    var detalles = [];
+    var puntuacion = 5;
+    var riesgo = 'medio';
+    try {
+      var custResp = await api.request('GET', '/customer?fiscalId=' + encodeURIComponent(fiscalId));
+      var custData = custResp.data || custResp;
+      var sc = parseFloat(custData.scoring || custData.score || custData.creditScore || custData.rating || -1);
+      if (sc >= 0) { puntuacion = sc; detalles.push('Scoring API Likes: ' + sc + '/10'); }
+      if (custData.aeatStatus) {
+        detalles.push('AEAT: ' + custData.aeatStatus);
+        if (custData.aeatStatus.toLowerCase().includes('ok') || custData.aeatStatus.toLowerCase().includes('valid')) puntuacion += 1;
+        else puntuacion -= 1;
+      }
+    } catch(e) { detalles.push('Sin scoring de API Likes'); }
+    try {
+      var facRow = db.prepare("SELECT COUNT(*) as total, SUM(CASE WHEN estado='pagada' OR estado='paid' OR pagado=1 THEN 1 ELSE 0 END) as pagadas FROM isp_facturas WHERE fiscal_id=?").get(fiscalId);
+      if (facRow && facRow.total > 0) {
+        var ratio = facRow.pagadas / facRow.total;
+        detalles.push(facRow.pagadas + '/' + facRow.total + ' facturas pagadas (' + Math.round(ratio*100) + '%)');
+        if (ratio >= 0.9) puntuacion += 2;
+        else if (ratio >= 0.7) puntuacion += 1;
+        else puntuacion -= 1;
+      } else { detalles.push('Sin historial de facturas ISP'); }
+    } catch(e) {}
+    var dniClean = fiscalId.toUpperCase().replace(/[^0-9A-Z]/g, '');
+    if (/^\d{8}[A-Z]$/.test(dniClean)) { puntuacion += 1; detalles.push('DNI/NIF válido'); }
+    else if (dniClean) { puntuacion -= 1; detalles.push('DNI/NIF formato inválido'); }
+    puntuacion = Math.max(1, Math.min(10, Math.round(puntuacion)));
+    if (puntuacion >= 7) riesgo = 'bajo';
+    else if (puntuacion >= 4) riesgo = 'medio';
+    else riesgo = 'alto';
+    res.json({ ok: true, fiscalId: fiscalId, scoring: puntuacion, risk: riesgo, detalles: detalles, fiable: riesgo === 'bajo', recomendacion: riesgo === 'alto' ? '⚠️ Revisar antes de nueva contratación' : (riesgo === 'medio' ? '➡️ Cliente estándar' : '✅ Cliente confiable') });
+  } catch(e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Facturas en Drive (nube)
+router.get('/:id/drive-invoices', requireAuth, async (req, res) => {
+  try {
+    var cliente = db.prepare("SELECT * FROM clients WHERE id=?").get(req.params.id);
+    if (!cliente) cliente = db.prepare("SELECT * FROM clients WHERE dni_nif=?").get(req.params.id);
+    var fiscalId = (cliente && (cliente.dni_nif || cliente.likes_customer_id)) || req.params.id;
+    if (!drive.isAvailable()) return res.json({ ok: false, error: 'Drive no disponible' });
+    var nubeId = await drive.getNubeFolderId();
+    if (!nubeId) return res.json({ ok: false, error: 'No se encontró carpeta nube' });
+    var years = await drive.listFolderContents(nubeId);
+    var result = [];
+    for (var y of years) {
+      if (!y.isFolder) continue;
+      var months = await drive.listFolderContents(y.id);
+      for (var m of months) {
+        if (!m.isFolder) continue;
+        var files = await drive.listFolderContents(m.id);
+        var idLower = fiscalId.toLowerCase().replace(/[^0-9a-z]/g, '');
+        var matching = files.filter(function(f) {
+          if (f.isFolder) return false;
+          return f.name.toLowerCase().includes(idLower);
+        });
+        matching.forEach(function(f) {
+          result.push({ fileName: f.name, year: y.name, month: m.name, driveId: f.id, size: f.size, created: f.created, link: f.link || ('https://drive.google.com/file/d/' + f.id + '/view') });
+        });
+      }
+    }
+    var grouped = {};
+    result.forEach(function(f) {
+      var key = f.year + '-' + f.month;
+      if (!grouped[key]) grouped[key] = { year: f.year, month: f.month, files: [] };
+      grouped[key].files.push(f);
+    });
+    var keys = Object.keys(grouped).sort().reverse();
+    res.json({ ok: true, data: keys.map(function(k) { return grouped[k]; }), total: result.length });
+  } catch(e) {
+    console.error('[Clientes] drive-invoices error:', e.message);
+    res.json({ ok: false, error: e.message });
+  }
+});
+
+// Obtener parte de trabajo de instalación
+router.post('/:id/installation/:installId/work-order', requireAuth, async (req, res) => {
+  try {
+    var api = LikesAPI.getApiInstance();
+    var workOrder = await api.getInstallationWorkOrder(req.params.installId);
+    if (!workOrder) return res.json({ ok: false, error: 'No se encontró parte de trabajo' });
+    res.json({ ok: true, data: workOrder });
+  } catch(e) {
+    res.json({ ok: false, error: e.message });
   }
 });
 

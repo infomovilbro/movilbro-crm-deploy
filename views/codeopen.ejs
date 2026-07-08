@@ -861,7 +861,11 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
 
   function escHtml(s) {
     if (!s) return '';
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+  }
+  function cssSafe(s) {
+    if (!s) return '';
+    return String(s).replace(/@/g,'_at_').replace(/\./g,'_dot_');
   }
 
   els.askInput.addEventListener('keydown', function(e) {
@@ -1176,7 +1180,7 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
         '<div class="crm-actions-wrapper" style="position:relative;display:inline-block;">' +
         '<button class="btn-crm-actions" data-address="' + escHtml(g.address) + '" data-name="' + escHtml(g.contact) + '" style="background:none;border:1px solid var(--accent);border-radius:8px;padding:4px 8px;cursor:pointer;font-size:0.7rem;color:var(--accent);white-space:nowrap;" title="Abrir ficha del cliente"><i class="ri-external-link-line"></i> Ficha</button>' +
         '</div>' +
-        '<span class="client-actions-' + escHtml(g.address) + '" style="display:none;"></span>' +
+        '<span class="client-actions-' + cssSafe(g.address) + '" style="display:none;"></span>' +
         '<button class="btn-delete-contact" data-address="' + escHtml(g.address) + '" style="background:none;border:1px solid var(--error);border-radius:8px;padding:4px 8px;cursor:pointer;font-size:0.7rem;color:var(--error);white-space:nowrap;" title="Borrar todos los mensajes de este contacto"><i class="ri-delete-bin-line"></i></button>' +
         '<i class="ri-arrow-down-s-line" style="font-size:1.2rem;color:var(--text-dim);transition:transform 0.2s;"></i></div>' +
         '<div class="wa-contact-messages" style="display:none;border-top:1px solid var(--border);padding:8px 16px 12px;"></div>';
@@ -1227,7 +1231,7 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
               .then(function(r) { return r.json(); })
               .then(function(info) {
                   if (info && info.found) {
-                    var container = document.querySelector('.client-actions-' + escHtml(addr));
+                    var container = document.querySelector('.client-actions-' + cssSafe(addr));
                     if (container) {
                       container.style.display = 'inline-flex';
                       container.style.gap = '4px';
@@ -1512,7 +1516,7 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
     var existing = document.querySelector('.crm-dropdown');
     if (existing) { existing.remove(); return; }
     if (!fiscalId) {
-      fetch('/clientes-movilbro/api/find-by-phone/' + phone)
+      fetch('/clientes/api/find-by-phone/' + phone)
         .then(function(r) { return r.json(); })
         .then(function(d) {
           if (d && d.ok && d.fiscalId) {
@@ -1546,16 +1550,20 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
       };
       var showCRM = fid && fid !== phone;
       dd.innerHTML = '<div style="padding:6px 10px;font-size:0.7rem;color:var(--text-faint);border-bottom:1px solid var(--border);margin-bottom:4px;">' + esc(name) + ' (' + esc(phone) + ')</div>' +
-        (showCRM ? lienzo('ri-user-line', 'Ficha cliente', '/clientes-movilbro/' + encodeURIComponent(fid)) : '') +
+        (showCRM ? lienzo('ri-user-line', 'Ficha cliente', '/clientes/fiscal/' + encodeURIComponent(fid)) : '') +
         (showCRM ? lienzo('ri-receipt-line', 'Facturaci\u00f3n', '/isp/facturacion?fiscalId=' + encodeURIComponent(fid)) : '') +
         lienzo('ri-file-list-3-line', 'Contratos', '/isp/contratos?search=' + searchTerm) +
-        (showCRM ? lienzo('ri-price-tag-3-line', 'Tarifas', '/clientes-movilbro/' + encodeURIComponent(fid)) : '') +
+        (showCRM ? lienzo('ri-price-tag-3-line', 'Tarifas', '/clientes/fiscal/' + encodeURIComponent(fid)) : '') +
         (showCRM ? lienzo('ri-phone-line', 'CDRs', '/isp/cdrs?fiscal=' + encodeURIComponent(fid) + '&show=1') : '') +
-        (showCRM ? lienzo('ri-key-2-line', 'PIN/PUK', '/clientes-movilbro/' + encodeURIComponent(fid) + '#lineas') : '') +
-        (showCRM ? lienzo('ri-tools-line', 'Instalaci\u00f3n', '/clientes-movilbro/' + encodeURIComponent(fid) + '#instalaciones') : '') +
-        (showCRM ? lienzo('ri-file-shield-2-line', 'Documentos KYC', '/clientes-movilbro/' + encodeURIComponent(fid) + '#kyc') : '') +
-        (showCRM ? lienzo('ri-bar-chart-2-line', 'Consumo', '/clientes-movilbro/' + encodeURIComponent(fid) + '#lineas') : '') +
-        (showCRM ? lienzo('ri-exchange-line', 'Cambiar Tarifa', '/clientes-movilbro/' + encodeURIComponent(fid) + '#lineas') : '');
+        (showCRM ? lienzo('ri-key-2-line', 'PIN/PUK', '/clientes/fiscal/' + encodeURIComponent(fid) + '#lineas') : '') +
+        (showCRM ? lienzo('ri-tools-line', 'Instalaci\u00f3n', '/clientes/fiscal/' + encodeURIComponent(fid) + '#instalaciones') : '') +
+        (showCRM ? lienzo('ri-file-shield-2-line', 'Documentos KYC', '/clientes/fiscal/' + encodeURIComponent(fid) + '#kyc') : '') +
+        (showCRM ? lienzo('ri-bar-chart-2-line', 'Consumo', '/clientes/fiscal/' + encodeURIComponent(fid) + '#lineas') : '') +
+        (showCRM ? lienzo('ri-exchange-line', 'Cambiar Tarifa', '/clientes/fiscal/' + encodeURIComponent(fid) + '#lineas') : '') +
+        (showCRM ? lienzo('ri-cloud-line', 'Documentos/Nube', '/isp/nube?fiscal=' + encodeURIComponent(fid)) : '') +
+        (showCRM ? lienzo('ri-wifi-line', 'Cobertura', '/coverage') : '') +
+        (showCRM ? lienzo('ri-eye-line', 'Portal Cliente', '/portal') : '') +
+        (showCRM ? lienzo('ri-add-circle-line', 'Nueva Alta', '/altas') : '');
       document.body.appendChild(dd);
       var closeDD = function(e2) { if (!dd.contains(e2.target) && e2.target !== btn) { dd.remove(); document.removeEventListener('click', closeDD); } };
       setTimeout(function() { document.addEventListener('click', closeDD); }, 100);

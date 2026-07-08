@@ -28,7 +28,6 @@ const { loadSettings } = require('./middleware/settings-loader');
 const { runSync, getProgress } = require('./auto-sync');
 const authRoutes = require('./routes/auth');
 const clientRoutes = require('./routes/clients');
-const cmRoutes = require('./routes/clientes-movilbro');
 const orderRoutes = require('./routes/orders');
 const subscriptionRoutes = require('./routes/subscriptions');
 const ticketRoutes = require('./routes/tickets');
@@ -341,7 +340,6 @@ app.post('/api/save-setting', function(req, res) {
 app.use('/altas', requireRole(), altasRoutes);
 app.use('/kpis', requireRole(), kpiRoutes);
 app.use('/clientes', requireRole(), clientRoutes);
-app.use('/clientes-movilbro', requireRole(), cmRoutes);
 app.use('/products', requireRole(), productRoutes);
 app.use('/productos', requireRole(), productRoutes);
 app.use('/subscriptions', requireRole(), subscriptionRoutes);
