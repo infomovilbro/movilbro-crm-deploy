@@ -245,7 +245,7 @@
                     <% apiSubscriptions.forEach(function(s) { %>
                       <% var prods = s.products && s.products.length ? s.products : [{productName: s.productName, lineNumber: s.lineNumber, status: s.status, icc: s.icc}]; %>
                       <% prods.forEach(function(p) { %>
-                        <% var est = (p.status || s.status || 'activa').toLowerCase(); %>
+                        <% var est = (p.status || s.status || 'activa').toLowerCase(); if (est === 'terminada' || est === 'baja' || est === 'cancelled' || est === 'cancelada') return; %>
                         <div class="d-flex align-items-center justify-content-between mb-1 pb-1 border-bottom">
                           <div>
                             <strong><%= p.lineNumber || s.lineNumber || 'Nueva línea' %></strong><br>
@@ -315,6 +315,7 @@
                 <% var prods = s.products && s.products.length ? s.products : [{productName: s.productName, lineNumber: s.lineNumber, status: s.status, icc: s.icc}]; %>
                 <% prods.forEach(function(p) { %>
                 <% var linea = p.lineNumber || s.lineNumber || ''; %>
+                <% var _est = (p.status || s.status || '').toLowerCase(); if (_est === 'terminada' || _est === 'baja' || _est === 'cancelled' || _est === 'cancelada') return; %>
                 <tr>
                   <td>
                     <% var pname = (p.productName || s.productName || '').toLowerCase(); %>
@@ -354,6 +355,7 @@
                 <% }); %>
                 <% }); %>
                 <% lineas.forEach(function(l) { %>
+                <% var _lest = (l.estado || '').toLowerCase(); if (_lest === 'terminada' || _lest === 'baja' || _lest === 'cancelled' || _lest === 'cancelada') return; %>
                 <% if (!apiSubscriptions.some(function(s) { var prods = s.products && s.products.length ? s.products : [{productName: s.productName, lineNumber: s.lineNumber, status: s.status, icc: s.icc}]; return prods.some(function(p) { return p.lineNumber === l.linea; }); })) { %>
                 <tr class="table-secondary">
                   <td>
@@ -845,15 +847,19 @@
       <% contratosS3.forEach(function(c) { %>
       <tr>
         <td><strong><%= c.orderId || "-" %></strong></td>
-        <td>
-          <% if (c.orderId) { %>
-          <a href="/clientes/contrato/s3/<%= c.orderId %>" target="_blank" class="btn btn-sm btn-outline-success">
-            <i class="bi bi-download"></i> Descargar Contrato Firmado
-          </a>
-          <% } else { %>
-          <span class="text-muted">No disponible</span>
-          <% } %>
-        </td>
+    <td>
+      <% if (c.url && c.url.startsWith('http')) { %>
+      <a href="<%= c.url %>" target="_blank" class="btn btn-sm btn-outline-success">
+        <i class="bi bi-download"></i> Descargar Contrato Firmado
+      </a>
+      <% } else if (c.orderId) { %>
+      <a href="/clientes/contrato/s3/<%= c.orderId %>" target="_blank" class="btn btn-sm btn-outline-success">
+        <i class="bi bi-download"></i> Descargar Contrato Firmado
+      </a>
+      <% } else { %>
+      <span class="text-muted">No disponible</span>
+      <% } %>
+    </td>
       </tr>
       <% }); %>
     </tbody>
@@ -1495,7 +1501,29 @@ document.addEventListener('DOMContentLoaded', function() {
   // ========== PIN/PUK BUTTONS ==========
   document.querySelectorAll('.mostrar-pinpuk').forEach(function(btn) {
     btn.addEventListener('click', function() {
-      mostrarPinPuk(this.dataset.line, this.dataset.pin, this.dataset.puk);
+      var line = this.dataset.line;
+      var pin = this.dataset.pin;
+      var puk = this.dataset.puk;
+      // If data attributes have values, show directly; otherwise fetch from API
+      if (pin || puk) {
+        mostrarPinPuk(line, pin, puk);
+      } else {
+        // Fetch PIN/PUK from API
+        mostrarPinPuk(line, 'Consultando...', '');
+        fetch('/clientes/' + clientId + '/line/' + encodeURIComponent(line) + '/pinpuk', { method: 'POST' })
+          .then(function(r) { return r.json(); })
+          .then(function(res) {
+            if (res.ok && res.data) {
+              var d = res.data.data || res.data;
+              mostrarPinPuk(line, d.pin || d.pinCode || 'No disponible', d.puk || d.pukCode || 'No disponible');
+            } else {
+              mostrarPinPuk(line, 'No disponible', 'No disponible');
+            }
+          })
+          .catch(function() {
+            mostrarPinPuk(line, 'Error', 'Error');
+          });
+      }
     });
   });
 

@@ -429,12 +429,15 @@ router.get('/fiscal/:fiscalId', requireAuth, async (req, res) => {
     tipo_cliente: apiCustomer.customerType || 'particular', stripe_payment_method: ''
   };
 
+  var terminatedStatuses = ['terminada', 'baja', 'cancelled', 'cancelada'];
   var allLines = [];
   apiSubscriptions.forEach(function(s) {
     var prods = s.products && s.products.length ? s.products : (s.productName ? [{productName: s.productName, lineNumber: s.lineNumber, status: s.status, icc: s.icc}] : []);
     prods.forEach(function(p) {
+      var st = (p.status || s.status || '').toLowerCase();
+      if (terminatedStatuses.includes(st)) return;
       if (p.lineNumber && !allLines.find(function(l) { return l.linea === p.lineNumber; })) {
-        allLines.push({ linea: p.lineNumber, producto: p.productName || '', estado: (p.status || '').toLowerCase(), iccid: p.icc || '', pin: '', puk: '', contrato_id: null, fecha_alta: null });
+        allLines.push({ linea: p.lineNumber, producto: p.productName || '', estado: st, iccid: p.icc || '', pin: '', puk: '', contrato_id: null, fecha_alta: null });
       }
     });
   });
@@ -674,7 +677,8 @@ router.get('/:id', requireAuth, async (req, res) => {
     fecha_alta: c.fecha_alta
   }));
 
-  const allLines = [...lineas];
+  var terminatedStatuses = ['terminada', 'baja', 'cancelled', 'cancelada'];
+  const allLines = [...lineas.filter(function(l) { return !terminatedStatuses.includes((l.estado || '').toLowerCase()); })];
   apiSubscriptions.forEach(s => {
     const prods = s.products && s.products.length ? s.products : (s.productName ? [{
       productName: s.productName,
@@ -683,12 +687,14 @@ router.get('/:id', requireAuth, async (req, res) => {
       icc: s.icc
     }] : []);
     prods.forEach(p => {
+      const st = (p.status || s.status || '').toLowerCase();
+      if (terminatedStatuses.includes(st)) return;
       const ln = p.lineNumber || '';
       if (ln && !allLines.find(l => l.linea === ln)) {
         allLines.push({
           linea: ln,
           producto: p.productName || s.productName || '',
-          estado: (p.status || s.status || 'activa').toLowerCase(),
+          estado: st,
           iccid: p.icc || s.icc || '',
           pin: s.pin || '',
           puk: s.puk || '',
@@ -1166,9 +1172,8 @@ router.post("/:id/line/:line/info", requireAuth, async (req, res) => {
 });
 
 // Proxy para descargar contratos firmados desde S3 con token presignado
-router.get('/contrato/s3/:fiscalId/:orderId', requireAuth, async (req, res) => {
+router.get('/contrato/s3/:orderId', requireAuth, async (req, res) => {
   try {
-    var fiscalId = req.params.fiscalId;
     var orderId = req.params.orderId;
     // Obtener URL presignada desde la API de Likes
     var api = LikesAPI.getApiInstance();
