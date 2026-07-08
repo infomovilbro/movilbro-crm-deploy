@@ -413,6 +413,23 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
       });
       renderWAContacts(groups);
       waContactsCount.textContent = groups.reduce(function(acc, g) { return acc + g.messages.length; }, 0) + ' mensajes';
+      // Auto-abrir conversacion si se paso telefono por URL
+      try {
+        var urlPhone = new URLSearchParams(window.location.search).get('phone');
+        if (urlPhone) {
+          var cleanPhone = urlPhone.replace(/[^0-9]/g, '');
+          setTimeout(function() {
+            var allHeaders = document.querySelectorAll('.wa-contact-header');
+            for (var h of allHeaders) {
+              var addr = h.querySelector('.profile-pic');
+              if (addr && addr.dataset.address && addr.dataset.address.replace(/[^0-9]/g, '').includes(cleanPhone)) {
+                h.click();
+                break;
+              }
+            }
+          }, 500);
+        }
+      } catch(e) {}
     });
   }
 
