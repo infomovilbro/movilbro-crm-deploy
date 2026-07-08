@@ -91,7 +91,7 @@ function saveToDrive() {
   fetch('/api/fix-notes/save-to-drive',{method:'POST'})
   .then(function(r){return r.json()}).then(function(d){
     if(d.ok){status.innerHTML='<span class="text-success">✓ Guardado: '+d.fileName+'</span>';}
-    else{status.innerHTML='<span class="text-danger">✗ Error: '+d.error+'</span>';}
+    else{status.innerHTML='<span class="text-warning">⚠️ No disponible</span>';}
   });
 }
 
