@@ -26,7 +26,7 @@ router.get('/', async (req, res) => {
       if (fiscalIdFilter) {
         facturas = db.prepare('SELECT * FROM isp_facturas WHERE fiscal_id=? ORDER BY created_at DESC LIMIT 20').all(fiscalIdFilter);
       } else {
-        facturas = db.prepare('SELECT * FROM isp_facturas ORDER BY created_at DESC LIMIT 20').all();
+        facturas = db.prepare('SELECT * FROM isp_facturas ORDER BY created_at DESC').all();
       }
     } catch(e) {}
     

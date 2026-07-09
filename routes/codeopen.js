@@ -906,12 +906,14 @@ startIMAPPolling();
 router.get('/pending/grouped', (req, res) => {
   try {
     var rows = db.prepare("SELECT * FROM pending_messages WHERE status='pending' ORDER BY created_at ASC").all();
+    var autoModes = {};
+    try { autoModes = JSON.parse(db.prepare("SELECT value FROM settings WHERE key='wa_auto_modes'").get()?.value || '{}'); } catch(e) {}
     var groups = {};
     var order = [];
     rows.forEach(function(r) {
       var key = r.category === 'email' ? 'email_' + (r.from_address || r.from_name) : (r.from_address || r.from_name || 'desconocido');
       if (!groups[key]) {
-        groups[key] = { contact: r.from_name || key, address: r.from_address || '', category: r.category || 'whatsapp', altas_score: r.altas_score || 0, messages: [] };
+        groups[key] = { contact: r.from_name || key, address: r.from_address || '', category: r.category || 'whatsapp', altas_score: r.altas_score || 0, messages: [], auto_mode: !!autoModes[r.from_address || ''] };
         order.push(key);
       }
       groups[key].messages.push(r);
@@ -919,6 +921,21 @@ router.get('/pending/grouped', (req, res) => {
     var result = order.map(function(k) { return groups[k]; });
     res.json({ groups: result, total: rows.length });
   } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /codeopen/contact/auto-mode — toggle auto mode per contact
+router.post('/contact/auto-mode', (req, res) => {
+  try {
+    var address = req.body.address;
+    var auto = req.body.auto === true;
+    if (!address) return res.json({ ok: false, error: 'address requerido' });
+    var autoModes = {};
+    try { autoModes = JSON.parse(db.prepare("SELECT value FROM settings WHERE key='wa_auto_modes'").get()?.value || '{}'); } catch(e) {}
+    if (auto) autoModes[address] = true;
+    else delete autoModes[address];
+    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('wa_auto_modes', ?)").run(JSON.stringify(autoModes));
+    res.json({ ok: true, auto: auto });
+  } catch(e) { res.json({ ok: false, error: e.message }); }
 });
 
 // ---- ANÁLISIS MANUAL (solo cuando el usuario hace clic en "Analizar") ----
@@ -1064,7 +1081,7 @@ router.post('/approve/:id', async (req, res) => {
 
     var mode = req.body.mode || 'without_forward';
     var asAudio = req.body.asAudio || false;
-    var asMale = req.body.asMale || false;
+    var voiceName = req.body.voice || (typeof req.body.asMale === 'string' ? req.body.asMale : (req.body.asMale ? 'echo' : ''));
     var customText = (req.body.customText || '').trim();
     var responseText = customText || row.proposed_response || '';
     var sent = false;
@@ -1110,12 +1127,10 @@ router.post('/approve/:id', async (req, res) => {
         if (!sent && asAudio && responseText) {
           try {
             var audioBuf = null;
-            // Usar textToSpeech de transcription.js que soporta voz masculina/femenina
-            if (asMale) {
-              var ttsService = require('../services/transcription');
-              var ttsResult = await ttsService.textToSpeech(responseText, 'echo');
-              if (ttsResult && ttsResult.audio) audioBuf = ttsResult.audio;
-            }
+            // Usar textToSpeech de transcription.js con la voz seleccionada
+            var ttsService = require('../services/transcription');
+            var ttsResult = await ttsService.textToSpeech(responseText, voiceName || '');
+            if (ttsResult && ttsResult.audio) audioBuf = ttsResult.audio;
             // Fallback: Google TTS (femenino, gratis, fiable)
             if (!audioBuf) {
               var httpLib = require('https');

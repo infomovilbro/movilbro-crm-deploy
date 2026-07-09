@@ -3,12 +3,115 @@
     <div>
       <h2><i class="bi bi-file-text"></i> <%= contrato.cliente_nombre || ('Contrato #' + contrato.id) %></h2>
       <span class="text-muted">#<%= contrato.id %></span>
+      <% if (contrato.dni_nif) { %><span class="badge bg-info ms-2"><%= contrato.dni_nif %></span><% } %>
     </div>
     <div class="d-flex gap-2">
-      <a href="/isp/contratos/<%= contrato.id %>/pdf" class="btn btn-success" target="_blank"><i class="bi bi-file-pdf"></i> Descargar Contrato PDF</a>
+      <% if (orderData) { %>
+        <a href="/clientes/contrato/s3/<%= contrato.orderId %>" target="_blank" class="btn btn-success"><i class="bi bi-file-pdf"></i> Descargar Contrato PDF</a>
+      <% } else { %>
+        <a href="/isp/contratos/<%= contrato.id %>/pdf" class="btn btn-success" target="_blank"><i class="bi bi-file-pdf"></i> Descargar Contrato PDF</a>
+      <% } %>
       <a href="/isp/contratos" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Volver</a>
     </div>
   </div>
+
+  <% if (orderData) { %>
+  <div class="row g-3 mb-4">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-info-circle"></i> Resumen de la Orden</span>
+          <span class="badge bg-<%= (orderData.status || '').toLowerCase() === 'completed' || (orderData.status || '').toLowerCase() === 'completada' ? 'success' : 'warning' %> fs-6">
+            <%= orderData.status || 'Completada' %>
+          </span>
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <h6 class="text-muted mb-2">Cliente</h6>
+              <p class="mb-1 fw-bold"><%= contrato.cliente_nombre %></p>
+              <% if (contrato.dni_nif) { %><p class="mb-1 small"><%= contrato.dni_nif %></p><% } %>
+              <% if (contrato.email) { %><p class="mb-1 small"><%= contrato.email %></p><% } %>
+              <% if (contrato.telefono) { %><p class="mb-1 small"><%= contrato.telefono %></p><% } %>
+            </div>
+            <div class="col-md-6">
+              <h6 class="text-muted mb-2">Productos</h6>
+              <% if (orderData.lines && orderData.lines.length > 0) { %>
+                <% orderData.lines.forEach(function(ln) { %>
+                  <div class="d-flex justify-content-between mb-1">
+                    <span><%= ln.productName || ln.product || ln.name || 'Producto' %></span>
+                    <span class="fw-bold"><%= ln.price || ln.total || '' %><%= ln.price || ln.total ? '€' : '' %></span>
+                  </div>
+                <% }); %>
+              <% } else { %>
+                <p class="mb-1"><%= contrato.tarifa || contrato.tipo || '-' %></p>
+                <p class="fw-bold"><%= contrato.precio ? contrato.precio + '€' : '' %></p>
+              <% } %>
+              <% if (orderData.total) { %>
+                <hr class="my-1">
+                <div class="d-flex justify-content-between fw-bold">
+                  <span>Total</span>
+                  <span><%= orderData.total %>€</span>
+                </div>
+              <% } %>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <% if (orderData.timeline || orderData.history || orderData.statusHistory) { %>
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header">
+          <i class="bi bi-clock-history"></i> Historial de estados
+        </div>
+        <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+          <% var timeline = orderData.timeline || orderData.history || orderData.statusHistory || []; %>
+          <% if (timeline.length > 0) { %>
+            <ul class="list-unstyled mb-0">
+            <% timeline.forEach(function(ev) { %>
+              <li class="mb-2 pb-2" style="border-bottom: 1px solid #eee;">
+                <span class="badge bg-info"><%= ev.status || ev.estado || ev.state || ev.event || '-' %></span>
+                <small class="text-muted ms-2"><%= ev.date || ev.created || ev.timestamp || ev.fecha ? new Date(ev.date || ev.created || ev.timestamp || ev.fecha).toLocaleString('es-ES') : '' %></small>
+                <% if (ev.note || ev.notes || ev.comment || ev.nota) { %>
+                  <br><em class="small text-muted"><%= ev.note || ev.notes || ev.comment || ev.nota %></em>
+                <% } %>
+              </li>
+            <% }); %>
+            </ul>
+          <% } else { %>
+            <p class="text-muted mb-0">Sin historial disponible</p>
+          <% } %>
+        </div>
+      </div>
+    </div>
+    <% } %>
+
+    <% if (orderData.documentation && orderData.documentation.length > 0) { %>
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header">
+          <i class="bi bi-file-earmark"></i> Documentación del cliente
+        </div>
+        <div class="card-body">
+          <div class="d-flex gap-2 flex-wrap">
+            <% orderData.documentation.forEach(function(doc) { %>
+              <% var docName = doc.documentType || doc.type || doc.name || 'Documento'; %>
+              <% if (doc.downloadURL || doc.url) { %>
+                <a href="<%= doc.downloadURL || doc.url %>" target="_blank" class="btn btn-sm btn-outline-primary">
+                  <i class="bi bi-eye"></i> <%= docName %>
+                </a>
+              <% } %>
+            <% }); %>
+          </div>
+        </div>
+      </div>
+    </div>
+    <% } %>
+  </div>
+  <% } %>
+
   <div class="row g-3">
     <div class="col-md-6">
       <div class="card">
@@ -17,10 +120,14 @@
           <table class="table table-sm">
             <tr><th>ID</th><td>#<%= contrato.id %></td></tr>
             <tr><th>Cliente</th><td><%= contrato.cliente_nombre || '-' %></td></tr>
+            <% if (contrato.dni_nif) { %><tr><th>DNI/NIF</th><td><%= contrato.dni_nif %></td></tr><% } %>
+            <% if (contrato.telefono) { %><tr><th>Teléfono</th><td><%= contrato.telefono %></td></tr><% } %>
+            <% if (contrato.email) { %><tr><th>Email</th><td><%= contrato.email %></td></tr><% } %>
             <tr><th>Tipo</th><td><span class="badge bg-secondary"><%= contrato.tipo %></span></td></tr>
             <tr><th>Estado</th>
               <td>
                 <span class="badge bg-<%= contrato.estado === 'activo' ? 'success' : contrato.estado === 'pendiente' ? 'warning' : contrato.estado === 'baja' ? 'secondary' : 'danger' %> fs-6"><%= contrato.estado %></span>
+                <% if (contrato.estadoApi) { %><span class="badge bg-info ms-1"><%= contrato.estadoApi %></span><% } %>
               </td>
             </tr>
             <tr><th>Tarifa</th><td><%= contrato.tarifa || '-' %></td></tr>
@@ -30,6 +137,7 @@
             <tr><th>PIN</th><td><%= contrato.pin || '-' %></td></tr>
             <tr><th>PUK</th><td><%= contrato.puk || '-' %></td></tr>
             <tr><th>Fecha Alta</th><td><%= contrato.fecha_alta ? new Date(contrato.fecha_alta).toLocaleDateString('es-ES') : '-' %></td></tr>
+            <% if (contrato.orderId) { %><tr><th>Order ID</th><td><small class="text-muted"><%= contrato.orderId %></small></td></tr><% } %>
           </table>
         </div>
       </div>

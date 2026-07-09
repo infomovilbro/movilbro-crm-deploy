@@ -477,8 +477,8 @@
     window.__UI_LIVE_THEME = <%- JSON.stringify(ui.liveTheme || {}) %>;
 
     (function applyUiEditorConfig() {
-      // Apply saved theme on page load
-      const savedTheme = window.__UI_LIVE_THEME;
+      // Apply saved theme on page load, default to Movilbro Original if none saved
+      const savedTheme = window.__UI_LIVE_THEME && window.__UI_LIVE_THEME.sidebarBg ? window.__UI_LIVE_THEME : (typeof TEMAS_CRM !== 'undefined' && TEMAS_CRM[0] ? TEMAS_CRM[0] : null);
       if (savedTheme && savedTheme.sidebarBg) {
         const root = document.documentElement;
         const themeVars = {
@@ -1808,7 +1808,7 @@
             dropdown.innerHTML = data.map(function(r) {
               var badgeClass = r.origen === 'API' ? 'bg-info' : 'bg-success';
               var badgeLabel = r.origen === 'API' ? 'API' : 'Local';
-              var href = r.id ? '/customers/' + r.id : '/customers?search=' + encodeURIComponent(r.telefono || r.nombre);
+              var href = r.id ? '/clientes/' + r.id : (r.fiscalId ? '/clientes/fiscal/' + encodeURIComponent(r.fiscalId) : '/clientes?search=' + encodeURIComponent(r.telefono || r.nombre));
               return '<a href="' + href + '"><div class="d-flex justify-content-between align-items-start"><strong>' + r.nombre + '</strong> <span class="src-badge badge ' + badgeClass + '">' + badgeLabel + '</span></div><div class="small text-muted">' + (r.telefono ? r.telefono : '') + (r.fiscalId ? ' &middot; ' + r.fiscalId : '') + '</div></a>';
             }).join('');
           }

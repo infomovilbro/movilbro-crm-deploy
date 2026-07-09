@@ -398,11 +398,7 @@
             </table>
           </div>
 
-          <div class="d-flex gap-2 flex-wrap mt-3">
-            <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#changeTariffModal"><i class="bi bi-arrow-left-right"></i> Cambiar tarifa</button>
-            <button class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#blockLineModal"><i class="bi bi-lock"></i> Bloquear / Desbloquear</button>
-            <button class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#duplicateSimModal"><i class="bi bi-sd-card"></i> Duplicar SIM</button>
-          </div>
+          
           <% } %>
         </div>
 
@@ -442,13 +438,16 @@
                   <td><strong><%= o.total ? parseFloat(o.total).toFixed(2) + '€' : '-' %></strong></td>
                   <td><small><%= o.created ? new Date(o.created).toLocaleDateString('es-ES') : '-' %></small></td>
                   <td>
+                    <div class="d-flex gap-1">
                     <% if (o.statusHistory && o.statusHistory.length > 0) { %>
                     <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="popover" data-bs-html="true" data-bs-trigger="focus" tabindex="0" title="Historial" data-bs-content="<%= o.statusHistory.map(function(h){ var hd = h.date || h.created || h.timestamp || ''; var hs = h.status || h.estado || h.state || ''; var hn = h.note || h.nota || h.comment || ''; return '<div class=\"small\">' + (hd ? new Date(hd).toLocaleDateString('es-ES') + ' ' : '') + '<span class=\"badge bg-info\">' + hs + '</span>' + (hn ? '<br><em>' + hn + '</em>' : '') + '</div>'; }).join('<hr class=\"my-1\">') %>">
-                        <i class="bi bi-clock-history"></i> <%= o.statusHistory.length %>
-                      </button>
+                      <i class="bi bi-clock-history"></i> <%= o.statusHistory.length %>
+                    </button>
                     <% } else { %>
                     <span class="text-muted">-</span>
                     <% } %>
+                    <button class="btn btn-sm btn-outline-info" onclick="verResumenOrden('<%= o.id %>')" title="Ver detalle completo"><i class="bi bi-eye"></i></button>
+                    </div>
                   </td>
                 </tr>
                 <% }); %>
@@ -853,33 +852,31 @@
             </div>
             <% } %>
 <% if (contratosS3 && contratosS3.length > 0) { %>
-<h6 class="mb-3 mt-3"><i class="bi bi-file-check"></i> Contratos Firmados (S3)</h6>
-<div class="table-responsive">
-  <table class="table table-hover align-middle mb-0">
-    <thead class="table-dark">
-      <tr><th>ID Orden</th><th>Contrato Firmado</th></tr>
-    </thead>
-    <tbody>
-      <% contratosS3.forEach(function(c) { %>
-      <tr>
-        <td><strong><%= c.orderId || "-" %></strong></td>
-    <td>
-      <% if (c.url && c.url.startsWith('http')) { %>
-      <a href="<%= c.url %>" target="_blank" class="btn btn-sm btn-outline-success">
-        <i class="bi bi-download"></i> Descargar Contrato Firmado
-      </a>
-      <% } else if (c.orderId) { %>
-      <a href="/clientes/contrato/s3/<%= c.orderId %>" target="_blank" class="btn btn-sm btn-outline-success">
-        <i class="bi bi-download"></i> Descargar Contrato Firmado
-      </a>
-      <% } else { %>
-      <span class="text-muted">No disponible</span>
-      <% } %>
-    </td>
-      </tr>
-      <% }); %>
-    </tbody>
-  </table>
+<h6 class="mb-3 mt-3"><i class="bi bi-file-check"></i> Contratos Firmados</h6>
+<div class="row g-2">
+  <% contratosS3.forEach(function(c) { %>
+  <div class="col-md-6">
+    <div class="card border h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <div>
+            <small class="text-muted">Orden</small>
+            <div class="fw-bold"><%= c.orderId ? c.orderId.substring(0, 20) + '...' : '-' %></div>
+          </div>
+          <span class="badge bg-success">Completado</span>
+        </div>
+        <div class="d-flex gap-2 mt-2">
+          <a href="/clientes/contrato/s3/<%= c.orderId %>" target="_blank" class="btn btn-sm btn-outline-success flex-fill">
+            <i class="bi bi-download"></i> Descargar Contrato
+          </a>
+          <button class="btn btn-sm btn-outline-info flex-fill" onclick="verResumenOrden('<%= c.orderId %>')">
+            <i class="bi bi-eye"></i> Ver resumen
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <% }); %>
 </div>
 <% } %>
 
@@ -931,6 +928,25 @@
           <i class="bi bi-search"></i> Buscar parte
         </button>
         <button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Order Summary Modal -->
+<div class="modal fade" id="ordenSummaryModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-receipt"></i> Resumen de Orden</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="ordenSummaryBody">
+        <div class="text-center py-4"><span class="spinner-border"></span> Cargando...</div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+        <a id="ordenSummaryDownload" href="#" target="_blank" class="btn btn-success d-none"><i class="bi bi-download"></i> Descargar Contrato</a>
       </div>
     </div>
   </div>
@@ -1354,6 +1370,59 @@ function fetchWorkOrder(btn) {
     .catch(function(err) {
       alert('Error: ' + err.message);
       btn.disabled = false; btn.innerHTML = '<i class="bi bi-search"></i> Buscar parte';
+    });
+}
+
+// Ver resumen de orden
+function verResumenOrden(orderId) {
+  if (!orderId) { alert('ID de orden no disponible'); return; }
+  var modal = new bootstrap.Modal(document.getElementById('ordenSummaryModal'));
+  var body = document.getElementById('ordenSummaryBody');
+  body.innerHTML = '<div class="text-center py-4"><span class="spinner-border"></span> Cargando...</div>';
+  document.getElementById('ordenSummaryDownload').classList.add('d-none');
+  modal.show();
+  fetch('/clientes/' + clientId + '/order/' + encodeURIComponent(orderId) + '/summary')
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+      if (!res.ok) { body.innerHTML = '<div class="alert alert-danger">Error: ' + (res.error || '') + '</div>'; return; }
+      var order = res.data;
+      var clientName = (order.customer && (order.customer.name || order.customer.firstName)) || '';
+      var clientFiscal = (order.customer && order.customer.fiscalId) || '';
+      var products = order.lines || order.products || [];
+      var timeline = order.timeline || order.history || order.statusHistory || [];
+      var total = order.total || '';
+      var html = '';
+      if (clientName) {
+        html += '<div class="mb-3"><h6 class="text-muted mb-1">Cliente</h6><p class="mb-0 fw-bold">' + clientName + '</p>';
+        if (clientFiscal) html += '<small class="text-muted">' + clientFiscal + '</small>';
+        html += '</div>';
+      }
+      if (products.length > 0) {
+        html += '<h6 class="text-muted mb-2">Productos</h6><table class="table table-sm"><thead><tr><th>Producto</th><th class="text-end">Precio</th></tr></thead><tbody>';
+        products.forEach(function(p) {
+          html += '<tr><td>' + (p.productName || p.name || 'Producto') + '</td><td class="text-end">' + (p.price || p.total || '') + (p.price || p.total ? '€' : '') + '</td></tr>';
+        });
+        if (total) html += '<tr class="fw-bold"><td>Total</td><td class="text-end">' + total + '€</td></tr>';
+        html += '</tbody></table>';
+      }
+      if (timeline.length > 0) {
+        html += '<h6 class="text-muted mb-2">Historial</h6><ul class="list-unstyled" style="max-height:200px;overflow:auto;">';
+        timeline.forEach(function(ev) {
+          var st = ev.status || ev.estado || ev.state || ev.event || '-';
+          var dt = ev.date || ev.created || ev.timestamp || ev.fecha || '';
+          if (dt) try { dt = new Date(dt).toLocaleString('es-ES'); } catch(e) {}
+          var note = ev.note || ev.notes || ev.comment || ev.nota || '';
+          html += '<li class="mb-1 pb-1" style="border-bottom:1px solid #eee;"><span class="badge bg-info">' + st + '</span> <small class="text-muted">' + dt + '</small>' + (note ? '<br><em class="small text-muted">' + note + '</em>' : '') + '</li>';
+        });
+        html += '</ul>';
+      }
+      body.innerHTML = html || '<div class="text-center text-muted py-3">Sin datos disponibles</div>';
+      var dlBtn = document.getElementById('ordenSummaryDownload');
+      dlBtn.href = '/clientes/contrato/s3/' + encodeURIComponent(orderId);
+      dlBtn.classList.remove('d-none');
+    })
+    .catch(function(err) {
+      body.innerHTML = '<div class="alert alert-danger">Error de conexi&oacute;n: ' + err.message + '</div>';
     });
 }
 
@@ -1784,19 +1853,103 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
   // Funcion para abrir consumo detallado desde la tarjeta GB
-  window.abrirConsumoModal = function() {
-    var sel = document.getElementById('gbLineSelect');
-    var line = sel ? sel.value : '';
-    if (!line && linesArr.length > 0) line = linesArr[0];
-    if (line) {
-      // Simular clic en el boton de consumo correspondiente
-      var btn = document.querySelector('.ver-consumo[data-line="' + line.replace(/"/g, '') + '"]');
-      if (btn) { btn.click(); return; }
-      // Si no hay boton, abrir modal directamente
-      document.getElementById('consLineNumber').textContent = line;
-      new bootstrap.Modal(document.getElementById('consumptionModal')).show();
-    }
-  };
+window.abrirConsumoModal = function() {
+  var sel = document.getElementById('gbLineSelect');
+  var line = sel ? sel.value : '';
+  if (!line && linesArr.length > 0) line = linesArr[0];
+  if (!line) { alert('No hay líneas disponibles para este cliente'); return; }
+  document.getElementById('consLineNumber').textContent = line;
+  // Buscar boton .ver-consumo y simular click
+  var btn = document.querySelector('.ver-consumo[data-line="' + line.replace(/"/g, '') + '"]');
+  if (btn) { btn.click(); return; }
+  // Si no hay boton, cargar datos directamente
+  cargarConsumoModal(line);
+  new bootstrap.Modal(document.getElementById('consumptionModal')).show();
+};
+
+function cargarConsumoModal(line) {
+  if (!line) return;
+  // 1) Cargar info de linea
+  fetch('/clientes/' + clientId + '/line/' + encodeURIComponent(line) + '/info', { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+      if (res.ok && res.data) {
+        var d = res.data;
+        document.getElementById('consLineInfoCard').style.display = '';
+        document.getElementById('consLineTitular').textContent = d.titular || d.holderName || d.clientName || '-';
+        document.getElementById('consLineDni').textContent = d.dni || d.fiscalId || '-';
+        document.getElementById('consLineSpn').textContent = d.spn || d.operator || '-';
+        document.getElementById('consLineStatus').textContent = d.status || d.estado || '-';
+        document.getElementById('consLineSim').textContent = d.iccid || d.sim || d.icc || '-';
+        document.getElementById('consLinePin').textContent = d.pin || d.pinCode || '-';
+        document.getElementById('consLinePuk').textContent = d.puk || d.pukCode || '-';
+        document.getElementById('consLineCreditLimit').textContent = d.creditLimit || d.credit_limit || '-';
+      } else { document.getElementById('consLineInfoCard').style.display = 'none'; }
+    }).catch(function() { document.getElementById('consLineInfoCard').style.display = 'none'; });
+  // 2) Cargar consumo GB
+  fetch('/clientes/' + clientId + '/line/' + encodeURIComponent(line) + '/consumption', { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+      if (res.ok && res.data) {
+        var gb = parseGBData(res.data);
+        document.getElementById('consTotalGB').textContent = gb.total ? gb.total.toFixed(2) + ' GB' : '-';
+        document.getElementById('consUsedGB').textContent = gb.used ? gb.used.toFixed(2) + ' GB' : '-';
+        document.getElementById('consRemainingGB').textContent = (gb.remaining || (gb.total - gb.used)) ? (gb.remaining || (gb.total - gb.used)).toFixed(2) + ' GB' : '-';
+        document.getElementById('consRoamingGB').textContent = gb.roaming ? gb.roaming.toFixed(2) + ' GB' : '-';
+        if (typeof Chart !== 'undefined') {
+          var consCtx = document.getElementById('consGBChart');
+          if (consCtx) {
+            if (_consChartInstance) { _consChartInstance.destroy(); }
+            _consChartInstance = new Chart(consCtx, {
+              type: 'bar',
+              data: { labels: ['Totales', 'Usados', 'Restantes'],
+                datasets: [{ label: 'GB', data: [gb.total || 0, gb.used || 0, gb.remaining || Math.max(0, (gb.total||0) - (gb.used||0))],
+                  backgroundColor: ['#17a2b8', '#ffc107', '#28a745'] }]
+              },
+              options: { animation: false, responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+                plugins: { legend: { display: false } } }
+            });
+          }
+        }
+      } else { document.getElementById('consTotalGB').textContent = 'Error'; }
+    }).catch(function() { document.getElementById('consTotalGB').textContent = 'Error'; });
+  // 3) Cargar CDRs
+  fetchCDRData(line, document.getElementById('cdrsBody'));
+  // 4) Cargar consumo diario
+  var dailyBody2 = document.getElementById('consDailyBody2');
+  if (dailyBody2) {
+    dailyBody2.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Cargando...</td></tr>';
+    fetch('/clientes/' + clientId + '/line/' + encodeURIComponent(line) + '/daily-consumption', { method: 'POST' })
+      .then(function(r) { return r.json(); })
+      .then(function(res) {
+        if (res.ok && res.data && res.data.length > 0) {
+          var daily = res.data;
+          dailyBody2.innerHTML = daily.map(function(d) {
+            return '<tr><td>' + d.date + '</td><td class="text-end">' + (d.gb || 0).toFixed(2) + '</td><td class="text-end">' + (d.calls || 0) + '</td><td class="text-end">' + (d.sms || 0) + '</td></tr>';
+          }).join('');
+          // Dibujar grafico diario
+          if (typeof Chart !== 'undefined') {
+            var dcCtx = document.getElementById('consDailyChart');
+            if (dcCtx) {
+              try { if (window._dailyChart) window._dailyChart.destroy(); } catch(e) {}
+              window._dailyChart = new Chart(dcCtx, {
+                type: 'bar',
+                data: {
+                  labels: daily.slice(-30).map(function(d) { var p = d.date.split('-'); return p[2] + '/' + p[1]; }),
+                  datasets: [{ label: 'GB', data: daily.slice(-30).map(function(d) { return d.gb; }), backgroundColor: '#17a2b8' }]
+                },
+                options: { animation: false, responsive: true, maintainAspectRatio: false,
+                  plugins: { legend: { display: false } },
+                  scales: { y: { beginAtZero: true } } }
+              });
+            }
+          }
+        } else { dailyBody2.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Sin consumo diario</td></tr>'; }
+      }).catch(function() {
+        if (dailyBody2) dailyBody2.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Error al cargar consumo diario</td></tr>';
+      });
+  }
+};
   // ========== CONSUMPTION MODAL ==========
   var _consChartInstance = null;
 

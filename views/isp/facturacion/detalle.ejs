@@ -108,7 +108,7 @@
             <% if (lineas.length === 0) { %>
             <tr><td colspan="4" class="text-center text-muted py-4"><i class="bi bi-inbox"></i> Sin líneas en esta factura</td></tr>
             <% } else { lineas.forEach(function(l) { %>
-            <tr style="cursor:pointer;" onclick="verHistorialLinea(<%= factura.id %>, '<%= l.linea || '' %>')" title="Ver detalle de llamadas">
+            <tr<% if (l.linea) { %> style="cursor:pointer;" onclick="verHistorialLinea(<%= factura.id %>, '<%= l.linea.replace(/'/g, "\\'") %>')" title="Ver detalle de llamadas"<% } %>>
               <td><%= l.concepto || '-' %></td>
               <td><%= l.linea || '-' %></td>
               <td><span class="badge bg-info"><%= l.tipo || '-' %></span></td>
@@ -129,8 +129,8 @@
 
   <% if (cdrsDetalle && cdrsDetalle.length > 0) { %>
   <div class="card mt-3">
-    <div class="card-header d-flex justify-content-between align-items-center">
-      <span><i class="bi bi-graph-up"></i> CDRs - Consumos del periodo</span>
+    <div class="card-header d-flex justify-content-between align-items-center" style="cursor:pointer;" onclick="var b=this.nextElementSibling;b.style.display=b.style.display==='none'?'':'none';this.querySelector('i.bi-chevron').classList.toggle('bi-chevron-down');this.querySelector('i.bi-chevron').classList.toggle('bi-chevron-up')">
+      <span><i class="bi bi-chevron-up bi-chevron me-1"></i> <i class="bi bi-graph-up"></i> CDRs - Consumos del periodo</span>
       <span class="fw-bold text-primary">Total: <%= (typeof totalCdrs !== 'undefined' ? totalCdrs : cdrsDetalle.reduce(function(s,c){ return s + parseFloat(c.importe||0); }, 0)).toFixed(2) %>€</span>
     </div>
     <div class="card-body p-0">
@@ -162,7 +162,9 @@
   </div>
   <% if (usoDiario && usoDiario.length > 0) { %>
   <div class="card mt-2">
-    <div class="card-header"><i class="bi bi-bar-chart"></i> CDRs - Uso diario</div>
+    <div class="card-header" style="cursor:pointer;" onclick="var b=this.nextElementSibling;b.style.display=b.style.display==='none'?'':'none';this.querySelector('i.bi-chevron').classList.toggle('bi-chevron-down');this.querySelector('i.bi-chevron').classList.toggle('bi-chevron-up')">
+      <i class="bi bi-chevron-up bi-chevron me-1"></i> <i class="bi bi-bar-chart"></i> CDRs - Uso diario
+    </div>
     <div class="card-body p-0">
       <div class="table-responsive">
         <table class="table table-sm table-hover mb-0 align-middle">

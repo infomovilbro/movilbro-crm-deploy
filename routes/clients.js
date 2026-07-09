@@ -443,13 +443,19 @@ router.get('/fiscal/:fiscalId', requireAuth, async (req, res) => {
 
   var allLines = [];
   apiSubscriptions.forEach(function(s) {
-    var prods = s.products && s.products.length ? s.products : (s.productName ? [{productName: s.productName, lineNumber: s.lineNumber, status: s.status, icc: s.icc}] : []);
+    var lineFromSub = s.lineNumber || s.fixedNumber || (s.line && (s.line.lineNumber || s.line.number)) || '';
+    var prods = s.products && s.products.length ? s.products : (s.productName ? [{productName: s.productName, lineNumber: lineFromSub, status: s.status, icc: s.icc}] : []);
     prods.forEach(function(p) {
       var st = (p.status || s.status || '').toLowerCase();
-      if (p.lineNumber && !allLines.find(function(l) { return l.linea === p.lineNumber; })) {
-        allLines.push({ linea: p.lineNumber, producto: p.productName || '', estado: st, iccid: p.icc || '', pin: '', puk: '', contrato_id: null, fecha_alta: null });
+      var ln = p.lineNumber || p.fixedNumber || (p.line && (p.line.lineNumber || p.line.number)) || '';
+      if (ln && !allLines.find(function(l) { return l.linea === ln; })) {
+        allLines.push({ linea: ln, producto: p.productName || '', estado: st, iccid: p.icc || '', pin: '', puk: '', contrato_id: null, fecha_alta: null });
       }
     });
+    // Si subscription no tiene products pero tiene fixedNumber directo
+    if (!s.products && s.fixedNumber && !allLines.find(function(l) { return l.linea === s.fixedNumber; })) {
+      allLines.push({ linea: s.fixedNumber, producto: s.productName || '', estado: (s.status || '').toLowerCase(), iccid: s.icc || '', pin: '', puk: '', contrato_id: null, fecha_alta: null });
+    }
   });
   // Si no hay lineas de API, anadir desde altas_ordenes (DB local)
   if (allLines.length === 0) {
@@ -461,6 +467,15 @@ router.get('/fiscal/:fiscalId', requireAuth, async (req, res) => {
         }
       });
     } catch(e) {}
+  }
+  // Fallback: lineas desde ordenes API
+  if (allLines.length === 0) {
+    apiOrders.forEach(function(o) {
+      var ln = o.lineNumber || o.fixedNumber || (o.line && (o.line.lineNumber || o.line.number)) || '';
+      if (ln && !allLines.find(function(l) { return l.linea === ln; })) {
+        allLines.push({ linea: ln, producto: o.productName || o.product || '', estado: (o.status || '').toLowerCase(), iccid: '', pin: '', puk: '', contrato_id: null, fecha_alta: null });
+      }
+    });
   }
   var linesByStatus = {};
   var lineNumbers = [];
@@ -1624,8 +1639,25 @@ router.post('/:id/installation/:installId/work-order', requireAuth, async (req, 
     var errors = [];
 
     // 1) Intentar endpoint dedicado de work-order
-    try { workOrder = await api.getInstallationWorkOrder(req.params.installId); } catch(e) { errors.push(e.message); }
-    if (workOrder) return res.json({ ok: true, data: workOrder });
+    try { workOrder = await api.request('GET', '/installation/' + req.params.installId + '/work-order'); } catch(e) { errors.push('/installation/' + req.params.installId + '/work-order: ' + e.message); }
+    if (workOrder) {
+      // Buscar URL real en la respuesta (no solo un número OT)
+      var woUrl = workOrder.url || workOrder.downloadUrl || workOrder.parteUrl || workOrder.link || workOrder.documentUrl || '';
+      if (!woUrl || !woUrl.startsWith('http')) {
+        // Escarbar más profundo en busca de http
+        (function findUrl(obj) {
+          if (!obj || typeof obj !== 'object') return;
+          for (var k in obj) {
+            var v = obj[k];
+            if (v && typeof v === 'string' && v.startsWith('http')) { woUrl = v; return; }
+            if (typeof v === 'object') findUrl(v);
+          }
+        })(workOrder);
+      }
+      if (woUrl && woUrl.startsWith('http')) return res.json({ ok: true, data: { url: woUrl, parteUrl: woUrl, raw: workOrder } });
+      // Si no hay URL pero sí hay datos, devolverlos igual para debug
+      return res.json({ ok: true, data: workOrder });
+    }
 
     // 2) Obtener detalle completo de instalación (más fiable)
     try {
@@ -1642,13 +1674,25 @@ router.post('/:id/installation/:installId/work-order', requireAuth, async (req, 
             else if (typeof v === 'object') flatten(v, key);
           }
         })(detail, '');
+        // Buscar cualquier campo que contenga una URL http (el parte real de Kairos365)
+        var urlCandidates = Object.keys(allVals).filter(function(k) {
+          var v = allVals[k];
+          return v && typeof v === 'string' && v.startsWith('http');
+        });
+        for (var i = 0; i < urlCandidates.length; i++) {
+          var v = allVals[urlCandidates[i]];
+          if (v && typeof v === 'string' && v.startsWith('http')) {
+            return res.json({ ok: true, data: { url: v, parteUrl: v } });
+          }
+        }
+        // También buscar campos con nombres relacionados (parte, pdf, etc.)
         var parteKeys = Object.keys(allVals).filter(function(k) {
           var kl = k.toLowerCase();
           return kl.includes('parte') || kl.includes('workorder') || kl.includes('work_order') || kl.includes('work.order') || kl.includes('pdf') || kl.includes('attachment');
         });
         for (var i = 0; i < parteKeys.length; i++) {
           var v = allVals[parteKeys[i]];
-          if (v && typeof v === 'string' && (v.startsWith('http') || v.length > 10)) {
+          if (v && typeof v === 'string' && v.startsWith('http')) {
             return res.json({ ok: true, data: { url: v, parteUrl: v } });
           }
         }
@@ -1675,6 +1719,18 @@ router.post('/:id/installation/:installId/work-order', requireAuth, async (req, 
     }
 
     return res.json({ ok: false, error: 'No se encontró parte de trabajo', errors: errors });
+  } catch(e) {
+    res.json({ ok: false, error: e.message });
+  }
+});
+
+// Obtener resumen de orden (draft order) para mostrar en la ficha cliente
+router.get('/:id/order/:orderId/summary', requireAuth, async (req, res) => {
+  try {
+    var api = LikesAPI.getApiInstance();
+    var orderData = await api.getDraftOrder(req.params.orderId);
+    if (!orderData) return res.json({ ok: false, error: 'No se encontró la orden' });
+    res.json({ ok: true, data: orderData });
   } catch(e) {
     res.json({ ok: false, error: e.message });
   }

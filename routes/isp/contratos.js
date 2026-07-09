@@ -52,7 +52,8 @@ router.get('/', async (req, res) => {
         precio: s.price || (s.products && s.products[0] ? s.products[0].price : 0) || 0,
         estado: s.status || 'activo',
         linea: s.fixedNumber || (s.products && s.products[0] ? s.products[0].fixedNumber : '') || '',
-        fecha_alta: (s.created || s.createdAt || s.startDate || '').split('T')[0]
+        fecha_alta: (s.created || s.createdAt || s.startDate || '').split('T')[0],
+        orderId: s.orderId || s.draftOrderId || ''
       };
     });
 
@@ -114,10 +115,12 @@ router.get('/:id', async (req, res) => {
 
     if (!contrato) return res.status(404).send('No encontrado');
 
+    // Obtener API instance
+    var api = LikesAPI.getApiInstance();
+
     // Fetch line info from API to enrich with ICCID, PIN, PUK
     if (contrato.linea) {
       try {
-        var api = LikesAPI.getApiInstance();
         var lineData = await api.getLineInfo(contrato.linea);
         if (lineData) {
           var line = Array.isArray(lineData) ? lineData[0] : lineData.data ? (Array.isArray(lineData.data) ? lineData.data[0] : lineData.data) : lineData;
@@ -129,7 +132,16 @@ router.get('/:id', async (req, res) => {
       } catch(e) {}
     }
 
-    res.render('isp/contratos-view', { title: (contrato.cliente_nombre || 'Contrato #' + contrato.id), contrato });
+    // Obtener datos reales del draft order (contrato firmado, resumen, historial)
+    var orderData = null;
+    if (contrato.orderId || contrato.draftOrderId) {
+      try {
+        var oid = contrato.orderId || contrato.draftOrderId;
+        orderData = await api.getDraftOrder(oid);
+      } catch(e) { console.error('[Contrato] Error fetching draft order:', e.message); }
+    }
+
+    res.render('isp/contratos-view', { title: (contrato.cliente_nombre || 'Contrato #' + contrato.id), contrato, orderData });
   } catch (e) { res.status(500).send('Error: ' + e.message); }
 });
 
