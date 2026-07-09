@@ -1619,9 +1619,62 @@ router.get('/:id/drive-invoices', requireAuth, async (req, res) => {
 router.post('/:id/installation/:installId/work-order', requireAuth, async (req, res) => {
   try {
     var api = LikesAPI.getApiInstance();
-    var workOrder = await api.getInstallationWorkOrder(req.params.installId);
-    if (!workOrder) return res.json({ ok: false, error: 'No se encontró parte de trabajo' });
-    res.json({ ok: true, data: workOrder });
+    // Probar múltiples endpoints para encontrar el parte
+    var workOrder = null;
+    var errors = [];
+
+    // 1) Intentar endpoint dedicado de work-order
+    try { workOrder = await api.getInstallationWorkOrder(req.params.installId); } catch(e) { errors.push(e.message); }
+    if (workOrder) return res.json({ ok: true, data: workOrder });
+
+    // 2) Obtener detalle completo de instalación (más fiable)
+    try {
+      var detail = await api.request('GET', '/installation?installationId=' + encodeURIComponent(req.params.installId));
+      if (detail) {
+        // Buscar parteUrl en cualquier nivel del objeto
+        var allVals = {};
+        (function flatten(obj, prefix) {
+          if (!obj || typeof obj !== 'object') return;
+          for (var k in obj) {
+            var v = obj[k];
+            var key = prefix ? prefix + '.' + k : k;
+            if (v !== null && v !== undefined && typeof v !== 'object') allVals[key] = v;
+            else if (typeof v === 'object') flatten(v, key);
+          }
+        })(detail, '');
+        var parteKeys = Object.keys(allVals).filter(function(k) {
+          var kl = k.toLowerCase();
+          return kl.includes('parte') || kl.includes('workorder') || kl.includes('work_order') || kl.includes('work.order') || kl.includes('pdf') || kl.includes('attachment');
+        });
+        for (var i = 0; i < parteKeys.length; i++) {
+          var v = allVals[parteKeys[i]];
+          if (v && typeof v === 'string' && (v.startsWith('http') || v.length > 10)) {
+            return res.json({ ok: true, data: { url: v, parteUrl: v } });
+          }
+        }
+        // También buscar en el objeto raw directamente
+        var directKeys = ['parteUrl', 'parte_url', 'workOrderUrl', 'workOrderPdf', 'workOrderPdfUrl', 'work_order_pdf', 'documentoUrl', 'attachmentUrl', 'attachment'];
+        for (var j = 0; j < directKeys.length; j++) {
+          var found = findField(detail, [directKeys[j]]);
+          if (found) return res.json({ ok: true, data: { url: found, parteUrl: found } });
+        }
+      }
+    } catch(e) { errors.push(e.message); }
+
+    // 3) Intentar con diferentes IDs (UUID sin guiones, primera parte numérica)
+    var idVariants = [req.params.installId, req.params.installId.replace(/-/g, ''), req.params.installId.split('-')[0]];
+    for (var k = 0; k < idVariants.length; k++) {
+      if (idVariants[k] === req.params.installId) continue;
+      try {
+        var detail2 = await api.request('GET', '/installation?installationId=' + encodeURIComponent(idVariants[k]));
+        if (detail2) {
+          var found2 = findField(detail2, directKeys);
+          if (found2) return res.json({ ok: true, data: { url: found2, parteUrl: found2 } });
+        }
+      } catch(e) {}
+    }
+
+    return res.json({ ok: false, error: 'No se encontró parte de trabajo', errors: errors });
   } catch(e) {
     res.json({ ok: false, error: e.message });
   }
