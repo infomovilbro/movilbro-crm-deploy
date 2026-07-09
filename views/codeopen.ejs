@@ -713,16 +713,26 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
   try { pollPendingCount(); } catch(e) { console.error('[Init] pollPendingCount:', e); }
   // Auto-refresh badge cada 5s sin interrumpir procesos en curso
   var lastPendingCount = 0;
+  var lastAutoProcess = 0;
   setInterval(function() {
     fetch('/codeopen/pending/count').then(function(r) { return r.json(); }).then(function(d) {
       if (d.count > 0) {
         pendingBadge.style.display = 'flex';
         pendingBadge.textContent = d.count > 99 ? '99+' : d.count;
-        // Si hay mensajes nuevos (aumentó el contador), hacer un breve destello
+        // Si hay mensajes nuevos (aumentó el contador), procesar automáticos y refrescar
         if (d.count > lastPendingCount && lastPendingCount > 0) {
           pendingBadge.style.animation = 'none';
           pendingBadge.offsetHeight;
           pendingBadge.style.animation = 'pulse-ring 0.6s ease 2';
+          // Auto-procesar contactos en modo AUTO (máx cada 15s)
+          if (Date.now() - lastAutoProcess > 15000) {
+            lastAutoProcess = Date.now();
+            fetch('/codeopen/pending/auto-process', { method: 'POST' }).catch(function() {});
+          }
+          // Refrescar contactos en segundo plano
+          if (typeof loadWAContacts === 'function' && !document.querySelector('.wa-contact-messages[style*="display: block"]')) {
+            try { loadWAContacts(); } catch(e) {}
+          }
         }
         lastPendingCount = d.count;
       } else {
@@ -1204,7 +1214,8 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
 
   var profilePicCache = {};
 
-  function getProfilePic(address, imgEl) {
+  function getProfilePic(address, imgEl, retries) {
+    if (retries === undefined) retries = 2;
     if (profilePicCache[address]) {
       imgEl.src = profilePicCache[address] + '?t=' + Date.now();
       imgEl.style.display = 'block';
@@ -1215,6 +1226,12 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
         profilePicCache[address] = d.url;
         imgEl.src = d.url + '?t=' + Date.now();
         imgEl.style.display = 'block';
+      } else if (retries > 0) {
+        setTimeout(function() { getProfilePic(address, imgEl, retries - 1); }, 2000);
+      }
+    }).catch(function() {
+      if (retries > 0) {
+        setTimeout(function() { getProfilePic(address, imgEl, retries - 1); }, 2000);
       }
     });
   }
@@ -1623,17 +1640,11 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
         (showCRM ? lienzo('ri-user-line', 'Ficha cliente', '/clientes/fiscal/' + encodeURIComponent(fid)) : '') +
         (showCRM ? lienzo('ri-receipt-line', 'Facturaci\u00f3n', '/isp/facturacion?fiscalId=' + encodeURIComponent(fid)) : '') +
         lienzo('ri-file-list-3-line', 'Contratos', '/isp/contratos?search=' + searchTerm) +
-        (showCRM ? lienzo('ri-price-tag-3-line', 'Tarifas', '/clientes/fiscal/' + encodeURIComponent(fid)) : '') +
-        (showCRM ? lienzo('ri-phone-line', 'CDRs', '/isp/cdrs?fiscal=' + encodeURIComponent(fid) + '&show=1') : '') +
         (showCRM ? ' <a href="javascript:void(0)" onclick="mostrarPinPukCodeOpen(\'' + esc(phone) + '\',\'' + esc(fid) + '\')" style="display:flex;align-items:center;gap:6px;padding:7px 10px;border-radius:6px;text-decoration:none;color:var(--text);font-size:0.75rem;"><i class="ri-key-2-line" style="width:16px;text-align:center;"></i>PIN/PUK</a>' : '') +
         (showCRM ? lienzo('ri-tools-line', 'Instalaci\u00f3n', '/clientes/fiscal/' + encodeURIComponent(fid) + '#instalaciones') : '') +
         (showCRM ? lienzo('ri-file-shield-2-line', 'Documentos KYC', '/clientes/fiscal/' + encodeURIComponent(fid) + '#kyc') : '') +
         (showCRM ? lienzo('ri-bar-chart-2-line', 'Consumo', '/clientes/fiscal/' + encodeURIComponent(fid) + '#lineas') : '') +
-        (showCRM ? lienzo('ri-exchange-line', 'Cambiar Tarifa', '/clientes/fiscal/' + encodeURIComponent(fid) + '#lineas') : '') +
-        (showCRM ? lienzo('ri-cloud-line', 'Documentos/Nube', '/isp/nube?fiscal=' + encodeURIComponent(fid)) : '') +
-        (showCRM ? lienzo('ri-wifi-line', 'Cobertura', '/coverage') : '') +
-        (showCRM ? lienzo('ri-eye-line', 'Portal Cliente', '/portal') : '') +
-        (showCRM ? lienzo('ri-add-circle-line', 'Nueva Alta', '/altas') : '');
+        (showCRM ? lienzo('ri-cloud-line', 'Documentos/Nube', '/isp/nube?fiscal=' + encodeURIComponent(fid)) : '');
       document.body.appendChild(dd);
       var closeDD = function(e2) { if (!dd.contains(e2.target) && e2.target !== btn) { dd.remove(); document.removeEventListener('click', closeDD); } };
       setTimeout(function() { document.addEventListener('click', closeDD); }, 100);

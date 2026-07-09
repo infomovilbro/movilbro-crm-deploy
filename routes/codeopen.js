@@ -137,9 +137,31 @@ function getCRMContext() {
     if (!db) return {};
     var facts = {};
     try { facts = Object.fromEntries(db.prepare("SELECT topic, content FROM shared_context").all().map(r => [r.topic, r.content.substring(0, 350)])); } catch(e) {}
+    // Obtener productos/tarifas disponibles
+    var catalogo = '';
+    try {
+      var likesApi = LikesAPI.getApiInstance();
+      if (likesApi) {
+        var products = likesApi.getProducts();
+        if (products && Array.isArray(products)) {
+          var porFamilia = {};
+          products.slice(0, 50).forEach(function(p) {
+            var fam = p.family || p.familia || p.category || 'General';
+            if (!porFamilia[fam]) porFamilia[fam] = [];
+            porFamilia[fam].push((p.name || p.productName || '') + ' ' + (p.price ? parseFloat(p.price).toFixed(2) + '€' : ''));
+          });
+          var lines = [];
+          Object.keys(porFamilia).slice(0, 8).forEach(function(f) {
+            lines.push(f + ': ' + porFamilia[f].slice(0, 10).join(', '));
+          });
+          catalogo = 'CATÁLOGO DE PRODUCTOS:\n' + lines.join('\n');
+        }
+      }
+    } catch(e) { catalogo = ''; }
     return {
       project_summary: PROJECT_SUMMARY.substring(0, 3000),
       facts: facts,
+      catalogo_productos: catalogo,
       clientes: (db.prepare("SELECT COUNT(*) as c FROM clients").get() || {}).c || 0,
       productos: (db.prepare("SELECT COUNT(*) as c FROM products").get() || {}).c || 0,
       tickets: (db.prepare("SELECT COUNT(*) as c FROM tickets").get() || {}).c || 0,
@@ -935,6 +957,56 @@ router.post('/contact/auto-mode', (req, res) => {
     else delete autoModes[address];
     db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('wa_auto_modes', ?)").run(JSON.stringify(autoModes));
     res.json({ ok: true, auto: auto });
+  } catch(e) { res.json({ ok: false, error: e.message }); }
+});
+
+// ---- AUTO-PROCESAR mensajes para contactos en modo AUTO ----
+router.post('/pending/auto-process', async (req, res) => {
+  try {
+    var autoModes = {};
+    try { autoModes = JSON.parse(db.prepare("SELECT value FROM settings WHERE key='wa_auto_modes'").get()?.value || '{}'); } catch(e) {}
+    var autoAddresses = Object.keys(autoModes).filter(function(a) { return autoModes[a]; });
+    if (autoAddresses.length === 0) return res.json({ ok: true, processed: 0 });
+
+    var pending = db.prepare("SELECT * FROM pending_messages WHERE status='pending' AND from_address IN (" + autoAddresses.map(function() { return '?'; }).join(',') + ") ORDER BY created_at ASC LIMIT 5").apply(null, autoAddresses);
+    // Fallback para SQLite sin apply
+    if (!pending || pending.length === 0) {
+      var allPending = db.prepare("SELECT * FROM pending_messages WHERE status='pending' ORDER BY created_at ASC").all();
+      pending = allPending.filter(function(r) { return autoAddresses.indexOf(r.from_address) >= 0; }).slice(0, 5);
+    }
+    if (!Array.isArray(pending)) pending = [];
+
+    var processed = 0;
+    for (var i = 0; i < pending.length; i++) {
+      var row = pending[i];
+      try {
+        // Analizar con IA si no tiene respuesta
+        if (!row.proposed_response || row.proposed_response === 'Analizando con IA...' || row.proposed_response === '') {
+          var modelId = req.body.model || (function() { try { return JSON.parse(db.prepare("SELECT value FROM settings WHERE key='codeopen_model'").get()?.value || '{}').model; } catch(e) { return 'deepseek-v4-flash-free'; } })();
+          var crmCtx = (function() { try { return require('./codeopen').getCRMContext(); } catch(e) { return {}; } })();
+          var analysis = await analyzeMessage(row.body, crmCtx, modelId);
+          if (analysis && analysis.response) {
+            db.prepare("UPDATE pending_messages SET proposed_response=?, altas_score=?, category=? WHERE id=?").run(analysis.response, analysis.altas_score || 0, analysis.category || 'general', row.id);
+            row.proposed_response = analysis.response;
+          }
+        }
+        // Aprobar automaticamente si tiene respuesta
+        if (row.proposed_response && row.proposed_response !== 'Analizando con IA...' && row.proposed_response !== '') {
+          var textToSend = row.proposed_response;
+          if (row.document_ready && row.document_buffer) {
+            var wa = require('../wa-baileys');
+            var docInfo = row.document_info ? JSON.parse(row.document_info) : null;
+            await wa.sendMessage(row.from_address, { documentBuffer: row.document_buffer, mimeType: 'application/pdf', fileName: (docInfo && docInfo.archivo ? docInfo.archivo.nombre : 'documento.pdf'), text: textToSend }, { asDocument: true });
+          } else {
+            var wa = require('../wa-baileys');
+            await wa.sendMessage(row.from_address, textToSend, {});
+          }
+          db.prepare("UPDATE pending_messages SET status='approved', approved_at=CURRENT_TIMESTAMP WHERE id=?").run(row.id);
+          processed++;
+        }
+      } catch(e) { console.error('[AutoProcess] Error msg #' + row.id + ':', e.message); }
+    }
+    res.json({ ok: true, processed: processed });
   } catch(e) { res.json({ ok: false, error: e.message }); }
 });
 

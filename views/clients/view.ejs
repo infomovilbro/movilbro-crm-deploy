@@ -125,34 +125,6 @@
                       <%= addr.zipCode || addr.zip || cliente.codigo_postal ? ' (' + (addr.zipCode || addr.zip || cliente.codigo_postal) + ')' : '' %>
                     </td></tr>
 
-<tr><th>L&iacute;neas activas</th><td>
-                      <% if (apiSubscriptions.length > 0) { %>
-                        <% apiSubscriptions.forEach(function(s) { %>
-                          <% var prods = s.products && s.products.length ? s.products : [{productName: s.productName, lineNumber: s.lineNumber, status: s.status, icc: s.icc}]; %>
-                          <% prods.forEach(function(p) { %>
-                          <% var linea2 = p.lineNumber || s.lineNumber || ""; %>
-                          <% var pname2 = (p.productName || s.productName || "").toLowerCase(); %>
-                          <% var icono2 = "📡"; %>
-                          <% if (pname2.includes("fibra") || pname2.includes("ftth")) { icono2 = "🌐"; } else if (pname2.includes("tv") || pname2.includes("television")) { icono2 = "📺"; } else if (pname2.includes("fijo") || pname2.includes("voip")) { icono2 = "📞"; } else if (pname2.includes("movil") || pname2.includes("mobile") || pname2.includes("tarifa")) { icono2 = "📱"; } %>
-                          <% var ref2 = s.portabilidadId || s.referencia || p.portabilidadId || p.referencia || ""; %>
-                          <div class="d-flex align-items-center justify-content-between mb-1 pb-1 border-bottom">
-                            <div>
-                              <span><%= icono2 %></span>
-                              <strong><%= linea2 || "Nueva línea" %></strong>
-                              <small class="text-muted d-block"><%= p.productName || s.productName || "" %></small>
-                              <% if (ref2) { %><small class="text-muted">Ref: <%= ref2 %></small><% } %>
-                            </div>
-                          </div>
-                          <% }); %>
-                        <% }); %>
-                      <% } else { %>
-                        <% var pm = apiCustomer.paymentMethod || cliente.metodo_pago; %>
-                        <div class="mb-1"><small class="text-muted">Sin líneas activas</small></div>
-                        <div class="mt-1">
-                          <% if (pm) { %><span class="badge bg-info"><i class="bi bi-credit-card"></i> <%= pm %></span><% } else { %><span class="text-muted">-</span><% } %>
-                        </div>
-                      <% } %>
-                    </td></tr>
 <tr><th>M&eacute;todo pago</th><td>
                       <% var lineasPago = (cliente.lineas_pago || '{}'); %>
                       <% try { var pagosJson = JSON.parse(lineasPago); } catch(e) { var pagosJson = {}; } %>
@@ -202,7 +174,7 @@
               <div class="card h-100 border">
                 <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
                   <span><i class="bi bi-shield-check"></i> An&aacute;lisis de Fiabilidad</span>
-                  <button class="btn btn-sm btn-outline-success" onclick="calcularScoring(<%= _cid %>)">
+                  <button class="btn btn-sm btn-outline-success" onclick="calcularScoring('<%= _cid %>')">
                     <i class="bi bi-calculator"></i> Calcular
                   </button>
                 </div>
@@ -1386,23 +1358,26 @@ function verResumenOrden(orderId) {
     .then(function(res) {
       if (!res.ok) { body.innerHTML = '<div class="alert alert-danger">Error: ' + (res.error || '') + '</div>'; return; }
       var order = res.data;
-      var clientName = (order.customer && (order.customer.name || order.customer.firstName)) || '';
-      var clientFiscal = (order.customer && order.customer.fiscalId) || '';
-      var products = order.lines || order.products || [];
-      var timeline = order.timeline || order.history || order.statusHistory || [];
-      var total = order.total || '';
-      var html = '';
-      if (clientName) {
-        html += '<div class="mb-3"><h6 class="text-muted mb-1">Cliente</h6><p class="mb-0 fw-bold">' + clientName + '</p>';
-        if (clientFiscal) html += '<small class="text-muted">' + clientFiscal + '</small>';
-        html += '</div>';
-      }
-      if (products.length > 0) {
-        html += '<h6 class="text-muted mb-2">Productos</h6><table class="table table-sm"><thead><tr><th>Producto</th><th class="text-end">Precio</th></tr></thead><tbody>';
-        products.forEach(function(p) {
-          html += '<tr><td>' + (p.productName || p.name || 'Producto') + '</td><td class="text-end">' + (p.price || p.total || '') + (p.price || p.total ? '€' : '') + '</td></tr>';
+      // Extraer productos desde la estructura real de la API
+      var allProducts = [];
+      if (order.products && Array.isArray(order.products)) {
+        order.products.forEach(function(p) {
+          if (p.productName) allProducts.push({ productName: p.productName, price: p.finalPrice || p.cessionPrice || p.price || 0 });
+          if (p.optionalProducts && Array.isArray(p.optionalProducts)) {
+            p.optionalProducts.forEach(function(op) {
+              if (op.productName) allProducts.push({ productName: op.productName, price: op.finalPrice || op.cessionPrice || op.productPrice || 0 });
+            });
+          }
         });
-        if (total) html += '<tr class="fw-bold"><td>Total</td><td class="text-end">' + total + '€</td></tr>';
+      }
+      var timeline = order.timeline || order.history || order.statusHistory || [];
+      var total = order.total || order.totalPrice || (order.products && order.products[0] && order.products[0].finalPrice) || '';
+      var html = '';
+      if (allProducts.length > 0) {
+        html += '<h6 class="text-muted mb-2">Productos</h6><table class="table table-sm"><thead><tr><th>Producto</th><th class="text-end">Precio</th></tr></thead><tbody>';
+        allProducts.forEach(function(p) {
+          html += '<tr><td>' + (p.productName || 'Producto') + '</td><td class="text-end">' + (p.price ? parseFloat(p.price).toFixed(2) + '€' : '') + '</td></tr>';
+        });
         html += '</tbody></table>';
       }
       if (timeline.length > 0) {
@@ -1739,12 +1714,17 @@ document.addEventListener('DOMContentLoaded', function() {
               btn.disabled = false; btn.innerHTML = '<i class="bi bi-search"></i> Buscar parte';
             }
           } else {
-            alert(res.error || 'No se encontr&oacute; parte de trabajo');
+            // Fallback: abrir pagina de instalaciones en wd.likestelecom.com
+            if (confirm('No se encontr\u00f3 parte en la API. \u00bfAbrir la p\u00e1gina de instalaciones de Likes Telecom?')) {
+              window.open('https://wd.likestelecom.com/aftersales/installations', '_blank');
+            }
             btn.disabled = false; btn.innerHTML = '<i class="bi bi-search"></i> Buscar parte';
           }
         })
         .catch(function(err) {
-          alert('Error: ' + err.message);
+          if (confirm('Error: ' + err.message + '. \u00bfAbrir la p\u00e1gina de instalaciones de Likes Telecom?')) {
+            window.open('https://wd.likestelecom.com/aftersales/installations', '_blank');
+          }
           btn.disabled = false; btn.innerHTML = '<i class="bi bi-search"></i> Buscar parte';
         });
     });
@@ -1812,7 +1792,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!ln) return;
         var opt = document.createElement('option');
         opt.value = ln;
-        opt.textContent = ln;
+        var esTelefono = /^\d{6,}$/.test(ln);
+        opt.textContent = esTelefono ? ln : ln + ' (sin consumo)';
+        if (!esTelefono) opt.disabled = true;
         gbLineSelect.appendChild(opt);
       });
     }
@@ -2248,12 +2230,15 @@ new bootstrap.Modal(document.getElementById('consumptionModal')).show();
             familias[familia].push({ name: name, val: val, price: p.price, desc: p.description || '' });
           });
           var familiaIconos = { 'Movil': '📱', 'Móvil': '📱', 'Fibra': '🌐', 'TV': '📺', 'Television': '📺', 'Fijo': '📞', 'VoIP': '📞', 'General': '📡' };
-          Object.keys(familias).forEach(function(fam) {
+          var famKeys = Object.keys(familias);
+          famKeys.forEach(function(fam, idx) {
             var icono = familiaIconos[fam] || '📡';
-            container.innerHTML += '<div class="col-12"><h6 class="mt-2 mb-1 border-bottom pb-1">' + icono + ' ' + fam + '</h6></div>';
+            var isFirst = idx === 0;
+            container.innerHTML += '<div class="col-12"><h6 class="mt-2 mb-1 border-bottom pb-1" style="cursor:pointer;" onclick="var n=this.nextElementSibling;n.style.display=n.style.display===\'none\'?\'\':\'none\';this.querySelector(\'.bi-chevron\').classList.toggle(\'bi-chevron-down\');this.querySelector(\'.bi-chevron\').classList.toggle(\'bi-chevron-up\');"><i class="bi bi-chevron-' + (isFirst ? 'down' : 'right') + ' bi-chevron me-1"></i> ' + icono + ' ' + fam + ' <span class="badge bg-secondary">' + familias[fam].length + '</span></h6><div class="row g-2" style="display:' + (isFirst ? '' : 'none') + ';">';
             familias[fam].forEach(function(prod) {
               container.innerHTML += '<div class="col-md-4 col-6"><div class="card border tariff-card" style="cursor:pointer;" data-value="' + prod.val + '"><div class="card-body p-2 text-center"><div class="fw-semibold small">' + prod.name + '</div>' + (prod.price ? '<div class="text-primary small mt-1">' + parseFloat(prod.price).toFixed(2) + '€</div>' : '') + '</div></div></div>';
             });
+            container.innerHTML += '</div></div>';
           });
           document.querySelectorAll('.tariff-card').forEach(function(card) {
             card.addEventListener('click', function() {

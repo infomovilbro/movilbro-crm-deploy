@@ -59,10 +59,10 @@ async function transcribeAudio(audioBuffer, mimeType) {
     }, { headers: { 'Authorization': assemblyAIKey }, timeout: 30000 });
     var transcriptId = transcribeRes.data.id;
 
-    // Esperar resultado
+    // Esperar resultado con timeout extendido
     var result = null;
     var fullData = null;
-    for (var i = 0; i < 120; i++) {
+    for (var i = 0; i < 180; i++) {
       await new Promise(function(r) { setTimeout(r, 1000); });
       var pollRes = await axios.get('https://api.assemblyai.com/v2/transcript/' + transcriptId, {
         headers: { 'Authorization': assemblyAIKey }, timeout: 15000
@@ -79,7 +79,25 @@ async function transcribeAudio(audioBuffer, mimeType) {
     }
     try { fs.unlinkSync(tmpPath); } catch(e) {}
 
-    if (!result) return { text: null, error: 'Timeout (2 min)' };
+    if (!result) {
+      // Fallback: intentar Whisper via OpenRouter
+      try {
+        var openRouterKey2 = process.env.OPENROUTER_API_KEY || '';
+        if (openRouterKey2) {
+          var FormData = require('form-data');
+          var fd2 = new FormData();
+          fd2.append('model', 'openai/whisper-1');
+          fd2.append('file', Buffer.from(audioBuffer), { filename: 'audio.ogg', contentType: mimeType || 'audio/ogg' });
+          fd2.append('language', 'es');
+          var whisperRes = await axios.post('https://openrouter.ai/api/v1/audio/transcriptions', fd2, {
+            headers: Object.assign({ 'Authorization': 'Bearer ' + openRouterKey2 }, fd2.getHeaders()),
+            timeout: 60000
+          });
+          if (whisperRes.data && whisperRes.data.text) return { text: whisperRes.data.text, rawText: whisperRes.data.text };
+        }
+      } catch(e2) { console.log('[Transcription] Whisper fallback error:', e2.message); }
+      return { text: null, error: 'Timeout (3 min)' };
+    }
 
     // Construir análisis enriquecido
     var analysis = [];
@@ -196,14 +214,16 @@ async function textToSpeech(text, voice) {
     }
   }
 
-  // 2. OpenRouter TTS (si hay key, con voz masculina onyx para echo)
+  // 2. OpenRouter TTS (si hay key, soporta multiple voces)
   var openRouterKey = process.env.OPENROUTER_API_KEY || '';
   if (!audioBuf && openRouterKey) {
     try {
+      // OpenAI TTS voices: alloy, echo, fable, onyx, nova, shimmer
+      var openAiVoice = voice && ['alloy','echo','fable','onyx','nova','shimmer'].includes(voice) ? voice : (voice === 'echo' ? 'onyx' : 'alloy');
       var resp = await axios.post('https://openrouter.ai/api/v1/audio/speech', {
         model: 'openai/tts-1',
         input: text.substring(0, 500),
-        voice: voice === 'echo' ? 'onyx' : 'alloy',
+        voice: openAiVoice,
         response_format: 'mp3'
       }, {
         headers: { 'Authorization': 'Bearer ' + openRouterKey },
@@ -211,7 +231,7 @@ async function textToSpeech(text, voice) {
         timeout: 30000
       });
       if (resp.data && resp.data.length > 100) {
-        console.log('[TTS] OpenRouter TTS (' + (voice === 'echo' ? 'onyx-masculino' : 'alloy-femenino') + ') generado:', resp.data.length, 'bytes');
+        console.log('[TTS] OpenRouter TTS (' + openAiVoice + ') generado:', resp.data.length, 'bytes');
         return { audio: Buffer.from(resp.data), format: 'mp3' };
       }
     } catch(e) {

@@ -106,10 +106,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.querySelectorAll('.contrato-row').forEach(function(row) {
       const cliente = row.querySelector('td:nth-child(2)')?.textContent.toLowerCase() || '';
-      const linea = row.querySelector('td:nth-child(6)')?.textContent.toLowerCase() || '';
-      const estado = row.querySelector('td:nth-child(4) .badge')?.textContent.trim().toLowerCase() || '';
-      const tipo = row.querySelector('td:nth-child(3) .badge')?.textContent.trim().toLowerCase() || '';
-      const matchTexto = !q || cliente.includes(q) || linea.includes(q);
+      const dni = row.querySelector('td:nth-child(3)')?.textContent.toLowerCase() || '';
+      const linea = row.querySelector('td:nth-child(7)')?.textContent.toLowerCase() || '';
+      const estado = row.querySelector('td:nth-child(5) .badge')?.textContent.trim().toLowerCase() || '';
+      const tipo = row.querySelector('td:nth-child(4) .badge')?.textContent.trim().toLowerCase() || '';
+      const matchTexto = !q || cliente.includes(q) || dni.includes(q) || linea.includes(q);
       const matchEstado = !est || estado === est;
       const matchTipo = !tip || tipo === tip;
       row.style.display = matchTexto && matchEstado && matchTipo ? '' : 'none';

@@ -238,8 +238,19 @@ function mapApiOrders(orderArr) {
     else if (Array.isArray(o.history)) statusHistory = o.history;
     var estado = (src.status || src.estado || src.state || o.status || o.estado || o.state || 'desconocido').toUpperCase();
     var estadoMap = { 'COMPLETED':'Completado','PENDING_PROVIDER':'Pendiente proveedor','PENDING':'Pendiente','PROCESSING':'Procesando','ACTIVE':'Activo','CANCELLED':'Cancelado','CANCELED':'Cancelado','REJECTED':'Rechazado','CREATED':'Creado','DRAFT':'Borrador','ERROR':'Error' };
-    var prodName = src.productName || src.product || src.description || src.service || src.tarifa || src.offerName || src.offer_name || src.planName || src.plan_name || o.productName || o.product || '-';
-    var lineaNum = src.lineNumber || src.line || src.phone || src.numero || src.msisdn || src.fixedNumber || src.linea || o.lineNumber || o.line || o.phone || '-';
+    var prodName = src.productName || src.product || src.description || src.service || src.tarifa || src.offerName || src.offer_name || src.planName || src.plan_name || '';
+    // Buscar en productos anidados
+    if (!prodName && Array.isArray(src.products)) { prodName = src.products.map(function(p) { return p.productName || p.name || ''; }).filter(Boolean).join(', '); }
+    if (!prodName && Array.isArray(src.lines)) { prodName = src.lines.map(function(l) { return l.productName || l.name || ''; }).filter(Boolean).join(', '); }
+    if (!prodName && Array.isArray(src.items)) { prodName = src.items.map(function(i) { return i.productName || i.name || i.description || ''; }).filter(Boolean).join(', '); }
+    if (!prodName && Array.isArray(src.services)) { prodName = src.services.map(function(s) { return s.name || s.productName || ''; }).filter(Boolean).join(', '); }
+    if (!prodName) prodName = o.productName || o.product || '-';
+    var lineaNum = src.lineNumber || src.line || src.phone || src.numero || src.msisdn || src.fixedNumber || src.linea || '';
+    // Buscar en productos anidados
+    if (!lineaNum && Array.isArray(src.products)) { lineaNum = src.products.map(function(p) { return p.fixedNumber || p.lineNumber || ''; }).filter(Boolean).join(', '); }
+    if (!lineaNum && Array.isArray(src.lines)) { lineaNum = src.lines.map(function(l) { return l.fixedNumber || l.lineNumber || l.number || ''; }).filter(Boolean).join(', '); }
+    if (!lineaNum && Array.isArray(src.items)) { lineaNum = src.items.map(function(i) { return i.fixedNumber || i.lineNumber || ''; }).filter(Boolean).join(', '); }
+    if (!lineaNum) lineaNum = o.lineNumber || o.line || o.phone || '-';
     return {
       id: src.id || src.orderId || src.order_id || o.id || o.orderId || o.order_id,
       idShort: (src.id || src.orderId || src.order_id || o.id || o.orderId || o.order_id || '').toString().substring(0, 8) + '...',
@@ -882,12 +893,17 @@ router.post('/:id/line/:lineNumber/block', requireAuth, async (req, res) => {
 
 router.post('/:id/line/:lineNumber/consumption', requireAuth, async (req, res) => {
   try {
+    var ln = req.params.lineNumber;
+    // Solo consultar si parece un numero de telefono real (solo digitos, no IDs tipo 15-WD_...)
+    if (!ln || /^[A-Z]/i.test(ln) || ln.includes('_') || ln.includes('-')) {
+      return res.json({ ok: false, error: 'Linea no soporta consulta de consumo individual' });
+    }
     const api = LikesAPI.getApiInstance();
-    const result = await api.getLineGB(req.params.lineNumber);
+    const result = await api.getLineGB(ln);
     const payload = result.data || result;
     res.json({ ok: true, data: payload });
   } catch (e) {
-    res.status(500).json({ ok: false, error: e.message });
+    res.json({ ok: false, error: 'Consumo no disponible para esta linea: ' + e.message });
   }
 });
 
@@ -1251,6 +1267,9 @@ router.get('/contrato/s3/:orderId', requireAuth, async (req, res) => {
       s3base + orderId + '/contrato.pdf',
       s3base + orderId + '/document.pdf',
       s3base + orderId + '/signed_contract.pdf',
+      s3base + orderId + '/signed_contract.pdf?response-content-disposition=inline',
+      s3base + orderId + '/SignedContract.pdf',
+      s3base + orderId + '/CONTRACT_SIGNED.pdf',
     ];
     for (var r of rutasS3) {
       if (pdfUrl) break;
