@@ -423,20 +423,30 @@ router.get('/fiscal/:fiscalId', requireAuth, async (req, res) => {
     apiOrders = mapApiOrders(data.orders);
     // Enriquecer ordenes con productos desde suscripciones (las ordenes no tienen productos en la API)
     if (apiOrders.length > 0 && data.subscriptions && Array.isArray(data.subscriptions)) {
-      var subLookup = {};
+      var subLookup = {}, subLines = {};
       data.subscriptions.forEach(function(s) {
         if (Array.isArray(s.products)) {
           s.products.forEach(function(p) {
             var oid = p.orderId || '';
-            if (oid && !subLookup[oid]) subLookup[oid] = p.productName || '';
+            var sid = p.subscriptionId || '';
+            if (oid) { subLookup[oid] = p.productName || ''; subLines[oid] = p.fixedNumber || p.lineNumber || ''; }
+            if (sid) { subLookup[sid] = p.productName || ''; subLines[sid] = p.fixedNumber || p.lineNumber || ''; }
           });
         }
       });
       apiOrders.forEach(function(o) {
         var oid = o.id || '';
-        if (oid && subLookup[oid] && o.productName === '-') {
-          o.productName = subLookup[oid];
-          o.lineNumber = o.lineNumber || (function() { for (var si = 0; si < (data.subscriptions || []).length; si++) { var sp = data.subscriptions[si].products || []; for (var pi = 0; pi < sp.length; pi++) { if (sp[pi].orderId === oid) return sp[pi].fixedNumber || sp[pi].lineNumber || ''; } } return ''; })();
+        if (oid && o.productName === '-') {
+          // Buscar coincidencia exacta
+          if (subLookup[oid]) { o.productName = subLookup[oid]; o.lineNumber = o.lineNumber || subLines[oid] || '-'; }
+          else {
+            // Buscar por ultimos 8 chars del UUID (sufijo unico)
+            var shortId = oid.split('-').pop() || '';
+            if (shortId) {
+              var foundKey = Object.keys(subLookup).find(function(k) { return k.endsWith(shortId); });
+              if (foundKey) { o.productName = subLookup[foundKey]; o.lineNumber = o.lineNumber || subLines[foundKey] || '-'; }
+            }
+          }
         }
       });
     }
