@@ -2369,9 +2369,8 @@ new bootstrap.Modal(document.getElementById('consumptionModal')).show();
   });
 
   // ========== ENRICH ORDERS WITH DRAFT ORDER DATA ==========
-  document.getElementById('ordenes-tab')?.addEventListener('shown.bs.tab', function() {
+  function enrichOrders() {
     var rows = document.querySelectorAll('#ordenes tbody tr');
-    rows.forEach(function(row) {
       var idCell = row.querySelector('td:nth-child(1) small');
       if (!idCell) return;
       var fullId = (idCell.textContent || '').trim();
@@ -2423,9 +2422,12 @@ new bootstrap.Modal(document.getElementById('consumptionModal')).show();
             }
             if (lines.length > 0 && lineCell) lineCell.textContent = lines.join(', ');
           }
-        }).catch(function() { productCell.textContent = '-'; });
+        }).catch(function() { if (productCell) productCell.textContent = '-'; });
     });
-  });
+  }
+  // Ejecutar al cargar la pagina y cuando se muestre la pestaña
+  enrichOrders();
+  document.getElementById('ordenes-tab')?.addEventListener('shown.bs.tab', enrichOrders);
 
   // ========== AUTO LOAD NUBE INVOICES ==========
   document.getElementById('facturas-tab')?.addEventListener('shown.bs.tab', function() {

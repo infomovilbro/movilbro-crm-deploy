@@ -421,6 +421,25 @@ router.get('/fiscal/:fiscalId', requireAuth, async (req, res) => {
       }
     });
     apiOrders = mapApiOrders(data.orders);
+    // Enriquecer ordenes con productos desde suscripciones (las ordenes no tienen productos en la API)
+    if (apiOrders.length > 0 && data.subscriptions && Array.isArray(data.subscriptions)) {
+      var subLookup = {};
+      data.subscriptions.forEach(function(s) {
+        if (Array.isArray(s.products)) {
+          s.products.forEach(function(p) {
+            var oid = p.orderId || '';
+            if (oid && !subLookup[oid]) subLookup[oid] = p.productName || '';
+          });
+        }
+      });
+      apiOrders.forEach(function(o) {
+        var oid = o.id || '';
+        if (oid && subLookup[oid] && o.productName === '-') {
+          o.productName = subLookup[oid];
+          o.lineNumber = o.lineNumber || (function() { for (var si = 0; si < (data.subscriptions || []).length; si++) { var sp = data.subscriptions[si].products || []; for (var pi = 0; pi < sp.length; pi++) { if (sp[pi].orderId === oid) return sp[pi].fixedNumber || sp[pi].lineNumber || ''; } } return ''; })();
+        }
+      });
+    }
     apiInvoices = mapApiInvoices(data.invoices);
     apiInstallations = mapApiInstallations(data.installations);
     if (Array.isArray(data.portabilities)) apiPortabilities = data.portabilities;
@@ -488,6 +507,22 @@ router.get('/fiscal/:fiscalId', requireAuth, async (req, res) => {
       }
     });
   }
+  // Si no hay lineas, intentar obtener desde API /line
+  if (allLines.length === 0) {
+    try {
+      var apiLines = await api.getLines();
+      if (Array.isArray(apiLines)) {
+        apiLines.forEach(function(ln) {
+          var lnNum = ln.lineNumber || ln.msisdn || ln.phone || ln.fixedNumber || '';
+          var lnProd = ln.productName || '';
+          if (lnNum && !allLines.find(function(l) { return l.linea === lnNum; })) {
+            allLines.push({ linea: lnNum, producto: lnProd, estado: (ln.status || '').toLowerCase(), iccid: ln.icc || ln.iccid || '', pin: ln.pin || '', puk: ln.puk || '', contrato_id: null, fecha_alta: null });
+          }
+        });
+      }
+    } catch(e) { console.error('[Clientes] Error fetching API lines:', e.message); }
+  }
+
   var linesByStatus = {};
   var lineNumbers = [];
   allLines.forEach(function(l) {
@@ -1096,8 +1131,8 @@ router.get("/:id/scoring", requireAuth, async (req, res) => {
 
     // 3. Validación DNI/NIF
     var dni = (fiscalId || "").toUpperCase();
-    // DNI: 8 digitos + letra, NIE: XYZ + 7 digitos + letra, NIF: 1 letra + 7 digitos + letra
-    var dniValido = /^(\d{8}[A-Z]|[XYZ]\d{7}[A-Z]|[A-Z]\d{7}[A-Z]|\d{8})$/i.test(dni) && dni.length >= 8;
+    // DNI: 8 digitos + letra, NIE: XYZ + 7 digitos + letra, NIF: 1 letra + 7 digitos + letra, Otros: pasaporte, etc
+    var dniValido = /^(\d{8}[A-Z]|[XYZ]\d{7}[A-Z]|[A-Z]\d{7}[A-Z]|\d{8}|[A-Z0-9]{6,15})$/i.test(dni) && dni.length >= 6;
     if (dniValido) { puntuacion += 1; detalles.push("DNI/NIF con formato válido"); }
     else if (dni) { puntuacion -= 1; detalles.push("DNI/NIF formato inválido: " + dni); }
     else { detalles.push("Sin DNI/NIF"); }
@@ -1271,29 +1306,21 @@ router.get('/contrato/s3/:orderId', requireAuth, async (req, res) => {
       }
       if (pdfUrl) console.log('[Contrato] URL encontrada para', orderId);
     } catch(e) { console.log('[Contrato] API falló:', e.message.substring(0, 80)); }
-    // 2. Fallback: probar multiples rutas S3
-    var s3base = 'https://prod-likes-customer-documents.s3.eu-central-1.amazonaws.com/264/';
-    var rutasS3 = [
-      s3base + orderId + '/signedContract.pdf',
-      s3base + orderId + '/contract.pdf',
-      s3base + orderId + '/contrato.pdf',
-      s3base + orderId + '/document.pdf',
-      s3base + orderId + '/signed_contract.pdf',
-      s3base + orderId + '/signed_contract.pdf?response-content-disposition=inline',
-      s3base + orderId + '/SignedContract.pdf',
-      s3base + orderId + '/CONTRACT_SIGNED.pdf',
-    ];
-    for (var r of rutasS3) {
-      if (pdfUrl) break;
+    // 2. Fallback: intentar con API customer documents
+    if (!pdfUrl) {
       try {
-        var exists = await new Promise(function(resolve) {
-          var https = require('https');
-          https.get(r, function(proxyRes) {
-            resolve(proxyRes.statusCode === 200);
-          }).on('error', function() { resolve(false); });
-        });
-        if (exists) pdfUrl = r;
-      } catch(e) {}
+        var fiscalId = req.params.id || (req.originalUrl || '').match(/\/clientes\/([^/]+)\//)?.[1];
+        if (fiscalId) {
+          var custDocs = await api.request('GET', '/customer?fiscalId=' + encodeURIComponent(fiscalId) + '&withDocumentation=true');
+          var docsData = custDocs.data?.documentation || custDocs.documentation || [];
+          if (Array.isArray(docsData)) {
+            for (var di2 = 0; di2 < docsData.length; di2++) {
+              var d2 = docsData[di2];
+              if (d2.downloadURL && d2.downloadURL.startsWith('http')) { pdfUrl = d2.downloadURL; break; }
+            }
+          }
+        }
+      } catch(e2) { console.log('[Contrato] Customer docs fallback error:', e2.message); }
     }
     if (!pdfUrl) return res.status(404).send('Contrato no disponible');
     var https = require('https');
@@ -1794,6 +1821,44 @@ router.post('/:id/installation/:installId/work-order', requireAuth, async (req, 
   } catch(e) {
     res.json({ ok: false, error: e.message });
   }
+});
+
+// ENDPOINT DEBUG - Muestra datos crudos de la API para un cliente
+router.get('/:id/api-debug', requireAuth, async (req, res) => {
+  try {
+    var api = LikesAPI.getApiInstance();
+    var fiscalId = req.params.id;
+    var results = {};
+
+    // 1. Customer overview (datos principales)
+    try { results.overview = await api.request('GET', '/customer/overview?fiscalId=' + encodeURIComponent(fiscalId) + '&includeCustomer=true&includeSubscriptions=true&includeOrders=true&includeInvoices=true'); } catch(e) { results.overview_error = e.message; }
+
+    // 2. Subscriptions
+    try { results.subscriptions = await api.request('GET', '/subscriptions?fiscalId=' + encodeURIComponent(fiscalId) + '&brand_id=264'); } catch(e) { results.subscriptions_error = e.message; }
+
+    // 3. Lines
+    try { results.lines = await api.request('GET', '/line?fiscalId=' + encodeURIComponent(fiscalId) + '&brand_id=264'); } catch(e) { results.lines_error = e.message; }
+
+    // 4. Orders
+    try { results.orders = await api.request('GET', '/orders?brand_id=264'); } catch(e) { results.orders_error = e.message; }
+
+    // 5. Customer docs
+    try { results.customerDocs = await api.request('GET', '/customer?fiscalId=' + encodeURIComponent(fiscalId) + '&withDocumentation=true'); } catch(e) { results.customerDocs_error = e.message; }
+
+    // Mostrar estructura (no datos completos) para depuracion
+    var debug = {
+      fiscalId: fiscalId,
+      overview_keys: results.overview ? Object.keys(results.overview).slice(0, 20) : [],
+      overview_sample: results.overview ? JSON.stringify(results.overview).substring(0, 500) : null,
+      subscriptions_count: Array.isArray(results.subscriptions) ? results.subscriptions.length : (results.subscriptions ? (results.subscriptions.data || results.subscriptions.subscriptions || []).length : 0),
+      subscriptions_first: Array.isArray(results.subscriptions) && results.subscriptions.length > 0 ? Object.keys(results.subscriptions[0]).slice(0, 15) : null,
+      lines_count: Array.isArray(results.lines) ? results.lines.length : (results.lines ? (results.lines.data || results.lines.lines || []).length : 0),
+      lines_first: Array.isArray(results.lines) && results.lines.length > 0 ? Object.keys(results.lines[0]).slice(0, 15) : null,
+      orders_count: Array.isArray(results.orders) ? results.orders.length : (results.orders ? (results.orders.data || results.orders.orders || []).length : 0),
+      errors: [results.overview_error, results.subscriptions_error, results.lines_error, results.orders_error, results.customerDocs_error].filter(Boolean)
+    };
+    res.json(debug);
+  } catch(e) { res.json({ error: e.message }); }
 });
 
 // Obtener resumen de orden (draft order) para mostrar en la ficha cliente

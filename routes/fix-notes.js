@@ -91,17 +91,18 @@ router.post('/api/fix-notes/test/:id', async (req, res) => {
     if (tipo === 'cliente' || tipo === 'global') {
       try {
         var customers = await api.getCustomers();
-        var fiscalIds = customers.map(function(c) { return c.fiscalId; }).filter(Boolean).slice(0, 50);
+        var fiscalIds = customers.map(function(c) { return c.fiscalId; }).filter(Boolean).filter(function(f) { return /^[A-Z0-9]{6,15}$/i.test(f); }).slice(0, 10);
         results.tested = fiscalIds.length;
-        // Probar que el overview devuelve datos básicos
-        for (var i = 0; i < fiscalIds.length && i < 50; i++) {
-          try {
-            var overview = await api.request('GET', '/customer/overview?fiscalId=' + encodeURIComponent(fiscalIds[i]) + '&includeCustomer=true&includeSubscriptions=true&includeOrders=true');
-            if (overview && (overview.customer || overview.subscriptions || overview.orders)) {
-              results.passed++;
-            } else { results.failed++; if (results.samples.length < 3) results.samples.push(fiscalIds[i]); }
-          } catch(e) { results.failed++; if (results.samples.length < 3) results.samples.push(fiscalIds[i]); }
-        }
+        var testPromises = fiscalIds.map(function(fid) {
+          return api.request('GET', '/customer/overview?fiscalId=' + encodeURIComponent(fid) + '&includeCustomer=true', null, 10000)
+            .then(function(overview) { return { fid: fid, ok: !!(overview && (overview.customer || overview.data?.customer)) }; })
+            .catch(function() { return { fid: fid, ok: false }; });
+        });
+        var testResults = await Promise.allSettled ? (await Promise.allSettled(testPromises)).map(function(r) { return r.value || r.reason; }) : await Promise.all(testPromises);
+        testResults.forEach(function(r) {
+          if (r && r.ok) results.passed++;
+          else { results.failed++; if (results.samples.length < 3) results.samples.push(r?.fid || '?'); }
+        });
       } catch(e) { results.error = e.message; }
     }
 

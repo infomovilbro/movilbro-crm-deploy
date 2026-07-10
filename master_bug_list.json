@@ -1,0 +1,142 @@
+[
+  {
+    "id": "B1",
+    "title": "Fixes only work for 1-2 clients, not all 188",
+    "status": "unstarted",
+    "what_was_done": "The fix-notes system (/api/fix-notes/test/:id) tests only a sample of 10 fiscalIds for 'cliente' type and 20 lines for 'cdr' type. It doesn't run against all 188 clients.",
+    "what_still_needs_to_be_done": "Implement bulk testing across ALL 188 clients. The test endpoint should: (1) iterate all customers from API, (2) run each fix against every client, (3) report pass/fail per client, (4) show aggregate statistics. Current test only samples a small subset (10/188)."
+  },
+  {
+    "id": "B2",
+    "title": "Repeated bug reports — same bugs reported 3-4 times without being fixed",
+    "status": "partial",
+    "what_was_done": "Fix-notes system has 'report fail' endpoint and re-opens bugs when user clicks '❌ Sigue fallando'. The MEMORIA_ERRORES.md and AGENTS.md document lessons learned.",
+    "what_still_needs_to_be_done": "(1) Implement automatic re-opening of a fix-note when regression is detected in a new test run. (2) Add root cause analysis field to each fix-note so the same bug type doesn't recur. (3) Prevent marking as 'fixed' unless test passes for >95% of clients."
+  },
+  {
+    "id": "B3",
+    "title": "CodeOpen features don't actually work (AUTO mode, voice selector, profile pics)",
+    "status": "partial",
+    "what_was_done": "UI elements exist in codeopen.ejs: AUTO toggle button (line 1253), voice selector dropdown (line 1474), profile pic loading (lines 1221-1241), backend endpoint /whatsapp/profile-pic/:jid (routes/codeopen.js:1592). AUTO mode has server-side auto-process endpoint (routes/codeopen.js:964).",
+    "what_still_needs_to_be_done": "(1) AUTO mode: the auto-process endpoint is never called from frontend — need a polling loop. Also needs proper error handling when AI analysis fails. (2) Voice selector: AssemblyAI TTS needs valid API key; OpenRouter TTS fallback needs OPENROUTER_API_KEY. Google TTS fallback doesn't support different voices (all sound same). (3) Profile pics: wa-baileys.js fetches profilePictureUrl but may fail for users without profile pics, needs better fallback and caching."
+  },
+  {
+    "id": "B4",
+    "title": "Comprobar button hangs on 'Probando...' indefinitely",
+    "status": "unstarted",
+    "what_was_done": "Button triggers POST /api/fix-notes/test/:id (fix-notes.ejs:103-128, routes/fix-notes.js:83-153). Frontend shows spinner while waiting.",
+    "what_still_needs_to_be_done": "The test endpoint has no timeout for API calls — if Likes API is slow/unreachable, the request hangs forever. Add: (1) per-request timeout (e.g., 15s), (2) overall request timeout, (3) better frontend feedback (show 'timeout' message), (4) implement AbortController in fetch call, (5) add fallback with cached data when API times out."
+  },
+  {
+    "id": "B5",
+    "title": "Orders show '-' for products",
+    "status": "unstarted",
+    "what_was_done": "Order views (orders/list.ejs, orders/view.ejs, altas/index.ejs) use pattern: `orden.producto || '-'`. If `producto` field is empty/null in DB, dash appears.",
+    "what_still_needs_to_be_done": "(1) Investigate why product data is missing in orders — likely the product name isn't being captured during order creation (views/orders/create.ejs uses free-text input, altas/index.ejs may not map Likes product ID to name correctly). (2) Add automatic product name resolution: when an order has a likes_product_id but no producto name, fetch from API/products table and backfill. (3) Show 'Sin especificar' instead of '-' for better UX. (4) Add DB migration to backfill existing orders."
+  },
+  {
+    "id": "B6",
+    "title": "Contracts S3 don't show real signatures",
+    "status": "partial",
+    "what_was_done": "Proxy endpoint /clientes/contrato/s3/:orderId (routes/clients.js:1267-1338) tries multiple Likes API endpoints to find signed contract URL (draft-order-v2, customer documentation). Falls back through 4 strategies.",
+    "what_still_needs_to_be_done": "(1) The proxy only returns whatever URL it finds — if Likes API doesn't return a signed PDF, user sees 'Contrato no disponible'. (2) No visual indicator of signature status before clicking. (3) KYC flow generates a PNG of the signed contract (routes/kyc.js:269) but this PNG may not have real signature — just a screenshot of the signing UI. (4) Add pre-check: call a lightweight endpoint to verify if signed PDF exists before showing download button. (5) Add alternative: show contract HTML/image when PDF unavailable."
+  },
+  {
+    "id": "B7",
+    "title": "Consumption GB doesn't work for most clients",
+    "status": "partial",
+    "what_was_done": "getLineGB() in likes-api.js:294 makes API call to /line/score endpoint (line 303). Route /:id/line/:line/full-consumption (clients.js:1441) calls it. View clients/view.ejs has GB selector and loadGB() function (line 1911). Button mostrar-pinpuk fetches PIN/PUK with 4 fallback strategies.",
+    "what_still_needs_to_be_done": "(1) The 'score' endpoint may not return GB data for all line types/plans — need to verify API compatibility. (2) Add GB data from alternative Likes endpoints or CDRs. (3) Implement caching since GB data changes infrequently. (4) Better error messages when GB data is unavailable per line. (5) Add aggregated GB view for clients with multiple lines."
+  },
+  {
+    "id": "B8",
+    "title": "PIN/PUK missing on mobile lines",
+    "status": "partial",
+    "what_was_done": "PIN/PUK retrieval has 4 fallback strategies (routes/clients.js:1387-1428): (1) /line/pinpuk endpoint, (2) /line with withSims=true, (3) simInfo extraction, (4) nested recursive search. Modal shows PIN/PUK in codeopen.ejs (line 1719).",
+    "what_still_needs_to_be_done": "(1) The API may return empty PIN/PUK for lines that don't have SIM cards associated. (2) Add explicit 'No disponible' vs 'No tiene SIM' distinction. (3) Implement button to generate new PIN/PUK (endpoint exists at /:id/line/:line/generate-pinpuk but needs testing). (4) Cache PIN/PUK in DB to avoid API calls on every view."
+  },
+  {
+    "id": "B9",
+    "title": "DNI validation too strict",
+    "status": "unstarted",
+    "what_was_done": "DNI validation exists in altas/index.ejs:62 and function validarDNI() at line 896.",
+    "what_still_needs_to_be_done": "(1) Read validarDNI() to understand current validation rules — likely uses Spanish DNI algorithm (mod 23 letter check) which rejects valid NIE/NIF formats. (2) Support NIE (X, Y, Z prefixes), NIF (with/without leading letter), passport numbers. (3) Add international document support (CIF for companies). (4) Make validation configurable (strict vs lenient mode). (5) Add clear error message showing accepted formats."
+  },
+  {
+    "id": "B10",
+    "title": "Installation fields (OT, router, ONT, CTO) are empty",
+    "status": "unstarted",
+    "what_was_done": "isp_equipos table exists (database.js:339) with fields for router, fabricante, modelo, numero_serie, mac, ip. Installation section exists in client view (#instalaciones anchor).",
+    "what_still_needs_to_be_done": "(1) Confirm Likes API has installation data endpoint and implement sync. (2) Create dedicated installations view (currently redirects to client page anchor). (3) Add OT (work order) number field. (4) Add CTO (optical distribution) field. (5) Add ONT serial number field with MAC. (6) Create edit form for installation data. (7) Sync equipment data from Likes API's /installation endpoint."
+  },
+  {
+    "id": "B11",
+    "title": "WhatsApp groups don't identify participants",
+    "status": "unstarted",
+    "what_was_done": "wa-baileys.js:168-173 extracts participant from group messages and appends last 4 digits. The codeopen.ejs vigilante in layout.ejs scans iframe for messages.",
+    "what_still_needs_to_be_done": "(1) Implement full participant identification: fetch group metadata (participant list) when detecting group messages. (2) Map phone numbers to CRM clients for participant names. (3) Show participant list in the contact view for group conversations. (4) Handle the case where @lid addresses (Business API indirect IDs) need resolution to real phone numbers."
+  },
+  {
+    "id": "B12",
+    "title": "Images/documents not shown in chat",
+    "status": "unstarted",
+    "what_was_done": "Vigilante in layout.ejs scans WhatsApp iframe for messages but focuses on text. CodeOpen message display (codeopen.ejs:1272) only shows msg.body (text).",
+    "what_still_needs_to_be_done": "(1) Detect image/document attachments in WhatsApp messages within the iframe. (2) Add image preview (thumbnail) in chat view. (3) Handle document downloads — provide download link. (4) Process images through AssemblyAI for OCR if needed. (5) Store media references in pending_messages table."
+  },
+  {
+    "id": "B13",
+    "title": "Auto-save to Drive not working",
+    "status": "partial",
+    "what_was_done": "autoSaveToDrive() in routes/fix-notes.js:10-25 saves fix-notes JSON to Drive. Called after marking as fixed (line 77). nube.js:27 guardarEnDB() exists. Drive auth uses service account with fallback.",
+    "what_still_needs_to_be_done": "(1) autoSaveToDrive is only called when marking fix as fixed — should also run periodically. (2) No manual trigger feedback in UI. (3) Save-to-Drive button exists in fix-notes.ejs (line 25) but may fail silently if Drive auth fails. (4) Need to auto-save all CRM data not just fix-notes (shipments, orders, etc.). (5) Add scheduled auto-save with cron-like interval."
+  },
+  {
+    "id": "B14",
+    "title": "Nuevo mensaje button doesn't open contact view",
+    "status": "partial",
+    "what_was_done": "Button exists in codeopen.ejs:1213 with function iniciarNuevoMensaje() at line 1689. It prompts for phone number, checks if contact exists, and opens chat history modal.",
+    "what_still_needs_to_be_done": "(1) The function prompts for phone but doesn't create a real contact card in the contacts list — it only opens the chat modal. (2) After sending, the new contact doesn't appear in the group list. (3) Should open the contact selector view with search, not just a prompt. (4) Add ability to search CRM clients and start conversation from their profile."
+  },
+  {
+    "id": "B15",
+    "title": "General pill should be removed from CodeOpen category pills",
+    "status": "unstarted",
+    "what_was_done": "Category pills are rendered in renderCategoryPills() at codeopen.ejs:316-325. AGENT_CATEGORIES_LIST at line 357 includes 'code' and 'general'.",
+    "what_still_needs_to_be_done": "(1) Remove 'general' from the categories list or change UI to exclude 'general' pill. (2) If 'general' serves a purpose (catch-all for non-categorized queries), rename it to something more useful or auto-route to the appropriate agent. (3) Ensure removing it doesn't break the category switching logic (lines 325, 352, 493)."
+  },
+  {
+    "id": "B16",
+    "title": "Ficha actions (CRM dropdown) open redirects, not modals",
+    "status": "partial",
+    "what_was_done": "openCRMActions() at codeopen.ejs:1592 builds a dropdown with links. Each link uses `data-crm-url` attribute with class `crm-iframe-link`. The click handler for crm-iframe-link uses window.openCrmIframe() (line 1667) to open in an iframe panel.",
+    "what_still_needs_to_be_done": "(1) The crm-iframe-link click handler may not be registered — need to check if event delegation is set up. (2) The iframe panel layout may be broken/not visible on mobile. (3) Some links may still navigate away (direct href) instead of opening modal. (4) Add loading state for iframe. (5) Make modal resizable. (6) Test on mobile viewport."
+  },
+  {
+    "id": "B17",
+    "title": "Scroll issues on client page",
+    "status": "unstarted",
+    "what_was_done": "No scroll-specific code found in client view.",
+    "what_still_needs_to_be_done": "(1) Diagnose: likely the page has overflow issues — content extends beyond viewport on certain tabs. (2) Check for fixed-height containers that don't scroll. (3) Ensure tab content sections have proper max-height with overflow-y:auto. (4) Test with client who has many lines/contracts to reproduce. (5) Add smooth scroll to anchor links (#lineas, #kyc, #instalaciones)."
+  },
+  {
+    "id": "B18",
+    "title": "Score methodology unexplained — no tooltip/help for scoring",
+    "status": "unstarted",
+    "what_was_done": "Score is fetched from Likes API (likes-api.js:303 /line/score). Displayed in client view (view.ejs:180, 396-399). routes/codeopen.js:315 computes altas_score from keyword matching.",
+    "what_still_needs_to_be_done": "(1) Add tooltip or info icon next to score explaining what factors determine it. (2) Document the scoring formula: what data points (AEAT status, credit history, payment behavior, etc.) contribute. (3) Add 'Score details' link that shows breakdown. (4) Ensure the altas_score (0-1) used in CodeOpen is explained differently from the Likes credit score."
+  },
+  {
+    "id": "B19",
+    "title": "All TTS (text-to-speech) voices sound the same",
+    "status": "unstarted",
+    "what_was_done": "TTS system in services/transcription.js has 3 tiers: (1) AssemblyAI (requires key), (2) OpenRouter (requires key + model support), (3) Google TTS (free, always works as fallback). Voice selector dropdown exists in codeopen.ejs:1474 with options: Echo, Fable, Onyx, Nova.",
+    "what_still_needs_to_be_done": "(1) Google TTS (the actual working fallback) does NOT support different voices — it only changes language (tl=es) and speed. All voice options map to same Google TTS endpoint. (2) AssemblyAI TTS needs VALID ASSEMBLYAI_API_KEY configured in env. (3) OpenRouter TTS needs OPENROUTER_API_KEY and uses openai/tts-1 model which supports: alloy, echo, fable, onyx, nova, shimmer — but may not be enabled on the user's OpenRouter account. (4) Fix: either get AssemblyAI working with proper voice IDs, or remove voice selector and use single voice, or implement local TTS."
+  },
+  {
+    "id": "B20",
+    "title": "Product page not organized by category",
+    "status": "fixed",
+    "what_was_done": "Products route (routes/products.js:34-117) already groups products by family using FAMILY_ORDER (Mobile, Fiber, Fixed, TV, Satellite, Device, Energy, International, Other). Has FAMILY_TRANSLATION and FAMILY_ICONS maps. View renders grouped sections with charts by family, type, and price ranges.",
+    "what_still_needs_to_be_done": "The product page IS already organized by category/family. If the user still sees ungrouped products, the issue may be: (1) products without a 'family' field fall to 'Other' bucket, (2) API may not return family data for all products, (3) view rendering may not show category headers. Verify that the view/products/index.ejs renders the grouped sections correctly."
+  }
+]
