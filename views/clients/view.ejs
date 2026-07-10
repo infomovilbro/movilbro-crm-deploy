@@ -2371,6 +2371,7 @@ new bootstrap.Modal(document.getElementById('consumptionModal')).show();
   // ========== ENRICH ORDERS WITH DRAFT ORDER DATA ==========
   function enrichOrders() {
     var rows = document.querySelectorAll('#ordenes tbody tr');
+    rows.forEach(function(row) {
       var idCell = row.querySelector('td:nth-child(1) small');
       if (!idCell) return;
       var fullId = (idCell.textContent || '').trim();
