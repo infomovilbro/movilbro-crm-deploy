@@ -992,7 +992,7 @@ router.post('/pending/auto-process', async (req, res) => {
         }
         // Aprobar automaticamente si tiene respuesta
         if (row.proposed_response && row.proposed_response !== 'Analizando con IA...' && row.proposed_response !== '') {
-          var textToSend = row.proposed_response;
+          var textToSend = row.body ? '📩 Mensaje original:\n"' + row.body.substring(0, 200) + '"\n\n---\n' + row.proposed_response : row.proposed_response;
           if (row.document_ready && row.document_buffer) {
             var wa = require('../wa-baileys');
             var docInfo = row.document_info ? JSON.parse(row.document_info) : null;

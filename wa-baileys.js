@@ -164,7 +164,14 @@ async function initBaileys(pairingPhone) {
         
         var from = msg.key.remoteJid || '';
         var phone = from.split('@')[0] || '';
+        var isGroup = from.endsWith('@g.us');
+        var participant = msg.key.participant || '';
+        var participantPhone = participant.split('@')[0] || '';
+        // Para grupos, identificar al remitente
         var name = msg.pushName || phone;
+        if (isGroup && participantPhone) {
+          name = name + ' (#' + participantPhone.substring(participantPhone.length - 4) + ')';
+        }
 
         // Guardar quoted_data para poder reenviar con contexto
         var quotedData = null;
@@ -191,7 +198,14 @@ async function initBaileys(pairingPhone) {
         }
         
         var text = msg.message.conversation || (msg.message.extendedTextMessage && msg.message.extendedTextMessage.text) || '';
-        if (!text) return;
+        // Capturar imagenes, videos, documentos aunque no tengan caption
+        if (!text) {
+          if (msg.message.imageMessage) text = '🖼️ Imagen' + (msg.message.imageMessage.caption ? ': ' + msg.message.imageMessage.caption : '');
+          else if (msg.message.videoMessage) text = '🎬 Video' + (msg.message.videoMessage.caption ? ': ' + msg.message.videoMessage.caption : '');
+          else if (msg.message.documentMessage) text = '📄 ' + (msg.message.documentMessage.fileName || 'Documento');
+          else if (msg.message.stickerMessage) text = '🏷️ Sticker';
+          else return; // Otros tipos no soportados
+        }
         
         console.log('[Baileys] Msg:', name, ':', text.substring(0, 80));
         

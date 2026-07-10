@@ -1096,7 +1096,8 @@ router.get("/:id/scoring", requireAuth, async (req, res) => {
 
     // 3. Validación DNI/NIF
     var dni = (fiscalId || "").toUpperCase();
-    var dniValido = dni.length >= 8 && /^\d{8}[A-Z]$/.test(dni);
+    // DNI: 8 digitos + letra, NIE: XYZ + 7 digitos + letra, NIF: 1 letra + 7 digitos + letra
+    var dniValido = /^(\d{8}[A-Z]|[XYZ]\d{7}[A-Z]|[A-Z]\d{7}[A-Z]|\d{8})$/i.test(dni) && dni.length >= 8;
     if (dniValido) { puntuacion += 1; detalles.push("DNI/NIF con formato válido"); }
     else if (dni) { puntuacion -= 1; detalles.push("DNI/NIF formato inválido: " + dni); }
     else { detalles.push("Sin DNI/NIF"); }
@@ -1241,24 +1242,35 @@ router.get('/contrato/s3/:orderId', requireAuth, async (req, res) => {
       var order = ordersResp.data || ordersResp;
       var docs = order.documentation || order.documents || [];
       for (var doc of docs) {
-        if (doc.downloadURL) { pdfUrl = doc.downloadURL; break; }
-        if (doc.url) { pdfUrl = doc.url; break; }
-        if (doc.uploadURL) { pdfUrl = doc.uploadURL; break; }
+        if (doc.downloadURL && doc.downloadURL.startsWith('http')) { pdfUrl = doc.downloadURL; console.log('[Contrato] URL documentation API para', orderId); break; }
+        if (doc.url && doc.url.startsWith('http')) { pdfUrl = doc.url; console.log('[Contrato] URL doc.url API para', orderId); break; }
       }
-      // 1b. Si no hay docs, intentar order detail
+      // 1b. Buscar en toda la respuesta cualquier URL que contenga "contract" o "firma"
+      if (!pdfUrl) {
+        (function findContractUrl(obj) {
+          if (!obj || typeof obj !== 'object') return;
+          for (var k in obj) {
+            var v = obj[k];
+            if (v && typeof v === 'string' && v.startsWith('http') && (k.toLowerCase().includes('contract') || k.toLowerCase().includes('firma') || k.toLowerCase().includes('signed') || k.toLowerCase().includes('contrato'))) {
+              pdfUrl = v; return;
+            }
+            if (typeof v === 'object') findContractUrl(v);
+          }
+        })(ordersResp);
+      }
+      // 1c. Si no hay docs, intentar order detail
       if (!pdfUrl) {
         try {
           var detailResp = await api.request('GET', '/draft-order-v2/' + encodeURIComponent(orderId));
           var detail = detailResp.data || detailResp;
-          if (detail.downloadURL) pdfUrl = detail.downloadURL;
-          else if (detail.signedContractUrl) pdfUrl = detail.signedContractUrl;
-          else if (detail.contractUrl) pdfUrl = detail.contractUrl;
-          else if (detail.pdfUrl) pdfUrl = detail.pdfUrl;
-          else if (detail.documentUrl) pdfUrl = detail.documentUrl;
+          if (detail.downloadURL && detail.downloadURL.startsWith('http')) pdfUrl = detail.downloadURL;
+          else if (detail.signedContractUrl && detail.signedContractUrl.startsWith('http')) pdfUrl = detail.signedContractUrl;
+          else if (detail.contractUrl && detail.contractUrl.startsWith('http')) pdfUrl = detail.contractUrl;
+          else if (detail.pdfUrl && detail.pdfUrl.startsWith('http')) pdfUrl = detail.pdfUrl;
         } catch(e) {}
       }
-      if (pdfUrl) console.log('[Contrato] URL desde API para', orderId);
-    } catch(e) { console.log('[Contrato] API falló, usando fallback S3'); }
+      if (pdfUrl) console.log('[Contrato] URL encontrada para', orderId);
+    } catch(e) { console.log('[Contrato] API falló:', e.message.substring(0, 80)); }
     // 2. Fallback: probar multiples rutas S3
     var s3base = 'https://prod-likes-customer-documents.s3.eu-central-1.amazonaws.com/264/';
     var rutasS3 = [
@@ -1596,7 +1608,7 @@ router.post('/:id/calculate-scoring', requireAuth, async (req, res) => {
       } else { detalles.push('Sin historial de facturas ISP'); }
     } catch(e) {}
     var dniClean = fiscalId.toUpperCase().replace(/[^0-9A-Z]/g, '');
-    if (/^\d{8}[A-Z]$/.test(dniClean)) { puntuacion += 1; detalles.push('DNI/NIF válido'); }
+    if (/^(\d{8}[A-Z]|[XYZ]\d{7}[A-Z]|[A-Z]\d{7}[A-Z]|\d{8})$/i.test(dniClean)) { puntuacion += 1; detalles.push('DNI/NIF válido'); }
     else if (dniClean) { puntuacion -= 1; detalles.push('DNI/NIF formato inválido'); }
     puntuacion = Math.max(1, Math.min(10, Math.round(puntuacion)));
     if (puntuacion >= 7) riesgo = 'bajo';
@@ -1736,6 +1748,47 @@ router.post('/:id/installation/:installId/work-order', requireAuth, async (req, 
         }
       } catch(e) {}
     }
+
+    // 4) Intentar obtener desde orden del cliente (draft-order)
+    try {
+      var fiscalId = req.params.id;
+      if (fiscalId) {
+        var overview = await api.request('GET', '/customer/overview?fiscalId=' + encodeURIComponent(fiscalId) + '&includeOrders=true');
+        var ordersData = overview.orders || (overview.data && overview.data.orders) || [];
+        if (Array.isArray(ordersData) && ordersData.length > 0) {
+          for (var oi = 0; oi < ordersData.length; oi++) {
+            var o = ordersData[oi];
+            var oId = o.id || o.orderId || (o.data && o.data.id) || '';
+            if (oId) {
+              try {
+                var draftOrder = await api.request('GET', '/draft-order-v2?orderId=' + encodeURIComponent(oId) + '&withDocumentation=true');
+                if (draftOrder) {
+                  var docs = draftOrder.documentation || draftOrder.documents || [];
+                  if (Array.isArray(docs)) {
+                    for (var di = 0; di < docs.length; di++) {
+                      var dw = docs[di].downloadURL || docs[di].url || '';
+                      if (dw && dw.startsWith('http')) {
+                        return res.json({ ok: true, data: { url: dw, parteUrl: dw } });
+                      }
+                    }
+                  }
+                  // Buscar URL en toda la respuesta
+                  var allDocVals = {};
+                  (function flattenDoc(obj, prefix) {
+                    if (!obj || typeof obj !== 'object') return;
+                    for (var k in obj) { var v = obj[k]; var key = prefix ? prefix + '.' + k : k; if (v && typeof v !== 'object') allDocVals[key] = v; else if (typeof v === 'object') flattenDoc(v, key); }
+                  })(draftOrder, '');
+                  var docUrls = Object.keys(allDocVals).filter(function(k) { var v = allDocVals[k]; return v && typeof v === 'string' && v.startsWith('http') && (k.toLowerCase().includes('parte') || k.toLowerCase().includes('work') || k.toLowerCase().includes('contrato') || k.toLowerCase().includes('pdf')); });
+                  for (var ui = 0; ui < docUrls.length; ui++) {
+                    return res.json({ ok: true, data: { url: allDocVals[docUrls[ui]], parteUrl: allDocVals[docUrls[ui]] } });
+                  }
+                }
+              } catch(e2) {}
+            }
+          }
+        }
+      }
+    } catch(e3) { errors.push(e3.message); }
 
     return res.json({ ok: false, error: 'No se encontró parte de trabajo', errors: errors });
   } catch(e) {

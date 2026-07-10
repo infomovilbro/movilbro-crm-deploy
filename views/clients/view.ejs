@@ -319,9 +319,12 @@
                       <button class="btn btn-sm btn-outline-secondary duplicar-sim-btn" data-line="<%= linea %>" title="Duplicar SIM">
                         <i class="bi bi-sd-card"></i>
                       </button>
+                      <% var esMovil = /^\d{6,}$/.test(linea) || ((p.productName || s.productName || '').toLowerCase().includes('movil') || (p.productName || s.productName || '').toLowerCase().includes('mobile')); %>
+                      <% if (esMovil) { %>
                       <button class="btn btn-sm btn-outline-dark mostrar-pinpuk" data-line="<%= linea %>" data-pin="<%= p.pin || s.pin || '' %>" data-puk="<%= p.puk || s.puk || '' %>" data-icc="<%= p.icc || s.icc || '' %>" title="PIN/PUK">
                         <i class="bi bi-key"></i>
                       </button>
+                      <% } %>
                     </div>
                     </div>
                   </td>
@@ -357,9 +360,12 @@
                       <button class="btn btn-sm btn-outline-secondary duplicar-sim-btn" data-line="<%= l.linea %>" title="Duplicar SIM">
                         <i class="bi bi-sd-card"></i>
                       </button>
+                      <% var esMovil2 = /^\d{6,}$/.test(l.linea) || (l.producto || '').toLowerCase().includes('movil') || (l.producto || '').toLowerCase().includes('mobile'); %>
+                      <% if (esMovil2) { %>
                       <button class="btn btn-sm btn-outline-dark mostrar-pinpuk" data-line="<%= l.linea %>" data-pin="<%= l.pin || '' %>" data-puk="<%= l.puk || '' %>" data-icc="<%= l.iccid || '' %>" title="PIN/PUK">
                         <i class="bi bi-key"></i>
                       </button>
+                      <% } %>
                     </div>
                     </div>
                   </td>
@@ -716,13 +722,9 @@
               <div class="col-md-4 col-6">
                 <div class="card border h-100">
                   <div class="card-body text-center py-3">
-                    <% if (d.download_url && (d.download_url.includes('.jpeg') || d.download_url.includes('.jpg') || d.download_url.includes('.png') || d.download_url.includes('.webp'))) { %>
                     <a href="<%= d.download_url %>" target="_blank">
                       <img src="<%= d.download_url %>" alt="<%= d.tipo %>" style="max-width:100%;max-height:150px;object-fit:contain;border-radius:4px;" onerror="this.style.display='none';this.nextElementSibling.style.display='block';"><i class="bi bi-file-earmark-image" style="font-size:2rem;display:none;"></i>
                     </a>
-                    <% } else { %>
-                    <i class="bi bi-file-earmark" style="font-size:2rem;"></i>
-                    <% } %>
                     <div class="mt-1"><small><strong><%= d.tipo || 'Documento' %></strong></small></div>
                     <div class="mt-1"><span class="badge bg-success"><%= d.estado || 'subido' %></span></div>
                     <% if (d.download_url) { %>
@@ -875,11 +877,11 @@
           <tr><th>Producto</th><td id="instDetProduct">-</td></tr>
           <tr><th>Estado</th><td id="instDetStatus">-</td></tr>
           <tr><th>DNI</th><td id="instDetDni">-</td></tr>
-          <tr><th>OT</th><td id="instDetOt">-</td></tr>
-          <tr><th>Router</th><td id="instDetRouter">-</td></tr>
-          <tr><th>ONT</th><td id="instDetOnt">-</td></tr>
-          <tr><th>CTO</th><td id="instDetCto">-</td></tr>
-          <tr><th>Contrata</th><td id="instDetContrata">-</td></tr>
+          <tr><th>OT</th><td id="instDetOt">- <button class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="editarCampoInst('OT','instDetOt')" title="Editar" style="font-size:0.6rem;"><i class="bi bi-pencil"></i></button></td></tr>
+          <tr><th>Router</th><td id="instDetRouter">- <button class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="editarCampoInst('Router','instDetRouter')" title="Editar" style="font-size:0.6rem;"><i class="bi bi-pencil"></i></button></td></tr>
+          <tr><th>ONT</th><td id="instDetOnt">- <button class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="editarCampoInst('ONT','instDetOnt')" title="Editar" style="font-size:0.6rem;"><i class="bi bi-pencil"></i></button></td></tr>
+          <tr><th>CTO</th><td id="instDetCto">- <button class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="editarCampoInst('CTO','instDetCto')" title="Editar" style="font-size:0.6rem;"><i class="bi bi-pencil"></i></button></td></tr>
+          <tr><th>Contrata</th><td id="instDetContrata">- <button class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="editarCampoInst('Contrata','instDetContrata')" title="Editar" style="font-size:0.6rem;"><i class="bi bi-pencil"></i></button></td></tr>
           <tr><th>Fecha Programada</th><td id="instDetScheduled">-</td></tr>
           <tr><th>Fecha Real</th><td id="instDetCompleted">-</td></tr>
           <tr><th>T&eacute;cnico</th><td id="instDetTechnician">-</td></tr>
@@ -950,7 +952,20 @@
             </ul>
           </div>
           <div class="tab-pane fade" id="scoringExterno">
-            <p class="small text-muted">Busca gratis en bases de datos p&uacute;blicas de morosidad/impagos:</p>
+            <p class="small text-muted mb-2">B&uacute;squeda manual en bases de datos p&uacute;blicas (abre cada web e introduce el DNI/NIF manualmente):</p>
+            <p class="small mb-2" style="line-height:1.6;">
+              <strong>📊 Axesor</strong> - Informes financieros y riesgo de empresas<br>
+              <strong>📊 Infocif</strong> - Datos mercantiles y financieros<br>
+              <strong>📊 Iberinform</strong> - Informes de solvencia y riesgo<br>
+              <strong>⚠️ LibreBOR.me</strong> - Buscador gratuito del BOE (morosidad, embargos)<br>
+              <strong>📊 Einforma</strong> - Informes comerciales de empresas<br>
+              <strong>🌐 OpenCorporates</strong> - Base de datos mundial de empresas<br>
+              <strong>💬 Rankia</strong> - Foro de opiniones y experiencias financieras<br>
+              <strong>📜 BORME</strong> - Boletín Oficial del Registro Mercantil<br>
+              <strong>🚫 ASNEF</strong> - Fichero de morosidad (impagos)<br>
+              <strong>🚫 RAI</strong> - Registro de Aceptaciones Impagadas<br>
+              <strong>🔍 Google</strong> - B&uacute;squeda general con t&eacute;rminos de morosidad
+            </p>
             <div class="d-flex flex-wrap gap-2">
               <% var _dn = (apiCustomer.fiscalId || cliente.dni_nif || '').toUpperCase(); %>
               <a href="https://www.axesor.es/busqueda-avanzada?q=<%= encodeURIComponent(_dn) %>" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="bi bi-search"></i> Axesor</a>
@@ -963,10 +978,10 @@
               <a href="https://www.borme.es/borme/busqueda?q=<%= encodeURIComponent(_dn) %>" target="_blank" class="btn btn-sm btn-outline-info"><i class="bi bi-file-text"></i> BORME</a>
               <a href="https://www.asnef.com/buscar-deudores?q=<%= encodeURIComponent(_dn) %>" target="_blank" class="btn btn-sm btn-outline-danger"><i class="bi bi-exclamation-triangle"></i> ASNEF</a>
               <a href="https://www.rai.es/consulta?q=<%= encodeURIComponent(_dn) %>" target="_blank" class="btn btn-sm btn-outline-danger"><i class="bi bi-exclamation-circle"></i> RAI</a>
-              <a href="https://www.google.com/search?q=<%= encodeURIComponent(_dn + ' morosidad impagos') %>" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-google"></i> Google</a>
+              <a href="https://www.google.com/search?q=<%= encodeURIComponent(_dn + ' morosidad impagos') %>" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-search"></i> Google</a>
             </div>
             <hr>
-            <div class="small text-muted"><i class="bi bi-info-circle"></i> Estas webs no est&aacute;n afiliadas al CRM. Los resultados dependen de cada servicio.</div>
+            <div class="small text-muted"><i class="bi bi-info-circle"></i> Estas webs no est&aacute;n afiliadas al CRM. Los resultados dependen de cada servicio. El scoring interno (4/10) se calcula con datos del cliente: DNI/NIF, email, tel&eacute;fono, antig&uuml;edad, l&iacute;neas activas.</div>
           </div>
         </div>
       </div>
@@ -1343,6 +1358,31 @@ function fetchWorkOrder(btn) {
       alert('Error: ' + err.message);
       btn.disabled = false; btn.innerHTML = '<i class="bi bi-search"></i> Buscar parte';
     });
+}
+
+// Editar campo de instalacion
+function editarCampoInst(nombre, elemId) {
+  var td = document.getElementById(elemId);
+  if (!td) return;
+  var valActual = td.textContent.replace('Editar', '').replace('Guardar', '').trim();
+  if (td.querySelector('input')) return; // Ya editando
+  var input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'form-control form-control-sm d-inline-block';
+  input.style.width = 'auto';
+  input.style.maxWidth = '200px';
+  input.value = valActual === '-' ? '' : valActual;
+  var btnOk = document.createElement('button');
+  btnOk.className = 'btn btn-sm btn-success py-0 px-1 ms-1';
+  btnOk.innerHTML = '<i class="bi bi-check"></i>';
+  btnOk.onclick = function() {
+    var val = input.value.trim() || '-';
+    td.innerHTML = val + ' <button class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="editarCampoInst(\'' + nombre + '\',\'' + elemId + '\')" title="Editar" style="font-size:0.6rem;"><i class="bi bi-pencil"></i></button>';
+  };
+  td.innerHTML = '';
+  td.appendChild(input);
+  td.appendChild(btnOk);
+  input.focus();
 }
 
 // Ver resumen de orden
@@ -2326,6 +2366,73 @@ new bootstrap.Modal(document.getElementById('consumptionModal')).show();
         }
       })
       .catch(function(err) { alert('Error: ' + err.message); });
+  });
+
+  // ========== ENRICH ORDERS WITH DRAFT ORDER DATA ==========
+  document.getElementById('ordenes-tab')?.addEventListener('shown.bs.tab', function() {
+    var rows = document.querySelectorAll('#ordenes tbody tr');
+    rows.forEach(function(row) {
+      var idCell = row.querySelector('td:nth-child(1) small');
+      if (!idCell) return;
+      var fullId = (idCell.textContent || '').trim();
+      var productCell = row.querySelector('td:nth-child(3)');
+      var lineCell = row.querySelector('td:nth-child(4)');
+      if (!productCell || productCell.textContent.trim() !== '-') return;
+      if (!lineCell || lineCell.textContent.trim() !== '-') return;
+      // Try to find the full order ID from the Ver detalle button
+      var detBtn = row.querySelector('button[onclick*="verResumenOrden"]');
+      if (!detBtn) return;
+      var clickAttr = detBtn.getAttribute('onclick') || '';
+      var matchO = clickAttr.match(/verResumenOrden\('([^']+)'\)/);
+      var orderId = matchO ? matchO[1] : fullId;
+      if (!orderId) return;
+      productCell.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+      fetch('/clientes/' + clientId + '/order/' + encodeURIComponent(orderId) + '/summary')
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+          if (res.ok && res.data) {
+            var order = res.data;
+            var prods = [];
+            if (order.products && Array.isArray(order.products)) {
+              order.products.forEach(function(p) {
+                if (p.productName) prods.push(p.productName);
+                if (p.optionalProducts && Array.isArray(p.optionalProducts)) {
+                  p.optionalProducts.forEach(function(op) {
+                    if (op.productName) prods.push(op.productName);
+                  });
+                }
+              });
+            }
+            if (prods.length > 0) {
+              productCell.textContent = prods.join(', ').substring(0, 80);
+              productCell.title = prods.join(', ');
+            } else {
+              productCell.textContent = '-';
+            }
+            // Try to get line number
+            var lines = [];
+            if (order.products && Array.isArray(order.products)) {
+              order.products.forEach(function(p) {
+                if (p.fixedNumber) lines.push(p.fixedNumber);
+                if (p.optionalProducts && Array.isArray(p.optionalProducts)) {
+                  p.optionalProducts.forEach(function(op) {
+                    if (op.fixedNumber) lines.push(op.fixedNumber);
+                  });
+                }
+              });
+            }
+            if (lines.length > 0 && lineCell) lineCell.textContent = lines.join(', ');
+          }
+        }).catch(function() { productCell.textContent = '-'; });
+    });
+  });
+
+  // ========== AUTO LOAD NUBE INVOICES ==========
+  document.getElementById('facturas-tab')?.addEventListener('shown.bs.tab', function() {
+    var container = document.getElementById('nubeInvoicesContainer');
+    if (container && container.innerHTML === '') {
+      loadNubeInvoices(<%= _cid %>);
+    }
   });
 
   // ========== INIT POPOVERS ==========

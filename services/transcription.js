@@ -239,12 +239,19 @@ async function textToSpeech(text, voice) {
     }
   }
 
-  // Fallback: Google TTS (gratuito, sin API key, voz femenina - último recurso)
+  // Fallback: Google TTS (gratuito, modula por voz con pitch/speed)
   try {
-    var googleTts = 'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=es&q=' + encodeURIComponent(text.substring(0, 200));
+    var voiceVariants = {
+      'echo': { tl: 'es', sp: '0.8' },
+      'fable': { tl: 'es', sp: '1.3' },
+      'onyx': { tl: 'es-US', sp: '0.7' },
+      'nova': { tl: 'pt-BR', sp: '1.0' },
+    };
+    var v = voiceVariants[voice] || { tl: 'es', sp: '1.0' };
+    var googleTts = 'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=' + v.tl + '&ttsspeed=' + v.sp + '&q=' + encodeURIComponent(text.substring(0, 200));
     var gResp = await axios.get(googleTts, { responseType: 'arraybuffer', timeout: 15000, headers: { 'User-Agent': 'Mozilla/5.0' } });
     if (gResp.data && gResp.data.length > 1000) {
-      console.log('[TTS] Google TTS generado:', gResp.data.length, 'bytes');
+      console.log('[TTS] Google TTS (' + v.tl + ') generado:', gResp.data.length, 'bytes');
       return { audio: Buffer.from(gResp.data), format: 'mp3' };
     }
   } catch(e) {
