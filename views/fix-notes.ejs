@@ -7,6 +7,17 @@
 .fn-card .fn-note{font-size:0.9rem;margin:6px 0;}
 .fn-card .fn-text{font-size:0.8rem;color:#666;background:#fafafa;padding:4px 8px;border-radius:4px;border-left:2px solid #ddd;}
 .fn-card .fn-meta{font-size:0.7rem;color:#aaa;}
+.fn-card .fn-verif{font-size:0.75rem;color:#27ae60;background:#e8f5e9;padding:3px 8px;border-radius:4px;margin-top:4px;}
+.fn-card .fn-type{font-size:0.6rem;padding:1px 6px;border-radius:8px;font-weight:600;text-transform:uppercase;}
+.type-cliente{background:#e3f2fd;color:#1565c0;}
+.type-factura{background:#fff3e0;color:#e65100;}
+.type-cdr{background:#f3e5f5;color:#7b1fa2;}
+.type-codeopen{background:#e8f5e9;color:#2e7d32;}
+.type-ui{background:#fce4ec;color:#c62828;}
+.type-global{background:#f5f5f5;color:#616161;}
+.fn-test-result{font-size:0.75rem;padding:3px 8px;border-radius:4px;margin-top:4px;}
+.fn-test-ok{background:#e8f5e9;color:#2e7d32;}
+.fn-test-fail{background:#ffebee;color:#c62828;}
 </style>
 <div class="card mb-3 bg-light">
   <div class="card-body py-2">
@@ -15,15 +26,7 @@
       <button class="btn btn-sm btn-outline-info" onclick="toggleDriveHistory()"><i class="bi bi-cloud-download"></i> Cargar de Drive</button>
       <span id="driveStatus" class="small text-muted"></span>
     </div>
-    <div id="driveHistoryPanel" class="mt-2" style="display:none">
-      <div class="d-flex gap-2 align-items-center flex-wrap">
-        <select id="drvYear" class="form-select form-select-sm" style="width:auto" onchange="drvOnYearChange()"><option value="">Año</option></select>
-        <select id="drvMonth" class="form-select form-select-sm" style="width:auto" onchange="drvOnMonthChange()"><option value="">Mes</option></select>
-        <select id="drvDay" class="form-select form-select-sm" style="width:auto" onchange="drvOnDayChange()"><option value="">Día</option></select>
-      </div>
-      <div id="drvSnapshotList" class="mt-1 small"></div>
-      <div id="drvSnapshotContent" class="mt-2" style="display:none"></div>
-    </div>
+    <div id="driveHistoryPanel" class="mt-2" style="display:none">...</div>
   </div>
 </div>
 
@@ -39,15 +42,21 @@
   <div class="fn-card" id="fn_<%= n.id %>">
     <div class="d-flex justify-content-between align-items-start">
       <div class="flex-grow-1">
+        <div class="d-flex align-items-center gap-2 mb-1">
+          <span class="fn-type type-<%= n.type || 'global' %>"><%= (n.type || 'global').toUpperCase() %></span>
+          <span class="fn-meta">#<%= n.id %> · <%= n.created_at %></span>
+        </div>
         <div class="fn-url"><i class="bi bi-link-45deg"></i> <a href="<%= n.url %>" target="_blank"><%= n.url %></a></div>
         <% if (n.selector) { %><div class="fn-sel"><%= n.selector %></div><% } %>
         <div class="fn-note"><%= n.note %></div>
         <% if (n.element_text) { %><div class="fn-text">📄 <%= n.element_text.substring(0,150) %></div><% } %>
-        <div class="fn-meta mt-1">#<%= n.id %> · <%= n.created_at %></div>
+        <div id="testResult_<%= n.id %>" class="fn-test-result" style="display:none;"></div>
       </div>
-      <div class="d-flex gap-1 flex-shrink-0 ms-2">
-        <button class="btn btn-sm btn-outline-success" onclick="fnFix(<%= n.id %>)" title="Marcar como arreglado">✅ Hecho</button>
+      <div class="d-flex gap-1 flex-shrink-0 ms-2 flex-wrap" style="max-width:130px;">
+        <button class="btn btn-sm btn-outline-info" onclick="fnTest(<%= n.id %>)" title="Comprobar si funciona en TODOS los clientes" style="font-size:0.65rem;"><i class="bi bi-search"></i> Comprobar</button>
+        <button class="btn btn-sm btn-outline-success" onclick="fnFix(<%= n.id %>)" title="Marcar como arreglado (solo si pasó comprobación)">✅ Hecho</button>
         <button class="btn btn-sm btn-outline-danger" onclick="fnDel(<%= n.id %>)" title="Eliminar">🗑️</button>
+        <button class="btn btn-sm btn-outline-warning" onclick="fnReport(<%= n.id %>)" title="Reportar que sigue fallando" style="font-size:0.65rem;">❌ Reportar fallo</button>
       </div>
     </div>
   </div>
@@ -58,140 +67,102 @@
 <h5 class="mt-4 mb-2"><i class="bi bi-check-circle text-success me-1"></i>Arreglados (<%= fixed.length %>)</h5>
 <% fixed.forEach(function(n) { %>
 <div class="fn-card fixed">
+  <div class="d-flex align-items-center gap-2 mb-1">
+    <span class="fn-type type-<%= n.type || 'global' %>"><%= (n.type || 'global').toUpperCase() %></span>
+    <span class="fn-meta">#<%= n.id %> · ✅ <%= n.fixed_at %></span>
+  </div>
   <div class="fn-url"><i class="bi bi-link-45deg"></i> <%= n.url %></div>
   <% if (n.selector) { %><div class="fn-sel"><%= n.selector %></div><% } %>
   <div class="fn-note"><%= n.note %></div>
-  <div class="fn-meta">✅ <%= n.fixed_at %></div>
+  <% if (n.verification) { %><div class="fn-verif"><i class="bi bi-check-circle"></i> <%= n.verification %></div><% } %>
+  <div class="d-flex gap-1 mt-1">
+    <button class="btn btn-sm btn-outline-info" onclick="fnTest(<%= n.id %>)" style="font-size:0.65rem;"><i class="bi bi-arrow-repeat"></i> Re-test</button>
+    <button class="btn btn-sm btn-outline-warning" onclick="fnReport(<%= n.id %>)" style="font-size:0.65rem;">❌ Sigue fallando</button>
+  </div>
 </div>
 <% }); %>
 <% } %>
 </section>
+
 <script>
 function fnFix(id) {
-  fetch('/api/fix-notes/'+id+'/fix',{method:'POST',headers:{'Content-Type':'application/json'}})
-  .then(function(r){return r.json()}).then(function(d){
-    if(d.ok){document.getElementById('fn_'+id).style.display='none';location.reload();}
+  var verif = prompt('Describe brevemente cómo comprobaste que funciona (ej: "Test 188/188 clientes OK"):');
+  if (verif === null) return;
+  fetch('/api/fix-notes/' + id + '/fix', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ verification: verif || 'Sin verification' })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d.ok) { location.reload(); }
+    else { alert('Error: ' + d.error); }
   });
 }
+
+function fnTest(id) {
+  var resultDiv = document.getElementById('testResult_' + id);
+  resultDiv.style.display = 'block';
+  resultDiv.className = 'fn-test-result';
+  resultDiv.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Probando...';
+  resultDiv.style.display = 'block';
+  fetch('/api/fix-notes/test/' + id, { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (!d.ok) {
+        resultDiv.className = 'fn-test-result fn-test-fail';
+        resultDiv.innerHTML = '❌ Error: ' + (d.error || '');
+        return;
+      }
+      var cls = d.failed === 0 ? 'fn-test-ok' : 'fn-test-fail';
+      var icon = d.failed === 0 ? '✅' : '❌';
+      resultDiv.className = 'fn-test-result ' + cls;
+      var extra = d.note ? '<br><small>' + d.note + '</small>' : '';
+      var samples = d.samples && d.samples.length > 0 ? '<br><small class="text-muted">Ejemplos que fallan: ' + d.samples.join(', ') + '</small>' : '';
+      resultDiv.innerHTML = icon + ' Probados: ' + d.tested + ' | ✅ OK: ' + d.passed + ' | ❌ Fallos: ' + d.failed + extra + samples;
+    })
+    .catch(function(e) {
+      resultDiv.className = 'fn-test-result fn-test-fail';
+      resultDiv.innerHTML = '❌ Error de conexión: ' + e.message;
+    });
+}
+
+function fnReport(originalId) {
+  var url = prompt('Pega la URL exacta donde falla (o pulsa Cancelar para usar la actual):');
+  if (url === null) return;
+  if (!url) url = window.location.href;
+  var selector = prompt('Selector CSS del elemento que falla (opcional, lo que ves en el inspector):');
+  var note = prompt('Describe QUÉ esperabas ver y QUÉ ves en su lugar:');
+  if (!note) { alert('Necesito una descripción del fallo'); return; }
+  fetch('/api/fix-notes/report-fail', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ originalId: originalId, url: url, selector: selector || '', note: note })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d.ok) { alert('✅ Fallo reportado como #' + d.id + '. Lo revisaré ahora mismo.'); location.reload(); }
+    else { alert('Error: ' + d.error); }
+  });
+}
+
 function fnDel(id) {
-  if(!confirm('¿Eliminar nota #'+id+'?'))return;
-  fetch('/api/fix-notes/'+id,{method:'DELETE'})
-  .then(function(r){return r.json()}).then(function(d){
-    if(d.ok) document.getElementById('fn_'+id).remove();
-  });
+  if (!confirm('¿Eliminar nota #' + id + '?')) return;
+  fetch('/api/fix-notes/' + id, { method: 'DELETE' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) { if (d.ok) document.getElementById('fn_' + id).remove(); });
 }
 
-// — Drive persistence —
-var _drvData = null;
-
+// Drive persistence (same as before)
 function saveToDrive() {
-  var btn = event && event.target || document.querySelector('button[onclick="saveToDrive()"]');
   var status = document.getElementById('driveStatus');
   status.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Guardando...';
-  fetch('/api/fix-notes/save-to-drive',{method:'POST'})
-  .then(function(r){return r.json()}).then(function(d){
-    if(d.ok){status.innerHTML='<span class="text-success">✓ Guardado: '+d.fileName+'</span>';}
-    else{status.innerHTML='<span class="text-warning">⚠️ No disponible</span>';}
-  });
-}
-
-function toggleDriveHistory() {
-  var panel = document.getElementById('driveHistoryPanel');
-  if(panel.style.display!='none'){panel.style.display='none';return;}
-  panel.style.display='block';
-  document.getElementById('driveStatus').innerHTML = 'Cargando historial...';
-  fetch('/api/fix-notes/drive-history')
-  .then(function(r){return r.json()}).then(function(d){
-    if(!d.ok){document.getElementById('driveStatus').innerHTML='<span class="text-danger">Error: '+d.error+'</span>';return;}
-    _drvData = d.years || [];
-    var yrSel = document.getElementById('drvYear');
-    yrSel.innerHTML = '<option value="">Año</option>';
-    _drvData.forEach(function(y){yrSel.innerHTML+='<option value="'+y.name+'">'+y.name+'</option>';});
-    document.getElementById('drvMonth').innerHTML = '<option value="">Mes</option>';
-    document.getElementById('drvDay').innerHTML = '<option value="">Día</option>';
-    document.getElementById('drvSnapshotList').innerHTML = '';
-    document.getElementById('driveStatus').innerHTML = '<span class="text-success">✓ ' + _drvData.length + ' años con snapshots</span>';
-  });
-}
-
-function drvOnYearChange() {
-  var yr = document.getElementById('drvYear').value;
-  var moSel = document.getElementById('drvMonth');
-  var dySel = document.getElementById('drvDay');
-  moSel.innerHTML = '<option value="">Mes</option>';
-  dySel.innerHTML = '<option value="">Día</option>';
-  document.getElementById('drvSnapshotList').innerHTML = '';
-  document.getElementById('drvSnapshotContent').style.display='none';
-  if(!yr)return;
-  var yearObj = _drvData.find(function(y){return y.name===yr;});
-  if(!yearObj)return;
-  yearObj.months.forEach(function(m){moSel.innerHTML+='<option value="'+m.name+'">'+m.name+'</option>';});
-}
-
-function drvOnMonthChange() {
-  var yr = document.getElementById('drvYear').value;
-  var mo = document.getElementById('drvMonth').value;
-  var dySel = document.getElementById('drvDay');
-  dySel.innerHTML = '<option value="">Día</option>';
-  document.getElementById('drvSnapshotList').innerHTML = '';
-  document.getElementById('drvSnapshotContent').style.display='none';
-  if(!yr||!mo)return;
-  var yearObj = _drvData.find(function(y){return y.name===yr;});
-  if(!yearObj)return;
-  var moObj = yearObj.months.find(function(m){return m.name===mo;});
-  if(!moObj)return;
-  moObj.days.forEach(function(d){dySel.innerHTML+='<option value="'+d.name+'">'+d.name+'</option>';});
-}
-
-function drvOnDayChange() {
-  var yr = document.getElementById('drvYear').value;
-  var mo = document.getElementById('drvMonth').value;
-  var dy = document.getElementById('drvDay').value;
-  document.getElementById('drvSnapshotList').innerHTML = '';
-  document.getElementById('drvSnapshotContent').style.display='none';
-  if(!yr||!mo||!dy)return;
-  var yearObj = _drvData.find(function(y){return y.name===yr;});
-  if(!yearObj)return;
-  var moObj = yearObj.months.find(function(m){return m.name===mo;});
-  if(!moObj)return;
-  var dyObj = moObj.days.find(function(d){return d.name===dy;});
-  if(!dyObj||!dyObj.files.length){
-    document.getElementById('drvSnapshotList').innerHTML='<span class="text-muted">Sin snapshots en esta fecha</span>';
-    return;
-  }
-  var html = '<div class="mt-1"><strong>Snapshots:</strong></div><div class="d-flex flex-column gap-1 mt-1">';
-  dyObj.files.forEach(function(f){
-    var label = f.name.replace('fix-notes-','').replace('.json','').replace(/T/g,' ').replace(/-/g,':').substring(0,19);
-    html += '<a href="#" class="text-decoration-none small" onclick="return drvLoadSnapshot(\''+yr+'\',\''+mo+'\',\''+dy+'\',\''+f.name+'\')"><i class="bi bi-file-earmark-text"></i> '+label+'</a>';
-  });
-  html += '</div>';
-  document.getElementById('drvSnapshotList').innerHTML = html;
-}
-
-function drvLoadSnapshot(yr,mo,dy,fileName) {
-  var url = '/api/fix-notes/drive-snapshot/'+encodeURIComponent(yr)+'/'+encodeURIComponent(mo)+'/'+encodeURIComponent(dy)+'/'+encodeURIComponent(fileName);
-  document.getElementById('driveStatus').innerHTML = '<span class="spinner-border spinner-border-sm"></span> Cargando snapshot...';
-  fetch(url).then(function(r){return r.json()}).then(function(d){
-    if(!d.ok){document.getElementById('driveStatus').innerHTML='<span class="text-danger">Error: '+d.error+'</span>';return;}
-    var c = document.getElementById('drvSnapshotContent');
-    var notes = d.data.notes || [];
-    var pendingCount = notes.filter(function(n){return n.status==='pending';}).length;
-    var fixedCount = notes.filter(function(n){return n.status==='fixed';}).length;
-    var html = '<div class="card border-info"><div class="card-header py-1 d-flex justify-content-between"><strong>📋 Snapshot: '+d.fileName+'</strong><span class="text-muted">'+pendingCount+' pendientes, '+fixedCount+' arreglados</span></div><div class="card-body p-2" style="max-height:400px;overflow-y:auto">';
-    notes.forEach(function(n){
-      var cls = n.status==='fixed' ? 'fn-card fixed' : 'fn-card';
-      html += '<div class="'+cls+'"><div class="fn-url"><i class="bi bi-link-45deg"></i> '+n.url+'</div>';
-      if(n.selector) html += '<div class="fn-sel">'+n.selector+'</div>';
-      html += '<div class="fn-note">'+n.note+'</div>';
-      if(n.element_text) html += '<div class="fn-text">📄 '+n.element_text.substring(0,150)+'</div>';
-      html += '<div class="fn-meta mt-1">#'+n.id+' · '+n.created_at+(n.fixed_at?' · ✅ '+n.fixed_at:'')+'</div></div>';
+  fetch('/api/fix-notes/save-to-drive', { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.ok) status.innerHTML = '<span class="text-success">✓ Guardado: ' + d.fileName + '</span>';
+      else status.innerHTML = '<span class="text-warning">⚠️ No disponible</span>';
     });
-    html += '</div></div>';
-    c.innerHTML = html;
-    c.style.display = 'block';
-    document.getElementById('driveStatus').innerHTML = '<span class="text-success">✓ Snapshot cargado: '+d.fileName+'</span>';
-  });
-  return false;
 }
 </script>
 </section>

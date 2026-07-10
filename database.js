@@ -440,7 +440,9 @@ function initDatabase() {
   try { db.prepare("ALTER TABLE altas_kyc_docs ADD COLUMN drive_file_id TEXT").run(); } catch(e) {}
   try { db.prepare("ALTER TABLE altas_kyc_docs ADD COLUMN drive_folder_id TEXT").run(); } catch(e) {}
   try { db.exec("CREATE TABLE IF NOT EXISTS altas_envios (id INTEGER PRIMARY KEY AUTOINCREMENT, orden_id INTEGER, metodo TEXT DEFAULT 'manual', destinatario TEXT, direccion TEXT, contacto TEXT, estado TEXT DEFAULT 'pendiente', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)").run(); } catch(e) {}
-  try { db.exec("CREATE TABLE IF NOT EXISTS fix_notes (id INTEGER PRIMARY KEY AUTOINCREMENT, url TEXT NOT NULL, selector TEXT NOT NULL, element_text TEXT, note TEXT NOT NULL, status TEXT DEFAULT 'pending', created_at DATETIME DEFAULT CURRENT_TIMESTAMP, fixed_at DATETIME)").run(); } catch(e) {}
+  try { db.exec("CREATE TABLE IF NOT EXISTS fix_notes (id INTEGER PRIMARY KEY AUTOINCREMENT, url TEXT NOT NULL, selector TEXT NOT NULL, element_text TEXT, note TEXT NOT NULL, status TEXT DEFAULT 'pending', created_at DATETIME DEFAULT CURRENT_TIMESTAMP, fixed_at DATETIME, type TEXT DEFAULT 'global', verification TEXT DEFAULT '')").run(); } catch(e) {}
+  try { db.prepare("ALTER TABLE fix_notes ADD COLUMN type TEXT DEFAULT 'global'").run(); } catch(e) {}
+  try { db.prepare("ALTER TABLE fix_notes ADD COLUMN verification TEXT DEFAULT ''").run(); } catch(e) {}
 
   // Altas ordenes tables for multi-step order flow
   try {
