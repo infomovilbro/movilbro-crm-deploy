@@ -26,7 +26,15 @@
       <button class="btn btn-sm btn-outline-info" onclick="toggleDriveHistory()"><i class="bi bi-cloud-download"></i> Cargar de Drive</button>
       <span id="driveStatus" class="small text-muted"></span>
     </div>
-    <div id="driveHistoryPanel" class="mt-2" style="display:none">...</div>
+    <div id="driveHistoryPanel" class="mt-2" style="display:none">
+      <div class="card"><div class="card-body">
+        <div class="d-flex gap-2 align-items-center mb-2 flex-wrap" id="dhNav">
+          <button class="btn btn-sm btn-outline-secondary" onclick="dhLoadYears()">📂 Raíz</button>
+          <span id="dhPath" class="small text-muted"></span>
+        </div>
+        <div id="dhContent" class="small" style="max-height:300px;overflow-y:auto;"><div class="text-muted">Cargando...</div></div>
+      </div></div>
+    </div>
   </div>
 </div>
 
@@ -153,16 +161,81 @@ function fnDel(id) {
     .then(function(d) { if (d.ok) document.getElementById('fn_' + id).remove(); });
 }
 
-// Drive persistence (same as before)
+// Drive persistence con navegador de fechas
 function saveToDrive() {
   var status = document.getElementById('driveStatus');
   status.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Guardando...';
   fetch('/api/fix-notes/save-to-drive', { method: 'POST' })
     .then(function(r) { return r.json(); })
     .then(function(d) {
-      if (d.ok) status.innerHTML = '<span class="text-success">✓ Guardado: ' + d.fileName + '</span>';
-      else status.innerHTML = '<span class="text-warning">⚠️ No disponible</span>';
+      if (d.ok) status.innerHTML = '<span class="text-success">✓ Guardado</span>';
+      else status.innerHTML = '<span class="text-warning">⚠️ Error</span>';
     });
+}
+function toggleDriveHistory() {
+  var p = document.getElementById('driveHistoryPanel');
+  p.style.display = p.style.display === 'none' ? 'block' : 'none';
+  if (p.style.display === 'block') dhLoadYears();
+}
+var dhState = {};
+function dhShow(msg) { document.getElementById('dhContent').innerHTML = msg; }
+function dhPath(t) { document.getElementById('dhPath').textContent = t; }
+function dhLoadYears() {
+  dhState = {}; dhPath('');
+  fetch('/api/fix-notes/drive-history').then(function(r){return r.json()}).then(function(d){
+    if (!d.ok||!d.years||d.years.length===0){dhShow('<div class="text-muted">Sin datos en Drive</div>');return;}
+    var h='<div class="fw-bold mb-1">Años:</div><div class="d-flex gap-1 flex-wrap">';
+    d.years.forEach(function(y){h+='<button class="btn btn-sm btn-outline-primary" onclick="dhLoadMonths(\''+y.name+'\')">'+y.name+'</button>';});
+    h+='</div>';dhShow(h);
+  }).catch(function(){dhShow('<div class="text-danger">Error al cargar</div>');});
+}
+function dhLoadMonths(year){
+  fetch('/api/fix-notes/drive-history').then(function(r){return r.json()}).then(function(d){
+    if(!d.ok)return;
+    var yr=d.years.find(function(y){return y.name===year;});if(!yr)return;
+    dhPath(year);
+    var h='<div class="fw-bold mb-1">Meses de '+year+':</div><div class="d-flex gap-1 flex-wrap">';
+    yr.months.forEach(function(m){h+='<button class="btn btn-sm btn-outline-info" onclick="dhLoadDays(\''+year+'\',\''+m.name+'\')">'+m.name+'</button>';});
+    h+='</div>';dhShow(h);
+  });
+}
+function dhLoadDays(year,month){
+  fetch('/api/fix-notes/drive-history').then(function(r){return r.json()}).then(function(d){
+    if(!d.ok)return;
+    var yr=d.years.find(function(y){return y.name===year;});if(!yr)return;
+    var mo=yr.months.find(function(m){return m.name===month;});if(!mo)return;
+    dhPath(year+'/'+month);
+    var h='<div class="fw-bold mb-1">Días de '+month+':</div><div class="d-flex gap-1 flex-wrap">';
+    mo.days.forEach(function(day){h+='<button class="btn btn-sm btn-outline-secondary" onclick="dhLoadFiles(\''+year+'\',\''+month+'\',\''+day.name+'\')">'+day.name+'</button>';});
+    h+='</div>';dhShow(h);
+  });
+}
+function dhLoadFiles(year,month,day){
+  fetch('/api/fix-notes/drive-history').then(function(r){return r.json()}).then(function(d){
+    if(!d.ok)return;
+    var yr=d.years.find(function(y){return y.name===year;});if(!yr)return;
+    var mo=yr.months.find(function(m){return m.name===month;});if(!mo)return;
+    var dy=mo.days.find(function(d2){return d2.name===day;});if(!dy)return;
+    dhPath(year+'/'+month+'/'+day);
+    if(!dy.files||dy.files.length===0){dhShow('<div class="text-muted">Sin archivos</div>');return;}
+    var h='<div class="fw-bold mb-1">Archivos:</div>';
+    dy.files.forEach(function(f){
+      h+='<div class="d-flex align-items-center gap-2 mb-1 p-1 border rounded"><span style="flex:1;font-size:0.75rem;">'+f.name+'</span>';
+      h+='<button class="btn btn-sm btn-outline-success" onclick="dhLoadSnapshot(\''+f.id+'\',\''+f.name+'\')">📂 Cargar</button></div>';
+    });
+    dhShow(h);
+  });
+}
+function dhLoadSnapshot(fileId,fileName){
+  var status=document.getElementById('driveStatus');
+  status.innerHTML='<span class="spinner-border spinner-border-sm"></span> Cargando '+fileName+'...';
+  fetch('/api/fix-notes/drive-snapshot-by-id/'+fileId).then(function(r){return r.json()}).then(function(d){
+    if(d.ok&&d.data){
+      status.innerHTML='<span class="text-success">✓ Cargado: '+d.fileName+' ('+d.data.notes.length+' notas)</span>';
+      // Recargar pagina para mostrar las notas cargadas (se importan al cargar)
+      if(confirm('Cargado '+d.data.notes.length+' notas. Refrescar pagina?')) location.reload();
+    }else{status.innerHTML='<span class="text-warning">⚠️ Error al cargar</span>';}
+  }).catch(function(){status.innerHTML='<span class="text-warning">⚠️ Error de conexion</span>';});
 }
 </script>
 </section>

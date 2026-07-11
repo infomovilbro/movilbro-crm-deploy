@@ -164,19 +164,27 @@ router.post('/api/fix-notes/report-fail', async (req, res) => {
   } catch(e) { res.json({ ok: false, error: e.message }); }
 });
 
-// POST — guardar a Drive (manual)
+// POST — guardar a Drive (manual, organizado por anio/mes/dia)
 router.post('/api/fix-notes/save-to-drive', async (req, res) => {
   try {
     var all = db.prepare("SELECT * FROM fix_notes ORDER BY created_at DESC").all();
     var dApi = drive.getDrive();
     if (!dApi) return res.json({ ok: false, error: 'Drive no disponible' });
-    var fixNotesId = await drive.ensureFolder(ROOT_ID, 'fix-notes');
-    if (!fixNotesId) return res.json({ ok: false, error: 'No se pudo crear carpeta fix-notes' });
+    var fixNotesRoot = await drive.ensureFolder(ROOT_ID, 'fix-notes');
+    if (!fixNotesRoot) return res.json({ ok: false, error: 'No se pudo crear carpeta fix-notes' });
     var now = new Date();
+    var year = String(now.getFullYear());
+    var month = String(now.getMonth() + 1).padStart(2, '0');
+    var day = String(now.getDate()).padStart(2, '0');
+    // Crear estructura anio/mes/dia
+    var yearFolder = await drive.ensureFolder(fixNotesRoot, year);
+    var monthFolder = yearFolder ? await drive.ensureFolder(yearFolder, month) : null;
+    var dayFolder = monthFolder ? await drive.ensureFolder(monthFolder, day) : null;
+    var parentFolder = dayFolder || monthFolder || yearFolder || fixNotesRoot;
     var ts = now.toISOString().replace(/[:.]/g, '-');
     var jsonContent = JSON.stringify({ savedAt: now.toISOString(), total: all.length, notes: all }, null, 2);
     var result = await dApi.files.create({
-      requestBody: { name: 'fix-notes-' + ts + '.json', parents: [fixNotesId] },
+      requestBody: { name: 'fix-notes-' + ts + '.json', parents: [parentFolder] },
       media: { mimeType: 'application/json', body: require('stream').Readable.from(Buffer.from(jsonContent, 'utf8')) },
       fields: 'id, webViewLink'
     });
@@ -240,6 +248,18 @@ router.get('/api/fix-notes/drive-snapshot/:year/:month/:day/:file', async (req, 
     if (!buf) return res.json({ ok: false, error: 'No se pudo leer el archivo' });
     var data = JSON.parse(buf.toString('utf8'));
     res.json({ ok: true, fileName: flF.name, data: data });
+  } catch(e) { res.json({ ok: false, error: e.message }); }
+});
+
+// GET — cargar snapshot por ID directo
+router.get('/api/fix-notes/drive-snapshot-by-id/:fileId', async (req, res) => {
+  try {
+    var dApi = drive.getDrive();
+    if (!dApi) return res.json({ ok: false, error: 'Drive no disponible' });
+    var buf = await drive.getFileBuffer(req.params.fileId);
+    if (!buf) return res.json({ ok: false, error: 'No se pudo leer el archivo' });
+    var data = JSON.parse(buf.toString('utf8'));
+    res.json({ ok: true, fileName: req.params.fileId, data: data });
   } catch(e) { res.json({ ok: false, error: e.message }); }
 });
 

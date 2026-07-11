@@ -2065,11 +2065,19 @@ document.addEventListener('keydown', function(e) {
 .ai-sendbtn{background:#6c5ce7;border-color:#6c5ce7;color:#fff;}
 .ai-sendbtn:hover{background:#5a4bd1;}
 .ai-status{font-size:0.75rem;color:#999;text-align:center;margin-top:4px;min-height:16px;}
+/* Voice Admin Panel (independiente) */
+#va-panel{position:fixed;width:380px;min-width:280px;max-width:700px;height:420px;min-height:300px;max-height:650px;background:#fff;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.25);z-index:100000;display:none;flex-direction:column;overflow:hidden;}
+#va-panel.open{display:flex;}
+.va-header{background:#00b894;color:#fff;padding:10px 14px;font-weight:600;display:flex;align-items:center;justify-content:space-between;}
+.va-body{flex:1;display:flex;flex-direction:column;overflow:hidden;padding:10px;}
+.va-chat-msgs{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:4px 0;min-height:100px;max-height:300px;}
+.va-input-row{display:flex;gap:6px;align-items:flex-end;margin-top:8px;}
+.va-status{font-size:0.75rem;color:#999;text-align:center;margin-top:4px;}
 </style>
 <div id="fn-overlay" onclick="fnClosePopup()"></div>
 <div style="position:fixed;bottom:20px;left:20px;z-index:9999;display:flex;gap:8px;">
 
-<button id="va-btn" onclick="vaIniciar()" title="🧠🎤 Voice Admin — asistente por voz con IA" style="width:44px;height:44px;border-radius:50%;background:#00b894;color:#fff;border:2px solid #fff;font-size:1.1rem;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;transition:all .2s;line-height:1;position:relative;">
+<button id="va-btn" onclick="if(vaActivo){vaCerrar()}else{vaIniciar()}" title="🧠🎤 Voice Admin — asistente por voz con IA" style="width:44px;height:44px;border-radius:50%;background:#00b894;color:#fff;border:2px solid #fff;font-size:1.1rem;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;transition:all .2s;line-height:1;position:relative;">
   🧠🎤<span id="va-status-dot" style="display:none;position:absolute;top:-4px;right:-4px;width:10px;height:10px;border-radius:50%;background:#00b894;border:2px solid #fff;"></span>
 </button>
 <button id="ai-assist-btn" onclick="toggleAssist()" title="🤖 Asistente IA — diagnóstico con voz" style="width:44px;height:44px;border-radius:50%;background:#6c5ce7;color:#fff;border:2px solid #fff;font-size:1.3rem;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;transition:all .2s;line-height:1;position:relative;">
@@ -2085,6 +2093,7 @@ document.addEventListener('keydown', function(e) {
     <div style="display:flex;gap:4px;align-items:center;">
       <button id="ai-mode-btn" onclick="toggleModo()" title="Modo PAGO (DeepSeek V4 Flash Go)" style="background:rgba(255,255,255,0.2);border:0;border-radius:6px;padding:2px 6px;font-size:0.9rem;cursor:pointer;color:#fff;">💎</button>
       <button id="ai-mute-btn" onclick="toggleMute()" title="Silenciar/Activar voz" style="background:rgba(255,255,255,0.2);border:0;border-radius:6px;padding:2px 6px;font-size:0.9rem;cursor:pointer;color:#fff;">🔇</button>
+      <button id="ai-max-btn" onclick="aiToggleMax()" title="Maximizar" style="background:rgba(255,255,255,0.2);border:0;border-radius:6px;padding:2px 6px;font-size:0.9rem;cursor:pointer;color:#fff;">⛶</button>
       <button onclick="closeAssist()" class="ai-assist-close" title="Cerrar">✕</button>
     </div>
     <div id="ai-resize-handle" style="position:absolute;bottom:0;right:0;width:14px;height:14px;cursor:nwse-resize;background:linear-gradient(135deg,transparent 50%,rgba(255,255,255,0.3) 50%);z-index:1;"></div>
@@ -2109,9 +2118,35 @@ document.addEventListener('keydown', function(e) {
       </div>
     </div>
     <div id="ai-status" class="ai-status"></div>
+    <div style="display:flex;gap:6px;padding:6px 0 0 0;border-top:1px solid #eee;margin-top:4px;">
+      <button onclick="acceptFix()" style="flex:1;background:#6c5ce7;color:#fff;border:0;padding:6px;border-radius:6px;cursor:pointer;font-size:0.75rem;font-weight:600;">✅ Aceptar</button>
+      <button onclick="cancelFix()" style="flex:1;background:#ddd;color:#333;border:0;padding:6px;border-radius:6px;cursor:pointer;font-size:0.75rem;">❌ Cancelar</button>
+    </div>
   </div>
 </div>
 <div id="ai-sel-banner">🔍 Modo selector activado — Pulsa en CUALQUIER elemento para capturarlo</div>
+
+<!-- Voice Admin Panel (independiente) -->
+<div id="va-panel">
+  <div class="va-header">
+    <span>🧠🎤 Voice Admin</span>
+    <div style="display:flex;gap:4px;align-items:center;">
+      <button id="va-mode-btn" onclick="vaToggleModo()" title="Modo PAGO" style="background:rgba(255,255,255,0.2);border:0;border-radius:6px;padding:2px 6px;font-size:0.9rem;cursor:pointer;color:#fff;">💎</button>
+      <button id="va-mute-btn" onclick="vaToggleMute()" title="Silenciar/Activar voz" style="background:rgba(255,255,255,0.2);border:0;border-radius:6px;padding:2px 6px;font-size:0.9rem;cursor:pointer;color:#fff;">🔇</button>
+      <button id="va-max-btn" onclick="vaToggleMax()" title="Maximizar" style="background:rgba(255,255,255,0.2);border:0;border-radius:6px;padding:2px 6px;font-size:0.9rem;cursor:pointer;color:#fff;">⛶</button>
+      <button onclick="vaCerrar()" style="background:none;border:0;color:#fff;font-size:1.1rem;cursor:pointer;">✕</button>
+    </div>
+  </div>
+  <div class="va-body">
+    <div class="va-chat-msgs" id="va-chat-msgs"></div>
+    <div class="va-input-row">
+      <input id="va-input" type="text" placeholder="Escribe o di MOVILBRO ESTAS..." style="flex:1;border:1px solid #ddd;border-radius:8px;padding:8px;font-size:0.85rem;outline:none;">
+      <button id="va-mic-btn" onclick="vaToggleMic()" style="width:34px;height:34px;border-radius:50%;border:1px solid #ddd;background:#fff;font-size:1rem;cursor:pointer;">🎤</button>
+      <button onclick="vaEnviarTexto()" style="width:34px;height:34px;border-radius:50%;border:0;background:#00b894;color:#fff;font-size:1rem;cursor:pointer;">➤</button>
+    </div>
+    <div class="va-status" id="va-status"></div>
+  </div>
+</div>
 <div id="fn-popup">
   <div class="d-flex justify-content-between align-items-center mb-2">
     <h6 class="mb-0">🐛 Reportar Error</h6>
@@ -2477,7 +2512,8 @@ function aiEnviar(texto) {
     }).catch(function(e){
       document.getElementById('ai-analyzing-msg').style.display = 'none';
       aiAnalizando = false;
-      addMsg('Error: ' + e.message, 'ai'); setStatus('');
+      if (e.name === 'AbortError') return; // Usuario detuvo, no mostrar error
+      addMsg('Error: ' + (e.message || 'conexion'), 'ai'); setStatus('');
     });
 }
 function sendToAI() {
@@ -2533,132 +2569,26 @@ function addMsg(text, role) {
 }
 function setStatus(t) { var s = document.getElementById('ai-status'); if (s) s.textContent = t; }
 
-/* ===== VOICE ADMIN V2 - wake word automatico + chat ===== */
-var vaRec=null,vaActivo=false,vaModoPago=true,vaEscuchando=false,vaCmdRec=null,vaSilencioTimer=null,vaUltTexto='',vaWakeFinder=null,vaMuteVA=true;
-var vaWakeWords=['movilbro estas','movilbro esta','movilbroesta','movilbroestas','mobilbro estas','mobilbroesta','oye estas','oye esta','ollestas','ollas','oye','o yes tas','y estas'];
-
-function vaIniciar(){
-  if(vaActivo){vaDetener();return;}
-  vaModoPago=confirm('PAGO? OK=Si, Cancel=Free');
-  vaActivo=true;
-  document.getElementById('va-btn').style.background='#e17055';
-  document.getElementById('va-status-dot').style.display='block';
-  document.getElementById('va-status-dot').style.background='#00b894';
-  if(!vaMuteVA)speakText('Voice Admin '+(vaModoPago?'PAGO':'FREE'));
-  addMsg('🤖 Voice Admin '+(vaModoPago?'💎':'🆓')+'. Di MOVILBRO ESTAS.','ai');
-  setTimeout(vaEscucharWake,1500);
-}
-function vaDetener(){
-  vaActivo=false;vaEscuchando=false;
-  try{if(vaRec)vaRec.stop();}catch(e){}
-  try{if(vaCmdRec)vaCmdRec.stop();}catch(e){}
-  if(vaSilencioTimer)clearTimeout(vaSilencioTimer);
-  document.getElementById('va-btn').style.background='#00b894';
-  document.getElementById('va-status-dot').style.display='none';
-}
-
-/* Wake word automatico en background */
-function vaInitWake(){
-  if(vaWakeFinder)return;
-  if(!('webkitSpeechRecognition' in window||'SpeechRecognition' in window))return;
-  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  vaWakeFinder=new SR();
-  vaWakeFinder.lang='es-ES';vaWakeFinder.continuous=true;vaWakeFinder.interimResults=true;
-  // Muchas variantes de wake word
-  var wakes=['movilbro estas','movilbro esta','movilbroesta','movilbroestas','mobilbro estas','mobilbroesta',
-    'oye estas','oye esta','ollestas','ollas','oye','o yes tas','y estas'];
-  vaWakeFinder.onresult=function(ev){
-    if(vaActivo)return;
-    for(var i=ev.resultIndex;i<ev.results.length;i++){
-      if(!ev.results[i].isFinal)continue;
-      var t=ev.results[i][0].transcript.toLowerCase().replace(/[¿?¡!.,\/\-]/g,'').replace(/[áéíóú]/g,function(m){return {á:'a',é:'e',í:'i',ó:'o',ú:'u'}[m]||m;});
-      for(var w=0;w<wakes.length;w++){if(t.indexOf(wakes[w])>-1){
-        vaModoPago=true;vaActivo=true;
-        document.getElementById('va-btn').style.background='#e17055';
-        document.getElementById('va-status-dot').style.display='block';
-        if(!vaMuteVA)speakText('Hola en que te puedo ayudar.');
-        addMsg('🤖 Hola ¿en qué te puedo ayudar?','ai');
-        setTimeout(vaEscucharComando,1200);return;
-      }}
-    }
-  };
-  vaWakeFinder.onerror=function(){setTimeout(vaInitWake,3000);};
-  try{vaWakeFinder.start();}catch(e){setTimeout(vaInitWake,2000);}
-}
-
-function vaEscucharWake(){
-  if(!vaActivo)return;
-  if(!('webkitSpeechRecognition' in window||'SpeechRecognition' in window))return;
-  try{if(vaRec)vaRec.stop();}catch(e){}
-  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  vaRec=new SR();vaRec.lang='es-ES';vaRec.continuous=true;vaRec.interimResults=true;
-  vaEscuchando=true;
-  vaRec.onresult=function(ev){
-    for(var i=ev.resultIndex;i<ev.results.length;i++){
-      if(!ev.results[i].isFinal)continue;
-      var t=ev.results[i][0].transcript.toLowerCase().replace(/[¿?¡!.,\/\-]/g,'').replace(/[áéíóú]/g,function(m){return {á:'a',é:'e',í:'i',ó:'o',ú:'u'}[m]||m;});
-      for(var w=0;w<vaWakeWords.length;w++){if(t.indexOf(vaWakeWords[w])>-1){
-        try{if(vaRec)vaRec.stop();}catch(e){}vaEscuchando=false;
-        if(!vaMuteVA)speakText('Si dime.');
-        document.getElementById('va-status-dot').style.background='#fdcb6e';
-        setTimeout(vaEscucharComando,1200);return;
-      }}
-    }
-  };
-  vaRec.onerror=function(){if(vaActivo)setTimeout(vaEscucharWake,2000);};
-  vaRec.onend=function(){if(vaActivo&&vaEscuchando)setTimeout(vaEscucharWake,1000);};
-  try{vaRec.start();}catch(e){setTimeout(vaEscucharWake,1000);}
-}
-
-function vaEscucharComando(){
-  if(!vaActivo)return;
-  if(!('webkitSpeechRecognition' in window||'SpeechRecognition' in window))return;
-  try{if(vaCmdRec)vaCmdRec.stop();}catch(e){}
-  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  vaCmdRec=new SR();vaCmdRec.lang='es-ES';vaCmdRec.continuous=true;vaCmdRec.interimResults=true;
-  vaUltTexto='';
-  vaCmdRec.onresult=function(ev){
-    for(var i=ev.resultIndex;i<ev.results.length;i++){
-      if(!ev.results[i].isFinal)continue;
-      var txt=ev.results[i][0].transcript;
-      if(txt&&txt.length>3){
-        // Si IA hablando, callarla
-        if(window.speechSynthesis&&window.speechSynthesis.speaking)window.speechSynthesis.cancel();
-        vaUltTexto=txt;
-        document.getElementById('va-status-dot').style.background='#fdcb6e';
-        if(vaSilencioTimer)clearTimeout(vaSilencioTimer);
-        vaSilencioTimer=setTimeout(function(){if(vaUltTexto)vaProcesarComando(vaUltTexto);},3000);
-      }
-    }
-  };
-  vaCmdRec.onerror=function(){if(vaActivo)setTimeout(vaEscucharWake,2000);};
-  vaCmdRec.onend=function(){if(vaActivo&&vaUltTexto)vaProcesarComando(vaUltTexto);};
-  try{vaCmdRec.start();}catch(e){}
-  if(!vaMuteVA)speakText('Te escucho.');
-  addMsg('🎤 Escuchando...','ai');
-}
-
-function vaProcesarComando(texto){
-  try{if(vaCmdRec)vaCmdRec.stop();}catch(e){}
-  addMsg('🗣️ '+texto,'user');
-  document.getElementById('va-status-dot').style.background='#e17055';
-  if(!vaMuteVA)speakText('Procesando.');
-  fetch('/ai-assist/analyze',{
-    method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({text:texto,modelo:vaModoPago?'deepseek-v4-flash':'deepseek-v4-flash-free',url:location.href})
-  }).then(function(r){return r.json();}).then(function(d){
-    document.getElementById('va-status-dot').style.background='#00b894';
-    if(d.ok){
-      addMsg(d.response,'ai');
-      if(!vaMuteVA)speakText(d.response);
-      var abrir=texto.toLowerCase().indexOf('abre')>-1||texto.toLowerCase().indexOf('abrir')>-1||texto.toLowerCase().indexOf('ve a')>-1;
-      if(abrir){var m=d.response.match(/https?:\/\/[^\s]+/);if(m&&m[0].indexOf('movilbro-crm')>-1)setTimeout(function(){window.location.href=m[0];},1500);}
-    }else{addMsg('Error: '+(d.error||''),'ai');}
-    setTimeout(vaEscucharWake,2000);
-  }).catch(function(){addMsg('Error conexion','ai');setTimeout(vaEscucharWake,2000);});
-}
-
-setTimeout(vaInitWake,3000);
+/* ===== VOICE ADMIN V3 - Panel propio, independiente de Asistente IA ===== */
+var vaRec=null,vaActivo=false,vaModoPagoVA=true,vaEscuchandoVA=false,vaCmdRec=null,vaSilencioTimer=null,vaUltTexto='',vaWakeFinder=null,vaMuteVA=true,vaMaxVA=false;
+var vaWakeWordsVA=['movilbro estas','movilbro esta','movilbroesta','movilbroestas','mobilbro estas','mobilbroesta','oye estas','oye esta','ollestas','ollas','oye','o yes tas','y estas'];
+function vaToggleModo(){vaModoPagoVA=!vaModoPagoVA;document.getElementById('va-mode-btn').textContent=vaModoPagoVA?'💎':'🆓';}
+function vaToggleMute(){vaMuteVA=!vaMuteVA;document.getElementById('va-mute-btn').textContent=vaMuteVA?'🔇':'🔊';if(!vaMuteVA&&window.speechSynthesis)window.speechSynthesis.cancel();}
+function vaToggleMax(){vaMaxVA=!vaMaxVA;var p=document.getElementById('va-panel');if(vaMaxVA){p.style.width='90%';p.style.height='90%';p.style.left='5%';p.style.top='5%';}else{p.style.width='';p.style.height='';p.style.left='';p.style.top='';vaCentrarPanel('va-panel');}}
+function aiToggleMax(){var p=document.getElementById('ai-assist-panel');var m=document.getElementById('ai-max-btn');if(p.style.width==='95%'){p.style.width='';p.style.height='';p.style.left='';p.style.top='';m.textContent='⛶';}else{p.style.width='95%';p.style.height='95%';p.style.left='2.5%';p.style.top='2.5%';m.textContent='⤓';}}
+function vaCentrarPanel(id){var p=document.getElementById(id);p.style.left=Math.max(10,(window.innerWidth-380)/2)+'px';p.style.top=Math.max(10,(window.innerHeight-420)/2)+'px';}
+function vaAddChat(text,role){var c=document.getElementById('va-chat-msgs');if(!c)return;var id='vmsg_'+Date.now()+'_'+Math.random().toString(36).substr(2,4);var d=document.createElement('div');d.id=id;d.className='ai-msg'+(role==='user'?' ai-msg-user':' ai-msg-ai');d.innerHTML='<div class="ai-msg-bubble">'+text.replace(/\n/g,'<br>')+'</div><button onclick="var e=document.getElementById(\''+id+'\');if(e)e.remove()" style="background:none;border:0;cursor:pointer;font-size:0.7rem;color:#999;padding:2px;flex-shrink:0;">✕</button>';c.appendChild(d);c.scrollTop=c.scrollHeight;}
+function vaSetStatus(t){var s=document.getElementById('va-status');if(s)s.textContent=t;}
+function vaIniciar(){if(vaActivo){vaCerrar();return;}vaModoPagoVA=true;vaActivo=true;var p=document.getElementById('va-panel');p.style.display='flex';vaCentrarPanel('va-panel');document.getElementById('va-btn').style.background='#e17055';document.getElementById('va-status-dot').style.display='block';vaAddChat('🤖 Voice Admin 💎 activado. Di MOVILBRO ESTAS.','ai');if(!vaMuteVA)speakText('Voice Admin activado.');setTimeout(vaEscucharWakeVA,1500);}
+function vaCerrar(){vaActivo=false;vaEscuchandoVA=false;try{if(vaRec)vaRec.stop();}catch(e){}try{if(vaCmdRec)vaCmdRec.stop();}catch(e){}if(vaSilencioTimer)clearTimeout(vaSilencioTimer);document.getElementById('va-btn').style.background='#00b894';document.getElementById('va-status-dot').style.display='none';document.getElementById('va-panel').style.display='none';}
+function vaInitWakeFinder(){if(vaWakeFinder)return;if(!('webkitSpeechRecognition' in window||'SpeechRecognition' in window))return;var SR=window.SpeechRecognition||window.webkitSpeechRecognition;vaWakeFinder=new SR();vaWakeFinder.lang='es-ES';vaWakeFinder.continuous=true;vaWakeFinder.interimResults=true;vaWakeFinder.onresult=function(ev){if(vaActivo)return;for(var i=ev.resultIndex;i<ev.results.length;i++){if(!ev.results[i].isFinal)continue;var t=ev.results[i][0].transcript.toLowerCase().replace(/[¿?¡!.,\/\-]/g,'').replace(/[áéíóú]/g,function(m){return {á:'a',é:'e',í:'i',ó:'o',ú:'u'}[m]||m;});for(var w=0;w<vaWakeWordsVA.length;w++){if(t.indexOf(vaWakeWordsVA[w])>-1){if(!vaActivo){vaActivo=true;vaModoPagoVA=true;document.getElementById('va-btn').style.background='#e17055';document.getElementById('va-status-dot').style.display='block';var p=document.getElementById('va-panel');p.style.display='flex';vaCentrarPanel('va-panel');vaAddChat('🤖 Hola ¿en qué te puedo ayudar?','ai');if(!vaMuteVA)speakText('Hola en que te puedo ayudar.');setTimeout(vaEscucharWakeVA,1200);}return;}}}};vaWakeFinder.onerror=function(){setTimeout(vaInitWakeFinder,3000);};try{vaWakeFinder.start();}catch(e){setTimeout(vaInitWakeFinder,2000);}}
+function vaEscucharWakeVA(){if(!vaActivo)return;if(!('webkitSpeechRecognition' in window||'SpeechRecognition' in window))return;try{if(vaRec)vaRec.stop();}catch(e){}var SR=window.SpeechRecognition||window.webkitSpeechRecognition;vaRec=new SR();vaRec.lang='es-ES';vaRec.continuous=true;vaRec.interimResults=true;vaEscuchandoVA=true;vaRec.onresult=function(ev){for(var i=ev.resultIndex;i<ev.results.length;i++){if(!ev.results[i].isFinal)continue;var t=ev.results[i][0].transcript.toLowerCase().replace(/[¿?¡!.,\/\-]/g,'').replace(/[áéíóú]/g,function(m){return {á:'a',é:'e',í:'i',ó:'o',ú:'u'}[m]||m;});for(var w=0;w<vaWakeWordsVA.length;w++){if(t.indexOf(vaWakeWordsVA[w])>-1){try{if(vaRec)vaRec.stop();}catch(e){}vaEscuchandoVA=false;if(!vaMuteVA)speakText('Si dime.');document.getElementById('va-status-dot').style.background='#fdcb6e';setTimeout(vaEscucharComandoVA,1200);return;}}}};vaRec.onerror=function(){if(vaActivo)setTimeout(vaEscucharWakeVA,2000);};vaRec.onend=function(){if(vaActivo&&vaEscuchandoVA)setTimeout(vaEscucharWakeVA,1000);};try{vaRec.start();}catch(e){setTimeout(vaEscucharWakeVA,1000);}}
+function vaEscucharComandoVA(){if(!vaActivo)return;if(!('webkitSpeechRecognition' in window||'SpeechRecognition' in window))return;try{if(vaCmdRec)vaCmdRec.stop();}catch(e){}var SR=window.SpeechRecognition||window.webkitSpeechRecognition;vaCmdRec=new SR();vaCmdRec.lang='es-ES';vaCmdRec.continuous=true;vaCmdRec.interimResults=true;vaUltTexto='';vaCmdRec.onresult=function(ev){for(var i=ev.resultIndex;i<ev.results.length;i++){if(!ev.results[i].isFinal)continue;var txt=ev.results[i][0].transcript;if(txt&&txt.length>3){if(window.speechSynthesis&&window.speechSynthesis.speaking)window.speechSynthesis.cancel();vaUltTexto=txt;document.getElementById('va-status-dot').style.background='#fdcb6e';if(vaSilencioTimer)clearTimeout(vaSilencioTimer);vaSilencioTimer=setTimeout(function(){if(vaUltTexto)vaProcesarComandoVA(vaUltTexto);},3000);}}};vaCmdRec.onerror=function(){if(vaActivo)setTimeout(vaEscucharWakeVA,2000);};vaCmdRec.onend=function(){if(vaActivo&&vaUltTexto)vaProcesarComandoVA(vaUltTexto);};try{vaCmdRec.start();}catch(e){}if(!vaMuteVA)speakText('Te escucho.');vaAddChat('🎤 Escuchando...','ai');vaSetStatus('🎤 Escuchando...');}
+function vaToggleMic(){if(vaCmdRec&&vaEscuchandoVA){try{vaCmdRec.stop();}catch(e){}vaEscuchandoVA=false;vaSetStatus('');return;}vaEscucharComandoVA();}
+function vaEnviarTexto(){var inp=document.getElementById('va-input');var t=inp.value.trim();if(t){inp.value='';vaProcesarComandoVA(t);}}
+function vaProcesarComandoVA(texto){try{if(vaCmdRec)vaCmdRec.stop();}catch(e){}vaAddChat('🗣️ '+texto,'user');document.getElementById('va-status-dot').style.background='#e17055';vaSetStatus('Analizando...');if(!vaMuteVA)speakText('Procesando.');fetch('/ai-assist/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:texto,modelo:vaModoPagoVA?'deepseek-v4-flash':'deepseek-v4-flash-free',url:location.href})}).then(function(r){return r.json();}).then(function(d){document.getElementById('va-status-dot').style.background='#00b894';if(d.ok){vaAddChat(d.response,'ai');if(!vaMuteVA)speakText(d.response);var abrir=texto.toLowerCase().indexOf('abre')>-1||texto.toLowerCase().indexOf('abrir')>-1||texto.toLowerCase().indexOf('ve a')>-1;if(abrir){var m=d.response.match(/https?:\/\/[^\s]+/);if(m&&m[0].indexOf('movilbro-crm')>-1)setTimeout(function(){window.location.href=m[0];},1500);}}else{vaAddChat('Error: '+(d.error||''),'ai');}vaSetStatus('');setTimeout(vaEscucharWakeVA,2000);}).catch(function(){vaAddChat('Error conexion','ai');vaSetStatus('');setTimeout(vaEscucharWakeVA,2000);});}
+function vaDetener(){vaCerrar();}
+setTimeout(vaInitWakeFinder,3000);
 
 </script>
 <script>
