@@ -378,13 +378,15 @@ app.post('/ai-assist/analyze', express.json({limit:'1mb'}), async function(req, 
     var url = req.body.url || '';
     var selector = req.body.selector || '';
     var elemText = req.body.element_text || '';
+    var historial = req.body.historial || '';
     var apiKey = 'sk-EPQBFsNdGAJqIRJwW36M0Tdc4aFpVNGzFfemDX19jZkHrlrHa43BNRw85LKIcqe1';
     
     var prompt = 'Eres un asistente del CRM Movilbro. Responde en español.\n\n';
-    if (url) prompt += 'URL: ' + url + '\n';
+    if (historial) prompt += 'Historial de la conversacion:\n' + historial + '\n\n';
+    if (url) prompt += 'URL actual: ' + url + '\n';
     if (selector) prompt += 'Selector: ' + selector + '\n';
     if (elemText) prompt += 'Texto: ' + elemText.substring(0, 300) + '\n';
-    if (texto) prompt += 'Peticion: ' + texto + '\n';
+    if (texto) prompt += 'Peticion actual: ' + texto + '\n';
     prompt += '\nResponde util y conciso.';
     
     var axios = require('axios');
