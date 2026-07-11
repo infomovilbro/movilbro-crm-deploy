@@ -2037,6 +2037,36 @@ document.addEventListener('keydown', function(e) {
 .fn-list-item .fn-li-note{font-size:0.85rem;margin:4px 0;}
 .fn-list-item .fn-li-text{font-size:0.75rem;color:#666;background:#fafafa;padding:3px 6px;border-radius:4px;border-left:2px solid #ddd;}
 .fn-list-item .fn-li-meta{font-size:0.65rem;color:#aaa;}
+
+/* Asistente IA Flotante */
+#ai-assist-panel{position:fixed;bottom:80px;left:20px;width:380px;max-height:520px;background:#fff;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,0.2);z-index:100000;display:none;flex-direction:column;overflow:hidden;transition:all 0.3s ease;}
+#ai-assist-panel.open{display:flex;}
+#ai-overlay{position:fixed;top:0;left:0;width:100%;height:100%;z-index:99999;display:none;}
+#ai-overlay.open{display:block;}
+#ai-sel-active-banner{position:fixed;top:0;left:0;width:100%;padding:10px;background:#6c5ce7;color:#fff;text-align:center;font-weight:600;z-index:100001;font-size:0.9rem;display:none;}
+#ai-sel-active-banner.open{display:block;}
+.ai-assist-header{background:#6c5ce7;color:#fff;padding:10px 14px;font-weight:600;display:flex;align-items:center;justify-content:space-between;}
+.ai-assist-close{background:none;border:0;color:#fff;font-size:1.1rem;cursor:pointer;padding:0 4px;line-height:1;}
+.ai-assist-body{flex:1;display:flex;flex-direction:column;overflow:hidden;padding:10px;}
+.ai-sel-row{background:#f8f5ff;border:1px solid #ddd;border-radius:8px;padding:8px;margin-bottom:8px;}
+.ai-sel-label{font-size:0.75rem;font-weight:600;color:#6c5ce7;margin-bottom:4px;}
+.ai-sel-val{font-size:0.7rem;color:#666;word-break:break-all;font-family:monospace;background:#fff;border-radius:4px;padding:3px 6px;margin-top:2px;}
+.ai-sel-css{color:#6c5ce7;}
+.ai-sel-text{color:#333;font-family:inherit;}
+.ai-chat-msgs{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:4px 0;min-height:100px;max-height:280px;}
+.ai-msg{display:flex;align-items:flex-start;gap:8px;}
+.ai-msg-user{justify-content:flex-end;}
+.ai-msg-bubble{background:#f0f2f5;padding:8px 12px;border-radius:12px 12px 12px 4px;font-size:0.85rem;max-width:280px;line-height:1.4;}
+.ai-msg-user .ai-msg-bubble{background:#6c5ce7;color:#fff;border-radius:12px 12px 4px 12px;}
+.ai-msg-ai .ai-msg-bubble{background:#f8f5ff;border-left:3px solid #6c5ce7;}
+.ai-input-row{display:flex;gap:6px;align-items:flex-end;margin-top:8px;}
+.ai-input-btns{display:flex;flex-direction:column;gap:4px;}
+.ai-icobtn{width:34px;height:34px;border-radius:50%;border:1px solid #ddd;background:#fff;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;}
+.ai-icobtn:hover{background:#f0f0f0;}
+.ai-icobtn.active{background:#6c5ce7;border-color:#6c5ce7;color:#fff;}
+.ai-sendbtn{background:#6c5ce7;border-color:#6c5ce7;color:#fff;}
+.ai-sendbtn:hover{background:#5a4bd1;}
+.ai-status{font-size:0.75rem;color:#999;text-align:center;margin-top:4px;min-height:16px;}
 </style>
 <div id="fn-overlay" onclick="fnClosePopup()"></div>
 <div style="position:fixed;bottom:20px;left:20px;z-index:9999;display:flex;gap:8px;">
@@ -2046,8 +2076,42 @@ document.addEventListener('keydown', function(e) {
 <button id="fn-list-btn" onclick="fnShowList()" title="📋 Ver notas de error pendientes" style="width:44px;height:44px;border-radius:50%;background:#0050A1;color:#fff;border:2px solid #fff;font-size:1.3rem;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;transition:all .2s;line-height:1;position:relative;">
   📋<span id="fn-list-count" style="display:none;position:absolute;top:-6px;right:-6px;background:#e74c3c;color:#fff;border-radius:50%;width:18px;height:18px;font-size:0.6rem;display:flex;align-items:center;justify-content:center;font-weight:700;border:2px solid #fff;">0</span>
 </button>
+<button id="ai-assist-btn" onclick="toggleAssist()" title="🤖 Asistente IA — diagnóstico con voz" style="width:44px;height:44px;border-radius:50%;background:#6c5ce7;color:#fff;border:2px solid #fff;font-size:1.3rem;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;transition:all .2s;line-height:1;position:relative;">
+  🤖
+</button>
 </div>
 <div id="fn-banner" onclick="fnToggle()">🔧 Modo Solución activado — Pulsa en CUALQUIER elemento para reportar un error</div>
+
+<!-- Asistente IA Flotante -->
+<div id="ai-assist-panel">
+  <div class="ai-assist-header">
+    <span>🤖 Asistente IA</span>
+    <button onclick="closeAssist()" class="ai-assist-close" title="Cerrar">✕</button>
+  </div>
+  <div class="ai-assist-body">
+    <!-- Selector info -->
+    <div id="ai-sel-row" class="ai-sel-row" style="display:none;">
+      <div class="ai-sel-label">🎯 Selector capturado</div>
+      <div id="ai-sel-url" class="ai-sel-val"></div>
+      <div id="ai-sel-css" class="ai-sel-val ai-sel-css"></div>
+      <div id="ai-sel-text" class="ai-sel-val ai-sel-text"></div>
+    </div>
+    <!-- Mensajes del chat -->
+    <div id="ai-chat-msgs" class="ai-chat-msgs"></div>
+    <!-- Input area -->
+    <div class="ai-input-row">
+      <textarea id="ai-input" rows="2" placeholder="Describe el error o pulsa 🎯 para capturar un selector..." style="flex:1;border:1px solid #ddd;border-radius:8px;padding:8px;font-size:0.85rem;resize:none;outline:none;"></textarea>
+      <div class="ai-input-btns">
+        <button id="ai-mic-btn" onclick="toggleMic()" title="🎤 Hablar en vez de escribir" class="ai-icobtn">🎤</button>
+        <button id="ai-sel-btn" onclick="captureSelector()" title="🎯 Capturar selector del elemento" class="ai-icobtn">🎯</button>
+        <button onclick="sendToAI()" title="Enviar" class="ai-icobtn ai-sendbtn">➤</button>
+      </div>
+    </div>
+    <div id="ai-status" class="ai-status"></div>
+  </div>
+</div>
+<div id="ai-overlay"></div>
+<div id="ai-sel-active-banner">🎯 Modo selector activado — Pulsa en CUALQUIER elemento para capturar su selector</div>
 <div id="fn-popup">
   <div class="d-flex justify-content-between align-items-center mb-2">
     <h6 class="mb-0">🐛 Reportar Error</h6>
@@ -2226,6 +2290,192 @@ function fnUpdateCount() {
 }
 fnUpdateCount();
 setInterval(fnUpdateCount, 30000);
+
+/* ===== Asistente IA Flotante ===== */
+var aiSelActive = false, aiSelData = null, aiRecognition = null, aiIsRecording = false, aiLastFix = null;
+function toggleAssist() {
+  var p = document.getElementById('ai-assist-panel');
+  var o = document.getElementById('ai-overlay');
+  var open = !p.classList.contains('open');
+  p.classList.toggle('open', open);
+  o.classList.toggle('open', open);
+  if (open) document.getElementById('ai-input').focus();
+}
+function closeAssist() {
+  document.getElementById('ai-assist-panel').classList.remove('open');
+  document.getElementById('ai-overlay').classList.remove('open');
+  stopMicIfActive();
+  deactivateSelector();
+}
+function addMsg(text, role) {
+  var c = document.getElementById('ai-chat-msgs');
+  var d = document.createElement('div');
+  d.className = 'ai-msg' + (role === 'user' ? ' ai-msg-user' : ' ai-msg-ai');
+  d.innerHTML = '<div class="ai-msg-bubble">' + text.replace(/\n/g, '<br>') + '</div>';
+  c.appendChild(d);
+  c.scrollTop = c.scrollHeight;
+}
+function setStatus(t) { document.getElementById('ai-status').textContent = t; }
+
+/* Selector capture */
+function captureSelector() {
+  if (aiSelActive) { deactivateSelector(); return; }
+  aiSelActive = true;
+  document.getElementById('ai-sel-active-banner').classList.add('open');
+  setStatus('Pulsa en cualquier elemento de la pagina...');
+}
+function deactivateSelector() {
+  aiSelActive = false;
+  document.getElementById('ai-sel-active-banner').classList.remove('open');
+}
+document.addEventListener('click', function(e) {
+  if (!aiSelActive) return;
+  var ex = e.target.closest('#ai-assist-panel, #ai-overlay, #ai-sel-active-banner, #ai-assist-btn, #ai-sel-btn');
+  if (ex) return;
+  e.preventDefault(); e.stopPropagation();
+  var el = e.target;
+  aiSelData = {
+    url: location.href,
+    selector: (function(el2){
+      if (!el2 || el2 === document.body) return '';
+      var p = [];
+      while (el2 && el2 !== document.body && el2 !== document.documentElement) {
+        var s = el2.tagName.toLowerCase();
+        if (el2.id) { s = '#' + el2.id; p.unshift(s); break; }
+        if (el2.className && typeof el2.className === 'string') {
+          var c = el2.className.trim().split(/\s+/).filter(function(x){return x && !x.startsWith('ai-') && x !== 'active' && x !== 'open' && x !== 'show' && x !== 'fade';}).slice(0,2);
+          if (c.length) s += '.' + c.join('.');
+        }
+        var par = el2.parentElement;
+        if (par) {
+          var idx = 1;
+          for (var i = 0; i < par.children.length; i++) { if (par.children[i] === el2) break; if (par.children[i].tagName === el2.tagName) idx++; }
+          if (par.children.length > 1) s += ':nth-child('+idx+')';
+        }
+        p.unshift(s); el2 = par;
+      }
+      return p.join(' > ');
+    })(el),
+    element_text: (el.textContent || '').trim().substring(0, 300)
+  };
+  document.getElementById('ai-sel-url').textContent = aiSelData.url;
+  document.getElementById('ai-sel-css').textContent = aiSelData.selector;
+  document.getElementById('ai-sel-text').textContent = aiSelData.element_text;
+  document.getElementById('ai-sel-row').style.display = 'block';
+  deactivateSelector();
+  setStatus('Selector capturado. Describe el error o pulsa enviar.');
+}, true);
+
+/* Voz: SpeechRecognition */
+function toggleMic() {
+  var btn = document.getElementById('ai-mic-btn');
+  if (aiIsRecording) { stopMic(); return; }
+  if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+    setStatus('Tu navegador no soporta voz.'); return;
+  }
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  aiRecognition = new SR();
+  aiRecognition.lang = 'es-ES';
+  aiRecognition.continuous = false;
+  aiRecognition.interimResults = false;
+  aiRecognition.onresult = function(e) {
+    var txt = e.results[e.results.length-1][0].transcript;
+    document.getElementById('ai-input').value += (document.getElementById('ai-input').value ? ' ' : '') + txt;
+    stopMic();
+    sendToAI();
+  };
+  aiRecognition.onerror = function() { setStatus('Error de voz. Intenta de nuevo.'); stopMic(); };
+  aiRecognition.onend = function() { stopMic(); };
+  aiRecognition.start();
+  aiIsRecording = true;
+  btn.classList.add('active');
+  btn.textContent = '⏹';
+  setStatus('Escuchando... habla ahora');
+}
+function stopMic() {
+  if (aiRecognition) { try { aiRecognition.stop(); } catch(e) {} aiRecognition = null; }
+  aiIsRecording = false;
+  var btn = document.getElementById('ai-mic-btn');
+  btn.classList.remove('active');
+  btn.textContent = '🎤';
+  if (document.getElementById('ai-status').textContent === 'Escuchando... habla ahora') setStatus('');
+}
+function stopMicIfActive() { if (aiIsRecording) stopMic(); }
+
+/* Enviar a opencode (analizo yo) */
+function sendToAI() {
+  var input = document.getElementById('ai-input');
+  var text = input.value.trim();
+  if (!text && !aiSelData) { setStatus('Describe el error o captura un selector primero.'); return; }
+  var msg = text;
+  if (aiSelData) {
+    msg = (text ? text + '\n\n' : '') + '📍 URL: ' + aiSelData.url + '\n🎯 Selector: ' + aiSelData.selector + '\n📄 Texto: ' + aiSelData.element_text;
+  }
+  addMsg(msg, 'user');
+  input.value = '';
+  setStatus('Enviando a opencode para analisis...');
+  
+  fetch('/ai-assist/report', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      text: text,
+      url: aiSelData ? aiSelData.url : null,
+      selector: aiSelData ? aiSelData.selector : null,
+      element_text: aiSelData ? aiSelData.element_text : null
+    })
+  }).then(function(r){ return r.json(); }).then(function(d){
+    if (d.ok) {
+      addMsg('Reporte guardado como Nota de Error #' + d.id + '. Dímelo en el chat de opencode y lo analizo al instante.', 'ai');
+      setStatus('');
+      fnUpdateCount();
+    } else {
+      addMsg('Error al enviar: ' + (d.error || 'desconocido'), 'ai');
+      setStatus('');
+    }
+  }).catch(function(e){
+    addMsg('Error de conexion: ' + e.message, 'ai');
+    setStatus('');
+  });
+}
+
+/* Aceptar fix */
+function acceptFix() {
+  var fd = aiLastFix;
+  if (!fd) { addMsg('No hay solucion pendiente.', 'ai'); return; }
+  var u = fd.url || (aiSelData ? aiSelData.url : null) || location.href;
+  var s = fd.selector || (aiSelData ? aiSelData.selector : '') || '';
+  var et = fd.element_text || (aiSelData ? aiSelData.element_text : '') || '';
+  var note = fd.solution || 'Solucionado con asistente IA';
+  fetch('/api/fix-notes', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url: u, selector: s, element_text: et, note: note })
+  }).then(function(r){ return r.json(); }).then(function(d){
+    if (d.ok) {
+      addMsg('✅ Añadido a fix-notes como nota #' + d.id, 'ai');
+      aiSelData = null;
+      aiLastFix = null;
+      document.getElementById('ai-sel-row').style.display = 'none';
+      fnUpdateCount();
+    } else {
+      addMsg('Error al guardar: ' + d.error, 'ai');
+    }
+  }).catch(function(e){
+    addMsg('Error: ' + e.message, 'ai');
+  });
+}
+
+/* TTS */
+function speakText(text) {
+  if ('speechSynthesis' in window) {
+    var utt = new SpeechSynthesisUtterance(text);
+    utt.lang = 'es-ES';
+    utt.rate = 1.1;
+    speechSynthesis.cancel();
+    speechSynthesis.speak(utt);
+  }
+}
 </script>
 <script>
 (function() {

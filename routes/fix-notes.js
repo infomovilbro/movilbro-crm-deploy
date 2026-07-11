@@ -250,4 +250,22 @@ router.get('/fix-notes', (req, res) => {
   res.render('fix-notes', { title: 'Notas de Error', pending, fixed });
 });
 
+// POST — Reportar error al asistente (guarda en fix_notes, me lo dices aqui)
+router.post('/ai-assist/report', async (req, res) => {
+  try {
+    var text = req.body.text || '';
+    var url = req.body.url || '';
+    var selector = req.body.selector || '';
+    var element_text = req.body.element_text || '';
+    if (!text && !selector) return res.json({ ok: false, error: 'Describe el error o captura un selector.' });
+    
+    var note = (text || '') + (selector ? '\n🎯 ' + selector : '') + (element_text ? '\n📄 ' + element_text.substring(0, 200) : '');
+    var r = db.prepare("INSERT INTO fix_notes (url, selector, element_text, note, status, type, created_at) VALUES (?, ?, ?, ?, 'pending', 'assistant', datetime('now'))").run(url, selector, element_text, note.trim());
+    
+    res.json({ ok: true, id: r.lastInsertRowid, message: 'Reporte guardado. Dímelo en el chat de opencode y lo analizo.' });
+  } catch(e) {
+    res.json({ ok: false, error: e.message });
+  }
+});
+
 module.exports = router;
