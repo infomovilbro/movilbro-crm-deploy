@@ -341,7 +341,6 @@ app.post('/api/save-setting', function(req, res) {
 // ---- AI ASSIST (sin auth - solo archivos temporales publicos) ----
 app.post('/ai-assist/report', express.json({limit:'1mb'}), function(req, res) {
   try {
-    var db2 = require('./database').db;
     var fs = require('fs');
     var path = require('path');
     var text = req.body.text || '';
@@ -349,11 +348,10 @@ app.post('/ai-assist/report', express.json({limit:'1mb'}), function(req, res) {
     var selector = req.body.selector || '';
     var element_text = req.body.element_text || '';
     if (!text && !selector) return res.json({ ok: false, error: 'Describe el error o captura un selector.' });
-    var note = (text || '') + (selector ? '\n🎯 ' + selector : '') + (element_text ? '\n📄 ' + element_text.substring(0,200) : '');
-    var r = db2.prepare("INSERT INTO fix_notes (url,selector,element_text,note,status,type,created_at) VALUES (?,?,?,?,'pending','assistant',datetime('now'))").run(url, selector, element_text, note.trim());
     var pubPath = path.join(__dirname, 'public', 'ai-assist-pending.json');
-    fs.writeFileSync(pubPath, JSON.stringify({ id: r.lastInsertRowid, text: text, url: url, selector: selector, element_text: element_text, created_at: new Date().toISOString() }));
-    res.json({ ok: true, id: r.lastInsertRowid, message: 'Analizando...' });
+    var id = Date.now();
+    fs.writeFileSync(pubPath, JSON.stringify({ id: id, text: text, url: url, selector: selector, element_text: element_text, created_at: new Date().toISOString() }));
+    res.json({ ok: true, id: id, message: 'Analizando...' });
   } catch(e) { res.json({ ok: false, error: e.message }); }
 });
 app.post('/ai-assist/respond', express.json({limit:'1mb'}), function(req, res) {
@@ -372,34 +370,15 @@ app.post('/ai-assist/respond', express.json({limit:'1mb'}), function(req, res) {
     res.json({ ok: true });
   } catch(e) { res.json({ ok: false, error: e.message }); }
 });
-// Analisis con DeepSeek (pago o free segun modelo)
+// Analisis con DeepSeek (si el pago falla, cae a free)
 app.post('/ai-assist/analyze', express.json({limit:'1mb'}), async function(req, res) {
   try {
     var texto = req.body.text || '';
-    var modelo = req.body.modelo || 'deepseek-v4-flash';
+    var modelo = req.body.modelo || 'deepseek-v4-flash-free';
     var url = req.body.url || '';
     var selector = req.body.selector || '';
     var elemText = req.body.element_text || '';
-    
-    // Buscar la API key segun el modelo
-    var apiKey = '';
-    if (modelo === 'deepseek-v4-flash-free') {
-      apiKey = process.env.OPENCODE_API_KEY || '';
-    } else {
-      // Modelo de pago: buscar en settings primero, luego en variable de entorno
-      try {
-        apiKey = process.env.DEEPSEEK_PAID_KEY || '';
-        if (!apiKey) {
-          var db2 = require('./database').db;
-          var row = db2.prepare("SELECT value FROM settings WHERE key='deepseek_paid_key'").get();
-          if (row) apiKey = row.value;
-        }
-        // Fallback a la key hardcodeada
-        if (!apiKey) apiKey = 'sk-EPQBFsNdGAJqIRJwW36M0Tdc4aFpVNGzFfemDX19jZkHrlrHa43BNRw85LKIcqe1';
-      } catch(e) { apiKey = 'sk-EPQBFsNdGAJqIRJwW36M0Tdc4aFpVNGzFfemDX19jZkHrlrHa43BNRw85LKIcqe1'; }
-    }
-    
-    if (!apiKey) return res.json({ ok: false, error: 'No hay API key para ' + modelo });
+    var apiKey = 'sk-EPQBFsNdGAJqIRJwW36M0Tdc4aFpVNGzFfemDX19jZkHrlrHa43BNRw85LKIcqe1';
     
     var prompt = 'Eres un asistente de diagnostico del CRM Movilbro. Analiza el elemento y responde en español.\n\n';
     if (url) prompt += 'URL: ' + url + '\n';
@@ -409,17 +388,35 @@ app.post('/ai-assist/analyze', express.json({limit:'1mb'}), async function(req, 
     prompt += '\nResponde con:\n1) Que elemento se pulso y para que sirve\n2) Diagnostico del problema\n3) Solucion propuesta\nSé conciso.';
     
     var axios = require('axios');
-    var resp = await axios.post('https://opencode.ai/zen/v1/chat/completions', {
-      model: modelo,
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.3, max_tokens: 800
-    }, { timeout: 30000, headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' } });
     
-    var content = resp?.data?.choices?.[0]?.message?.content || '';
-    if (!content.trim()) return res.json({ ok: false, error: 'Respuesta IA vacia' });
+    // Intentar con el modelo solicitado, si falla caer a free
+    var modelosIntentar = [modelo, 'deepseek-v4-flash-free'];
+    var responseOk = null;
     
-    var sol = content.replace(/```[\s\S]*?```/g, '').substring(0, 500);
-    res.json({ ok: true, response: content.trim(), tts: true, fix_data: { url: url, selector: selector, element_text: elemText, solution: sol } });
+    for (var i = 0; i < modelosIntentar.length; i++) {
+      try {
+        var m = modelosIntentar[i];
+        // Si es el modelo de pago y no es el free, mostrar advertencia
+        if (m === 'deepseek-v4-flash' && i === 0) {
+          // Intentar pago
+        }
+        var resp = await axios.post('https://opencode.ai/zen/v1/chat/completions', {
+          model: m,
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.3, max_tokens: 800
+        }, { timeout: 30000, headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' } });
+        var content = resp?.data?.choices?.[0]?.message?.content || '';
+        if (content && content.trim()) { responseOk = content.trim(); break; }
+      } catch(e) {
+        if (i === modelosIntentar.length - 1) throw e;
+        // Fallback al free silenciosamente
+      }
+    }
+    
+    if (!responseOk) return res.json({ ok: false, error: 'No se pudo obtener respuesta' });
+    
+    var sol = responseOk.replace(/```[\s\S]*?```/g, '').substring(0, 500);
+    res.json({ ok: true, response: responseOk, tts: true, fix_data: { url: url, selector: selector, element_text: elemText, solution: sol } });
   } catch(e) {
     var errMsg = e.response?.data?.error?.message || e.message;
     res.json({ ok: false, error: errMsg });

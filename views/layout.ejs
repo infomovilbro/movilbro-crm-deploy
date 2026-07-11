@@ -2039,8 +2039,9 @@ document.addEventListener('keydown', function(e) {
 .fn-list-item .fn-li-meta{font-size:0.65rem;color:#aaa;}
 
 /* Asistente IA Flotante */
-#ai-assist-panel{position:fixed;width:380px;max-height:450px;background:#fff;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.25);z-index:100000;display:none;flex-direction:column;overflow:hidden;pointer-events:auto;}
+#ai-assist-panel{position:fixed;width:380px;min-width:280px;max-width:700px;height:420px;min-height:300px;max-height:650px;background:#fff;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.25);z-index:100000;display:none;flex-direction:column;overflow:hidden;pointer-events:auto;resize:both;}
 #ai-assist-panel.open{display:flex;}
+#ai-assist-panel.pinned{opacity:1!important;transform:scale(1)!important;}
 #ai-sel-banner{position:fixed;top:0;left:0;width:100%;padding:10px;background:#6c5ce7;color:#fff;text-align:center;font-weight:600;z-index:100001;font-size:0.9rem;display:none;}
 .ai-assist-header{background:#6c5ce7;color:#fff;padding:10px 14px;font-weight:600;display:flex;align-items:center;justify-content:space-between;}
 .ai-assist-close{background:none;border:0;color:#fff;font-size:1.1rem;cursor:pointer;padding:0 4px;line-height:1;}
@@ -2084,9 +2085,11 @@ document.addEventListener('keydown', function(e) {
   <div class="ai-assist-header">
     <span>🤖 Asistente IA</span>
     <div style="display:flex;gap:4px;align-items:center;">
-      <button id="ai-mode-btn" onclick="toggleModo()" title="Modo PAGO (DeepSeek V4 Flash)" style="background:rgba(255,255,255,0.2);border:0;border-radius:6px;padding:2px 6px;font-size:0.9rem;cursor:pointer;color:#fff;">💎</button>
+      <button id="ai-mode-btn" onclick="toggleModo()" title="Modo FREE (DeepSeek V4 Flash Free)" style="background:rgba(255,255,255,0.2);border:0;border-radius:6px;padding:2px 6px;font-size:0.9rem;cursor:pointer;color:#fff;">🆓</button>
+      <button id="ai-pin-btn" onclick="togglePin()" title="Fijar ventana" style="background:rgba(255,255,255,0.2);border:0;border-radius:6px;padding:2px 6px;font-size:0.9rem;cursor:pointer;color:#fff;">📍</button>
       <button onclick="closeAssist()" class="ai-assist-close" title="Cerrar">✕</button>
     </div>
+    <div id="ai-resize-handle" style="position:absolute;bottom:0;right:0;width:14px;height:14px;cursor:nwse-resize;background:linear-gradient(135deg,transparent 50%,rgba(255,255,255,0.3) 50%);z-index:1;"></div>
   </div>
   <div class="ai-assist-body">
     <div id="ai-sel-row" class="ai-sel-row" style="display:none;">
@@ -2292,14 +2295,30 @@ setInterval(fnUpdateCount, 30000);
 
 /* ===== ASISTENTE IA DEFINITIVO ===== */
 var aiSelActive = false, aiSelData = null, aiRec = null, aiRecOn = false, aiLastFix = null;
-var aiMouseX = 0, aiMouseY = 0, aiModoPago = true, aiAnalizando = false, aiSilTimer = null;
+var aiMouseX = 0, aiMouseY = 0, aiModoPago = false, aiAnalizando = false, aiSilTimer = null;
+var aiPin = false, aiResize = false;
 
-/* Ruleta modo: FREE / PAGO */
+/* Ruleta: FREE por defecto (el pago necesita billing en opencode.ai) */
 function toggleModo() {
   aiModoPago = !aiModoPago;
   var btn = document.getElementById('ai-mode-btn');
   btn.textContent = aiModoPago ? '💎' : '🆓';
-  btn.title = aiModoPago ? 'Modo PAGO (DeepSeek V4 Flash)' : 'Modo FREE (analisis manual)';
+  btn.title = aiModoPago ? 'Modo PAGO (necesita billing en opencode.ai/workspace)' : 'Modo FREE (DeepSeek V4 Flash Free)';
+}
+
+/* Pin/Unpin ventana */
+function togglePin() {
+  aiPin = !aiPin;
+  var btn = document.getElementById('ai-pin-btn');
+  btn.textContent = aiPin ? '📌' : '📍';
+  btn.title = aiPin ? 'Desfijar ventana' : 'Fijar ventana en esta posicion';
+  var p = document.getElementById('ai-assist-panel');
+  if (aiPin) {
+    p.style.position = 'fixed';
+    p.style.bottom = ''; p.style.right = '';
+  } else {
+    p.style.position = 'fixed';
+  }
 }
 
 /* Paso 1: 🤖 activa modo selector */
@@ -2325,11 +2344,11 @@ function aiDesactivarSelector() {
   document.getElementById('ai-sel-btn')?.classList.remove('active');
 }
 
-/* Ventana transparente sigue al raton */
+/* Ventana transparente sigue al raton (solo si no esta fijada) */
 document.addEventListener('mousemove', function(e) {
   aiMouseX = e.clientX; aiMouseY = e.clientY;
   var p = document.getElementById('ai-assist-panel');
-  if (p.style.display === 'flex' && !p.matches(':hover')) {
+  if (p.style.display === 'flex' && !p.matches(':hover') && !aiPin) {
     p.style.opacity = '0.15'; p.style.transform = 'scale(0.65)';
     p.style.left = Math.min(aiMouseX + 15, window.innerWidth - 380) + 'px';
     p.style.top = Math.min(aiMouseY - 120, window.innerHeight - 450) + 'px';
@@ -2337,6 +2356,22 @@ document.addEventListener('mousemove', function(e) {
 });
 document.getElementById('ai-assist-panel')?.addEventListener('mouseenter', function() {
   this.style.opacity = '1'; this.style.transform = 'scale(1)';
+});
+/* Resize handler */
+document.getElementById('ai-assist-panel')?.addEventListener('mousedown', function(e) {
+  if (e.target.id !== 'ai-resize-handle') return;
+  aiResize = true;
+  var startX = e.clientX, startY = e.clientY, startW = this.offsetWidth, startH = this.offsetHeight;
+  function doResize(ev) {
+    if (!aiResize) return;
+    var w = Math.max(280, Math.min(700, startW + (ev.clientX - startX)));
+    var h = Math.max(300, Math.min(650, startH + (ev.clientY - startY)));
+    document.getElementById('ai-assist-panel').style.width = w + 'px';
+    document.getElementById('ai-assist-panel').style.height = h + 'px';
+  }
+  function stopResize() { aiResize = false; document.removeEventListener('mousemove', doResize); document.removeEventListener('mouseup', stopResize); }
+  document.addEventListener('mousemove', doResize);
+  document.addEventListener('mouseup', stopResize);
 });
 
 /* Paso 2: Click captura elemento + abre ventana + mic */
@@ -2416,23 +2451,22 @@ function toggleMic() {
   iniciarMic6s();
 }
 
-/* Paso 4: Enviar a analisis */
+/* Paso 4: Enviar a analisis (ambos modos analizan en CRM) */
 function aiEnviar(texto) {
   pararMic(); if (aiAnalizando) return; aiAnalizando = true;
   if (!texto && !aiSelData) { setStatus('Describe el error'); aiAnalizando = false; return; }
   addMsg((texto || '📤'), 'user');
   
-  if (aiModoPago) {
-    // MODO PAGO: llama directo a DeepSeek desde el backend
-    setStatus('Analizando con IA...');
-    speakText('Analizando el elemento...');
-    document.getElementById('ai-analyzing-msg').style.display = 'block';
-    
-    fetch('/ai-assist/analyze', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        text: texto, modelo: 'deepseek-v4-flash',
-        url: aiSelData ? aiSelData.url : null,
+  var modelo = aiModoPago ? 'deepseek-v4-flash' : 'deepseek-v4-flash-free';
+  setStatus('Analizando...');
+  speakText('Analizando elemento...');
+  document.getElementById('ai-analyzing-msg').style.display = 'block';
+  
+  fetch('/ai-assist/analyze', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      text: texto, modelo: modelo,
+      url: aiSelData ? aiSelData.url : null,
         selector: aiSelData ? aiSelData.selector : null,
         element_text: aiSelData ? aiSelData.element_text : null
       })
@@ -2460,21 +2494,6 @@ function aiEnviar(texto) {
       aiAnalizando = false;
       addMsg('Error: ' + e.message, 'ai'); setStatus('');
     });
-  } else {
-    // MODO FREE: guarda para que opencode analice manualmente
-    setStatus('Enviando a opencode...');
-    fetch('/ai-assist/report', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: texto, url: aiSelData ? aiSelData.url : null, selector: aiSelData ? aiSelData.selector : null, element_text: aiSelData ? aiSelData.element_text : null })
-    }).then(function(r){ return r.json(); }).then(function(d){
-      aiAnalizando = false;
-      if (d.ok) {
-        addMsg('✅ Reportado a opencode. Dimelo en el chat y lo analizo.', 'ai');
-        fnUpdateCount();
-      } else { addMsg('Error: ' + d.error, 'ai'); }
-      setStatus('');
-    }).catch(function(e){ aiAnalizando = false; addMsg('Error: ' + e.message, 'ai'); setStatus(''); });
-  }
 }
 function sendToAI() {
   var t = document.getElementById('ai-input').value.trim();
@@ -2491,12 +2510,12 @@ function acceptFix() {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ url: u, selector: sel, element_text: et, note: fd.solution || 'Solucionado con asistente IA' })
   }).then(function(r){ return r.json(); }).then(function(d){
-    if (d.ok) { addMsg('✅ Añadido #' + d.id, 'ai'); fnUpdateCount(); }
+    if (d.ok) { addMsg('✅ Añadido #' + d.id + ' a fix-notes', 'ai'); fnUpdateCount(); }
   }).catch(function(){});
-  addMsg('✅ Listo. Pulsa 🎯 para otro error', 'ai'); aiLastFix = null;
+  addMsg('✅ Solucion aceptada. Pulsa 🎯 para otro error', 'ai'); aiLastFix = null;
 }
 function cancelFix() {
-  if (aiSelData) { iniciarMic6s(); addMsg('❌ Explica por que no te gusta...', 'ai'); }
+  if (aiSelData) { iniciarMic6s(); addMsg('❌ Explica por que...', 'ai'); }
   else { addMsg('❌ Cancelado. Pulsa 🎯 para otro', 'ai'); aiLastFix = null; }
 }
 
