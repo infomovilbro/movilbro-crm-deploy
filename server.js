@@ -370,55 +370,49 @@ app.post('/ai-assist/respond', express.json({limit:'1mb'}), function(req, res) {
     res.json({ ok: true });
   } catch(e) { res.json({ ok: false, error: e.message }); }
 });
-// Analisis con IA (multi-modelo con fallbacks)
+// Analisis con IA - SOLO modelos opencode (Zen FREE + GO PAGO)
 app.post('/ai-assist/analyze', express.json({limit:'1mb'}), async function(req, res) {
   try {
     var texto = req.body.text || '';
-    var modeloPref = req.body.modelo || 'nemotron-3-ultra-free';
+    var esPago = req.body.modelo === 'deepseek-v4-flash';
     var url = req.body.url || '';
     var selector = req.body.selector || '';
     var elemText = req.body.element_text || '';
     var apiKey = 'sk-EPQBFsNdGAJqIRJwW36M0Tdc4aFpVNGzFfemDX19jZkHrlrHa43BNRw85LKIcqe1';
     
-    var prompt = 'Eres un asistente de diagnostico del CRM Movilbro. Analiza el elemento y responde en español.\n\n';
+    var prompt = 'Eres un asistente de diagnostico del CRM Movilbro. Responde en español.\n\n';
     if (url) prompt += 'URL: ' + url + '\n';
-    if (selector) prompt += 'Selector CSS: ' + selector + '\n';
-    if (elemText) prompt += 'Texto del elemento: ' + elemText.substring(0, 300) + '\n';
-    if (texto) prompt += 'Descripcion del problema: ' + texto + '\n';
-    prompt += '\nResponde con:\n1) Que elemento se pulso y para que sirve\n2) Diagnostico del problema\n3) Solucion propuesta\nSé conciso.';
+    if (selector) prompt += 'Selector: ' + selector + '\n';
+    if (elemText) prompt += 'Texto: ' + elemText.substring(0, 300) + '\n';
+    if (texto) prompt += 'Descripcion: ' + texto + '\n';
+    prompt += '\nIndica: 1) Que elemento es y para que sirve 2) Diagnostico 3) Solucion';
     
     var axios = require('axios');
-    var modelos = ['nemotron-3-ultra-free', 'deepseek-v4-flash-free', 'gemini-2.0-flash-openrouter'];
-    // Poner el preferido al inicio si no esta ya
-    if (modeloPref !== 'nemotron-3-ultra-free') {
-      modelos.unshift(modeloPref);
+    var modelo = esPago ? 'deepseek-v4-flash' : 'deepseek-v4-flash-free';
+    var endpoint = 'https://opencode.ai/zen/v1/chat/completions';
+    
+    try {
+      var resp = await axios.post(endpoint, {
+        model: modelo,
+        messages: [
+          { role: 'system', content: 'Eres un asistente util de diagnostico del CRM Movilbro. Responde en español, se conciso.' },
+          { role: 'user', content: prompt }
+        ],
+        temperature: 0.3, max_tokens: 800
+      }, { timeout: 30000, headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' } });
+      
+      var content = resp && resp.data && resp.data.choices && resp.data.choices[0] && resp.data.choices[0].message && resp.data.choices[0].message.content || '';
+      if (content && content.trim().length > 3) {
+        var sol = content.replace(/```[\s\S]*?```/g, '').substring(0, 500);
+        return res.json({ ok: true, response: content.trim(), tts: true, fix_data: { url: url, selector: selector, element_text: elemText, solution: sol } });
+      }
+      if (esPago) return res.json({ ok: false, error: 'El modelo de pago no tiene saldo. Gestiona billing en: https://opencode.ai/workspace/wrk_01KS8VQPTD4DY7J12080YWG0F2/billing' });
+      return res.json({ ok: false, error: 'El modelo respondio vacio. Reintenta.' });
+    } catch(e) {
+      var err = e.response?.data?.error || e.message;
+      if (esPago) return res.json({ ok: false, error: 'Pago fallo: ' + (err.message || err) + '. Gestiona billing en: https://opencode.ai/workspace/wrk_01KS8VQPTD4DY7J12080YWG0F2/billing' });
+      return res.json({ ok: false, error: 'Error: ' + (err.message || err) });
     }
-    
-    var responseOk = null;
-    for (var i = 0; i < modelos.length; i++) {
-      try {
-        var cfg = { model: modelos[i], messages: [{ role: 'user', content: prompt }], temperature: 0.3, max_tokens: 800 };
-        var endpoint = 'https://opencode.ai/zen/v1/chat/completions';
-        var headers = { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' };
-        
-        // Si es modelo de openrouter, usar su endpoint
-        if (modelos[i].indexOf('openrouter') > -1) {
-          var orKey = process.env.OPENROUTER_API_KEY || '';
-          if (!orKey) continue;
-          endpoint = 'https://openrouter.ai/api/v1/chat/completions';
-          headers = { 'Authorization': 'Bearer ' + orKey, 'Content-Type': 'application/json' };
-        }
-        
-        var resp = await axios.post(endpoint, cfg, { timeout: 30000, headers: headers });
-        var content = resp && resp.data && resp.data.choices && resp.data.choices[0] && resp.data.choices[0].message && resp.data.choices[0].message.content || '';
-        if (content && content.trim().length > 5) { responseOk = content.trim(); break; }
-      } catch(e) { /* fallback */ }
-    }
-    
-    if (!responseOk) return res.json({ ok: false, error: 'No se pudo obtener respuesta de ningun modelo' });
-    
-    var sol = responseOk.replace(/```[\s\S]*?```/g, '').substring(0, 500);
-    res.json({ ok: true, response: responseOk, tts: true, fix_data: { url: url, selector: selector, element_text: elemText, solution: sol } });
   } catch(e) {
     res.json({ ok: false, error: e.message });
   }

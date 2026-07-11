@@ -2071,8 +2071,8 @@ document.addEventListener('keydown', function(e) {
 <button id="fn-btn" onclick="fnToggle()" title="🐛 Modo Solución — pulsa y luego clica en cualquier elemento para reportar" style="width:44px;height:44px;border-radius:50%;background:#e74c3c;color:#fff;border:2px solid #fff;font-size:1.3rem;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;transition:all .2s;line-height:1;position:relative;">
   🐛<span id="fn-count" style="display:none;position:absolute;top:-6px;right:-6px;background:#e74c3c;color:#fff;border-radius:50%;width:18px;height:18px;font-size:0.6rem;display:flex;align-items:center;justify-content:center;font-weight:700;border:2px solid #fff;">0</span>
 </button>
-<button id="fn-list-btn" onclick="fnShowList()" title="📋 Ver notas de error pendientes" style="width:44px;height:44px;border-radius:50%;background:#0050A1;color:#fff;border:2px solid #fff;font-size:1.3rem;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;transition:all .2s;line-height:1;position:relative;">
-  📋<span id="fn-list-count" style="display:none;position:absolute;top:-6px;right:-6px;background:#e74c3c;color:#fff;border-radius:50%;width:18px;height:18px;font-size:0.6rem;display:flex;align-items:center;justify-content:center;font-weight:700;border:2px solid #fff;">0</span>
+<button id="va-btn" onclick="vaIniciar()" title="🧠🎤 Voice Admin — asistente por voz con IA" style="width:44px;height:44px;border-radius:50%;background:#00b894;color:#fff;border:2px solid #fff;font-size:1.1rem;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;transition:all .2s;line-height:1;position:relative;">
+  🧠🎤<span id="va-status-dot" style="display:none;position:absolute;top:-4px;right:-4px;width:10px;height:10px;border-radius:50%;background:#00b894;border:2px solid #fff;"></span>
 </button>
 <button id="ai-assist-btn" onclick="toggleAssist()" title="🤖 Asistente IA — diagnóstico con voz" style="width:44px;height:44px;border-radius:50%;background:#6c5ce7;color:#fff;border:2px solid #fff;font-size:1.3rem;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;transition:all .2s;line-height:1;position:relative;">
   🤖
@@ -2276,16 +2276,13 @@ function fnListDel(id) {
 function fnUpdateCount() {
   fetch('/api/fix-notes').then(function(r){return r.json()}).then(function(d){
     var c = document.getElementById('fn-count');
-    var lc = document.getElementById('fn-list-count');
     var sc = document.getElementById('fn-sidebar-count');
     if (d.ok && d.pending && d.pending.length > 0) {
       var n = d.pending.length;
       if (c) { c.textContent = n; c.style.display = 'flex'; }
-      if (lc) { lc.textContent = n; lc.style.display = 'flex'; }
       if (sc) { sc.textContent = n; sc.style.display = 'inline'; }
     } else {
       if (c) c.style.display = 'none';
-      if (lc) lc.style.display = 'none';
       if (sc) sc.style.display = 'none';
     }
   }).catch(function(){});
@@ -2293,6 +2290,13 @@ function fnUpdateCount() {
 fnUpdateCount();
 setInterval(fnUpdateCount, 30000);
 
+/* === FIX: funciones para fix-notes (si no existen ya) === */
+if (typeof fnDel === 'undefined') {
+  window.fnDel = function(id) { if (!confirm('Eliminar nota #'+id+'?')) return; fetch('/api/fix-notes/'+id,{method:'DELETE'}).then(function(r){return r.json()}).then(function(d){if(d.ok){var el=document.getElementById('fn_'+id);if(el)el.remove();}}); };
+  window.fnFix = function(id) { var v=prompt('Verificacion:');if(v===null)return;fetch('/api/fix-notes/'+id+'/fix',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({verification:v||'Sin verif'})}).then(function(r){return r.json()}).then(function(d){if(d.ok)location.reload()}); };
+  window.fnTest = function(id) { var d=document.getElementById('testResult_'+id);if(!d)return;d.style.display='block';d.innerHTML='Probando...';fetch('/api/fix-notes/test/'+id,{method:'POST'}).then(function(r){return r.json()}).then(function(d2){d.innerHTML=d2.ok?(d2.failed===0?'✅ OK ':'❌ Fallos ')+d2.tested:'❌ '+d2.error}).catch(function(e){d.innerHTML='Error: '+e.message}); };
+  window.fnReport = function(oid) { var url=prompt('URL:');if(url===null)return;if(!url)url=location.href;var sel=prompt('Selector:');var note=prompt('Describe:');if(!note)return;fetch('/api/fix-notes/report-fail',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({originalId:oid,url:url,selector:sel||'',note:note})}).then(function(r){return r.json()}).then(function(d){if(d.ok){alert('Reportado #'+d.id);location.reload()}}); };
+}
 /* ===== ASISTENTE IA DEFINITIVO ===== */
 var aiSelActive = false, aiSelData = null, aiRec = null, aiRecOn = false, aiLastFix = null;
 var aiMouseX = 0, aiMouseY = 0, aiModoPago = false, aiAnalizando = false, aiSilTimer = null;
@@ -2548,6 +2552,126 @@ function addMsg(text, role) {
   c.appendChild(d); c.scrollTop = c.scrollHeight;
 }
 function setStatus(t) { var s = document.getElementById('ai-status'); if (s) s.textContent = t; }
+
+/* ===== VOICE ADMIN - Asistente por voz tipo Siri ===== */
+var vaRec = null, vaActivo = false, vaWakeEnabled = true, vaModoPago = false;
+var vaSilencioTimer = null, vaUltTexto = '', vaEscuchando = false;
+
+function vaIniciar() {
+  if (vaActivo) { vaDetener(); return; }
+  // Seleccionar modelo
+  var modelo = confirm('Usar modelo PAGO? OK = PAGO, Cancelar = FREE');
+  vaModoPago = modelo;
+  vaActivo = true;
+  document.getElementById('va-btn').style.background = '#e17055';
+  document.getElementById('va-status-dot').style.display = 'block';
+  vaEscuchar();
+  speakText('Voice Admin activado. Di Oye estas para preguntar algo.');
+}
+
+function vaDetener() {
+  vaActivo = false; vaEscuchando = false;
+  if (vaRec) { try { vaRec.stop(); } catch(e) {} vaRec = null; }
+  if (vaSilencioTimer) { clearTimeout(vaSilencioTimer); vaSilencioTimer = null; }
+  document.getElementById('va-btn').style.background = '#00b894';
+  document.getElementById('va-status-dot').style.display = 'none';
+}
+
+function vaEscuchar() {
+  if (!vaActivo) return;
+  if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) { speakText('Voz no soportada'); return; }
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  vaRec = new SR();
+  vaRec.lang = 'es-ES'; vaRec.continuous = true; vaRec.interimResults = true;
+  vaEscuchando = true;
+  
+  vaRec.onresult = function(ev) {
+    var txt = '';
+    for (var i = ev.resultIndex; i < ev.results.length; i++) { if (ev.results[i].isFinal) txt += ev.results[i][0].transcript; }
+    if (!txt) return;
+    
+    var lower = txt.toLowerCase();
+    // Detectar wake word "oye estas"
+    if (lower.indexOf('oye estas') > -1 || lower.indexOf('oye esta') > -1) {
+      vaEscuchando = false;
+      if (vaRec) { try { vaRec.stop(); } catch(e) {} }
+      speakText('Si, dime.');
+      // Escuchar comando
+      setTimeout(function() { vaEscucharComando(); }, 800);
+      return;
+    }
+  };
+  
+  vaRec.onerror = function() { if (vaActivo) setTimeout(vaEscuchar, 1000); };
+  vaRec.onend = function() { if (vaActivo && vaEscuchando) setTimeout(vaEscuchar, 500); };
+  vaRec.start();
+}
+
+function vaEscucharComando() {
+  if (!vaActivo) return;
+  if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) return;
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  vaRec = new SR();
+  vaRec.lang = 'es-ES'; vaRec.continuous = true; vaRec.interimResults = true;
+  vaUltTexto = '';
+  
+  vaRec.onresult = function(ev) {
+    var txt = '';
+    for (var i = ev.resultIndex; i < ev.results.length; i++) { if (ev.results[i].isFinal) txt += ev.results[i][0].transcript; }
+    if (txt) {
+      vaUltTexto = txt;
+      document.getElementById('va-status-dot').style.background = '#fdcb6e';
+      if (vaSilencioTimer) clearTimeout(vaSilencioTimer);
+      vaSilencioTimer = setTimeout(function() {
+        if (vaUltTexto) vaProcesarComando(vaUltTexto);
+      }, 3000);
+    }
+  };
+  
+  vaRec.onerror = function() { setTimeout(vaEscuchar, 1000); };
+  vaRec.start();
+  speakText('Te escucho.');
+}
+
+function vaProcesarComando(texto) {
+  if (vaRec) { try { vaRec.stop(); } catch(e) {} vaRec = null; }
+  document.getElementById('va-status-dot').style.background = '#e17055';
+  speakText('Procesando...');
+  
+  var prompt = 'Eres un asistente administrativo del CRM Movilbro. El usuario pide: "' + texto + '"\n\n';
+  prompt += 'Responde en español, se util. Si pide abrir un cliente, pagina o seccion, indica la URL.';
+  prompt += 'Si no entiendes, pide aclaracion. Responde directo y conciso.';
+  
+  var modelo = vaModoPago ? 'deepseek-v4-flash' : 'deepseek-v4-flash-free';
+  var apiKey = 'sk-EPQBFsNdGAJqIRJwW36M0Tdc4aFpVNGzFfemDX19jZkHrlrHa43BNRw85LKIcqe1';
+  
+  fetch('/ai-assist/analyze', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: texto, modelo: modelo })
+  }).then(function(r){ return r.json(); }).then(function(d){
+    document.getElementById('va-status-dot').style.background = '#00b894';
+    if (d.ok) {
+      speakText(d.response);
+      // Si el usuario pidio abrir algo y la respuesta tiene URL, navegar
+      var abrir = texto.toLowerCase().indexOf('abre') > -1 || texto.toLowerCase().indexOf('abrir') > -1 || texto.toLowerCase().indexOf('ve a') > -1 || texto.toLowerCase().indexOf('navega') > -1;
+      if (abrir) {
+        var urlMatch = d.response.match(/https?:\/\/[^\s]+/);
+        if (urlMatch && urlMatch[0].indexOf('movilbro-crm') > -1) {
+          setTimeout(function() { window.location.href = urlMatch[0]; }, 1500);
+        }
+      }
+    } else {
+      speakText('Error: ' + (d.error || 'desconocido'));
+    }
+    // Volver a escuchar wake word
+    setTimeout(vaEscuchar, 2000);
+  }).catch(function(e){
+    document.getElementById('va-status-dot').style.background = '#00b894';
+    speakText('Error de conexion');
+    setTimeout(vaEscuchar, 2000);
+  });
+}
+
 </script>
 <script>
 (function() {
