@@ -286,6 +286,16 @@ Estas reglas están escritas con sangre. Si una nueva sesión las ignora, el CRM
 - **NUNCA** hacer `git commit`, `git push`, ni `git add` a menos que el admin diga explícitamente "commit" o "push" o "sube los cambios".
 - Excepción: solo `AGENTS.md` se puede actualizar sin preguntar (es documentación).
 - Si hay cambios sin commitear y el admin no ha dicho nada, esperar.
+- **CADA PUSH = 1 DEPLOY en Render ≈ 1-3 min de build.** Tenemos **440 min/mes**. No desperdiciar en micro-commits. Todo en UN commit cuando el admin diga.
+- **NO forzar push (`--force`) sin permiso explícito del admin.**
+- **Probar TODO localmente con `node -e` antes de commitear.**
+
+### 📋 REGLA CRÍTICA: Leer fix-notes COMPLETO antes de tocar código
+- **ANTES de escribir una línea, leer TODAS las notas de error pendientes en `/fix-notes` palabra por palabra.**
+- **Incluir conversaciones enteras e historiales** (`fullText`), no solo el resumen.
+- **Extraer TODOS los problemas** de cada conversación. Un fix puede contener 3-4 issues distintos.
+- **NO saltarse ningún problema.** Verificar que cada uno tiene solución planificada.
+- **Preguntar al admin si hay dudas.** No asumir nada.
 
 ### 3. Skills obligatorios — Leer skill antes de tocar
 - Antes de tocar el sistema CodeOpen AI → leer `codeopen-ia` skill

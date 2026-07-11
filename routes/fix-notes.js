@@ -188,8 +188,12 @@ router.post('/api/fix-notes/save-to-drive', async (req, res) => {
       media: { mimeType: 'application/json', body: require('stream').Readable.from(Buffer.from(jsonContent, 'utf8')) },
       fields: 'id, webViewLink'
     });
+    if (!result || !result.data || !result.data.id) return res.json({ ok: false, error: 'Drive no respondio correctamente' });
     res.json({ ok: true, fileId: result.data.id, webViewLink: result.data.webViewLink || '' });
-  } catch(e) { res.json({ ok: false, error: e.message }); }
+  } catch(e) {
+    console.error('[FixNotes] save-to-drive error:', e.message);
+    res.json({ ok: false, error: 'Error al guardar: ' + e.message });
+  }
 });
 
 // GET — Drive history

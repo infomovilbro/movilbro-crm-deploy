@@ -168,9 +168,10 @@ function saveToDrive() {
   fetch('/api/fix-notes/save-to-drive', { method: 'POST' })
     .then(function(r) { return r.json(); })
     .then(function(d) {
-      if (d.ok) status.innerHTML = '<span class="text-success">✓ Guardado</span>';
-      else status.innerHTML = '<span class="text-warning">⚠️ Error</span>';
-    });
+      if (d.ok) status.innerHTML = '<span class="text-success">✓ Guardado en Drive</span>';
+      else status.innerHTML = '<span class="text-warning">⚠️ ' + (d.error || 'Error') + '</span>';
+    })
+    .catch(function(e) { status.innerHTML = '<span class="text-danger">⚠️ Error de conexión</span>'; });
 }
 function toggleDriveHistory() {
   var p = document.getElementById('driveHistoryPanel');

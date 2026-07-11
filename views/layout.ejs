@@ -478,37 +478,29 @@
     window.__UI_LIVE_THEME = <%- JSON.stringify(ui.liveTheme || {}) %>;
 
     (function applyUiEditorConfig() {
-      // Apply saved theme on page load, default to Movilbro Original if none saved
-      const savedTheme = window.__UI_LIVE_THEME && window.__UI_LIVE_THEME.sidebarBg ? window.__UI_LIVE_THEME : (typeof TEMAS_CRM !== 'undefined' && TEMAS_CRM[0] ? TEMAS_CRM[0] : null);
-      if (savedTheme && savedTheme.sidebarBg) {
+      // Movilbro Original como predeterminado siempre
+      var movilbroOriginal = (typeof TEMAS_CRM !== 'undefined' && TEMAS_CRM[0]) ? TEMAS_CRM[0] : null;
+      var savedTheme = null;
+      // Solo usar tema guardado si tiene nombre explicito diferente de Movilbro Original
+      if (window.__UI_LIVE_THEME && window.__UI_LIVE_THEME.name && window.__UI_LIVE_THEME.name !== 'Movilbro Original') {
+        savedTheme = window.__UI_LIVE_THEME;
+      }
+      const themeToApply = savedTheme || movilbroOriginal;
+      if (themeToApply && themeToApply.sidebarBg) {
         const root = document.documentElement;
-        const themeVars = {
-          '--sidebar-bg': savedTheme.sidebarBg,
-          '--sidebar-hover': savedTheme.sidebarHover,
-          '--sidebar-active': savedTheme.sidebarActive,
-          '--primary': savedTheme.primary,
-          '--primary-light': savedTheme.primaryLight,
-          '--primary-gradient': savedTheme.primaryGradient,
-          '--topbar-bg': savedTheme.topbarBg,
-          '--topbar-border': savedTheme.topbarBorder,
-          '--bg-body': savedTheme.bgBody,
-          '--card-bg': savedTheme.cardBg,
-          '--text-primary': savedTheme.textPrimary,
-          '--text-secondary': savedTheme.textSecondary,
-          '--border-color': savedTheme.borderColor,
-          '--table-hover-bg': savedTheme.tableHoverBg,
-          '--table-stripe': savedTheme.tableStripe,
-          '--input-focus-shadow': savedTheme.inputFocusShadow,
-          '--shadow-sm': savedTheme.shadowSm,
-          '--shadow-md': savedTheme.shadowMd,
-          '--card-radius': savedTheme.cardRadius,
-          '--font': savedTheme.font,
-          '--success': savedTheme.success,
-          '--danger': savedTheme.danger,
-          '--warning': savedTheme.warning,
-          '--info': savedTheme.info
+        const vars = {
+          '--sidebar-bg': themeToApply.sidebarBg, '--sidebar-hover': themeToApply.sidebarHover, '--sidebar-active': themeToApply.sidebarActive,
+          '--primary': themeToApply.primary, '--primary-light': themeToApply.primaryLight, '--primary-gradient': themeToApply.primaryGradient,
+          '--topbar-bg': themeToApply.topbarBg, '--topbar-border': themeToApply.topbarBorder,
+          '--bg-body': themeToApply.bgBody, '--card-bg': themeToApply.cardBg,
+          '--text-primary': themeToApply.textPrimary, '--text-secondary': themeToApply.textSecondary,
+          '--border-color': themeToApply.borderColor, '--table-hover-bg': themeToApply.tableHoverBg,
+          '--table-stripe': themeToApply.tableStripe, '--input-focus-shadow': themeToApply.inputFocusShadow,
+          '--shadow-sm': themeToApply.shadowSm, '--shadow-md': themeToApply.shadowMd,
+          '--card-radius': themeToApply.cardRadius, '--font': themeToApply.font,
+          '--success': themeToApply.success, '--danger': themeToApply.danger, '--warning': themeToApply.warning, '--info': themeToApply.info
         };
-        Object.keys(themeVars).forEach(k => { if (themeVars[k]) root.style.setProperty(k, themeVars[k]); });
+        Object.keys(vars).forEach(function(k) { if (vars[k]) root.style.setProperty(k, vars[k]); });
       }
 
       const cfg = window.__UI_NAV_CONFIG;
@@ -2579,16 +2571,75 @@ function aiToggleMax(){var p=document.getElementById('ai-assist-panel');var m=do
 function vaCentrarPanel(id){var p=document.getElementById(id);p.style.left=Math.max(10,(window.innerWidth-380)/2)+'px';p.style.top=Math.max(10,(window.innerHeight-420)/2)+'px';}
 function vaAddChat(text,role){var c=document.getElementById('va-chat-msgs');if(!c)return;var id='vmsg_'+Date.now()+'_'+Math.random().toString(36).substr(2,4);var d=document.createElement('div');d.id=id;d.className='ai-msg'+(role==='user'?' ai-msg-user':' ai-msg-ai');d.innerHTML='<div class="ai-msg-bubble">'+text.replace(/\n/g,'<br>')+'</div><button onclick="var e=document.getElementById(\''+id+'\');if(e)e.remove()" style="background:none;border:0;cursor:pointer;font-size:0.7rem;color:#999;padding:2px;flex-shrink:0;">✕</button>';c.appendChild(d);c.scrollTop=c.scrollHeight;}
 function vaSetStatus(t){var s=document.getElementById('va-status');if(s)s.textContent=t;}
-function vaIniciar(){if(vaActivo){vaCerrar();return;}vaModoPagoVA=true;vaActivo=true;var p=document.getElementById('va-panel');p.style.display='flex';vaCentrarPanel('va-panel');document.getElementById('va-btn').style.background='#e17055';document.getElementById('va-status-dot').style.display='block';vaAddChat('🤖 Voice Admin 💎 activado. Di MOVILBRO ESTAS.','ai');if(!vaMuteVA)speakText('Voice Admin activado.');setTimeout(vaEscucharWakeVA,1500);}
+function vaIniciar(){
+  if(vaActivo){vaCerrar();return;}
+  vaModoPagoVA=true;vaActivo=true;
+  var p=document.getElementById('va-panel');
+  if(p){
+    // No resetear si ya hay mensajes en el chat
+    var chatEl=document.getElementById('va-chat-msgs');
+    var tieneHistorial=chatEl&&chatEl.children.length>0;
+    p.style.display='flex';vaCentrarPanel('va-panel');
+    if(!tieneHistorial) vaAddChat('🤖 Voice Admin 💎 activado. Di MOVILBRO ESTAS.','ai');
+  }
+  document.getElementById('va-btn').style.background='#e17055';
+  document.getElementById('va-status-dot').style.display='block';
+  if(!vaMuteVA) speakText('Voice Admin activado.');
+  if(!vaEscuchandoVA) setTimeout(vaEscucharWakeVA,1500);
+}
 function vaCerrar(){vaActivo=false;vaEscuchandoVA=false;try{if(vaRec)vaRec.stop();}catch(e){}try{if(vaCmdRec)vaCmdRec.stop();}catch(e){}if(vaSilencioTimer)clearTimeout(vaSilencioTimer);document.getElementById('va-btn').style.background='#00b894';document.getElementById('va-status-dot').style.display='none';document.getElementById('va-panel').style.display='none';}
-function vaInitWakeFinder(){if(vaWakeFinder)return;if(!('webkitSpeechRecognition' in window||'SpeechRecognition' in window))return;var SR=window.SpeechRecognition||window.webkitSpeechRecognition;vaWakeFinder=new SR();vaWakeFinder.lang='es-ES';vaWakeFinder.continuous=true;vaWakeFinder.interimResults=true;vaWakeFinder.onresult=function(ev){if(vaActivo)return;for(var i=ev.resultIndex;i<ev.results.length;i++){if(!ev.results[i].isFinal)continue;var t=ev.results[i][0].transcript.toLowerCase().replace(/[¿?¡!.,\/\-]/g,'').replace(/[áéíóú]/g,function(m){return {á:'a',é:'e',í:'i',ó:'o',ú:'u'}[m]||m;});for(var w=0;w<vaWakeWordsVA.length;w++){if(t.indexOf(vaWakeWordsVA[w])>-1){if(!vaActivo){vaActivo=true;vaModoPagoVA=true;document.getElementById('va-btn').style.background='#e17055';document.getElementById('va-status-dot').style.display='block';var p=document.getElementById('va-panel');p.style.display='flex';vaCentrarPanel('va-panel');vaAddChat('🤖 Hola ¿en qué te puedo ayudar?','ai');if(!vaMuteVA)speakText('Hola en que te puedo ayudar.');setTimeout(vaEscucharWakeVA,1200);}return;}}}};vaWakeFinder.onerror=function(){setTimeout(vaInitWakeFinder,3000);};try{vaWakeFinder.start();}catch(e){setTimeout(vaInitWakeFinder,2000);}}
+function vaInitWakeFinder(){
+  // Si ya existe y esta activo, no recrear
+  if(vaWakeFinder) return;
+  if(!('webkitSpeechRecognition' in window||'SpeechRecognition' in window)) return;
+  try{
+    var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    vaWakeFinder=new SR();
+    vaWakeFinder.lang='es-ES';vaWakeFinder.continuous=true;vaWakeFinder.interimResults=true;
+    vaWakeFinder.onresult=function(ev){
+      if(vaActivo) return;
+      for(var i=ev.resultIndex;i<ev.results.length;i++){
+        if(!ev.results[i].isFinal) continue;
+        var t=ev.results[i][0].transcript.toLowerCase().replace(/[¿?¡!.,\/\-]/g,'').replace(/[áéíóú]/g,function(m){return{á:'a',é:'e',í:'i',ó:'o',ú:'u'}[m]||m;});
+        for(var w=0;w<vaWakeWordsVA.length;w++){
+          if(t.indexOf(vaWakeWordsVA[w])>-1){
+            if(!vaActivo){
+              vaActivo=true;vaModoPagoVA=true;
+              document.getElementById('va-btn').style.background='#e17055';
+              document.getElementById('va-status-dot').style.display='block';
+              var p=document.getElementById('va-panel');
+              if(p){p.style.display='flex';vaCentrarPanel('va-panel');}
+              vaAddChat('🤖 Hola ¿en qué te puedo ayudar?','ai');
+              if(!vaMuteVA) speakText('Hola en que te puedo ayudar.');
+              setTimeout(vaEscucharWakeVA,1200);
+            } return;
+          }
+        }
+      }
+    };
+    vaWakeFinder.onerror=function(){vaWakeFinder=null;setTimeout(vaInitWakeFinder,3000);};
+    vaWakeFinder.start();
+  }catch(e){vaWakeFinder=null;setTimeout(vaInitWakeFinder,2000);}
+}
 function vaEscucharWakeVA(){if(!vaActivo)return;if(!('webkitSpeechRecognition' in window||'SpeechRecognition' in window))return;try{if(vaRec)vaRec.stop();}catch(e){}var SR=window.SpeechRecognition||window.webkitSpeechRecognition;vaRec=new SR();vaRec.lang='es-ES';vaRec.continuous=true;vaRec.interimResults=true;vaEscuchandoVA=true;vaRec.onresult=function(ev){for(var i=ev.resultIndex;i<ev.results.length;i++){if(!ev.results[i].isFinal)continue;var t=ev.results[i][0].transcript.toLowerCase().replace(/[¿?¡!.,\/\-]/g,'').replace(/[áéíóú]/g,function(m){return {á:'a',é:'e',í:'i',ó:'o',ú:'u'}[m]||m;});for(var w=0;w<vaWakeWordsVA.length;w++){if(t.indexOf(vaWakeWordsVA[w])>-1){try{if(vaRec)vaRec.stop();}catch(e){}vaEscuchandoVA=false;if(!vaMuteVA)speakText('Si dime.');document.getElementById('va-status-dot').style.background='#fdcb6e';setTimeout(vaEscucharComandoVA,1200);return;}}}};vaRec.onerror=function(){if(vaActivo)setTimeout(vaEscucharWakeVA,2000);};vaRec.onend=function(){if(vaActivo&&vaEscuchandoVA)setTimeout(vaEscucharWakeVA,1000);};try{vaRec.start();}catch(e){setTimeout(vaEscucharWakeVA,1000);}}
-function vaEscucharComandoVA(){if(!vaActivo)return;if(!('webkitSpeechRecognition' in window||'SpeechRecognition' in window))return;try{if(vaCmdRec)vaCmdRec.stop();}catch(e){}var SR=window.SpeechRecognition||window.webkitSpeechRecognition;vaCmdRec=new SR();vaCmdRec.lang='es-ES';vaCmdRec.continuous=true;vaCmdRec.interimResults=true;vaUltTexto='';vaCmdRec.onresult=function(ev){for(var i=ev.resultIndex;i<ev.results.length;i++){if(!ev.results[i].isFinal)continue;var txt=ev.results[i][0].transcript;if(txt&&txt.length>3){if(window.speechSynthesis&&window.speechSynthesis.speaking)window.speechSynthesis.cancel();vaUltTexto=txt;document.getElementById('va-status-dot').style.background='#fdcb6e';if(vaSilencioTimer)clearTimeout(vaSilencioTimer);vaSilencioTimer=setTimeout(function(){if(vaUltTexto)vaProcesarComandoVA(vaUltTexto);},3000);}}};vaCmdRec.onerror=function(){if(vaActivo)setTimeout(vaEscucharWakeVA,2000);};vaCmdRec.onend=function(){if(vaActivo&&vaUltTexto)vaProcesarComandoVA(vaUltTexto);};try{vaCmdRec.start();}catch(e){}if(!vaMuteVA)speakText('Te escucho.');vaAddChat('🎤 Escuchando...','ai');vaSetStatus('🎤 Escuchando...');}
+function vaEscucharComandoVA(){if(!vaActivo)return;if(!('webkitSpeechRecognition' in window||'SpeechRecognition' in window))return;try{if(vaCmdRec)vaCmdRec.stop();}catch(e){}var SR=window.SpeechRecognition||window.webkitSpeechRecognition;vaCmdRec=new SR();vaCmdRec.lang='es-ES';vaCmdRec.continuous=true;vaCmdRec.interimResults=true;vaUltTexto='';var vaLiveId='vlive_'+Date.now();var vaLiveEl=null;vaCmdRec.onresult=function(ev){var finalTxt='';var interimTxt='';for(var i=ev.resultIndex;i<ev.results.length;i++){if(ev.results[i].isFinal)finalTxt+=ev.results[i][0].transcript;else interimTxt+=ev.results[i][0].transcript;}if(finalTxt){if(window.speechSynthesis&&window.speechSynthesis.speaking)window.speechSynthesis.cancel();vaUltTexto=(vaUltTexto?vaUltTexto+' ':'')+finalTxt;document.getElementById('va-status-dot').style.background='#fdcb6e';if(vaSilencioTimer)clearTimeout(vaSilencioTimer);vaSilencioTimer=setTimeout(function(){if(vaUltTexto)vaProcesarComandoVA(vaUltTexto);},3000);}var display=vaUltTexto+(interimTxt?' <em>'+interimTxt+'</em>':'');if(display&&vaLiveEl){vaLiveEl.innerHTML='<div class=\"ai-msg-bubble\" style=\"background:#e8f5e9;color:#333;\">🎤 '+display+'</div>';}else if(!vaLiveEl&&display){var c=document.getElementById('va-chat-msgs');if(c){vaLiveEl=document.createElement('div');vaLiveEl.id=vaLiveId;vaLiveEl.className='ai-msg ai-msg-user';vaLiveEl.innerHTML='<div class=\"ai-msg-bubble\" style=\"background:#e8f5e9;color:#333;\">🎤 '+display+'</div>';c.appendChild(vaLiveEl);c.scrollTop=c.scrollHeight;}}};vaCmdRec.onerror=function(){if(vaActivo)setTimeout(vaEscucharWakeVA,2000);};vaCmdRec.onend=function(){if(vaActivo&&vaUltTexto)vaProcesarComandoVA(vaUltTexto);};try{vaCmdRec.start();}catch(e){}if(!vaMuteVA)speakText('Te escucho.');vaSetStatus('🎤 Habla...');}
 function vaToggleMic(){if(vaCmdRec&&vaEscuchandoVA){try{vaCmdRec.stop();}catch(e){}vaEscuchandoVA=false;vaSetStatus('');return;}vaEscucharComandoVA();}
 function vaEnviarTexto(){var inp=document.getElementById('va-input');var t=inp.value.trim();if(t){inp.value='';vaProcesarComandoVA(t);}}
-function vaProcesarComandoVA(texto){try{if(vaCmdRec)vaCmdRec.stop();}catch(e){}vaAddChat('🗣️ '+texto,'user');document.getElementById('va-status-dot').style.background='#e17055';vaSetStatus('Analizando...');if(!vaMuteVA)speakText('Procesando.');fetch('/ai-assist/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:texto,modelo:vaModoPagoVA?'deepseek-v4-flash':'deepseek-v4-flash-free',url:location.href})}).then(function(r){return r.json();}).then(function(d){document.getElementById('va-status-dot').style.background='#00b894';if(d.ok){vaAddChat(d.response,'ai');if(!vaMuteVA)speakText(d.response);var abrir=texto.toLowerCase().indexOf('abre')>-1||texto.toLowerCase().indexOf('abrir')>-1||texto.toLowerCase().indexOf('ve a')>-1;if(abrir){var m=d.response.match(/https?:\/\/[^\s]+/);if(m&&m[0].indexOf('movilbro-crm')>-1)setTimeout(function(){window.location.href=m[0];},1500);}}else{vaAddChat('Error: '+(d.error||''),'ai');}vaSetStatus('');setTimeout(vaEscucharWakeVA,2000);}).catch(function(){vaAddChat('Error conexion','ai');vaSetStatus('');setTimeout(vaEscucharWakeVA,2000);});}
+function vaProcesarComandoVA(texto){
+  try{if(vaCmdRec)vaCmdRec.stop();}catch(e){}
+  vaAddChat('🗣️ '+texto,'user');
+  // Detectar comandos de aceptacion automatica
+  var tLow=texto.toLowerCase();
+  if(tLow.indexOf('acepta')>-1||tLow.indexOf('dale')>-1||tLow.indexOf('ok')===0||tLow.indexOf('si')===0){
+    if(aiLastFix){acceptFix();vaAddChat('✅ Aceptado automaticamente.','ai');return;}
+  }
+  document.getElementById('va-status-dot').style.background='#e17055';vaSetStatus('Analizando...');if(!vaMuteVA)speakText('Procesando.');
+  fetch('/ai-assist/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:texto,modelo:vaModoPagoVA?'deepseek-v4-flash':'deepseek-v4-flash-free',url:location.href})}).then(function(r){return r.json();}).then(function(d){document.getElementById('va-status-dot').style.background='#00b894';if(d.ok){vaAddChat(d.response,'ai');if(!vaMuteVA)speakText(d.response);var abrir=texto.toLowerCase().indexOf('abre')>-1||texto.toLowerCase().indexOf('abrir')>-1||texto.toLowerCase().indexOf('ve a')>-1;if(abrir){var m=d.response.match(/https?:\/\/[^\s]+/);if(m&&m[0].indexOf('movilbro-crm')>-1)setTimeout(function(){window.location.href=m[0];},1500);}}else{vaAddChat('Error: '+(d.error||''),'ai');}vaSetStatus('');setTimeout(vaEscucharWakeVA,2000);}).catch(function(){vaAddChat('Error conexion','ai');vaSetStatus('');setTimeout(vaEscucharWakeVA,2000);});}
 function vaDetener(){vaCerrar();}
-setTimeout(vaInitWakeFinder,3000);
+// Iniciar wake finder con reintentos (se activa al cargar cualquier pagina)
+function vaStartWakeFinder() { if (!vaWakeFinder) vaInitWakeFinder(); if (!vaWakeFinder) setTimeout(vaStartWakeFinder, 2000); }
+setTimeout(vaStartWakeFinder, 1500);
+window.addEventListener('popstate', function() { setTimeout(vaStartWakeFinder, 1000); });
 
 </script>
 <script>
