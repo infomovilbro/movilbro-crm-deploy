@@ -370,7 +370,7 @@ app.post('/ai-assist/respond', express.json({limit:'1mb'}), function(req, res) {
     res.json({ ok: true });
   } catch(e) { res.json({ ok: false, error: e.message }); }
 });
-// Analisis con IA - SOLO modelos opencode (Zen FREE + GO PAGO)
+// Analisis con IA - FREE funciona, PAGO si falla cae a FREE
 app.post('/ai-assist/analyze', express.json({limit:'1mb'}), async function(req, res) {
   try {
     var texto = req.body.text || '';
@@ -380,39 +380,45 @@ app.post('/ai-assist/analyze', express.json({limit:'1mb'}), async function(req, 
     var elemText = req.body.element_text || '';
     var apiKey = 'sk-EPQBFsNdGAJqIRJwW36M0Tdc4aFpVNGzFfemDX19jZkHrlrHa43BNRw85LKIcqe1';
     
-    var prompt = 'Eres un asistente de diagnostico del CRM Movilbro. Responde en español.\n\n';
+    var prompt = 'Eres un asistente del CRM Movilbro. Responde en español.\n\n';
     if (url) prompt += 'URL: ' + url + '\n';
     if (selector) prompt += 'Selector: ' + selector + '\n';
     if (elemText) prompt += 'Texto: ' + elemText.substring(0, 300) + '\n';
-    if (texto) prompt += 'Descripcion: ' + texto + '\n';
-    prompt += '\nIndica: 1) Que elemento es y para que sirve 2) Diagnostico 3) Solucion';
+    if (texto) prompt += 'Peticion: ' + texto + '\n';
+    prompt += '\nResponde util y conciso.';
     
     var axios = require('axios');
-    var modelo = esPago ? 'deepseek-v4-flash' : 'deepseek-v4-flash-free';
-    var endpoint = 'https://opencode.ai/zen/v1/chat/completions';
+    // GO usa endpoint diferente: https://opencode.ai/zen/go/v1/chat/completions
+    var endpointGo = 'https://opencode.ai/zen/go/v1/chat/completions';
+    var endpointFree = 'https://opencode.ai/zen/v1/chat/completions';
+    var modelosAIntentar = esPago ? 
+      [{model:'deepseek-v4-flash', url: endpointGo}, {model:'deepseek-v4-flash-free', url: endpointFree}] : 
+      [{model:'deepseek-v4-flash-free', url: endpointFree}];
+    var respuesta = null;
     
-    try {
-      var resp = await axios.post(endpoint, {
-        model: modelo,
-        messages: [
-          { role: 'system', content: 'Eres un asistente util de diagnostico del CRM Movilbro. Responde en español, se conciso.' },
-          { role: 'user', content: prompt }
-        ],
-        temperature: 0.3, max_tokens: 800
-      }, { timeout: 30000, headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' } });
-      
-      var content = resp && resp.data && resp.data.choices && resp.data.choices[0] && resp.data.choices[0].message && resp.data.choices[0].message.content || '';
-      if (content && content.trim().length > 3) {
-        var sol = content.replace(/```[\s\S]*?```/g, '').substring(0, 500);
-        return res.json({ ok: true, response: content.trim(), tts: true, fix_data: { url: url, selector: selector, element_text: elemText, solution: sol } });
-      }
-      if (esPago) return res.json({ ok: false, error: 'El modelo de pago no tiene saldo. Gestiona billing en: https://opencode.ai/workspace/wrk_01KS8VQPTD4DY7J12080YWG0F2/billing' });
-      return res.json({ ok: false, error: 'El modelo respondio vacio. Reintenta.' });
-    } catch(e) {
-      var err = e.response?.data?.error || e.message;
-      if (esPago) return res.json({ ok: false, error: 'Pago fallo: ' + (err.message || err) + '. Gestiona billing en: https://opencode.ai/workspace/wrk_01KS8VQPTD4DY7J12080YWG0F2/billing' });
-      return res.json({ ok: false, error: 'Error: ' + (err.message || err) });
+    for (var i = 0; i < modelosAIntentar.length; i++) {
+      try {
+        var m = modelosAIntentar[i];
+        var r = await axios.post(m.url, {
+          model: m.model,
+          messages: [
+            { role: 'system', content: 'Eres un asistente util del CRM Movilbro. Responde en español, se conciso.' },
+            { role: 'user', content: prompt }
+          ],
+          temperature: 0.3, max_tokens: 800
+        }, { timeout: 30000, headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' } });
+        var c = r && r.data && r.data.choices && r.data.choices[0] && r.data.choices[0].message && r.data.choices[0].message.content || '';
+        if (c && c.trim().length > 3) { respuesta = c.trim(); break; }
+      } catch(e2) { /* fallback al siguiente modelo */ }
     }
+    
+    if (!respuesta) {
+      if (esPago) return res.json({ ok: false, error: 'Pago sin saldo. Añade billing en: https://opencode.ai/workspace/wrk_01KS8VQPTD4DY7J12080YWG0F2/billing. Usa modo FREE mientras.' });
+      return res.json({ ok: false, error: 'No se pudo obtener respuesta. Reintenta.' });
+    }
+    
+    var sol = respuesta.replace(/```[\s\S]*?```/g, '').substring(0, 500);
+    res.json({ ok: true, response: respuesta, tts: true, fix_data: { url: url, selector: selector, element_text: elemText, solution: sol } });
   } catch(e) {
     res.json({ ok: false, error: e.message });
   }

@@ -2536,11 +2536,11 @@ function cancelFix() {
   else { addMsg('❌ Cancelado. Pulsa 🎯 para otro', 'ai'); aiLastFix = null; }
 }
 
-/* TTS */
+/* TTS - voz mas rapida */
 function speakText(text) {
   if ('speechSynthesis' in window) {
     var utt = new SpeechSynthesisUtterance(text);
-    utt.lang = 'es-ES'; utt.rate = 1.1;
+    utt.lang = 'es-ES'; utt.rate = 1.4;
     speechSynthesis.cancel(); speechSynthesis.speak(utt);
   }
 }
@@ -2555,81 +2555,88 @@ function setStatus(t) { var s = document.getElementById('ai-status'); if (s) s.t
 
 /* ===== VOICE ADMIN - Asistente por voz tipo Siri ===== */
 var vaRec = null, vaActivo = false, vaWakeEnabled = true, vaModoPago = false;
-var vaSilencioTimer = null, vaUltTexto = '', vaEscuchando = false;
+var vaSilencioTimer = null, vaUltTexto = '', vaEscuchando = false,vaCmdRec=null;
 
 function vaIniciar() {
   if (vaActivo) { vaDetener(); return; }
-  // Seleccionar modelo
-  var modelo = confirm('Usar modelo PAGO? OK = PAGO, Cancelar = FREE');
-  vaModoPago = modelo;
+  var sel = confirm('Usar modelo PAGO? OK = PAGO, Cancel = FREE');
+  vaModoPago = sel;
   vaActivo = true;
   document.getElementById('va-btn').style.background = '#e17055';
   document.getElementById('va-status-dot').style.display = 'block';
-  vaEscuchar();
-  speakText('Voice Admin activado. Di Oye estas para preguntar algo.');
+  document.getElementById('va-status-dot').style.background = '#00b894';
+  speakText('Voice Admin activado: ' + (vaModoPago ? 'PAGO' : 'FREE') + '. Di OYE ESTAS para preguntar.');
+  setTimeout(vaEscucharWake, 1500);
 }
 
 function vaDetener() {
   vaActivo = false; vaEscuchando = false;
   if (vaRec) { try { vaRec.stop(); } catch(e) {} vaRec = null; }
+  if (vaCmdRec) { try { vaCmdRec.stop(); } catch(e) {} vaCmdRec = null; }
   if (vaSilencioTimer) { clearTimeout(vaSilencioTimer); vaSilencioTimer = null; }
   document.getElementById('va-btn').style.background = '#00b894';
   document.getElementById('va-status-dot').style.display = 'none';
 }
 
-function vaEscuchar() {
+function vaEscucharWake() {
   if (!vaActivo) return;
   if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) { speakText('Voz no soportada'); return; }
+  try { if (vaRec) vaRec.stop(); } catch(e) {}
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   vaRec = new SR();
   vaRec.lang = 'es-ES'; vaRec.continuous = true; vaRec.interimResults = true;
   vaEscuchando = true;
   
+  var wakeWords = ['oye estas','oye esta','ollestas','ollas','oye','o yes tas'];
+  
   vaRec.onresult = function(ev) {
-    var txt = '';
-    for (var i = ev.resultIndex; i < ev.results.length; i++) { if (ev.results[i].isFinal) txt += ev.results[i][0].transcript; }
-    if (!txt) return;
-    
-    var lower = txt.toLowerCase();
-    // Detectar wake word "oye estas"
-    if (lower.indexOf('oye estas') > -1 || lower.indexOf('oye esta') > -1) {
-      vaEscuchando = false;
-      if (vaRec) { try { vaRec.stop(); } catch(e) {} }
-      speakText('Si, dime.');
-      // Escuchar comando
-      setTimeout(function() { vaEscucharComando(); }, 800);
-      return;
+    for (var i = ev.resultIndex; i < ev.results.length; i++) {
+      if (!ev.results[i].isFinal) continue;
+      var txt = ev.results[i][0].transcript.toLowerCase().replace(/[¿?¡!.,]/g,'');
+      for (var w = 0; w < wakeWords.length; w++) {
+        if (txt.indexOf(wakeWords[w]) > -1) {
+          if (vaRec) { try { vaRec.stop(); } catch(e) {} }
+          vaEscuchando = false;
+          speakText('Si dime.');
+          document.getElementById('va-status-dot').style.background = '#fdcb6e';
+          setTimeout(function() { vaEscucharComando(); }, 1200);
+          return;
+        }
+      }
     }
   };
   
-  vaRec.onerror = function() { if (vaActivo) setTimeout(vaEscuchar, 1000); };
-  vaRec.onend = function() { if (vaActivo && vaEscuchando) setTimeout(vaEscuchar, 500); };
-  vaRec.start();
+  vaRec.onerror = function() { if (vaActivo) setTimeout(vaEscucharWake, 1500); };
+  vaRec.onend = function() { if (vaActivo && vaEscuchando) setTimeout(vaEscucharWake, 800); };
+  try { vaRec.start(); } catch(e) { setTimeout(vaEscucharWake, 1000); }
 }
 
 function vaEscucharComando() {
   if (!vaActivo) return;
   if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) return;
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  vaRec = new SR();
-  vaRec.lang = 'es-ES'; vaRec.continuous = true; vaRec.interimResults = true;
+  vaCmdRec = new SR();
+  vaCmdRec.lang = 'es-ES'; vaCmdRec.continuous = true; vaCmdRec.interimResults = true;
   vaUltTexto = '';
   
-  vaRec.onresult = function(ev) {
-    var txt = '';
-    for (var i = ev.resultIndex; i < ev.results.length; i++) { if (ev.results[i].isFinal) txt += ev.results[i][0].transcript; }
-    if (txt) {
-      vaUltTexto = txt;
-      document.getElementById('va-status-dot').style.background = '#fdcb6e';
-      if (vaSilencioTimer) clearTimeout(vaSilencioTimer);
-      vaSilencioTimer = setTimeout(function() {
-        if (vaUltTexto) vaProcesarComando(vaUltTexto);
-      }, 3000);
+  vaCmdRec.onresult = function(ev) {
+    for (var i = ev.resultIndex; i < ev.results.length; i++) {
+      if (!ev.results[i].isFinal) continue;
+      var txt = ev.results[i][0].transcript;
+      if (txt) {
+        vaUltTexto = txt;
+        document.getElementById('va-status-dot').style.background = '#fdcb6e';
+        if (vaSilencioTimer) clearTimeout(vaSilencioTimer);
+        vaSilencioTimer = setTimeout(function() {
+          if (vaUltTexto) vaProcesarComando(vaUltTexto);
+        }, 3000);
+      }
     }
   };
   
-  vaRec.onerror = function() { setTimeout(vaEscuchar, 1000); };
-  vaRec.start();
+  vaCmdRec.onerror = function() { if (vaActivo) setTimeout(vaEscucharWake, 1500); };
+  vaCmdRec.onend = function() { if (vaActivo && vaUltTexto) vaProcesarComando(vaUltTexto); };
+  vaCmdRec.start();
   speakText('Te escucho.');
 }
 
@@ -2643,11 +2650,10 @@ function vaProcesarComando(texto) {
   prompt += 'Si no entiendes, pide aclaracion. Responde directo y conciso.';
   
   var modelo = vaModoPago ? 'deepseek-v4-flash' : 'deepseek-v4-flash-free';
-  var apiKey = 'sk-EPQBFsNdGAJqIRJwW36M0Tdc4aFpVNGzFfemDX19jZkHrlrHa43BNRw85LKIcqe1';
   
   fetch('/ai-assist/analyze', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text: texto, modelo: modelo })
+    body: JSON.stringify({ text: texto, modelo: modelo, url: location.href })
   }).then(function(r){ return r.json(); }).then(function(d){
     document.getElementById('va-status-dot').style.background = '#00b894';
     if (d.ok) {
