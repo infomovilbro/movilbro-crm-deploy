@@ -2414,22 +2414,23 @@ document.addEventListener('click', function(e) {
   setTimeout(function() { iniciarMic6s(); }, 400);
 }, true);
 
-/* Paso 3: Mic 6s silencio = enviar automatico */
+/* Paso 3: Mic - 6s SIN hablar = enviar (se reinicia con cada palabra) */
 function iniciarMic6s() {
   if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) { setStatus('Voz no soportada'); return; }
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   aiRec = new SR();
   aiRec.lang = 'es-ES'; aiRec.continuous = true; aiRec.interimResults = true;
-  var lastTxt = '';
+  var ultTexto = '';
   aiRec.onresult = function(ev) {
     var txt = '';
     for (var i = ev.resultIndex; i < ev.results.length; i++) { if (ev.results[i].isFinal) txt += ev.results[i][0].transcript; }
     if (txt) {
-      lastTxt = txt;
+      ultTexto = txt;
       document.getElementById('ai-input').value = '🎤 ' + txt;
+      // Reiniciar timer CADA VEZ que se detecta voz
       if (aiSilTimer) clearTimeout(aiSilTimer);
       aiSilTimer = setTimeout(function() {
-        if (lastTxt) { document.getElementById('ai-input').value = ''; aiEnviar(lastTxt); }
+        if (ultTexto) { document.getElementById('ai-input').value = ''; aiEnviar(ultTexto); }
       }, 6000);
     }
   };
@@ -2438,7 +2439,7 @@ function iniciarMic6s() {
   aiRecOn = true;
   document.getElementById('ai-mic-btn').classList.add('active');
   document.getElementById('ai-mic-btn').textContent = '⏹';
-  setStatus('🎤 Habla (6s silencio = enviar)');
+  setStatus('🎤 Habla (6s sin hablar = enviar)');
 }
 function pararMic() {
   if (aiRec) { try { aiRec.stop(); } catch(e) {} aiRec = null; }
@@ -2451,19 +2452,31 @@ function toggleMic() {
   iniciarMic6s();
 }
 
+var aiAbortController = null;
+function detenerAnalisis() {
+  if (aiAbortController) { aiAbortController.abort(); aiAbortController = null; }
+  aiAnalizando = false;
+  document.getElementById('ai-analyzing-msg').style.display = 'none';
+  setStatus('Analisis detenido');
+  addMsg('⛔ Analisis detenido', 'ai');
+}
+
 /* Paso 4: Enviar a analisis (ambos modos analizan en CRM) */
 function aiEnviar(texto) {
   pararMic(); if (aiAnalizando) return; aiAnalizando = true;
   if (!texto && !aiSelData) { setStatus('Describe el error'); aiAnalizando = false; return; }
   addMsg((texto || '📤'), 'user');
   
-  var modelo = aiModoPago ? 'deepseek-v4-flash' : 'deepseek-v4-flash-free';
+  var modelo = aiModoPago ? 'deepseek-v4-flash' : 'nemotron-3-ultra-free';
   setStatus('Analizando...');
   speakText('Analizando elemento...');
   document.getElementById('ai-analyzing-msg').style.display = 'block';
+  // Boton para detener
+  addMsg('⏳ Analizando... <button onclick="detenerAnalisis()" style="background:#e74c3c;color:#fff;border:0;padding:2px 10px;border-radius:6px;cursor:pointer;font-size:0.75rem;">Detener</button>', 'ai');
   
+  aiAbortController = new AbortController();
   fetch('/ai-assist/analyze', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: aiAbortController.signal,
     body: JSON.stringify({
       text: texto, modelo: modelo,
       url: aiSelData ? aiSelData.url : null,
