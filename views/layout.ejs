@@ -2083,7 +2083,10 @@ document.addEventListener('keydown', function(e) {
 <div id="ai-assist-panel">
   <div class="ai-assist-header">
     <span>🤖 Asistente IA</span>
-    <button onclick="closeAssist()" class="ai-assist-close" title="Cerrar">✕</button>
+    <div style="display:flex;gap:4px;align-items:center;">
+      <button id="ai-mode-btn" onclick="toggleModo()" title="Modo PAGO (DeepSeek V4 Flash)" style="background:rgba(255,255,255,0.2);border:0;border-radius:6px;padding:2px 6px;font-size:0.9rem;cursor:pointer;color:#fff;">💎</button>
+      <button onclick="closeAssist()" class="ai-assist-close" title="Cerrar">✕</button>
+    </div>
   </div>
   <div class="ai-assist-body">
     <div id="ai-sel-row" class="ai-sel-row" style="display:none;">
@@ -2287,81 +2290,63 @@ function fnUpdateCount() {
 fnUpdateCount();
 setInterval(fnUpdateCount, 30000);
 
-/* ===== Asistente IA Flotante v2 ===== */
-var aiActive = false, aiSelActive = false, aiSelData = null;
-var aiRec = null, aiRecOn = false, aiLastFix = null, aiPoll = null;
-var aiMouseX = 0, aiMouseY = 0;
+/* ===== ASISTENTE IA DEFINITIVO ===== */
+var aiSelActive = false, aiSelData = null, aiRec = null, aiRecOn = false, aiLastFix = null;
+var aiMouseX = 0, aiMouseY = 0, aiModoPago = true, aiAnalizando = false, aiSilTimer = null;
 
-/* Abrir/cerrar panel */
-function toggleAssist() {
-  var p = document.getElementById('ai-assist-panel');
-  aiActive = !aiActive;
-  if (aiActive) {
-    p.style.display = 'flex';
-    // Posicion inicial cerca del mouse
-    p.style.left = Math.min(aiMouseX + 10, window.innerWidth - 400) + 'px';
-    p.style.top = Math.min(aiMouseY - 100, window.innerHeight - 550) + 'px';
-  } else {
-    p.style.display = 'none';
-    aiDesactivarSelector();
-    stopMic();
-    if (aiPoll) { clearInterval(aiPoll); aiPoll = null; }
-  }
+/* Ruleta modo: FREE / PAGO */
+function toggleModo() {
+  aiModoPago = !aiModoPago;
+  var btn = document.getElementById('ai-mode-btn');
+  btn.textContent = aiModoPago ? '💎' : '🆓';
+  btn.title = aiModoPago ? 'Modo PAGO (DeepSeek V4 Flash)' : 'Modo FREE (analisis manual)';
 }
-function closeAssist() { document.getElementById('ai-assist-panel').style.display = 'none'; aiActive = false; aiDesactivarSelector(); stopMic(); if (aiPoll) { clearInterval(aiPoll); aiPoll = null; } }
 
-/* Ventana sigue al raton con transparencia */
-document.addEventListener('mousemove', function(e) {
-  aiMouseX = e.clientX; aiMouseY = e.clientY;
-  var p = document.getElementById('ai-assist-panel');
-  if (aiActive && p.style.display === 'flex' && !p.matches(':hover')) {
-    p.style.opacity = '0.2';
-    p.style.transform = 'scale(0.7)';
-    p.style.transition = 'all 0.3s ease';
-  }
-});
-document.getElementById('ai-assist-panel')?.addEventListener('mouseenter', function() {
-  this.style.opacity = '1'; this.style.transform = 'scale(1)'; this.style.transition = 'all 0.2s ease';
-});
-document.getElementById('ai-assist-panel')?.addEventListener('mouseleave', function() {
-  this.style.opacity = '0.2'; this.style.transform = 'scale(0.7)';
-});
-/* Al abrir, posicion cerca del mouse */
-document.getElementById('ai-assist-btn')?.addEventListener('click', function() {
-  setTimeout(function() {
-    var p = document.getElementById('ai-assist-panel');
-    p.style.left = Math.min(aiMouseX + 10, window.innerWidth - 400) + 'px';
-    p.style.top = Math.min(aiMouseY - 100, window.innerHeight - 550) + 'px';
-    p.style.opacity = '0.2'; p.style.transform = 'scale(0.7)';
-  }, 50);
-});
-
-/* Selector: igual que modo solucion (cursor cruz) */
-function aiToggleSelector() {
+/* Paso 1: 🤖 activa modo selector */
+function toggleAssist() {
   if (aiSelActive) { aiDesactivarSelector(); return; }
   aiSelActive = true;
   document.body.style.cursor = 'crosshair';
   document.getElementById('ai-sel-banner').style.display = 'block';
-  setStatus('Pulsa en cualquier elemento para capturarlo');
+  document.getElementById('ai-sel-btn').classList.add('active');
+}
+function closeAssist() {
+  document.getElementById('ai-assist-panel').style.display = 'none';
+  aiSelActive = false; aiDesactivarSelector(); pararMic();
+  if (aiSilTimer) clearTimeout(aiSilTimer);
+}
+function aiToggleSelector() {
+  if (aiSelActive) { aiDesactivarSelector(); return; }
+  toggleAssist();
 }
 function aiDesactivarSelector() {
-  aiSelActive = false;
-  document.body.style.cursor = '';
+  aiSelActive = false; document.body.style.cursor = '';
   document.getElementById('ai-sel-banner').style.display = 'none';
+  document.getElementById('ai-sel-btn')?.classList.remove('active');
 }
 
-/* Capturar elemento al click */
+/* Ventana transparente sigue al raton */
+document.addEventListener('mousemove', function(e) {
+  aiMouseX = e.clientX; aiMouseY = e.clientY;
+  var p = document.getElementById('ai-assist-panel');
+  if (p.style.display === 'flex' && !p.matches(':hover')) {
+    p.style.opacity = '0.15'; p.style.transform = 'scale(0.65)';
+    p.style.left = Math.min(aiMouseX + 15, window.innerWidth - 380) + 'px';
+    p.style.top = Math.min(aiMouseY - 120, window.innerHeight - 450) + 'px';
+  }
+});
+document.getElementById('ai-assist-panel')?.addEventListener('mouseenter', function() {
+  this.style.opacity = '1'; this.style.transform = 'scale(1)';
+});
+
+/* Paso 2: Click captura elemento + abre ventana + mic */
 document.addEventListener('click', function(e) {
   if (!aiSelActive) return;
-  var ex = e.target.closest('#ai-assist-panel, #ai-sel-banner, #ai-assist-btn, #ai-sel-btn, #ai-mic-btn, .ai-sendbtn, #ai-input');
+  var ex = e.target.closest('#ai-assist-panel, #ai-sel-banner, #ai-assist-btn, #ai-sel-btn, #ai-mic-btn, .ai-sendbtn, #ai-input, #ai-mode-btn');
   if (ex) return;
   e.preventDefault(); e.stopPropagation();
   var el = e.target;
-  
-  // Construir selector
-  var sel = '';
-  var tmp = el;
-  var parts = [];
+  var parts = []; var tmp = el;
   while (tmp && tmp !== document.body && tmp !== document.documentElement) {
     var s = tmp.tagName.toLowerCase();
     if (tmp.id) { s = '#' + tmp.id; parts.unshift(s); break; }
@@ -2377,134 +2362,142 @@ document.addEventListener('click', function(e) {
     }
     parts.unshift(s); tmp = par;
   }
-  sel = parts.join(' > ');
-  
-  aiSelData = { url: location.href, selector: sel, element_text: (el.textContent || '').trim().substring(0, 300) };
+  aiSelData = { url: location.href, selector: parts.join(' > '), element_text: (el.textContent || '').trim().substring(0, 300) };
   document.getElementById('ai-sel-url').textContent = aiSelData.url;
   document.getElementById('ai-sel-css').textContent = aiSelData.selector;
   document.getElementById('ai-sel-text').textContent = aiSelData.element_text;
   document.getElementById('ai-sel-row').style.display = 'block';
-  
   aiDesactivarSelector();
-  setStatus('');
-  
-  addMsg('📸 Capturado: ' + (aiSelData.element_text ? aiSelData.element_text.substring(0, 50) : 'elemento'), 'user');
-  
-  // Auto-activar microfono para que hables el error
-  setTimeout(function() { aiIniciarMic(); }, 300);
+  // Abrir ventana
+  var p = document.getElementById('ai-assist-panel');
+  p.style.display = 'flex';
+  p.style.left = Math.min(aiMouseX + 15, window.innerWidth - 380) + 'px';
+  p.style.top = Math.min(aiMouseY - 120, window.innerHeight - 450) + 'px';
+  p.style.opacity = '1'; p.style.transform = 'scale(1)';
+  addMsg('📍 ' + aiSelData.url.split('/').slice(-2).join('/') + '\n🎯 ' + aiSelData.selector.substring(0, 80), 'user');
+  // Auto-mic 6s silencio
+  setTimeout(function() { iniciarMic6s(); }, 400);
 }, true);
 
-/* Voz automatica al abrir panel y al capturar elemento */
-function toggleMic() {
-  if (aiRecOn) { stopMic(); return; }
-  aiIniciarMic();
-}
-function aiIniciarMic() {
+/* Paso 3: Mic 6s silencio = enviar automatico */
+function iniciarMic6s() {
   if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) { setStatus('Voz no soportada'); return; }
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   aiRec = new SR();
-  aiRec.lang = 'es-ES'; aiRec.continuous = false; aiRec.interimResults = false;
+  aiRec.lang = 'es-ES'; aiRec.continuous = true; aiRec.interimResults = true;
+  var lastTxt = '';
   aiRec.onresult = function(ev) {
-    var txt = ev.results[ev.results.length-1][0].transcript;
-    document.getElementById('ai-input').value += (document.getElementById('ai-input').value ? ' ' : '') + txt;
-    stopMic();
-    // Enviar automaticamente
-    var inp = document.getElementById('ai-input');
-    var t = inp.value.trim();
-    if (t) { inp.value = ''; aiSendReport(t, aiSelData); }
+    var txt = '';
+    for (var i = ev.resultIndex; i < ev.results.length; i++) { if (ev.results[i].isFinal) txt += ev.results[i][0].transcript; }
+    if (txt) {
+      lastTxt = txt;
+      document.getElementById('ai-input').value = '🎤 ' + txt;
+      if (aiSilTimer) clearTimeout(aiSilTimer);
+      aiSilTimer = setTimeout(function() {
+        if (lastTxt) { document.getElementById('ai-input').value = ''; aiEnviar(lastTxt); }
+      }, 6000);
+    }
   };
-  aiRec.onerror = function() { setStatus('Error de voz'); stopMic(); };
-  aiRec.onend = function() { stopMic(); };
+  aiRec.onerror = function() { pararMic(); };
   aiRec.start();
   aiRecOn = true;
   document.getElementById('ai-mic-btn').classList.add('active');
   document.getElementById('ai-mic-btn').textContent = '⏹';
-  setStatus('🎤 Escuchando... habla ahora');
+  setStatus('🎤 Habla (6s silencio = enviar)');
 }
-function stopMic() {
+function pararMic() {
   if (aiRec) { try { aiRec.stop(); } catch(e) {} aiRec = null; }
-  aiRecOn = false;
+  aiRecOn = false; if (aiSilTimer) { clearTimeout(aiSilTimer); aiSilTimer = null; }
   var btn = document.getElementById('ai-mic-btn');
-  btn.classList.remove('active'); btn.textContent = '🎤';
-  setStatus('');
+  if (btn) { btn.classList.remove('active'); btn.textContent = '🎤'; }
+}
+function toggleMic() {
+  if (aiRecOn) { pararMic(); return; }
+  iniciarMic6s();
 }
 
-/* Enviar reporte a opencode */
-function aiSendReport(texto, selData) {
-  var t = texto || document.getElementById('ai-input').value.trim();
-  if (!t && !selData && !aiSelData) { setStatus('Describe el error primero'); return; }
-  var sd = selData || aiSelData;
+/* Paso 4: Enviar a analisis */
+function aiEnviar(texto) {
+  pararMic(); if (aiAnalizando) return; aiAnalizando = true;
+  if (!texto && !aiSelData) { setStatus('Describe el error'); aiAnalizando = false; return; }
+  addMsg((texto || '📤'), 'user');
   
-  if (!texto && document.getElementById('ai-input').value.trim()) {
-    document.getElementById('ai-input').value = '';
-  }
-  
-  document.getElementById('ai-analyzing-msg').style.display = 'block';
-  setStatus('Enviando a opencode...');
-  
-  fetch('/ai-assist/report', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text: t, url: sd ? sd.url : null, selector: sd ? sd.selector : null, element_text: sd ? sd.element_text : null })
-  }).then(function(r){ return r.json(); }).then(function(d){
-    if (d.ok) {
-      addMsg('🔍 opencode analizando...', 'ai');
-      setStatus('Esperando respuesta...');
-      // Polling cada 2s
-      if (aiPoll) clearInterval(aiPoll);
-      aiPoll = setInterval(function(){
-        fetch('/ai-assist-response.json?_=' + Date.now()).then(function(r2){
-          if (!r2.ok) return null; return r2.json();
-        }).then(function(d2){
-          if (d2 && d2.response) {
-            clearInterval(aiPoll); aiPoll = null;
-            // Limpiar respuesta
-            fetch('/ai-assist/clear', { method: 'POST', headers: { 'Content-Type': 'application/json' } }).catch(function(){});
-            document.getElementById('ai-analyzing-msg').style.display = 'none';
-            addMsg(d2.response, 'ai');
-            if (d2.fix_data) {
-              aiLastFix = d2.fix_data;
-              addMsg('✅ ¿Aceptas? <button onclick="acceptFix()" style="background:#6c5ce7;color:#fff;border:0;padding:4px 12px;border-radius:6px;cursor:pointer;font-size:0.8rem;font-weight:600;">Aceptar</button>', 'ai');
-            }
-            if (d2.tts) { speakText(d2.response); }
-            setStatus('');
-          }
-        }).catch(function(){});
-      }, 2000);
-      setTimeout(function(){ if (aiPoll) { clearInterval(aiPoll); aiPoll = null; setStatus('Tiempo agotado'); } }, 300000);
-      fnUpdateCount();
-    } else {
-      addMsg('Error: ' + (d.error || 'desconocido'), 'ai');
+  if (aiModoPago) {
+    // MODO PAGO: llama directo a DeepSeek desde el backend
+    setStatus('Analizando con IA...');
+    speakText('Analizando el elemento...');
+    document.getElementById('ai-analyzing-msg').style.display = 'block';
+    
+    fetch('/ai-assist/analyze', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text: texto, modelo: 'deepseek-v4-flash',
+        url: aiSelData ? aiSelData.url : null,
+        selector: aiSelData ? aiSelData.selector : null,
+        element_text: aiSelData ? aiSelData.element_text : null
+      })
+    }).then(function(r){ return r.json(); }).then(function(d){
       document.getElementById('ai-analyzing-msg').style.display = 'none';
+      aiAnalizando = false;
+      if (d.ok) {
+        addMsg(d.response, 'ai');
+        if (d.fix_data) {
+          aiLastFix = d.fix_data;
+          addMsg(
+            '<button onclick="acceptFix()" style="background:#6c5ce7;color:#fff;border:0;padding:4px 14px;border-radius:6px;cursor:pointer;font-size:0.8rem;font-weight:600;margin-right:6px;">✅ Aceptar</button>' +
+            '<button onclick="cancelFix()" style="background:#ddd;color:#333;border:0;padding:4px 14px;border-radius:6px;cursor:pointer;font-size:0.8rem;margin-right:6px;">❌ No me gusta</button>' +
+            '<button onclick="iniciarMic6s()" style="background:#6c5ce7;color:#fff;border:0;padding:4px 14px;border-radius:6px;cursor:pointer;font-size:0.8rem;">🎤 Decir por que</button>',
+            'ai');
+        }
+        if (d.tts) { speakText(d.response); }
+        setStatus('');
+      } else {
+        addMsg('Error: ' + (d.error || 'desconocido'), 'ai');
+        setStatus('');
+      }
+    }).catch(function(e){
+      document.getElementById('ai-analyzing-msg').style.display = 'none';
+      aiAnalizando = false;
+      addMsg('Error: ' + e.message, 'ai'); setStatus('');
+    });
+  } else {
+    // MODO FREE: guarda para que opencode analice manualmente
+    setStatus('Enviando a opencode...');
+    fetch('/ai-assist/report', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: texto, url: aiSelData ? aiSelData.url : null, selector: aiSelData ? aiSelData.selector : null, element_text: aiSelData ? aiSelData.element_text : null })
+    }).then(function(r){ return r.json(); }).then(function(d){
+      aiAnalizando = false;
+      if (d.ok) {
+        addMsg('✅ Reportado a opencode. Dimelo en el chat y lo analizo.', 'ai');
+        fnUpdateCount();
+      } else { addMsg('Error: ' + d.error, 'ai'); }
       setStatus('');
-    }
-  }).catch(function(e){
-    addMsg('Error conexion: ' + e.message, 'ai');
-    document.getElementById('ai-analyzing-msg').style.display = 'none';
-    setStatus('');
-  });
+    }).catch(function(e){ aiAnalizando = false; addMsg('Error: ' + e.message, 'ai'); setStatus(''); });
+  }
+}
+function sendToAI() {
+  var t = document.getElementById('ai-input').value.trim();
+  if (t) { document.getElementById('ai-input').value = ''; aiEnviar(t); }
 }
 
-function sendToAI() { aiSendReport('', aiSelData); }
-
-/* Aceptar fix */
+/* Aceptar / Cancelar / Re-analizar */
 function acceptFix() {
-  var fd = aiLastFix; if (!fd) { addMsg('No hay solucion pendiente.', 'ai'); return; }
-  var u = fd.url || (aiSelData ? aiSelData.url : null) || location.href;
-  var s = fd.selector || (aiSelData ? aiSelData.selector : '') || '';
+  var fd = aiLastFix; if (!fd) { addMsg('No hay solucion.', 'ai'); return; }
+  var sel = fd.selector || (aiSelData ? aiSelData.selector : '') || '';
   var et = fd.element_text || (aiSelData ? aiSelData.element_text : '') || '';
+  var u = fd.url || (aiSelData ? aiSelData.url : null) || location.href;
   fetch('/api/fix-notes', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url: u, selector: s, element_text: et, note: fd.solution || 'Solucionado con asistente IA' })
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url: u, selector: sel, element_text: et, note: fd.solution || 'Solucionado con asistente IA' })
   }).then(function(r){ return r.json(); }).then(function(d){
-    if (d.ok) {
-      addMsg('✅ Añadido a fix-notes #' + d.id, 'ai');
-      aiSelData = null; aiLastFix = null;
-      document.getElementById('ai-sel-row').style.display = 'none';
-      fnUpdateCount();
-    } else { addMsg('Error: ' + d.error, 'ai'); }
-  }).catch(function(e){ addMsg('Error: ' + e.message, 'ai'); });
+    if (d.ok) { addMsg('✅ Añadido #' + d.id, 'ai'); fnUpdateCount(); }
+  }).catch(function(){});
+  addMsg('✅ Listo. Pulsa 🎯 para otro error', 'ai'); aiLastFix = null;
+}
+function cancelFix() {
+  if (aiSelData) { iniciarMic6s(); addMsg('❌ Explica por que no te gusta...', 'ai'); }
+  else { addMsg('❌ Cancelado. Pulsa 🎯 para otro', 'ai'); aiLastFix = null; }
 }
 
 /* TTS */
@@ -2522,7 +2515,7 @@ function addMsg(text, role) {
   d.innerHTML = '<div class="ai-msg-bubble">' + text.replace(/\n/g, '<br>') + '</div>';
   c.appendChild(d); c.scrollTop = c.scrollHeight;
 }
-function setStatus(t) { document.getElementById('ai-status').textContent = t; }
+function setStatus(t) { var s = document.getElementById('ai-status'); if (s) s.textContent = t; }
 </script>
 <script>
 (function() {
