@@ -337,6 +337,49 @@ app.post('/api/save-setting', function(req, res) {
     res.json({ ok: true, msg: key + ' guardado' });
   } catch(e) { res.status(500).json({ ok: false, error: e.message }); }
 });
+
+// ---- AI ASSIST (sin auth - solo archivos temporales publicos) ----
+app.post('/ai-assist/report', express.json({limit:'1mb'}), function(req, res) {
+  try {
+    var db2 = require('./database').db;
+    var fs = require('fs');
+    var path = require('path');
+    var text = req.body.text || '';
+    var url = req.body.url || '';
+    var selector = req.body.selector || '';
+    var element_text = req.body.element_text || '';
+    if (!text && !selector) return res.json({ ok: false, error: 'Describe el error o captura un selector.' });
+    var note = (text || '') + (selector ? '\n🎯 ' + selector : '') + (element_text ? '\n📄 ' + element_text.substring(0,200) : '');
+    var r = db2.prepare("INSERT INTO fix_notes (url,selector,element_text,note,status,type,created_at) VALUES (?,?,?,?,'pending','assistant',datetime('now'))").run(url, selector, element_text, note.trim());
+    var pubPath = path.join(__dirname, 'public', 'ai-assist-pending.json');
+    fs.writeFileSync(pubPath, JSON.stringify({ id: r.lastInsertRowid, text: text, url: url, selector: selector, element_text: element_text, created_at: new Date().toISOString() }));
+    res.json({ ok: true, id: r.lastInsertRowid, message: 'Analizando...' });
+  } catch(e) { res.json({ ok: false, error: e.message }); }
+});
+app.post('/ai-assist/respond', express.json({limit:'1mb'}), function(req, res) {
+  try {
+    var secret = req.body.secret || req.query.secret || '';
+    var expected = process.env.AI_ASSIST_SECRET || 'opencode2026';
+    if (secret !== expected) return res.status(403).json({ ok: false, error: 'No autorizado' });
+    var responseText = req.body.response || '';
+    var solution = req.body.solution || responseText;
+    var fixId = req.body.fix_id || null;
+    if (!responseText) return res.json({ ok: false, error: 'Respuesta vacia' });
+    var fs2 = require('fs');
+    var pubPath2 = require('path').join(__dirname, 'public', 'ai-assist-response.json');
+    fs2.writeFileSync(pubPath2, JSON.stringify({ response: responseText, tts: true, fix_data: { solution: solution, url: '', selector: '' } }));
+    if (fixId) { try { require('./database').db.prepare("UPDATE fix_notes SET status='fixed',fixed_at=datetime('now') WHERE id=?").run(fixId); } catch(e){} }
+    res.json({ ok: true });
+  } catch(e) { res.json({ ok: false, error: e.message }); }
+});
+app.post('/ai-assist/clear', express.json({limit:'1mb'}), function(req, res) {
+  try {
+    var p = require('path').join(__dirname, 'public', 'ai-assist-response.json');
+    if (require('fs').existsSync(p)) require('fs').unlinkSync(p);
+    res.json({ ok: true });
+  } catch(e) { res.json({ ok: false }); }
+});
+
 app.use('/altas', requireRole(), altasRoutes);
 app.use('/kpis', requireRole(), kpiRoutes);
 app.use('/clientes', requireRole(), clientRoutes);
