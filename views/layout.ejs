@@ -2426,8 +2426,29 @@ function sendToAI() {
     })
   }).then(function(r){ return r.json(); }).then(function(d){
     if (d.ok) {
-      addMsg('Reporte guardado como Nota de Error #' + d.id + '. Dímelo en el chat de opencode y lo analizo al instante.', 'ai');
-      setStatus('');
+      addMsg('🔍 Analizando...', 'ai');
+      setStatus('Esperando respuesta de opencode...');
+      // Polling de la respuesta cada 2s
+      var poll = setInterval(function(){
+        fetch('/ai-assist-response.json?' + Date.now()).then(function(r2){
+          if (!r2.ok) return null;
+          return r2.json();
+        }).then(function(d2){
+          if (d2 && d2.response) {
+            clearInterval(poll);
+            // Limpiar respuesta para no leerla otra vez
+            fetch('/ai-assist-clear', { method: 'POST' }).catch(function(){});
+            addMsg(d2.response, 'ai');
+            if (d2.fix_data) {
+              aiLastFix = d2.fix_data;
+              addMsg('✅ ¿Aceptas esta solucion? <button onclick="acceptFix()" style="background:#6c5ce7;color:#fff;border:0;padding:4px 12px;border-radius:6px;cursor:pointer;font-size:0.8rem;font-weight:600;">Aceptar y añadir a fix-notes</button>', 'ai');
+            }
+            if (d2.tts) { speakText(d2.response); }
+            setStatus('');
+          }
+        }).catch(function(){});
+      }, 2000);
+      setTimeout(function(){ clearInterval(poll); setStatus('Tiempo de espera agotado.'); }, 300000);
       fnUpdateCount();
     } else {
       addMsg('Error al enviar: ' + (d.error || 'desconocido'), 'ai');
