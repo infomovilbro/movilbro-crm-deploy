@@ -2085,8 +2085,8 @@ document.addEventListener('keydown', function(e) {
   <div class="ai-assist-header">
     <span>🤖 Asistente IA</span>
     <div style="display:flex;gap:4px;align-items:center;">
-      <button id="ai-mode-btn" onclick="toggleModo()" title="Modo FREE (DeepSeek V4 Flash Free)" style="background:rgba(255,255,255,0.2);border:0;border-radius:6px;padding:2px 6px;font-size:0.9rem;cursor:pointer;color:#fff;">🆓</button>
-      <button id="ai-pin-btn" onclick="togglePin()" title="Fijar ventana" style="background:rgba(255,255,255,0.2);border:0;border-radius:6px;padding:2px 6px;font-size:0.9rem;cursor:pointer;color:#fff;">📍</button>
+      <button id="ai-mode-btn" onclick="toggleModo()" title="Modo PAGO (DeepSeek V4 Flash Go)" style="background:rgba(255,255,255,0.2);border:0;border-radius:6px;padding:2px 6px;font-size:0.9rem;cursor:pointer;color:#fff;">💎</button>
+      <button id="ai-mute-btn" onclick="toggleMute()" title="Silenciar/Activar voz" style="background:rgba(255,255,255,0.2);border:0;border-radius:6px;padding:2px 6px;font-size:0.9rem;cursor:pointer;color:#fff;">🔇</button>
       <button onclick="closeAssist()" class="ai-assist-close" title="Cerrar">✕</button>
     </div>
     <div id="ai-resize-handle" style="position:absolute;bottom:0;right:0;width:14px;height:14px;cursor:nwse-resize;background:linear-gradient(135deg,transparent 50%,rgba(255,255,255,0.3) 50%);z-index:1;"></div>
@@ -2299,30 +2299,22 @@ if (typeof fnDel === 'undefined') {
 }
 /* ===== ASISTENTE IA DEFINITIVO ===== */
 var aiSelActive = false, aiSelData = null, aiRec = null, aiRecOn = false, aiLastFix = null;
-var aiMouseX = 0, aiMouseY = 0, aiModoPago = false, aiAnalizando = false, aiSilTimer = null;
-var aiPin = false, aiResize = false;
+var aiMouseX = 0, aiMouseY = 0, aiModoPago = true, aiAnalizando = false, aiSilTimer = null;
+var aiMute = true, aiChatHistorial = '';
 
-/* Ruleta: FREE por defecto (el pago necesita billing en opencode.ai) */
+/* Ruleta: PAGO por defecto */
 function toggleModo() {
   aiModoPago = !aiModoPago;
   var btn = document.getElementById('ai-mode-btn');
   btn.textContent = aiModoPago ? '💎' : '🆓';
-  btn.title = aiModoPago ? 'Modo PAGO (necesita billing en opencode.ai/workspace)' : 'Modo FREE (DeepSeek V4 Flash Free)';
+  btn.title = aiModoPago ? 'DeepSeek V4 Flash GO (PAGO)' : 'DeepSeek V4 Flash Free';
 }
-
-/* Pin/Unpin ventana */
-function togglePin() {
-  aiPin = !aiPin;
-  var btn = document.getElementById('ai-pin-btn');
-  btn.textContent = aiPin ? '📌' : '📍';
-  btn.title = aiPin ? 'Desfijar ventana' : 'Fijar ventana en esta posicion';
-  var p = document.getElementById('ai-assist-panel');
-  if (aiPin) {
-    p.style.position = 'fixed';
-    p.style.bottom = ''; p.style.right = '';
-  } else {
-    p.style.position = 'fixed';
-  }
+/* Mute */
+function toggleMute() {
+  aiMute = !aiMute;
+  var btn = document.getElementById('ai-mute-btn');
+  btn.textContent = aiMute ? '🔇' : '🔊';
+  if (!aiMute && window.speechSynthesis) window.speechSynthesis.cancel();
 }
 
 /* Paso 1: 🤖 activa modo selector */
@@ -2348,34 +2340,9 @@ function aiDesactivarSelector() {
   document.getElementById('ai-sel-btn')?.classList.remove('active');
 }
 
-/* Ventana transparente sigue al raton (solo si no esta fijada) */
-document.addEventListener('mousemove', function(e) {
-  aiMouseX = e.clientX; aiMouseY = e.clientY;
-  var p = document.getElementById('ai-assist-panel');
-  if (p.style.display === 'flex' && !p.matches(':hover') && !aiPin) {
-    p.style.opacity = '0.15'; p.style.transform = 'scale(0.65)';
-    p.style.left = Math.min(aiMouseX + 15, window.innerWidth - 380) + 'px';
-    p.style.top = Math.min(aiMouseY - 120, window.innerHeight - 450) + 'px';
-  }
-});
+/* Ventana centrada al hacer click */
 document.getElementById('ai-assist-panel')?.addEventListener('mouseenter', function() {
   this.style.opacity = '1'; this.style.transform = 'scale(1)';
-});
-/* Resize handler */
-document.getElementById('ai-assist-panel')?.addEventListener('mousedown', function(e) {
-  if (e.target.id !== 'ai-resize-handle') return;
-  aiResize = true;
-  var startX = e.clientX, startY = e.clientY, startW = this.offsetWidth, startH = this.offsetHeight;
-  function doResize(ev) {
-    if (!aiResize) return;
-    var w = Math.max(280, Math.min(700, startW + (ev.clientX - startX)));
-    var h = Math.max(300, Math.min(650, startH + (ev.clientY - startY)));
-    document.getElementById('ai-assist-panel').style.width = w + 'px';
-    document.getElementById('ai-assist-panel').style.height = h + 'px';
-  }
-  function stopResize() { aiResize = false; document.removeEventListener('mousemove', doResize); document.removeEventListener('mouseup', stopResize); }
-  document.addEventListener('mousemove', doResize);
-  document.addEventListener('mouseup', stopResize);
 });
 
 /* Paso 2: Click captura elemento + abre ventana + mic */
@@ -2407,35 +2374,38 @@ document.addEventListener('click', function(e) {
   document.getElementById('ai-sel-text').textContent = aiSelData.element_text;
   document.getElementById('ai-sel-row').style.display = 'block';
   aiDesactivarSelector();
-  // Abrir ventana
+  // Abrir ventana centrada
   var p = document.getElementById('ai-assist-panel');
   p.style.display = 'flex';
-  p.style.left = Math.min(aiMouseX + 15, window.innerWidth - 380) + 'px';
-  p.style.top = Math.min(aiMouseY - 120, window.innerHeight - 450) + 'px';
+  p.style.left = Math.max(10, (window.innerWidth - 380) / 2) + 'px';
+  p.style.top = Math.max(10, (window.innerHeight - 420) / 2) + 'px';
   p.style.opacity = '1'; p.style.transform = 'scale(1)';
-  addMsg('📍 ' + aiSelData.url.split('/').slice(-2).join('/') + '\n🎯 ' + aiSelData.selector.substring(0, 80), 'user');
   // Auto-mic 6s silencio
   setTimeout(function() { iniciarMic6s(); }, 400);
 }, true);
 
-/* Paso 3: Mic - 6s SIN hablar = enviar (se reinicia con cada palabra) */
+/* Paso 3: Mic - 6s SILENCIO REAL = enviar (se reinicia con cada palabra, sin corte prematuro) */
 function iniciarMic6s() {
   if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) { setStatus('Voz no soportada'); return; }
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   aiRec = new SR();
   aiRec.lang = 'es-ES'; aiRec.continuous = true; aiRec.interimResults = true;
   var ultTexto = '';
+  var ultimoTiempoConVoz = Date.now();
+  
   aiRec.onresult = function(ev) {
-    var txt = '';
-    for (var i = ev.resultIndex; i < ev.results.length; i++) { if (ev.results[i].isFinal) txt += ev.results[i][0].transcript; }
-    if (txt) {
-      ultTexto = txt;
-      document.getElementById('ai-input').value = '🎤 ' + txt;
-      // Reiniciar timer CADA VEZ que se detecta voz
-      if (aiSilTimer) clearTimeout(aiSilTimer);
-      aiSilTimer = setTimeout(function() {
-        if (ultTexto) { document.getElementById('ai-input').value = ''; aiEnviar(ultTexto); }
-      }, 6000);
+    for (var i = ev.resultIndex; i < ev.results.length; i++) {
+      if (!ev.results[i].isFinal) continue;
+      var txt = ev.results[i][0].transcript;
+      if (txt && txt.trim().length > 0) {
+        ultTexto = (ultTexto ? ultTexto + ' ' : '') + txt;
+        document.getElementById('ai-input').value = '🎤 ' + ultTexto;
+        ultimoTiempoConVoz = Date.now(); // reinicia contador de silencio
+        if (aiSilTimer) clearTimeout(aiSilTimer);
+        aiSilTimer = setTimeout(function() {
+          if (ultTexto) { document.getElementById('ai-input').value = ''; aiEnviar(ultTexto); }
+        }, 6000);
+      }
     }
   };
   aiRec.onerror = function() { pararMic(); };
@@ -2473,7 +2443,7 @@ function aiEnviar(texto) {
   
   var modelo = aiModoPago ? 'deepseek-v4-flash' : 'nemotron-3-ultra-free';
   setStatus('Analizando...');
-  speakText('Analizando elemento...');
+  if (!aiMute) speakText('Analizando...');
   document.getElementById('ai-analyzing-msg').style.display = 'block';
   // Boton para detener
   addMsg('⏳ Analizando... <button onclick="detenerAnalisis()" style="background:#e74c3c;color:#fff;border:0;padding:2px 10px;border-radius:6px;cursor:pointer;font-size:0.75rem;">Detener</button>', 'ai');
@@ -2500,7 +2470,7 @@ function aiEnviar(texto) {
             '<button onclick="iniciarMic6s()" style="background:#6c5ce7;color:#fff;border:0;padding:4px 14px;border-radius:6px;cursor:pointer;font-size:0.8rem;">🎤 Decir por que</button>',
             'ai');
         }
-        if (d.tts) { speakText(d.response); }
+        if (d.tts && !aiMute) { speakText(d.response); }
         setStatus('');
       } else {
         addMsg('Error: ' + (d.error || 'desconocido'), 'ai');
@@ -2523,16 +2493,24 @@ function acceptFix() {
   var sel = fd.selector || (aiSelData ? aiSelData.selector : '') || '';
   var et = fd.element_text || (aiSelData ? aiSelData.element_text : '') || '';
   var u = fd.url || (aiSelData ? aiSelData.url : null) || location.href;
+  // Incluir historial completo de la conversacion
+  var historial = '';
+  var msgs = document.getElementById('ai-chat-msgs');
+  if (msgs) {
+    var chats = msgs.querySelectorAll('.ai-msg-bubble');
+    for (var h = 0; h < chats.length; h++) { historial += chats[h].textContent.trim() + '\n---\n'; }
+  }
+  var notaFinal = (fd.solution || 'Solucionado con asistente IA') + '\n\n--- HISTORIAL ---\n' + historial;
   fetch('/api/fix-notes', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url: u, selector: sel, element_text: et, note: fd.solution || 'Solucionado con asistente IA' })
+    body: JSON.stringify({ url: u, selector: sel, element_text: et, note: notaFinal.substring(0, 2000) })
   }).then(function(r){ return r.json(); }).then(function(d){
-    if (d.ok) { addMsg('✅ Añadido #' + d.id + ' a fix-notes', 'ai'); fnUpdateCount(); }
+    if (d.ok) { addMsg('✅ Añadido #' + d.id + ' con historial completo', 'ai'); fnUpdateCount(); }
   }).catch(function(){});
-  addMsg('✅ Solucion aceptada. Pulsa 🎯 para otro error', 'ai'); aiLastFix = null;
+  addMsg('✅ Aceptado. Pulsa 🎯 para otro error', 'ai'); aiLastFix = null;
 }
 function cancelFix() {
-  if (aiSelData) { iniciarMic6s(); addMsg('❌ Explica por que...', 'ai'); }
+  if (aiSelData) { iniciarMic6s(); addMsg('❌ Explica...', 'ai'); }
   else { addMsg('❌ Cancelado. Pulsa 🎯 para otro', 'ai'); aiLastFix = null; }
 }
 
@@ -2553,130 +2531,129 @@ function addMsg(text, role) {
 }
 function setStatus(t) { var s = document.getElementById('ai-status'); if (s) s.textContent = t; }
 
-/* ===== VOICE ADMIN - Asistente por voz tipo Siri ===== */
-var vaRec = null, vaActivo = false, vaWakeEnabled = true, vaModoPago = false;
-var vaSilencioTimer = null, vaUltTexto = '', vaEscuchando = false,vaCmdRec=null;
+/* ===== VOICE ADMIN V2 - wake word automatico + chat ===== */
+var vaRec=null,vaActivo=false,vaModoPago=true,vaEscuchando=false,vaCmdRec=null,vaSilencioTimer=null,vaUltTexto='',vaWakeFinder=null,vaMuteVA=true;
+var vaWakeWords=['movilbro estas','movilbroesta','oye estas','oye esta','ollestas','ollas','oye'];
 
-function vaIniciar() {
-  if (vaActivo) { vaDetener(); return; }
-  var sel = confirm('Usar modelo PAGO? OK = PAGO, Cancel = FREE');
-  vaModoPago = sel;
-  vaActivo = true;
-  document.getElementById('va-btn').style.background = '#e17055';
-  document.getElementById('va-status-dot').style.display = 'block';
-  document.getElementById('va-status-dot').style.background = '#00b894';
-  speakText('Voice Admin activado: ' + (vaModoPago ? 'PAGO' : 'FREE') + '. Di OYE ESTAS para preguntar.');
-  setTimeout(vaEscucharWake, 1500);
+function vaIniciar(){
+  if(vaActivo){vaDetener();return;}
+  vaModoPago=confirm('PAGO? OK=Si, Cancel=Free');
+  vaActivo=true;
+  document.getElementById('va-btn').style.background='#e17055';
+  document.getElementById('va-status-dot').style.display='block';
+  document.getElementById('va-status-dot').style.background='#00b894';
+  if(!vaMuteVA)speakText('Voice Admin '+(vaModoPago?'PAGO':'FREE'));
+  addMsg('🤖 Voice Admin '+(vaModoPago?'💎':'🆓')+'. Di MOVILBRO ESTAS.','ai');
+  setTimeout(vaEscucharWake,1500);
+}
+function vaDetener(){
+  vaActivo=false;vaEscuchando=false;
+  try{if(vaRec)vaRec.stop();}catch(e){}
+  try{if(vaCmdRec)vaCmdRec.stop();}catch(e){}
+  if(vaSilencioTimer)clearTimeout(vaSilencioTimer);
+  document.getElementById('va-btn').style.background='#00b894';
+  document.getElementById('va-status-dot').style.display='none';
 }
 
-function vaDetener() {
-  vaActivo = false; vaEscuchando = false;
-  if (vaRec) { try { vaRec.stop(); } catch(e) {} vaRec = null; }
-  if (vaCmdRec) { try { vaCmdRec.stop(); } catch(e) {} vaCmdRec = null; }
-  if (vaSilencioTimer) { clearTimeout(vaSilencioTimer); vaSilencioTimer = null; }
-  document.getElementById('va-btn').style.background = '#00b894';
-  document.getElementById('va-status-dot').style.display = 'none';
+/* Wake word automatico en background al cargar pagina */
+function vaInitWake(){
+  if(vaWakeFinder)return;
+  if(!('webkitSpeechRecognition' in window||'SpeechRecognition' in window))return;
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  vaWakeFinder=new SR();
+  vaWakeFinder.lang='es-ES';vaWakeFinder.continuous=true;vaWakeFinder.interimResults=true;
+  vaWakeFinder.onresult=function(ev){
+    if(vaActivo)return;
+    for(var i=ev.resultIndex;i<ev.results.length;i++){
+      if(!ev.results[i].isFinal)continue;
+      var t=ev.results[i][0].transcript.toLowerCase().replace(/[¿?¡!.,]/g,'');
+      for(var w=0;w<vaWakeWords.length;w++){if(t.indexOf(vaWakeWords[w])>-1){
+        vaModoPago=true;vaActivo=true;
+        document.getElementById('va-btn').style.background='#e17055';
+        document.getElementById('va-status-dot').style.display='block';
+        if(!vaMuteVA)speakText('Hola en que te puedo ayudar.');
+        addMsg('🤖 Hola ¿en qué te puedo ayudar?','ai');
+        setTimeout(vaEscucharComando,1200);return;
+      }}
+    }
+  };
+  vaWakeFinder.onerror=function(){setTimeout(vaInitWake,5000);};
+  try{vaWakeFinder.start();}catch(e){setTimeout(vaInitWake,3000);}
 }
 
-function vaEscucharWake() {
-  if (!vaActivo) return;
-  if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) { speakText('Voz no soportada'); return; }
-  try { if (vaRec) vaRec.stop(); } catch(e) {}
-  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  vaRec = new SR();
-  vaRec.lang = 'es-ES'; vaRec.continuous = true; vaRec.interimResults = true;
-  vaEscuchando = true;
-  
-  var wakeWords = ['oye estas','oye esta','ollestas','ollas','oye','o yes tas'];
-  
-  vaRec.onresult = function(ev) {
-    for (var i = ev.resultIndex; i < ev.results.length; i++) {
-      if (!ev.results[i].isFinal) continue;
-      var txt = ev.results[i][0].transcript.toLowerCase().replace(/[¿?¡!.,]/g,'');
-      for (var w = 0; w < wakeWords.length; w++) {
-        if (txt.indexOf(wakeWords[w]) > -1) {
-          if (vaRec) { try { vaRec.stop(); } catch(e) {} }
-          vaEscuchando = false;
-          speakText('Si dime.');
-          document.getElementById('va-status-dot').style.background = '#fdcb6e';
-          setTimeout(function() { vaEscucharComando(); }, 1200);
-          return;
-        }
+function vaEscucharWake(){
+  if(!vaActivo)return;
+  if(!('webkitSpeechRecognition' in window||'SpeechRecognition' in window))return;
+  try{if(vaRec)vaRec.stop();}catch(e){}
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  vaRec=new SR();vaRec.lang='es-ES';vaRec.continuous=true;vaRec.interimResults=true;
+  vaEscuchando=true;
+  vaRec.onresult=function(ev){
+    for(var i=ev.resultIndex;i<ev.results.length;i++){
+      if(!ev.results[i].isFinal)continue;
+      var t=ev.results[i][0].transcript.toLowerCase().replace(/[¿?¡!.,]/g,'');
+      for(var w=0;w<vaWakeWords.length;w++){if(t.indexOf(vaWakeWords[w])>-1){
+        try{if(vaRec)vaRec.stop();}catch(e){}vaEscuchando=false;
+        if(!vaMuteVA)speakText('Si dime.');
+        document.getElementById('va-status-dot').style.background='#fdcb6e';
+        setTimeout(vaEscucharComando,1200);return;
+      }}
+    }
+  };
+  vaRec.onerror=function(){if(vaActivo)setTimeout(vaEscucharWake,2000);};
+  vaRec.onend=function(){if(vaActivo&&vaEscuchando)setTimeout(vaEscucharWake,1000);};
+  try{vaRec.start();}catch(e){setTimeout(vaEscucharWake,1000);}
+}
+
+function vaEscucharComando(){
+  if(!vaActivo)return;
+  if(!('webkitSpeechRecognition' in window||'SpeechRecognition' in window))return;
+  try{if(vaCmdRec)vaCmdRec.stop();}catch(e){}
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  vaCmdRec=new SR();vaCmdRec.lang='es-ES';vaCmdRec.continuous=true;vaCmdRec.interimResults=true;
+  vaUltTexto='';
+  vaCmdRec.onresult=function(ev){
+    for(var i=ev.resultIndex;i<ev.results.length;i++){
+      if(!ev.results[i].isFinal)continue;
+      var txt=ev.results[i][0].transcript;
+      if(txt&&txt.length>3){
+        // Si IA hablando, callarla
+        if(window.speechSynthesis&&window.speechSynthesis.speaking)window.speechSynthesis.cancel();
+        vaUltTexto=txt;
+        document.getElementById('va-status-dot').style.background='#fdcb6e';
+        if(vaSilencioTimer)clearTimeout(vaSilencioTimer);
+        vaSilencioTimer=setTimeout(function(){if(vaUltTexto)vaProcesarComando(vaUltTexto);},3000);
       }
     }
   };
-  
-  vaRec.onerror = function() { if (vaActivo) setTimeout(vaEscucharWake, 1500); };
-  vaRec.onend = function() { if (vaActivo && vaEscuchando) setTimeout(vaEscucharWake, 800); };
-  try { vaRec.start(); } catch(e) { setTimeout(vaEscucharWake, 1000); }
+  vaCmdRec.onerror=function(){if(vaActivo)setTimeout(vaEscucharWake,2000);};
+  vaCmdRec.onend=function(){if(vaActivo&&vaUltTexto)vaProcesarComando(vaUltTexto);};
+  try{vaCmdRec.start();}catch(e){}
+  if(!vaMuteVA)speakText('Te escucho.');
+  addMsg('🎤 Escuchando...','ai');
 }
 
-function vaEscucharComando() {
-  if (!vaActivo) return;
-  if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) return;
-  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  vaCmdRec = new SR();
-  vaCmdRec.lang = 'es-ES'; vaCmdRec.continuous = true; vaCmdRec.interimResults = true;
-  vaUltTexto = '';
-  
-  vaCmdRec.onresult = function(ev) {
-    for (var i = ev.resultIndex; i < ev.results.length; i++) {
-      if (!ev.results[i].isFinal) continue;
-      var txt = ev.results[i][0].transcript;
-      if (txt) {
-        vaUltTexto = txt;
-        document.getElementById('va-status-dot').style.background = '#fdcb6e';
-        if (vaSilencioTimer) clearTimeout(vaSilencioTimer);
-        vaSilencioTimer = setTimeout(function() {
-          if (vaUltTexto) vaProcesarComando(vaUltTexto);
-        }, 3000);
-      }
-    }
-  };
-  
-  vaCmdRec.onerror = function() { if (vaActivo) setTimeout(vaEscucharWake, 1500); };
-  vaCmdRec.onend = function() { if (vaActivo && vaUltTexto) vaProcesarComando(vaUltTexto); };
-  vaCmdRec.start();
-  speakText('Te escucho.');
+function vaProcesarComando(texto){
+  try{if(vaCmdRec)vaCmdRec.stop();}catch(e){}
+  addMsg('🗣️ '+texto,'user');
+  document.getElementById('va-status-dot').style.background='#e17055';
+  if(!vaMuteVA)speakText('Procesando.');
+  fetch('/ai-assist/analyze',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({text:texto,modelo:vaModoPago?'deepseek-v4-flash':'deepseek-v4-flash-free',url:location.href})
+  }).then(function(r){return r.json();}).then(function(d){
+    document.getElementById('va-status-dot').style.background='#00b894';
+    if(d.ok){
+      addMsg(d.response,'ai');
+      if(!vaMuteVA)speakText(d.response);
+      var abrir=texto.toLowerCase().indexOf('abre')>-1||texto.toLowerCase().indexOf('abrir')>-1||texto.toLowerCase().indexOf('ve a')>-1;
+      if(abrir){var m=d.response.match(/https?:\/\/[^\s]+/);if(m&&m[0].indexOf('movilbro-crm')>-1)setTimeout(function(){window.location.href=m[0];},1500);}
+    }else{addMsg('Error: '+(d.error||''),'ai');}
+    setTimeout(vaEscucharWake,2000);
+  }).catch(function(){addMsg('Error conexion','ai');setTimeout(vaEscucharWake,2000);});
 }
 
-function vaProcesarComando(texto) {
-  if (vaRec) { try { vaRec.stop(); } catch(e) {} vaRec = null; }
-  document.getElementById('va-status-dot').style.background = '#e17055';
-  speakText('Procesando...');
-  
-  var prompt = 'Eres un asistente administrativo del CRM Movilbro. El usuario pide: "' + texto + '"\n\n';
-  prompt += 'Responde en español, se util. Si pide abrir un cliente, pagina o seccion, indica la URL.';
-  prompt += 'Si no entiendes, pide aclaracion. Responde directo y conciso.';
-  
-  var modelo = vaModoPago ? 'deepseek-v4-flash' : 'deepseek-v4-flash-free';
-  
-  fetch('/ai-assist/analyze', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text: texto, modelo: modelo, url: location.href })
-  }).then(function(r){ return r.json(); }).then(function(d){
-    document.getElementById('va-status-dot').style.background = '#00b894';
-    if (d.ok) {
-      speakText(d.response);
-      // Si el usuario pidio abrir algo y la respuesta tiene URL, navegar
-      var abrir = texto.toLowerCase().indexOf('abre') > -1 || texto.toLowerCase().indexOf('abrir') > -1 || texto.toLowerCase().indexOf('ve a') > -1 || texto.toLowerCase().indexOf('navega') > -1;
-      if (abrir) {
-        var urlMatch = d.response.match(/https?:\/\/[^\s]+/);
-        if (urlMatch && urlMatch[0].indexOf('movilbro-crm') > -1) {
-          setTimeout(function() { window.location.href = urlMatch[0]; }, 1500);
-        }
-      }
-    } else {
-      speakText('Error: ' + (d.error || 'desconocido'));
-    }
-    // Volver a escuchar wake word
-    setTimeout(vaEscuchar, 2000);
-  }).catch(function(e){
-    document.getElementById('va-status-dot').style.background = '#00b894';
-    speakText('Error de conexion');
-    setTimeout(vaEscuchar, 2000);
-  });
-}
+setTimeout(vaInitWake,3000);
 
 </script>
 <script>
