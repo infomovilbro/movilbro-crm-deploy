@@ -717,9 +717,7 @@ router.post('/webhook/whatsapp', async (req, res) => {
     return res.json({ ok: true, dedup: true, message: 'Duplicado ignorado' });
   }
   
-  // SIN auto-análisis: solo guardar pendiente para que el usuario decida
   var id = db.prepare("INSERT INTO pending_messages (source, from_name, from_address, body, proposed_response, status, category) VALUES (?,?,?,?,?,'pending','whatsapp')").run('whatsapp', from, from, message, null);
-  // Detectar si es una solicitud de alta
   var altaInfo = detectAltaIntent(message, from);
   if (altaInfo.isAlta) {
     db.prepare("UPDATE pending_messages SET category='altas', altas_score=? WHERE id=?").run(altaInfo.score, id.lastInsertRowid);
@@ -727,7 +725,22 @@ router.post('/webhook/whatsapp', async (req, res) => {
   whatsappMessages.push({ id: id.lastInsertRowid, from, message, status: 'pending' });
   console.log('[WhatsApp] Mensaje de', from, '→ pendiente #' + id.lastInsertRowid, '→ esperando análisis manual');
   
-  res.json({ ok: true, pending_id: id.lastInsertRowid, message: 'Mensaje recibido. Ve a Pendientes para analizarlo manualmente.' });
+  // AUTO-PROCESAR inmediatamente si el contacto tiene modo AUTO activado
+  try {
+    var autoModes = {};
+    try { autoModes = JSON.parse(db.prepare("SELECT value FROM settings WHERE key='wa_auto_modes'").get()?.value || '{}'); } catch(e2) {}
+    if (autoModes[from]) {
+      // Ejecutar auto-process de forma asincrona (no bloquear la respuesta)
+      setTimeout(function() {
+        var http = require('http');
+        var options = { hostname: 'localhost', port: parseInt(process.env.PORT || '5000'), path: '/codeopen/pending/auto-process', method: 'POST', headers: { 'Content-Type': 'application/json' } };
+        var autoReq = http.request(options);
+        autoReq.end();
+      }, 100);
+    }
+  } catch(e3) {}
+  
+  res.json({ ok: true, pending_id: id.lastInsertRowid, message: autoModes[from] ? 'Procesando automáticamente...' : 'Mensaje recibido. Ve a Pendientes para analizarlo.' });
 });
 
 router.post('/webhook/whatsapp/test', async (req, res) => {
@@ -757,16 +770,27 @@ router.post('/webhook/email', async (req, res) => {
   if (!body && !subject) return res.status(400).json({ error: 'Cuerpo o asunto requerido' });
   try {
     var fullText = 'Asunto: ' + subject + '\nDe: ' + from + '\n\n' + body;
-    // SIN auto-análisis: solo guardar pendiente para que el usuario decida
     var id = db.prepare("INSERT INTO pending_messages (source, from_name, from_address, subject, body, proposed_response, status, category) VALUES (?,?,?,?,?,?,'pending','email')").run('email', from, from, subject, fullText, null);
-    // Detectar si es una solicitud de alta
     var altaInfo = detectAltaIntent(body, from);
     if (altaInfo.isAlta) {
       db.prepare("UPDATE pending_messages SET category='altas', altas_score=? WHERE id=?").run(altaInfo.score, id.lastInsertRowid);
     }
     emailMessages.push({ id: id.lastInsertRowid, from, subject, body: fullText, response: null, status: 'pending' });
     console.log('[Email] Correo de', from, '→ pendiente #' + id.lastInsertRowid, '→ esperando análisis manual');
-    res.json({ ok: true, pending_id: id.lastInsertRowid, message: 'Correo recibido. Ve a Pendientes para analizarlo manualmente.' });
+    // AUTO-PROCESAR inmediatamente si el contacto tiene modo AUTO
+    try {
+      var autoModes = {};
+      try { autoModes = JSON.parse(db.prepare("SELECT value FROM settings WHERE key='wa_auto_modes'").get()?.value || '{}'); } catch(e2) {}
+      if (autoModes[from]) {
+        setTimeout(function() {
+          var http = require('http');
+          var options = { hostname: 'localhost', port: parseInt(process.env.PORT || '5000'), path: '/codeopen/pending/auto-process', method: 'POST', headers: { 'Content-Type': 'application/json' } };
+          var autoReq = http.request(options);
+          autoReq.end();
+        }, 100);
+      }
+    } catch(e3) {}
+    res.json({ ok: true, pending_id: id.lastInsertRowid, message: autoModes[from] ? 'Procesando automáticamente...' : 'Correo recibido. Ve a Pendientes para analizarlo.' });
   } catch(e) { console.error('[Email Webhook] Error:', e.message); res.status(500).json({ error: e.message }); }
 });
 
