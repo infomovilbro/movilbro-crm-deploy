@@ -715,7 +715,7 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
   }
 
   try { pollPendingCount(); } catch(e) { console.error('[Init] pollPendingCount:', e); }
-  // Auto-refresh badge cada 5s sin interrumpir procesos en curso
+  // Auto-refresh badge cada 3s sin interrumpir procesos en curso
   var lastPendingCount = 0;
   var lastAutoProcess = 0;
   setInterval(function() {
@@ -744,7 +744,7 @@ window.addEventListener('error', function(e) { console.error('[CodeOpen Error]',
         lastPendingCount = 0;
       }
     }).catch(function() {});
-  }, 5000);
+  }, 3000);
 
   pendingBtn.addEventListener('click', function(e) {
     e.stopPropagation();
