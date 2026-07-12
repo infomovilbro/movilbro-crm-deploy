@@ -2031,7 +2031,7 @@ document.addEventListener('keydown', function(e) {
 .fn-list-item .fn-li-meta{font-size:0.65rem;color:#aaa;}
 
 /* Asistente IA Flotante */
-#ai-assist-panel{position:fixed;width:380px;min-width:280px;max-width:700px;height:420px;min-height:300px;max-height:650px;background:#fff;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.25);z-index:100000;display:none;flex-direction:column;overflow:hidden;pointer-events:auto;resize:both;}
+#ai-assist-panel{position:fixed;width:420px;min-width:300px;max-width:750px;height:500px;min-height:350px;max-height:700px;background:#fff;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.25);z-index:100000;display:none;flex-direction:column;overflow:hidden;pointer-events:auto;resize:both;}
 #ai-assist-panel.open{display:flex;}
 #ai-assist-panel.pinned{opacity:1!important;transform:scale(1)!important;}
 #ai-sel-banner{position:fixed;top:0;left:0;width:100%;padding:10px;background:#6c5ce7;color:#fff;text-align:center;font-weight:600;z-index:100001;font-size:0.9rem;display:none;}
@@ -2399,11 +2399,16 @@ document.addEventListener('click', function(e) {
   document.getElementById('ai-sel-text').textContent = aiSelData.element_text;
   document.getElementById('ai-sel-row').style.display = 'block';
   aiDesactivarSelector();
-  // Abrir ventana centrada
+  // Abrir ventana centrada - limpiar chat si ya se acepto el anterior
   var p = document.getElementById('ai-assist-panel');
+  // Si aiLastFix es null (ya se acepto) y hay mensajes, limpiar para nuevo error
+  if (!aiLastFix) {
+    var chatEl = document.getElementById('ai-chat-msgs');
+    if (chatEl) chatEl.innerHTML = '';
+  }
   p.style.display = 'flex';
-  p.style.left = Math.max(10, (window.innerWidth - 380) / 2) + 'px';
-  p.style.top = Math.max(10, (window.innerHeight - 420) / 2) + 'px';
+  p.style.left = Math.max(10, (window.innerWidth - 420) / 2) + 'px';
+  p.style.top = Math.max(10, (window.innerHeight - 500) / 2) + 'px';
   p.style.opacity = '1'; p.style.transform = 'scale(1)';
   // Auto-mic 6s silencio
   setTimeout(function() { iniciarMic6s(); }, 400);
@@ -2427,6 +2432,17 @@ function iniciarMic6s() {
     }
   };
   aiRec.onerror = function() { pararMic(); };
+  // Reiniciar si el mic se acaba sin resultados (fallo intermitente)
+  aiRec.onend = function() {
+    if (aiRecOn && !document.getElementById('ai-input').value.includes('🎤')) {
+      // Se acabo sin capturar nada - reiniciar
+      try { var SR2 = window.SpeechRecognition || window.webkitSpeechRecognition;
+        var newRec = new SR2(); newRec.lang = 'es-ES'; newRec.continuous = true; newRec.interimResults = true;
+        newRec.onresult = aiRec.onresult; newRec.onerror = aiRec.onerror; newRec.onend = aiRec.onend;
+        aiRec = newRec; aiRec.start();
+      } catch(e2) { pararMic(); }
+    }
+  };
   aiRec.start();
   aiRecOn = true;
   document.getElementById('ai-mic-btn').classList.add('active');
@@ -2515,25 +2531,25 @@ function sendToAI() {
 
 /* Aceptar / Cancelar / Re-analizar */
 function acceptFix() {
-  var fd = aiLastFix; if (!fd) { addMsg('No hay solucion.', 'ai'); return; }
-  var sel = fd.selector || (aiSelData ? aiSelData.selector : '') || '';
-  var et = fd.element_text || (aiSelData ? aiSelData.element_text : '') || '';
-  var u = fd.url || (aiSelData ? aiSelData.url : null) || location.href;
-  // Incluir historial completo de la conversacion
+  var fd = aiLastFix;
+  var sel = fd ? (fd.selector || (aiSelData ? aiSelData.selector : '') || '') : (aiSelData ? aiSelData.selector : '') || '';
+  var et = fd ? (fd.element_text || (aiSelData ? aiSelData.element_text : '') || '') : (aiSelData ? aiSelData.element_text : '') || '';
+  var u = fd ? (fd.url || (aiSelData ? aiSelData.url : null) || location.href) : (aiSelData ? aiSelData.url : null) || location.href;
   var historial = '';
   var msgs = document.getElementById('ai-chat-msgs');
   if (msgs) {
     var chats = msgs.querySelectorAll('.ai-msg-bubble');
     for (var h = 0; h < chats.length; h++) { historial += chats[h].textContent.trim() + '\n---\n'; }
   }
-  var notaFinal = (fd.solution || 'Solucionado con asistente IA') + '\n\n--- HISTORIAL ---\n' + historial;
+  var solucion = fd ? fd.solution : '';
+  var notaFinal = (solucion || historial || 'Aceptado manualmente') + '\n\n--- HISTORIAL ---\n' + (historial || '(vacio)');
   fetch('/api/fix-notes', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ url: u, selector: sel, element_text: et, note: notaFinal.substring(0, 2000) })
   }).then(function(r){ return r.json(); }).then(function(d){
-    if (d.ok) { addMsg('✅ Añadido #' + d.id + ' con historial completo', 'ai'); fnUpdateCount(); }
+    if (d.ok) { addMsg('✅ Añadido #' + d.id, 'ai'); fnUpdateCount(); }
   }).catch(function(){});
-  addMsg('✅ Aceptado. Pulsa 🎯 para otro error', 'ai'); aiLastFix = null;
+  addMsg('✅ Guardado. Pulsa 🎯 para nuevo error', 'ai'); aiLastFix = null;
 }
 function cancelFix() {
   if (aiSelData) { iniciarMic6s(); addMsg('❌ Explica...', 'ai'); }
@@ -2561,20 +2577,19 @@ function addMsg(text, role) {
 }
 function setStatus(t) { var s = document.getElementById('ai-status'); if (s) s.textContent = t; }
 
-/* ===== VOICE ADMIN V4 - Solo voz, sin ventana, continuo ===== */
-var vaRec=null,vaActivo=false,vaModoPagoVA=true,vaEscuchandoVA=false,vaCmdRec=null,vaSilencioTimer=null,vaUltTexto='',vaWakeFinder=null,vaMaxVA=false;
-var vaWakeWordsVA=['movilbro estas','movilbro esta','movilbroesta','movilbroestas','mobilbro estas','mobilbroesta','oye estas','oye esta','ollestas','ollas','oye','o yes tas','y estas'];
-var vaHistorial=[];
+/* ===== VOICE ADMIN V5 - Ventana al pulsar, wake word OFF hasta boton ===== */
+var vaRec=null,vaActivo=false,vaModoPagoVA=true,vaEscuchandoVA=false,vaCmdRec=null,vaSilencioTimer=null,vaUltTexto='',vaMaxVA=false;
+var vaHistorial=[]; var vaWakeWordsVA=['movilbro estas','movilbro esta','movilbroesta','movilbroestas','mobilbro estas','mobilbroesta','oye estas','oye esta','ollestas','ollas','oye','o yes tas','y estas'];
 
-/* Sin mute - siempre activo. Sin panel - solo voz.
-   Internamente guarda historial en vaHistorial[] para mantener contexto. */
+function vaAddChat(text,role){var c=document.getElementById('va-chat-msgs');if(!c||!vaActivo)return;var d=document.createElement('div');d.className='ai-msg'+(role==='user'?' ai-msg-user':' ai-msg-ai');d.innerHTML='<div class="ai-msg-bubble">'+text.replace(/\n/g,'<br>')+'</div>';c.appendChild(d);c.scrollTop=c.scrollHeight;}
 
 function vaIniciar(){
   if(vaActivo){vaCerrar();return;}
-  vaModoPagoVA=true;vaActivo=true;
+  vaHistorial=[];vaModoPagoVA=true;vaActivo=true;
+  var p=document.getElementById('va-panel');if(p){p.style.display='flex';vaCentrarPanel('va-panel');}
   document.getElementById('va-btn').style.background='#e17055';
   document.getElementById('va-status-dot').style.display='block';
-  speakText('Voice Admin activado.'); // SIEMPRE con voz
+  speakText('Voice Admin activado.');
   if(!vaEscuchandoVA) setTimeout(vaEscucharWakeVA,1200);
 }
 function vaCerrar(){
@@ -2583,40 +2598,14 @@ function vaCerrar(){
   if(vaSilencioTimer)clearTimeout(vaSilencioTimer);
   document.getElementById('va-btn').style.background='#00b894';
   document.getElementById('va-status-dot').style.display='none';
+  var p=document.getElementById('va-panel');if(p)p.style.display='none';
 }
+function vaCentrarPanel(id){var p=document.getElementById(id);if(p){p.style.left=Math.max(10,(window.innerWidth-380)/2)+'px';p.style.top=Math.max(10,(window.innerHeight-420)/2)+'px';}}
+function vaToggleModo(){vaModoPagoVA=!vaModoPagoVA;document.getElementById('va-mode-btn').textContent=vaModoPagoVA?'💎':'🆓';}
+function vaToggleMax(){vaMaxVA=!vaMaxVA;var p=document.getElementById('va-panel');if(p){if(vaMaxVA){p.style.width='90%';p.style.height='90%';p.style.left='5%';p.style.top='5%';}else{p.style.width='';p.style.height='';p.style.left='';p.style.top='';vaCentrarPanel('va-panel');}}}
+function aiToggleMax(){var p=document.getElementById('ai-assist-panel');var m=document.getElementById('ai-max-btn');if(p.style.width==='95%'){p.style.width='';p.style.height='';p.style.left='';p.style.top='';m.textContent='⛶';}else{p.style.width='95%';p.style.height='95%';p.style.left='2.5%';p.style.top='2.5%';m.textContent='⤓';}}
 
-/* Wake word: detecta "oye estas" y activa el modo escucha SIN abrir ventana */
-function vaInitWakeFinder(){
-  if(vaWakeFinder)return;
-  if(!('webkitSpeechRecognition' in window||'SpeechRecognition' in window))return;
-  try{
-    var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-    vaWakeFinder=new SR();
-    vaWakeFinder.lang='es-ES';vaWakeFinder.continuous=true;vaWakeFinder.interimResults=true;
-    vaWakeFinder.onresult=function(ev){
-      if(vaActivo)return;
-      for(var i=ev.resultIndex;i<ev.results.length;i++){
-        if(!ev.results[i].isFinal)continue;
-        var t=ev.results[i][0].transcript.toLowerCase().replace(/[¿?¡!.,\/\-]/g,'').replace(/[áéíóú]/g,function(m){return{á:'a',é:'e',í:'i',ó:'o',ú:'u'}[m]||m;});
-        for(var w=0;w<vaWakeWordsVA.length;w++){
-          if(t.indexOf(vaWakeWordsVA[w])>-1){
-            if(!vaActivo){
-              vaActivo=true;vaModoPagoVA=true;
-              document.getElementById('va-btn').style.background='#e17055';
-              document.getElementById('va-status-dot').style.display='block';
-              speakText('Hola en que te puedo ayudar.');
-              setTimeout(vaEscucharComandoVA,1200);
-            }return;
-          }
-        }
-      }
-    };
-    vaWakeFinder.onerror=function(){vaWakeFinder=null;setTimeout(vaInitWakeFinder,3000);};
-    vaWakeFinder.start();
-  }catch(e){vaWakeFinder=null;setTimeout(vaInitWakeFinder,2000);}
-}
-
-/* Escucha wake word estando activo */
+/* Wake word DESACTIVADO hasta pulsar boton - solo escucha wake si ya activo */
 function vaEscucharWakeVA(){
   if(!vaActivo)return;
   if(!('webkitSpeechRecognition' in window||'SpeechRecognition' in window))return;
@@ -2653,8 +2642,7 @@ function vaEscucharComandoVA(){
     for(var i=ev.resultIndex;i<ev.results.length;i++){
       if(!ev.results[i].isFinal)continue;
       var txt=ev.results[i][0].transcript;
-      if(txt&&txt.length>3){
-        // Si la IA esta hablando y el usuario interrumpe, callar IA
+      if(txt&&txt.length>2){
         if(window.speechSynthesis&&window.speechSynthesis.speaking)window.speechSynthesis.cancel();
         vaUltTexto=(vaUltTexto?vaUltTexto+' ':'')+txt;
         document.getElementById('va-status-dot').style.background='#fdcb6e';
@@ -2663,53 +2651,38 @@ function vaEscucharComandoVA(){
       }
     }
   };
-  vaCmdRec.onerror=function(){if(vaActivo)setTimeout(vaEscucharComandoVA,2000);};
-  vaCmdRec.onend=function(){if(vaActivo&&vaUltTexto)vaProcesarComandoVA(vaUltTexto);};
-  try{vaCmdRec.start();}catch(e){}
+  // Si se acaba sin texto, reiniciar escucha wake
+  vaCmdRec.onerror=function(){if(vaActivo)setTimeout(vaEscucharWakeVA,2000);};
+  vaCmdRec.onend=function(){if(vaActivo&&vaUltTexto)vaProcesarComandoVA(vaUltTexto);else if(vaActivo)setTimeout(vaEscucharWakeVA,500);};
+  try{vaCmdRec.start();}catch(e){setTimeout(vaEscucharWakeVA,1000);}
 }
 
-/* Procesa comando y responde en voz, mantiene contexto en vaHistorial */
 function vaProcesarComandoVA(texto){
   try{if(vaCmdRec)vaCmdRec.stop();}catch(e){}
+  vaAddChat('🗣️ '+texto,'user');
   vaHistorial.push({role:'user',text:texto});
   document.getElementById('va-status-dot').style.background='#e17055';
   speakText('Procesando.');
-
-  // Detectar comandos de aceptacion
+  // Aceptacion automatica
   var tLow=texto.toLowerCase();
-  if((tLow.indexOf('acepta')>-1||tLow.indexOf('dale')>-1||tLow.indexOf('ok')===0||tLow.indexOf('si')===0)&&aiLastFix){
-    acceptFix();speakText('Aceptado.');vaHistorial.push({role:'ai',text:'Aceptado'});setTimeout(vaEscucharComandoVA,1500);return;
-  }
-
-  // Incluir historial para contexto
-  var contexto='';
-  for(var h=Math.max(0,vaHistorial.length-6);h<vaHistorial.length-1;h++){
-    contexto+=vaHistorial[h].role+': '+vaHistorial[h].text+'\n';
-  }
-
+  if((tLow.indexOf('acepta')>-1||tLow.indexOf('dale')>-1||tLow.indexOf('ok')===0||tLow.indexOf('si')===0)&&aiLastFix){acceptFix();speakText('Aceptado.');vaAddChat('✅ Aceptado','ai');setTimeout(vaEscucharWakeVA,1500);return;}
+  var ctx='';for(var h=Math.max(0,vaHistorial.length-6);h<vaHistorial.length-1;h++){ctx+=vaHistorial[h].role+': '+vaHistorial[h].text+'\n';}
   fetch('/ai-assist/analyze',{
     method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({text:texto,modelo:vaModoPagoVA?'deepseek-v4-flash':'deepseek-v4-flash-free',url:location.href,historial:contexto})
+    body:JSON.stringify({text:texto,modelo:vaModoPagoVA?'deepseek-v4-flash':'deepseek-v4-flash-free',url:location.href,historial:ctx})
   }).then(function(r){return r.json();}).then(function(d){
     document.getElementById('va-status-dot').style.background='#00b894';
     if(d.ok){
+      vaAddChat(d.response,'ai');
       speakText(d.response);
       vaHistorial.push({role:'ai',text:d.response});
       var abrir=texto.toLowerCase().indexOf('abre')>-1||texto.toLowerCase().indexOf('abrir')>-1||texto.toLowerCase().indexOf('ve a')>-1;
       if(abrir){var m=d.response.match(/https?:\/\/[^\s]+/);if(m&&m[0].indexOf('movilbro-crm')>-1)setTimeout(function(){window.location.href=m[0];},1500);}
-    }else{
-      speakText('Error: '+(d.error||'desconocido'));
-    }
-    // CONTINUO: vuelve a escuchar sin necesidad de wake word
-    setTimeout(vaEscucharComandoVA,2000);
-  }).catch(function(){speakText('Error de conexion');setTimeout(vaEscucharComandoVA,2000);});
+    }else{speakText('Error');vaAddChat('Error: '+(d.error||''),'ai');}
+    setTimeout(vaEscucharWakeVA,2000);
+  }).catch(function(){speakText('Error conexion');setTimeout(vaEscucharWakeVA,2000);});
 }
 function vaDetener(){vaCerrar();}
-
-// Iniciar wake finder
-function vaStartWakeFinder(){if(!vaWakeFinder)vaInitWakeFinder();if(!vaWakeFinder)setTimeout(vaStartWakeFinder,2000);}
-setTimeout(vaStartWakeFinder,1500);
-window.addEventListener('popstate',function(){setTimeout(vaStartWakeFinder,1000);});
 
 </script>
 <script>
