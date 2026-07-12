@@ -404,11 +404,9 @@ router.get('/fiscal/:fiscalId', requireAuth, async (req, res) => {
       apiCustomer = mapApiCustomer(cust);
     }
     apiSubscriptions = mapApiSubscriptions(data.subscriptions);
-    // Filtrar solo lineas activas (case-insensitive)
-    apiSubscriptions = apiSubscriptions.filter(function(s) {
-      var st = (s.status || '').toLowerCase();
-      return st === 'active' || st === 'activa';
-    });
+    // No filtrar por estado - incluir todas las lineas para que funcionen los botones de todos los clientes
+    // NOTA: el filtro por estado activo se eliminó porque algunos clientes tienen lineas con status "suspendido"
+    // u otros estados que hacian que no se mostraran lineas ni funcionaran los botones de consumo/scoring.
     // Anadir portabilidadId/referencia desde productos
     apiSubscriptions.forEach(function(s) {
       if (Array.isArray(s.products)) {
