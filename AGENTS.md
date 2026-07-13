@@ -510,3 +510,5 @@ El admin pidió crear un asistente flotante con voz para la CRM. Se desarrollaro
 
 ### Último commit
 `2c97f69` — `fix: cierre de llaves extra en DOMContentLoaded que rompia todo el JS` (deployed live en Render ✅)
+
+- **NO usar Chromium/Chrome para CDP** ? Solo Edge con channel: "msedge" en playwright. Chromium prohibido.
