@@ -374,6 +374,7 @@ Estas reglas están escritas con sangre. Si una nueva sesión las ignora, el CRM
 - Asumir APIs externas sin leer docs → horas perdidas (baileys, assemblyai, googleapis)
 - Crear rutas de login sin auth (`/debug-login`) → backdoor de seguridad
 - **Usar APIs modernas de JS sin verificar compatibilidad** → `Promise.allSettled` no disponible en Node.js antiguo. Antes de escribir código nuevo, verificar qué patrones usa el código existente y usar los mismos.
+- **No verificar compatibilidad con CRM/API antes de escribir código nuevo** → cualquier código nuevo que toque rutas, datos o lógica debe verificarse contra lo que soporta el CRM y la API Likes. Si el código existente usa un patrón, NO inventar uno nuevo. Usar el mismo.
 
 #### 🎯 Regla del Código Único para Todos los Clientes
 - **Si arreglo algo que funciona para un cliente, DEBE funcionar para TODOS los clientes.**
