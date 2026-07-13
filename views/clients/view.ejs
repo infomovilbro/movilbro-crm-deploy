@@ -135,13 +135,13 @@
                           <% var linea = p.lineNumber || s.lineNumber || ''; %>
                           <% var metodoActual = pagosJson[linea] || ''; %>
                           <div class="d-flex align-items-center justify-content-between mb-1 pb-1 border-bottom">
-                            <small><strong><%= linea || 'Nueva l├¡nea' %></strong> - <%= p.productName || s.productName || '' %></small>
+                            <small><strong><%= linea || 'Nueva línea' %></strong> - <%= p.productName || s.productName || '' %></small>
                             <div class="d-flex align-items-center gap-1">
                               <% if (metodoActual) { %>
                                 <span class="badge bg-info"><%= metodoActual %></span>
                               <% } %>
                               <div class="dropdown d-inline-block">
-                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle py-0" data-bs-toggle="dropdown" data-bs-popper="static" title="Cambiar m├®todo de pago">
+                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle py-0" data-bs-toggle="dropdown" data-bs-popper="static" title="Cambiar método de pago">
                                   <i class="bi bi-credit-card"></i>
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end">
@@ -193,7 +193,7 @@
                       <% if (fCreacion) { %><%= new Date(fCreacion).toLocaleDateString('es-ES') %><% } else { %>-<% } %>
                     </td></tr>
                     <tr><th>Scoring</th><td>
-                      <span id="scoringBadge" class="fs-6" title="Puntuaci├│n de fiabilidad del cliente (0-10). M├ís alto = m├ís fiable."><span class="text-muted">Pulsa "Calcular"</span></span>
+                      <span id="scoringBadge" class="fs-6" title="Puntuación de fiabilidad del cliente (0-10). Más alto = más fiable."><span class="text-muted">Pulsa "Calcular"</span></span>
                     </td></tr>
                     <tr><th>Recomendaci&oacute;n</th><td>
                       <span id="scoringRecomendacion"><span class="text-muted">-</span></span>
@@ -226,7 +226,7 @@
                         <% var est = (p.status || s.status || 'activa').toLowerCase(); if (est === 'terminada' || est === 'baja' || est === 'cancelled' || est === 'cancelada') return; %>
                         <div class="d-flex align-items-center justify-content-between mb-1 pb-1 border-bottom">
                           <div>
-                            <strong><%= p.lineNumber || s.lineNumber || 'Nueva l├¡nea' %></strong><br>
+                            <strong><%= p.lineNumber || s.lineNumber || 'Nueva línea' %></strong><br>
                             <small><%= p.productName || s.productName || '-' %></small>
                           </div>
                           <div class="text-end">
@@ -249,7 +249,7 @@
                 <div class="card-header py-1 d-flex justify-content-between align-items-center">
                   <small><i class="bi bi-bar-chart"></i> Consumo GB</small>
                   <select id="gbLineSelect" class="form-select form-select-sm" style="width:auto;max-width:160px;">
-                    <option value="">Seleccionar l├¡nea...</option>
+                    <option value="">Seleccionar línea...</option>
                   </select>
                 </div>
                 <div class="card-body p-2 text-center" style="min-height:140px;">
@@ -413,7 +413,7 @@
                   </td>
                   <td><%= o.productName || '-' %></td>
                   <td><%= o.lineNumber || '-' %></td>
-                  <td><strong><%= o.total ? parseFloat(o.total).toFixed(2) + 'Ôé¼' : '-' %></strong></td>
+                  <td><strong><%= o.total ? parseFloat(o.total).toFixed(2) + '€' : '-' %></strong></td>
                   <td><small><%= o.created ? new Date(o.created).toLocaleDateString('es-ES') : '-' %></small></td>
                   <td>
                     <div class="d-flex gap-1">
@@ -461,7 +461,7 @@
                         <tr>
                           <td><strong><%= (f.serie || 'F') + '-' + String(f.numero_factura || f.id).padStart(5, '0') %></strong></td>
                           <td><%= f.cliente_nombre || '-' %></td>
-                          <td><%= parseFloat(f.importe_total || 0).toFixed(2) %>Ôé¼</td>
+                          <td><%= parseFloat(f.importe_total || 0).toFixed(2) %>€</td>
                           <td><span class="badge bg-<%= f.estado === 'pagada' ? 'success' : f.estado === 'pendiente' ? 'warning' : f.estado === 'anulada' ? 'danger' : 'secondary' %>"><%= f.estado || '-' %></span></td>
                           <td>
                             <a href="/isp/facturacion/facturas/<%= f.id %>/view" class="btn btn-sm btn-outline-info" target="_blank"><i class="bi bi-eye"></i></a>
@@ -508,7 +508,7 @@
                 <tr>
                   <td><strong><%= f.period || '-' %></strong></td>
                   <td><%= f.concept || '-' %></td>
-                  <td><strong><%= f.amount.toFixed(2) %>Ôé¼</strong></td>
+                  <td><strong><%= f.amount.toFixed(2) %>€</strong></td>
                   <td>
                     <% var fs = (f.status || '').toLowerCase(); %>
                     <span class="badge bg-<%= fs === 'paid' || fs === 'pagada' || fs === 'completada' ? 'success' : fs === 'pending' || fs === 'pendiente' ? 'warning' : fs === 'overdue' || fs === 'vencida' ? 'danger' : fs === 'cancelled' || fs === 'cancelada' ? 'secondary' : 'info' %>">
@@ -533,7 +533,7 @@
                         <td style="width:80px;"></td>
                         <td style="min-width:120px;"><small class="text-muted"><%= fee.productName %></small></td>
                         <td style="min-width:100px;"><% if (fee.lineNumber) { %><small class="text-muted"><%= fee.lineNumber %></small><% } %></td>
-                        <td style="min-width:80px;text-align:right;"><small><%= fee.price.toFixed(2) %>Ôé¼</small></td>
+                        <td style="min-width:80px;text-align:right;"><small><%= fee.price.toFixed(2) %>€</small></td>
                       </tr>
                       <% }); %>
                     </table>
@@ -872,7 +872,7 @@
       </div>
       <div class="modal-body">
         <table class="table table-sm mb-0">
-          <tr><th style="width:140px;">ID Instalaci├│n</th><td id="instDetId">-</td></tr>
+          <tr><th style="width:140px;">ID Instalación</th><td id="instDetId">-</td></tr>
           <tr><th>Direcci&oacute;n</th><td id="instDetAddress">-</td></tr>
           <tr><th>Producto</th><td id="instDetProduct">-</td></tr>
           <tr><th>Estado</th><td id="instDetStatus">-</td></tr>
@@ -961,7 +961,7 @@
               <strong>­ƒôè Einforma</strong> - Informes comerciales de empresas<br>
               <strong>­ƒîÉ OpenCorporates</strong> - Base de datos mundial de empresas<br>
               <strong>­ƒÆ¼ Rankia</strong> - Foro de opiniones y experiencias financieras<br>
-              <strong>­ƒô£ BORME</strong> - Bolet├¡n Oficial del Registro Mercantil<br>
+              <strong>­ƒô£ BORME</strong> - Boletín Oficial del Registro Mercantil<br>
               <strong>­ƒÜ½ ASNEF</strong> - Fichero de morosidad (impagos)<br>
               <strong>­ƒÜ½ RAI</strong> - Registro de Aceptaciones Impagadas<br>
               <strong>­ƒöì Google</strong> - B&uacute;squeda general con t&eacute;rminos de morosidad
@@ -1036,7 +1036,7 @@
       <div class="modal-body">
         <!-- Line Info Card (estilo Likes) -->
         <div class="card mb-3" id="consLineInfoCard" style="display:none;">
-          <div class="card-header fw-semibold"><i class="bi bi-sim-card"></i> Informaci├│n de la L├¡nea</div>
+          <div class="card-header fw-semibold"><i class="bi bi-sim-card"></i> Información de la Línea</div>
           <div class="card-body">
             <div class="row g-2">
               <div class="col-md-3"><small class="text-muted">Titular</small><div id="consLineTitular" class="fw-semibold">-</div></div>
@@ -1046,7 +1046,7 @@
               <div class="col-md-3"><small class="text-muted">SIM (ICCID)</small><div id="consLineSim" class="fw-semibold small">-</div></div>
               <div class="col-md-3"><small class="text-muted">PIN</small><div id="consLinePin" class="fw-semibold font-monospace">-</div></div>
               <div class="col-md-3"><small class="text-muted">PUK</small><div id="consLinePuk" class="fw-semibold font-monospace">-</div></div>
-              <div class="col-md-3"><small class="text-muted">L├¡mite cr├®dito</small><div id="consLineCreditLimit" class="fw-semibold">-</div></div>
+              <div class="col-md-3"><small class="text-muted">Límite crédito</small><div id="consLineCreditLimit" class="fw-semibold">-</div></div>
             </div>
           </div>
         </div>
@@ -1094,7 +1094,7 @@
         <h6 class="mt-3"><i class="bi bi-telephone"></i> Llamadas Recientes</h6>
         <div style="max-height:300px;overflow:auto">
           <table class="table table-sm table-striped mb-0">
-            <thead><tr><th>Fecha</th><th>Tipo</th><th>Destino</th><th>Duraci├│n</th><th>Coste</th></tr></thead>
+            <thead><tr><th>Fecha</th><th>Tipo</th><th>Destino</th><th>Duración</th><th>Coste</th></tr></thead>
             <tbody id="cdrsBody"><tr><td colspan="5" class="text-center text-muted">Cargando...</td></tr></tbody>
           </table>
         </div>
@@ -1416,7 +1416,7 @@ function verResumenOrden(orderId) {
       if (allProducts.length > 0) {
         html += '<h6 class="text-muted mb-2">Productos</h6><table class="table table-sm"><thead><tr><th>Producto</th><th class="text-end">Precio</th></tr></thead><tbody>';
         allProducts.forEach(function(p) {
-          html += '<tr><td>' + (p.productName || 'Producto') + '</td><td class="text-end">' + (p.price ? parseFloat(p.price).toFixed(2) + 'Ôé¼' : '') + '</td></tr>';
+          html += '<tr><td>' + (p.productName || 'Producto') + '</td><td class="text-end">' + (p.price ? parseFloat(p.price).toFixed(2) + '€' : '') + '</td></tr>';
         });
         html += '</tbody></table>';
       }
@@ -1537,11 +1537,11 @@ function editarCampo(campo, clienteId) {
     if (d.ok) { location.reload(); }
     else { alert('Error: ' + (d.error || '')); }
   })
-  .catch(function() { alert('Error de conexi├│n'); });
+  .catch(function() { alert('Error de conexión'); });
 }
 
 function cambiarPagoLinea(linea, metodo) {
-  if (!confirm('┬┐Cambiar m├®todo de pago de la l├¡nea ' + linea + ' a ' + metodo + '?')) return;
+  if (!confirm('┬┐Cambiar método de pago de la línea ' + linea + ' a ' + metodo + '?')) return;
   fetch('/clientes/' + <%= _cid %> + '/line/' + encodeURIComponent(linea) + '/metodo-pago', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1549,10 +1549,10 @@ function cambiarPagoLinea(linea, metodo) {
   })
   .then(function(r) { return r.json(); })
   .then(function(d) {
-    if (d.ok) { alert('M├®todo de pago actualizado'); location.reload(); }
+    if (d.ok) { alert('Método de pago actualizado'); location.reload(); }
     else { alert('Error: ' + (d.error || '')); }
   })
-  .catch(function() { alert('Error de conexi├│n'); });
+  .catch(function() { alert('Error de conexión'); });
 }
 
 function guardarIBAN(clienteId) {
@@ -1568,7 +1568,7 @@ function guardarIBAN(clienteId) {
     if (d.ok) { alert('IBAN actualizado'); location.reload(); }
     else { alert('Error: ' + (d.error || '')); }
   })
-  .catch(function() { alert('Error de conexi├│n'); });
+  .catch(function() { alert('Error de conexión'); });
 }
 
 
@@ -1616,7 +1616,7 @@ function calcularScoring(clienteId) {
     })
     .catch(function(err) {
       document.getElementById('scoringResultValue').textContent = 'Error';
-      document.getElementById('scoringResultDetails').innerHTML = '<li class="text-danger">Error de conexi├│n: ' + err.message + '</li>';
+      document.getElementById('scoringResultDetails').innerHTML = '<li class="text-danger">Error de conexión: ' + err.message + '</li>';
     });
 }
 document.addEventListener('DOMContentLoaded', function() {
@@ -1810,12 +1810,62 @@ document.addEventListener('DOMContentLoaded', function() {
   var gbChart = null;
   var gbLineSelect = document.getElementById('gbLineSelect');
 
+  // Populate line selector from linesArr (SIEMPRE, no depende de Chart.js)
+  if (gbLineSelect && linesArr.length > 0) {
+    linesArr.forEach(function(ln) {
+      if (!ln) return;
+      var opt = document.createElement('option');
+      opt.value = ln;
+      var esTelefono = /^\d{6,}$/.test(ln);
+      opt.textContent = esTelefono ? ln : ln + ' (sin consumo)';
+      if (!esTelefono) opt.disabled = true;
+      gbLineSelect.appendChild(opt);
+    });
+  }
+
+  // Load GB for a specific line (independiente de Chart.js)
+  function loadGB(line) {
+    if (!line) return;
+    var consPerLine = document.getElementById('consPerLine');
+    fetch('/clientes/' + clientId + '/line/' + encodeURIComponent(line) + '/consumption', { method: 'POST' })
+      .then(function(r) { return r.json(); })
+      .then(function(res) {
+        if (res.ok && res.data) {
+          var d = res.data.data || res.data;
+          var used = parseFloat(d.usedGB || d.used_gb || d.used || 0);
+          var total = parseFloat(d.totalGB || d.total_gb || d.total || 30);
+          var roaming = parseFloat(d.roamingGB || d.roaming_gb || d.roaming || 0);
+          var remaining = total - used;
+          if (remaining < 0) remaining = 0;
+          if (gbChart) {
+            gbChart.data.datasets[0].data = [used, remaining];
+            gbChart.update();
+          }
+          consPerLine.innerHTML = '<div class="d-flex justify-content-between small"><span>Usado: <strong>' + used.toFixed(2) + ' GB</strong></span><span>Total: <strong>' + total.toFixed(2) + ' GB</strong></span><span>Restante: <strong>' + remaining.toFixed(2) + ' GB</strong></span></div>';
+          if (roaming > 0) consPerLine.innerHTML += '<div class="small text-muted">Roaming: ' + roaming.toFixed(2) + ' GB</div>';
+        } else {
+          consPerLine.innerHTML = '<div class="small text-muted">Sin datos de consumo</div>';
+        }
+      })
+      .catch(function() { consPerLine.innerHTML = '<div class="small text-muted">Error al cargar consumo</div>'; });
+  }
+
+  if (gbLineSelect) {
+    gbLineSelect.addEventListener('change', function() { loadGB(this.value); });
+  }
+
+  // Load first line by default
+  if (linesArr.length > 0) {
+    if (gbLineSelect) gbLineSelect.value = linesArr[0];
+    loadGB(linesArr[0]);
+  }
+
+  // Grafico Chart.js SOLO si esta disponible
   if (gbCtx && typeof Chart !== 'undefined') {
     try {
       gbChart = new Chart(gbCtx, {
         type: 'doughnut',
-        data: {
-          labels: ['Usado', 'Disponible'],
+        data: { labels: ['Usado', 'Disponible'],
           datasets: [{ data: [0, 30], backgroundColor: ['#17a2b8', '#e9ecef'], borderWidth: 0 }]
         },
         options: {
@@ -1826,54 +1876,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       });
     } catch(e) { gbChart = null; }
-
-    // Populate line selector from linesArr
-    if (gbLineSelect && linesArr.length > 0) {
-      linesArr.forEach(function(ln) {
-        if (!ln) return;
-        var opt = document.createElement('option');
-        opt.value = ln;
-        var esTelefono = /^\d{6,}$/.test(ln);
-        opt.textContent = esTelefono ? ln : ln + ' (sin consumo)';
-        if (!esTelefono) opt.disabled = true;
-        gbLineSelect.appendChild(opt);
-      });
-    }
-
-    // Load GB for a specific line
-    function loadGB(line) {
-      if (!line || !gbChart) return;
-      var consPerLine = document.getElementById('consPerLine');
-      fetch('/clientes/' + clientId + '/line/' + encodeURIComponent(line) + '/consumption', { method: 'POST' })
-        .then(function(r) { return r.json(); })
-        .then(function(res) {
-          if (res.ok && res.data) {
-            var d = res.data.data || res.data;
-            var used = parseFloat(d.usedGB || d.used_gb || d.used || 0);
-            var total = parseFloat(d.totalGB || d.total_gb || d.total || 30);
-            var roaming = parseFloat(d.roamingGB || d.roaming_gb || d.roaming || 0);
-            var remaining = total - used;
-            if (remaining < 0) remaining = 0;
-            gbChart.data.datasets[0].data = [used, remaining];
-            gbChart.update();
-            consPerLine.innerHTML = '<div class="d-flex justify-content-between small"><span>Usado: <strong>' + used.toFixed(2) + ' GB</strong></span><span>Total: <strong>' + total.toFixed(2) + ' GB</strong></span><span>Restante: <strong>' + remaining.toFixed(2) + ' GB</strong></span></div>';
-            if (roaming > 0) consPerLine.innerHTML += '<div class="small text-muted">Roaming: ' + roaming.toFixed(2) + ' GB</div>';
-          } else {
-            consPerLine.innerHTML = '<div class="small text-muted">Sin datos de consumo</div>';
-          }
-        })
-        .catch(function() { consPerLine.innerHTML = '<div class="small text-muted">Error al cargar consumo</div>'; });
-    }
-
-    if (gbLineSelect) {
-      gbLineSelect.addEventListener('change', function() { loadGB(this.value); });
-    }
-
-    // Load first line by default
-    if (linesArr.length > 0) {
-      if (gbLineSelect) gbLineSelect.value = linesArr[0];
-      loadGB(linesArr[0]);
-    }
   }
   // Funcion para abrir consumo detallado desde la tarjeta GB
 window.abrirConsumoModal = function() {
@@ -1934,7 +1936,7 @@ function cargarConsumoModal(line) {
     }).catch(function() { document.getElementById('consTotalGB').textContent = 'Error'; });
   // 3) Cargar CDRs
   fetchCDRData(line, document.getElementById('cdrsBody'));
-  // 4) Cargar consumo diario
+  // 4) Cargar consumo diario con navegacion de meses y grafico interactivo
   var dailyBody2 = document.getElementById('consDailyBody2');
   if (dailyBody2) {
     dailyBody2.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Cargando...</td></tr>';
@@ -1942,32 +1944,192 @@ function cargarConsumoModal(line) {
       .then(function(r) { return r.json(); })
       .then(function(res) {
         if (res.ok && res.data && res.data.length > 0) {
-          var daily = res.data;
-          dailyBody2.innerHTML = daily.map(function(d) {
-            return '<tr><td>' + d.date + '</td><td class="text-end">' + (d.gb || 0).toFixed(2) + '</td><td class="text-end">' + (d.calls || 0) + '</td><td class="text-end">' + (d.sms || 0) + '</td></tr>';
-          }).join('');
-          // Dibujar grafico diario
-          if (typeof Chart !== 'undefined') {
-            var dcCtx = document.getElementById('consDailyChart');
-            if (dcCtx) {
-              try { if (window._dailyChart) window._dailyChart.destroy(); } catch(e) {}
-              window._dailyChart = new Chart(dcCtx, {
-                type: 'bar',
-                data: {
-                  labels: daily.slice(-30).map(function(d) { var p = d.date.split('-'); return p[2] + '/' + p[1]; }),
-                  datasets: [{ label: 'GB', data: daily.slice(-30).map(function(d) { return d.gb; }), backgroundColor: '#17a2b8' }]
-                },
-                options: { animation: false, responsive: true, maintainAspectRatio: false,
-                  plugins: { legend: { display: false } },
-                  scales: { y: { beginAtZero: true } } }
-              });
-            }
-          }
+          window._dailyData = res.data;
+          window._dailyMesActual = -1; // -1 = ultimo mes disponible
+          renderDailyView();
         } else { dailyBody2.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Sin consumo diario</td></tr>'; }
       }).catch(function() {
         if (dailyBody2) dailyBody2.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Error al cargar consumo diario</td></tr>';
       });
   }
+};
+
+// ===== FUNCIONES AYUDA CONSUMO DIARIO =====
+function renderDailyView() {
+  var data = window._dailyData || [];
+  if (data.length === 0) return;
+  // Determinar meses disponibles
+  var meses = {};
+  data.forEach(function(d) {
+    if (d.date && d.date.length >= 7) {
+      var m = d.date.substring(0, 7); // YYYY-MM
+      meses[m] = (meses[m] || 0) + 1;
+    }
+  });
+  var mesesArr = Object.keys(meses).sort();
+  if (mesesArr.length === 0) return;
+  // Indice del mes seleccionado
+  if (window._dailyMesActual === -1 || window._dailyMesActual >= mesesArr.length) window._dailyMesActual = mesesArr.length - 1;
+  var mesSel = mesesArr[window._dailyMesActual];
+  // Filtrar datos del mes seleccionado
+  var mesData = data.filter(function(d) { return d.date && d.date.substring(0, 7) === mesSel; });
+  var labelMes = mesSel.substring(0, 4) + '/' + mesSel.substring(5, 7);
+  // Obtener tipo seleccionado
+  var tipoSel = 'gb';
+  var rb = document.querySelector('input[name="dailyChartType"]:checked');
+  if (rb) tipoSel = rb.value;
+  // Renderizar chart
+  renderDailyChart(mesData, tipoSel, mesSel);
+  // Renderizar tabla
+  renderDailyTable(mesData, tipoSel);
+  // Actualizar navegacion de meses
+  var navHtml = '<div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:6px;">';
+  navHtml += '<button class="btn btn-sm btn-outline-secondary" onclick="navegarMes(-1)" ' + (window._dailyMesActual <= 0 ? 'disabled' : '') + '>�</button>';
+  navHtml += '<span class="fw-semibold">' + labelMes + '</span>';
+  navHtml += '<button class="btn btn-sm btn-outline-secondary" onclick="navegarMes(1)" ' + (window._dailyMesActual >= mesesArr.length - 1 ? 'disabled' : '') + '>�</button>';
+  navHtml += '</div>';
+  var navContainer = document.getElementById('dailyMonthNav');
+  if (!navContainer) {
+    navContainer = document.createElement('div');
+    navContainer.id = 'dailyMonthNav';
+    var dcEl = document.getElementById('consDailyChart');
+    if (dcEl && dcEl.parentNode) dcEl.parentNode.insertBefore(navContainer, dcEl);
+  }
+  navContainer.innerHTML = navHtml;
+}
+
+function renderDailyChart(mesData, tipo, mesSel) {
+  if (typeof Chart === 'undefined') return;
+  var dcCtx = document.getElementById('consDailyChart');
+  if (!dcCtx) return;
+  try { if (window._dailyChart) window._dailyChart.destroy(); } catch(e) {}
+  var labels = mesData.map(function(d) { var p = d.date.split('-'); return p[2] + '/' + p[1]; });
+  var valores = mesData.map(function(d) { return d[tipo] || 0; });
+  var colores = { gb: '#06b6d4', calls: '#8b5cf6', sms: '#10b981' };
+  var etiquetas = { gb: 'GB', calls: 'Llamadas', sms: 'SMS' };
+  window._dailyChart = new Chart(dcCtx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{ label: etiquetas[tipo] || tipo, data: valores, backgroundColor: colores[tipo] || '#06b6d4', borderRadius: 3 }]
+    },
+    options: {
+      animation: false, responsive: true, maintainAspectRatio: false,
+      onClick: function(e, items) {
+        if (items && items.length > 0) {
+          var idx = items[0].dataIndex;
+          var diaData = mesData[idx];
+          if (diaData && diaData.date) mostrarCDRsPorFecha(diaData.date, tipo);
+        }
+      },
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 8 }, maxRotation: 0 } },
+        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 8 } } }
+      }
+    }
+  });
+}
+
+function renderDailyTable(mesData, tipo) {
+  var tbody = document.getElementById('consDailyBody2');
+  if (!tbody) return;
+  // Mostrar todos los dias del mes, resaltando el tipo seleccionado
+  var html = '';
+  var colTipo = { gb: 'GB', calls: 'Llamadas', sms: 'SMS' };
+  mesData.forEach(function(d, idx) {
+    html += '<tr class="cons-day-row" style="cursor:pointer;" data-idx="' + idx + '" data-fecha="' + d.date + '">' +
+      '<td>' + d.date + '</td>' +
+      '<td class="text-end">' + (d.gb || 0).toFixed(4) + '</td>' +
+      '<td class="text-end">' + (d.calls || 0) + '</td>' +
+      '<td class="text-end">' + (d.sms || 0) + '</td>' +
+      '<td><i class="bi bi-chevron-down"></i></td></tr>' +
+      '<tr class="cons-day-detail" data-idx="' + idx + '" style="display:none;"><td colspan="5" class="p-2 bg-light"><div class="small text-muted">Cargando CDRs de ' + d.date + '...</div></td></tr>';
+  });
+  tbody.innerHTML = html;
+  // Click en fila expande detalle
+  tbody.querySelectorAll('.cons-day-row').forEach(function(row) {
+    row.addEventListener('click', function() {
+      var idx = this.dataset.idx;
+      var fecha = this.dataset.fecha;
+      var detailRow = tbody.querySelector('.cons-day-detail[data-idx="' + idx + '"]');
+      if (!detailRow) return;
+      if (detailRow.style.display !== 'none') {
+        detailRow.style.display = 'none';
+        this.querySelector('.bi').className = 'bi bi-chevron-down';
+        return;
+      }
+      detailRow.style.display = '';
+      this.querySelector('.bi').className = 'bi bi-chevron-up';
+      if (!detailRow.dataset.loaded) {
+        detailRow.dataset.loaded = '1';
+        mostrarCDRsPorFecha(fecha, tipo || 'gb');
+      }
+    });
+  });
+}
+
+function navegarMes(dir) {
+  var data = window._dailyData || [];
+  if (data.length === 0) return;
+  var meses = {};
+  data.forEach(function(d) { if (d.date && d.date.length >= 7) meses[d.date.substring(0, 7)] = true; });
+  var mesesArr = Object.keys(meses).sort();
+  if (mesesArr.length === 0) return;
+  window._dailyMesActual = Math.max(0, Math.min(mesesArr.length - 1, (window._dailyMesActual || 0) + dir));
+  renderDailyView();
+}
+
+function mostrarCDRsPorFecha(fecha, tipo) {
+  var cdrBody = document.getElementById('cdrsBody');
+  if (!cdrBody) return;
+  // Buscar CDRs en el tbody actual que coincidan con la fecha
+  var rows = Array.from(cdrBody.querySelectorAll('tr'));
+  var cdrsFiltrados = [];
+  rows.forEach(function(tr) {
+    var dateCell = tr.querySelector('td:first-child');
+    if (dateCell && dateCell.textContent.trim().startsWith(fecha)) {
+      cdrsFiltrados.push({
+        fecha: dateCell.textContent.trim(),
+        tipo: (tr.cells[1] || {}).textContent || '',
+        destino: (tr.cells[2] || {}).textContent || '',
+        duracion: (tr.cells[3] || {}).textContent || '',
+        coste: (tr.cells[4] || {}).textContent || ''
+      });
+    }
+  });
+  // Filtrar por tipo si es necesario
+  if (tipo === 'calls') cdrsFiltrados = cdrsFiltrados.filter(function(c) { return c.tipo.toLowerCase().indexOf('voice') >= 0 || c.tipo.toLowerCase().indexOf('llamada') >= 0 || c.tipo.toLowerCase().indexOf('call') >= 0; });
+  else if (tipo === 'sms') cdrsFiltrados = cdrsFiltrados.filter(function(c) { return c.tipo.toLowerCase().indexOf('sms') >= 0; });
+  // Mostrar en los detalles expandidos de la tabla diaria
+  var detailRows = document.querySelectorAll('.cons-day-detail');
+  detailRows.forEach(function(dr) {
+    var idx = dr.dataset.idx;
+    var row = document.querySelector('.cons-day-row[data-idx="' + idx + '"]');
+    if (!row) return;
+    var fechaRow = row.dataset.fecha;
+    if (fechaRow === fecha) {
+      if (cdrsFiltrados.length > 0) {
+        var html = '<td colspan="5" class="p-2 bg-light"><table class="table table-sm mb-0"><thead><tr><th>Hora</th><th>Tipo</th><th>Destino</th><th>Duraci�n</th><th>Coste</th></tr></thead><tbody>';
+        cdrsFiltrados.forEach(function(c) {
+          html += '<tr><td class="small">' + c.fecha + '</td><td>' + c.tipo + '</td><td>' + c.destino + '</td><td>' + c.duracion + '</td><td>' + c.coste + '</td></tr>';
+        });
+        html += '</tbody></table></td>';
+        dr.innerHTML = html;
+      } else {
+        dr.innerHTML = '<td colspan="5" class="p-2 bg-light"><div class="small text-muted py-2">' + fecha + ': sin CDRs de ' + (tipo === 'calls' ? 'llamadas' : tipo === 'sms' ? 'SMS' : 'GB') + ' registrados</div></td>';
+      }
+    }
+  });
+  // Hacer scroll hasta la tabla de CDRs
+  var cdrSection = document.getElementById('cdrsBody');
+  if (cdrSection) cdrSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Radio buttons para cambiar tipo de chart
+document.querySelectorAll('input[name="dailyChartType"]').forEach(function(rb) {
+  rb.addEventListener('change', function() { if (this.checked) renderDailyView(); });
+});}
 };
   // ========== CONSUMPTION MODAL ==========
   var _consChartInstance = null;
@@ -1997,14 +2159,15 @@ function cargarConsumoModal(line) {
               var tr = document.createElement('tr');
               var fecha = cdr.date || cdr.fecha || cdr.startTime || cdr.start_date || cdr.startDate || '-';
               var tipo = cdr.type || cdr.tipo || cdr.callType || cdr.direction || '-';
-              var destino = cdr.destination || cdr.destino || cdr.calledNumber || cdr.callee || cdr.phone || '-';
+              var destino = cdr.calledNumber || cdr.callee || cdr.phone || cdr.destination || cdr.destino || '-'; if (destino !== '-' && (cdr.destination || cdr.destino) && (cdr.calledNumber || cdr.callee || cdr.phone)) destino += ' (' + (cdr.destination || cdr.destino) + ')';
+              var cost = (cdr.cost != null ? cdr.cost : (cdr.coste != null ? cdr.coste : (cdr.price != null ? cdr.price : (cdr.amount != null ? cdr.amount : '-'))));
               var dur = cdr.duration || cdr.duracion || cdr.durationSec || cdr.seconds || cdr.durationSeconds || '-';
               var cost = cdr.cost || cdr.coste || cdr.price || cdr.amount || '-';
               if (dur !== '-' && !isNaN(parseFloat(dur))) {
                 var secs = parseInt(dur);
                 dur = Math.floor(secs / 60) + 'm ' + (secs % 60) + 's';
               }
-              if (cost !== '-' && !isNaN(parseFloat(cost))) cost = parseFloat(cost).toFixed(4) + 'Ôé¼';
+              if (cost !== '-' && !isNaN(parseFloat(cost))) cost = parseFloat(cost).toFixed(4) + '€';
               tr.innerHTML = '<td class="small">' + fecha + '</td><td>' + tipo + '</td><td>' + destino + '</td><td>' + dur + '</td><td>' + cost + '</td>';
               tbody.appendChild(tr);
             });
@@ -2107,14 +2270,14 @@ function cargarConsumoModal(line) {
             if (!familias[familia]) familias[familia] = [];
             familias[familia].push({ name: name, val: val, price: p.price, desc: p.description || '' });
           });
-          var familiaIconos = { 'Movil': '­ƒô▒', 'M├│vil': '­ƒô▒', 'Fibra': '­ƒîÉ', 'TV': '­ƒô║', 'Television': '­ƒô║', 'Fijo': '­ƒô×', 'VoIP': '­ƒô×', 'General': '­ƒôí' };
+          var familiaIconos = { 'Movil': '­ƒô▒', 'Móvil': '­ƒô▒', 'Fibra': '­ƒîÉ', 'TV': '­ƒô║', 'Television': '­ƒô║', 'Fijo': '­ƒô×', 'VoIP': '­ƒô×', 'General': '­ƒôí' };
           var famKeys = Object.keys(familias);
           famKeys.forEach(function(fam, idx) {
             var icono = familiaIconos[fam] || '­ƒôí';
             var isFirst = idx === 0;
             container.innerHTML += '<div class="col-12"><h6 class="mt-2 mb-1 border-bottom pb-1" style="cursor:pointer;" onclick="var n=this.nextElementSibling;n.style.display=n.style.display===\'none\'?\'\':\'none\';this.querySelector(\'.bi-chevron\').classList.toggle(\'bi-chevron-down\');this.querySelector(\'.bi-chevron\').classList.toggle(\'bi-chevron-up\');"><i class="bi bi-chevron-' + (isFirst ? 'down' : 'right') + ' bi-chevron me-1"></i> ' + icono + ' ' + fam + ' <span class="badge bg-secondary">' + familias[fam].length + '</span></h6><div class="row g-2" style="display:' + (isFirst ? '' : 'none') + ';">';
             familias[fam].forEach(function(prod) {
-              container.innerHTML += '<div class="col-md-4 col-6"><div class="card border tariff-card" style="cursor:pointer;" data-value="' + prod.val + '"><div class="card-body p-2 text-center"><div class="fw-semibold small">' + prod.name + '</div>' + (prod.price ? '<div class="text-primary small mt-1">' + parseFloat(prod.price).toFixed(2) + 'Ôé¼</div>' : '') + '</div></div></div>';
+              container.innerHTML += '<div class="col-md-4 col-6"><div class="card border tariff-card" style="cursor:pointer;" data-value="' + prod.val + '"><div class="card-body p-2 text-center"><div class="fw-semibold small">' + prod.name + '</div>' + (prod.price ? '<div class="text-primary small mt-1">' + parseFloat(prod.price).toFixed(2) + '€</div>' : '') + '</div></div></div>';
             });
             container.innerHTML += '</div></div>';
           });
@@ -2264,7 +2427,7 @@ function cargarConsumoModal(line) {
         }).catch(function() { if (productCell) productCell.textContent = '-'; });
     });
   }
-  // Ejecutar al cargar la pagina y cuando se muestre la pesta├▒a
+  // Ejecutar al cargar la pagina y cuando se muestre la pestaña
   enrichOrders();
   document.getElementById('ordenes-tab')?.addEventListener('shown.bs.tab', enrichOrders);
 

@@ -336,6 +336,13 @@ Estas reglas están escritas con sangre. Si una nueva sesión las ignora, el CRM
 - Asumir APIs externas sin leer docs → horas perdidas (baileys, assemblyai, googleapis)
 - Crear rutas de login sin auth (`/debug-login`) → backdoor de seguridad
 
+#### 🎯 Regla del Código Único para Todos los Clientes
+- **Si arreglo algo que funciona para un cliente, DEBE funcionar para TODOS los clientes.**
+- **NO dejar código antiguo duplicado** para otros clientes. Borrar el código viejo y pegar el nuevo arreglado.
+- **Un solo punto de verdad** para cada funcionalidad. Si hay duplicados (como había en consumo: `abrirConsumoModal` + `.ver-consumo` handler duplicado), refactorizar a una sola función.
+- La vista `views/clients/view.ejs` es ÚNICA y compartida por todos los clientes. Cualquier cambio en consumo, selector de líneas, CDRs, facturación, etc. aplica a TODOS automáticamente.
+- **Cualquier función que toque líneas, clientes, consumo o CDRs debe funcionar IGUAL para todas las líneas y todos los clientes.** No importa si el ejemplo que uso para arreglar es un cliente concreto — el fix se aplica a todos por igual.
+
 ### 5. Backup de seguridad
 - El backup del CRM está en `C:\Users\xtptx\Desktop\0707\` — copia exacta del código desplegado en Render (commit `461d14b`) + documentación actualizada
 - Contiene: rutas, vistas, helpers, server.js, database, skills, config
