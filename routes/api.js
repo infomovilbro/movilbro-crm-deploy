@@ -137,6 +137,10 @@ router.get('/search', requireAuth, async (req, res) => {
     };
   });
 
+  if (results.length < 5 && q.length >= 3) {
+    results.push({ id: null, nombre: 'Buscar como cliente fiscal: ' + q, telefono: '', fiscalId: q, origen: 'fiscal-suggest' });
+  }
+
   res.json(results);
 });
 

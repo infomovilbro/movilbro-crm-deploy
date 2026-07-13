@@ -485,7 +485,7 @@ router.get('/fiscal/:fiscalId', requireAuth, async (req, res) => {
           }
         }).catch(function() {});
       });
-      await Promise.allSettled(detailPromises);
+      await Promise.all(detailPromises.map(function(p){return p.catch(function(){})}));
     } catch(e) { console.error('[Clientes] Error enriching orders:', e.message); }
     apiInvoices = mapApiInvoices(data.invoices);
     apiInstallations = mapApiInstallations(data.installations);
@@ -762,7 +762,7 @@ router.get('/:id', requireAuth, async (req, res) => {
             }
           }).catch(function() {});
         });
-        await Promise.allSettled(detailPromises2);
+        await Promise.all(detailPromises2.map(function(p){return p.catch(function(){})}));
       } catch(e2) { console.error('[Clientes] Error enriching orders (/:id):', e2.message); }
       apiInvoices = mapApiInvoices(data.invoices);
       apiInstallations = mapApiInstallations(data.installations);
