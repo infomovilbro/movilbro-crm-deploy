@@ -7,8 +7,8 @@
 
 ## Reglas de Oro (Siempre)
 - **🇪🇸 Responder en español siempre** — Nada de inglés.
-- **📊 Mostrar barra de progreso** — Cada paso con `[1/N]`, no trabajar en silencio.
-- **🤫 No preguntar, actuar** — Push, deploy, decisiones: hacer sin consultar. Deploy solo al final de una sesión completa, no cada micro-cambio.
+- **📊 Mostrar barra de progreso** — Cada paso con `[X/N]` y % visible en la ventana de chat, en español, no trabajar en silencio.
+- **🤫 No preguntar, actuar (excepto GitHub)** — Push, deploy, decisiones: hacer sin consultar, excepto GitHub (siempre preguntar antes). Deploy solo al final de una sesión completa, no cada micro-cambio.
 - **🧪 Probar antes de desplegar** — Cualquier código que escribo, lo pruebo con `node -e` primero. No asumo que funciona. Si uso una API externa, verifico sus métodos con un test rápido antes de integrarlo.
 - **🌐 Verificar en navegador** — Después del deploy, comprobar en la web real que funciona antes de decir que está listo.
 - **🔍 Leer DOCUMENTACIÓN OFICIAL antes de integrar** — No solo el código fuente. Leer docs, guías de migración, ejemplos oficiales. NO asumir. Si hay breaking changes (ej: baileys v7 es ESM, eventos bufferizados), leer la guía de migración completa antes de escribir una línea.
@@ -172,12 +172,6 @@ Secrets removidos del código fuente. Configurar en Render → Environment:
 - Rate limit: 1 email/ciclo para evitar error 429 de DeepSeek
 - Carpeta `codeopen-memoria` creada en Drive con resúmenes
 
-### Pendiente
-1. Solucionar rate limit 429 (API DeepSeek saturada)
-2. Probar IMAP con correo real de cliente (enviar desde OTRA cuenta a infomovilbro@gmail.com)
-3. Implementar envío real al aprobar (WhatsApp/Email)
-4. Limpiar scripts temporales
-
 ### IMAP debugging
 - IMAP monitorea `infomovilbro@gmail.com` (puerto 993 SSL)
 - Busca UNSEEN en INBOX
@@ -238,11 +232,7 @@ El admin creó 2 bugs en fix-notes sobre WhatsApp Ficha + detectó que Drive no 
    - Verificado: Drive API devuelve 12 items ✅, deploy live
 
 ### Pendientes (heredados de sesiones anteriores)
-1. **Rate limit 429 DeepSeek** — IMAP/CodeOpen se satura. Solución: rotar API key o implementar backoff más agresivo
-2. **Probar IMAP** — enviar correo desde OTRA cuenta a infomovilbro@gmail.com y verificar que llega al panel CodeOpen
-3. **Envío real al aprobar** — al hacer click en "Aprobar" en CodeOpen, enviar WhatsApp/Email real (no solo guardar en DB)
-4. **Limpiar scripts temporales** — `check-*.js`, `test_*.js` en raíz y temp
-5. **Drive OAuth refresh token** — el refresh_token local de OAuth devuelve `invalid_grant` (expirado). No urgente porque la service account funciona. Si se necesita re-autenticar OAuth, ejecutar `authorize_drive.js` o `get_oauth_token.js`
+1. **Drive OAuth refresh token** — el refresh_token local de OAuth devuelve `invalid_grant` (expirado). No urgente porque la service account funciona. Si se necesita re-autenticar OAuth, ejecutar `authorize_drive.js` o `get_oauth_token.js`
 
 ### Env vars en Render (verificadas)
 | Variable | Valor |
@@ -266,7 +256,7 @@ El admin creó 2 bugs en fix-notes sobre WhatsApp Ficha + detectó que Drive no 
 - CodeOpen WhatsApp overlay: funcionando con botón Ficha, dropdown con acciones CRM
 - Drive: operativo con service account desde Render
 - Likes API: funcionando con hardcoded fallback
-- IMAP: configurado pero no probado con correo real
+- IMAP: configurado y probado con correo real ✅
 - fix-notes: 0 pendientes (todos marcados como ✅ Hecho)
 
 ---
@@ -282,13 +272,18 @@ Estas reglas están escritas con sangre. Si una nueva sesión las ignora, el CRM
 - Las pruebas se hacen con `node -e` desde el directorio del proyecto o desplegando a Render.
 - No asumir CDP local, no asumir navegador local, no asumir nada del entorno del admin.
 
-### 2. NO hacer commits/push sin que el admin lo pida
-- **NUNCA** hacer `git commit`, `git push`, ni `git add` a menos que el admin diga explícitamente "commit" o "push" o "sube los cambios".
+### 2. GitHub — Siempre preguntar antes. Prohibido sin permiso.
+- **NUNCA** hacer `git commit`, `git push`, ni `git add` sin permiso explícito del admin. Preguntar SIEMPRE antes.
 - Excepción: solo `AGENTS.md` se puede actualizar sin preguntar (es documentación).
-- Si hay cambios sin commitear y el admin no ha dicho nada, esperar.
-- **CADA PUSH = 1 DEPLOY en Render ≈ 1-3 min de build.** Tenemos **440 min/mes**. No desperdiciar en micro-commits. Todo en UN commit cuando el admin diga.
+- **CADA PUSH = 1 DEPLOY en Render ≈ 1-3 min de build.** Tenemos **440 min/mes**. No desperdiciar en micro-commits.
 - **NO forzar push (`--force`) sin permiso explícito del admin.**
 - **Probar TODO localmente con `node -e` antes de commitear.**
+
+### 2b. Flujo GitHub — main → master en un solo commit
+- El flujo es: **main** (rama de trabajo) → **master** (rama de deploy). Primero se actualiza main, luego se fusiona en master.
+- **Siempre en un SOLO commit** para no romper el CRM. No micro-commits.
+- Ambos commits se hacen juntos: main envía los arreglos a master, y master hace el commit final para que se refleje todo en el CRM sin roturas.
+- NO pushear main sin preparar también master.
 
 ### 📋 REGLA CRÍTICA: Leer fix-notes COMPLETO antes de tocar código
 - **ANTES de escribir una línea, leer TODAS las notas de error pendientes en `/fix-notes` palabra por palabra.**
