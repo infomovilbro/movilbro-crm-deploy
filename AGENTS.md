@@ -343,6 +343,12 @@ Estas reglas están escritas con sangre. Si una nueva sesión las ignora, el CRM
 - La vista `views/clients/view.ejs` es ÚNICA y compartida por todos los clientes. Cualquier cambio en consumo, selector de líneas, CDRs, facturación, etc. aplica a TODOS automáticamente.
 - **Cualquier función que toque líneas, clientes, consumo o CDRs debe funcionar IGUAL para todas las líneas y todos los clientes.** No importa si el ejemplo que uso para arreglar es un cliente concreto — el fix se aplica a todos por igual.
 
+#### ⚠️ Verificar SIEMPRE antes de commitear
+- **Después de cualquier cambio en JS/EJS, verificar balance de llaves** (`{`/`}`) en los scripts. Un `}` extra rompe todo el DOMContentLoaded y casca todo el CRM.
+- **No cerrar el callback de DOMContentLoaded prematuramente.** Si añado funciones después de `cargarConsumoModal`, asegurarme de que siguen dentro del callback.
+- **Hacer `node -e` con validación de sintaxis** antes de commitear: extraer el JS del script tag y verificar que `new Function(js)` no dé error (ignorando los `<%= %>`).
+- **Si cambio algo que funciona, probar que lo que ya funcionaba sigue funcionando.** No asumir que un cambio pequeño no rompe nada.
+
 ### 5. Backup de seguridad
 - El backup del CRM está en `C:\Users\xtptx\Desktop\0707\` — copia exacta del código desplegado en Render (commit `461d14b`) + documentación actualizada
 - Contiene: rutas, vistas, helpers, server.js, database, skills, config
