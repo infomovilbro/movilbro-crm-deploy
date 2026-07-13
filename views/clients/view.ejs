@@ -112,7 +112,7 @@
             <div class="col-md-6">
               <div class="card h-100 border">
                 <div class="card-header d-flex justify-content-between align-items-center py-1" style="cursor:pointer;" onclick="toggleSection('dirPagoBody')">
-                  <span class="fw-semibold small"><i class="bi bi-geo-alt"></i> Direcci&oacute;n y pago</span>  <select class="form-select form-select-sm ms-2" id="pagoFilter" onchange="filtrarLineas()" style="width:auto;max-width:120px;font-size:0.7rem;">    <option value="activa">Activas</option>    <option value="all">Todas</option>    <option value="cancelada">Canceladas</option>  </select>
+                  <span class="fw-semibold small"><i class="bi bi-geo-alt"></i> Direcci&oacute;n y pago</span>
                   <i class="bi bi-chevron-down" id="dirPagoIcon"></i>
                 </div>
                 <div class="card-body p-2" id="dirPagoBody">
@@ -134,7 +134,7 @@
                           <% prods.forEach(function(p) { %>
                           <% var linea = p.lineNumber || s.lineNumber || ''; %>
                           <% var metodoActual = pagosJson[linea] || ''; %>
-                          <div class="d-flex align-items-center justify-content-between mb-1 pb-1 border-bottom" data-estado="<%= est %>">
+                          <div class="d-flex align-items-center justify-content-between mb-1 pb-1 border-bottom">
                             <small><strong><%= linea || 'Nueva línea' %></strong> - <%= p.productName || s.productName || '' %></small>
                             <div class="d-flex align-items-center gap-1">
                               <% if (metodoActual) { %>
@@ -145,7 +145,7 @@
                                   <i class="bi bi-credit-card"></i>
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end">
-                                  <li><a class="dropdown-item" href="#" onclick="cambiarPagoLinea('<%= linea %>','IBAN')">🏦 IBAN</a></li>
+                                  <li><a class="dropdown-item" href="#" onclick="cambiarPagoLinea('<%= linea %>','IBAN')">­ƒÅª IBAN</a></li>
                                   <li><a class="dropdown-item" href="#" onclick="cambiarPagoLinea('<%= linea %>','Stripe')">­ƒÆ│ Stripe</a></li>
                                   <li><a class="dropdown-item" href="#" onclick="cambiarPagoLinea('<%= linea %>','Prepago')">­ƒô▒ Prepago</a></li>
                                   <li><a class="dropdown-item" href="#" onclick="cambiarPagoLinea('<%= linea %>','Efectivo')">­ƒÆÁ Efectivo</a></li>
@@ -188,7 +188,7 @@
                     <tr><th>Email</th><td><%= apiCustomer.email || cliente.email || '-' %></td></tr>
                     <tr><th>Tel&eacute;fono</th><td><%= apiCustomer.phone || cliente.telefono || '-' %></td></tr>
                     <tr><th>L&iacute;neas</th><td><span class="badge bg-primary"><%= apiSubscriptions.length %></span></td></tr>
-                    <tr><th>Antigüedad</th><td>
+                    <tr><th>Antig├╝edad</th><td>
                       <% var fCreacion = apiCustomer.created || cliente.created_at || ''; %>
                       <% if (fCreacion) { %><%= new Date(fCreacion).toLocaleDateString('es-ES') %><% } else { %>-<% } %>
                     </td></tr>
@@ -196,7 +196,7 @@
                       <span id="scoringBadge" class="fs-6" title="Puntuación de fiabilidad del cliente (0-10). Más alto = más fiable."><span class="text-muted">Pulsa "Calcular"</span></span>
                     </td></tr>
                     <tr><th>Recomendaci&oacute;n</th><td>
-                      <span id="scoringRecomendacion"><span class="text-muted">-</span></span><br><button class="btn btn-sm btn-link p-0 mt-1" onclick="toggleScoringDetalle()" style="font-size:0.75rem;text-decoration:none;"><i class="bi bi-chevron-down" id="scoringDetalleIcon"></i> Ver detalle del c�lculo</button><div id="scoringDetalleBody" style="display:none;margin-top:4px;padding:6px;background:#f8f9fa;border-radius:6px;font-size:0.75rem;"><ul id="scoringDetalleList" style="margin:0;padding-left:16px;"><li class="text-muted">Pulsa "Calcular" primero</li></ul></div>
+                      <span id="scoringRecomendacion"><span class="text-muted">-</span></span>
                     </td></tr>
                   </table>
                 </div>
@@ -215,7 +215,7 @@
             <div class="col-md-6">
               <div class="card border">
                 <div class="card-header py-1 d-flex justify-content-between align-items-center" style="cursor:pointer;" onclick="toggleSection('estadoLineasBody')">
-                  <small><i class="bi bi-pie-chart"></i> Estado de L&iacute;neas</small>  <select class="form-select form-select-sm ms-2" id="estadoFilter" onchange="filtrarLineas()" style="width:auto;max-width:120px;font-size:0.7rem;">    <option value="activa">Activas</option>    <option value="all">Todas</option>    <option value="cancelada">Canceladas</option>  </select>
+                  <small><i class="bi bi-pie-chart"></i> Estado de L&iacute;neas</small>
                   <i class="bi bi-chevron-down" id="estadoLineasIcon"></i>
                 </div>
                 <div class="card-body p-2" id="estadoLineasBody">
@@ -223,8 +223,8 @@
                     <% apiSubscriptions.forEach(function(s) { %>
                       <% var prods = s.products && s.products.length ? s.products : [{productName: s.productName, lineNumber: s.lineNumber, status: s.status, icc: s.icc}]; %>
                       <% prods.forEach(function(p) { %>
-                        <% var est = (p.status || s.status || 'activa').toLowerCase(); %>
-                        <div class="d-flex align-items-center justify-content-between mb-1 pb-1 border-bottom" data-estado="<%= est %>">
+                        <% var est = (p.status || s.status || 'activa').toLowerCase(); if (est === 'terminada' || est === 'baja' || est === 'cancelled' || est === 'cancelada') return; %>
+                        <div class="d-flex align-items-center justify-content-between mb-1 pb-1 border-bottom">
                           <div>
                             <strong><%= p.lineNumber || s.lineNumber || 'Nueva línea' %></strong><br>
                             <small><%= p.productName || s.productName || '-' %></small>
@@ -233,7 +233,7 @@
                             <span class="badge bg-<%= est === 'activa' || est === 'active' ? 'success' : est === 'suspendida' || est === 'suspended' ? 'warning' : 'secondary' %>">
                               <%= est %>
                             </span>
-                            <% if (p.icc || s.icc) { %><br><small class="text-muted">ICC: <%= (p.icc || s.icc).substring(0,15) %>...</small><br><button class="btn btn-sm btn-outline-dark mostrar-pinpuk mt-1" data-line="<%= p.lineNumber || s.lineNumber %>" data-pin="<%= p.pin || s.pin || '' %>" data-puk="<%= p.puk || s.puk || '' %>" data-icc="<%= p.icc || s.icc || '' %>" title="PIN/PUK"><i class="bi bi-key"></i></button><% } %>
+                            <% if (p.icc || s.icc) { %><br><small class="text-muted">ICC: <%= (p.icc || s.icc).substring(0,15) %>...</small><% } %>
                           </div>
                         </div>
                       <% }); %>
@@ -293,7 +293,7 @@
                 <tr class="<%= (_est === 'terminada' || _est === 'cancelada' || _est === 'baja') ? 'table-secondary text-muted' : '' %>">
                   <td>
                     <% var pname = (p.productName || s.productName || '').toLowerCase(); %>
-                    <% if (pname.includes('fibra') || pname.includes('ftth')) { %><span>🌐</span><% } else if (pname.includes('tv') || pname.includes('television')) { %><span>­ƒô║</span><% } else if (pname.includes('fijo') || pname.includes('voip')) { %><span>­ƒô×</span><% } else if (pname.includes('movil') || pname.includes('mobile') || pname.includes('tarifa')) { %><span>­ƒô▒</span><% } else { %><span>­ƒôí</span><% } %>
+                    <% if (pname.includes('fibra') || pname.includes('ftth')) { %><span>­ƒîÉ</span><% } else if (pname.includes('tv') || pname.includes('television')) { %><span>­ƒô║</span><% } else if (pname.includes('fijo') || pname.includes('voip')) { %><span>­ƒô×</span><% } else if (pname.includes('movil') || pname.includes('mobile') || pname.includes('tarifa')) { %><span>­ƒô▒</span><% } else { %><span>­ƒôí</span><% } %>
                     <strong><%= linea || '-' %></strong>
                   </td>
                   <td><%= p.productName || s.productName || '-' %></td>
@@ -337,7 +337,7 @@
                 <tr class="table-secondary">
                   <td>
                     <% var lpname = (l.producto || '').toLowerCase(); %>
-                    <% if (lpname.includes('fibra') || lpname.includes('ftth')) { %><span>🌐</span><% } else if (lpname.includes('tv') || lpname.includes('television')) { %><span>­ƒô║</span><% } else if (lpname.includes('fijo') || lpname.includes('voip')) { %><span>­ƒô×</span><% } else if (lpname.includes('movil') || lpname.includes('mobile') || lpname.includes('tarifa')) { %><span>­ƒô▒</span><% } else { %><span>­ƒôí</span><% } %>
+                    <% if (lpname.includes('fibra') || lpname.includes('ftth')) { %><span>­ƒîÉ</span><% } else if (lpname.includes('tv') || lpname.includes('television')) { %><span>­ƒô║</span><% } else if (lpname.includes('fijo') || lpname.includes('voip')) { %><span>­ƒô×</span><% } else if (lpname.includes('movil') || lpname.includes('mobile') || lpname.includes('tarifa')) { %><span>­ƒô▒</span><% } else { %><span>­ƒôí</span><% } %>
                     <strong><%= l.linea || '-' %></strong>
                   </td>
                   <td><%= l.producto || '-' %> <small class="text-muted">(local)</small></td>
@@ -380,7 +380,7 @@
           <% } %>
         </div>
 
-        <!-- ==================== TAB 3: ÓRDENES ==================== -->
+        <!-- ==================== TAB 3: ├ôRDENES ==================== -->
         <div class="tab-pane fade" id="ordenes" role="tabpanel" aria-labelledby="ordenes-tab">
           <% if (apiOrders.length === 0) { %>
           <div class="text-center text-muted py-5">
@@ -398,10 +398,7 @@
                   <th>L&iacute;nea</th>
                   <th>Total</th>
                   <th>Fecha Creaci&oacute;n</th>
-                  <th>&Uacute;ltima Act.</th>
-                  <th>Aprov./Activ.</th>
                   <th>Historial</th>
-                  <th>Contrato</th>
                 </tr>
               </thead>
               <tbody>
@@ -418,8 +415,6 @@
                   <td><%= o.lineNumber || '-' %></td>
                   <td><strong><%= o.total ? parseFloat(o.total).toFixed(2) + '€' : '-' %></strong></td>
                   <td><small><%= o.created ? new Date(o.created).toLocaleDateString('es-ES') : '-' %></small></td>
-                  <td><small><%= o.updatedDetail ? new Date(o.updatedDetail).toLocaleDateString("es-ES") : "-" %></small></td>
-                  <td><small><%= o.approvisionDate ? new Date(o.approvisionDate).toLocaleDateString("es-ES") : "-" %></small></td>
                   <td>
                     <div class="d-flex gap-1">
                     <% if (o.statusHistory && o.statusHistory.length > 0) { %>
@@ -431,8 +426,7 @@
                     <% } %>
                     <button class="btn btn-sm btn-outline-info" onclick="verResumenOrden('<%= o.id %>')" title="Ver detalle completo"><i class="bi bi-eye"></i></button>
                     </div>
-                  
-                  <td><% if (o.contractUrl) { %><a href="<%= o.contractUrl %>" target="_blank" class="btn btn-sm btn-outline-danger"><i class="bi bi-file-pdf"></i></a><% } else { %><span class="text-muted">-</span><% } %></td></td>
+                  </td>
                 </tr>
                 <% }); %>
               </tbody>
@@ -960,14 +954,14 @@
           <div class="tab-pane fade" id="scoringExterno">
             <p class="small text-muted mb-2">B&uacute;squeda manual en bases de datos p&uacute;blicas (abre cada web e introduce el DNI/NIF manualmente):</p>
             <p class="small mb-2" style="line-height:1.6;">
-              <strong>📘 Axesor</strong> - Informes financieros y riesgo de empresas<br>
-              <strong>📘 Infocif</strong> - Datos mercantiles y financieros<br>
-              <strong>📘 Iberinform</strong> - Informes de solvencia y riesgo<br>
-              <strong>⚠️ LibreBOR.me</strong> - Buscador gratuito del BOE (morosidad, embargos)<br>
-              <strong>📘 Einforma</strong> - Informes comerciales de empresas<br>
-              <strong>🌐 OpenCorporates</strong> - Base de datos mundial de empresas<br>
-              <strong>💼 Rankia</strong> - Foro de opiniones y experiencias financieras<br>
-              <strong>📐 BORME</strong> - Boletín Oficial del Registro Mercantil<br>
+              <strong>­ƒôè Axesor</strong> - Informes financieros y riesgo de empresas<br>
+              <strong>­ƒôè Infocif</strong> - Datos mercantiles y financieros<br>
+              <strong>­ƒôè Iberinform</strong> - Informes de solvencia y riesgo<br>
+              <strong>ÔÜá´©Å LibreBOR.me</strong> - Buscador gratuito del BOE (morosidad, embargos)<br>
+              <strong>­ƒôè Einforma</strong> - Informes comerciales de empresas<br>
+              <strong>­ƒîÉ OpenCorporates</strong> - Base de datos mundial de empresas<br>
+              <strong>­ƒÆ¼ Rankia</strong> - Foro de opiniones y experiencias financieras<br>
+              <strong>­ƒô£ BORME</strong> - Boletín Oficial del Registro Mercantil<br>
               <strong>­ƒÜ½ ASNEF</strong> - Fichero de morosidad (impagos)<br>
               <strong>­ƒÜ½ RAI</strong> - Registro de Aceptaciones Impagadas<br>
               <strong>­ƒöì Google</strong> - B&uacute;squeda general con t&eacute;rminos de morosidad
@@ -1610,9 +1604,9 @@ function calcularScoring(clienteId) {
         var sr = document.getElementById('scoringRecomendacion');
         if (sr) {
           var recHtml = '';
-          if (res.scoring >= 7) recHtml = '<span class="badge bg-success fs-6">✅ Recomendado</span>';
-          else if (res.scoring >= 4) recHtml = '<span class="badge bg-warning fs-6">⚠️ Revisar</span>';
-          else recHtml = '<span class="badge bg-danger fs-6">❌ No recomendado</span>';
+          if (res.scoring >= 7) recHtml = '<span class="badge bg-success fs-6">Ô£à Recomendado</span>';
+          else if (res.scoring >= 4) recHtml = '<span class="badge bg-warning fs-6">ÔÜá´©Å Revisar</span>';
+          else recHtml = '<span class="badge bg-danger fs-6">ÔØî No recomendado</span>';
           sr.innerHTML = recHtml;
         }
       } else {
@@ -2275,7 +2269,7 @@ document.querySelectorAll('input[name="dailyChartType"]').forEach(function(rb) {
             if (!familias[familia]) familias[familia] = [];
             familias[familia].push({ name: name, val: val, price: p.price, desc: p.description || '' });
           });
-          var familiaIconos = { 'Movil': '­ƒô▒', 'Móvil': '­ƒô▒', 'Fibra': '🌐', 'TV': '­ƒô║', 'Television': '­ƒô║', 'Fijo': '­ƒô×', 'VoIP': '­ƒô×', 'General': '­ƒôí' };
+          var familiaIconos = { 'Movil': '­ƒô▒', 'Móvil': '­ƒô▒', 'Fibra': '­ƒîÉ', 'TV': '­ƒô║', 'Television': '­ƒô║', 'Fijo': '­ƒô×', 'VoIP': '­ƒô×', 'General': '­ƒôí' };
           var famKeys = Object.keys(familias);
           famKeys.forEach(function(fam, idx) {
             var icono = familiaIconos[fam] || '­ƒôí';

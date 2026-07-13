@@ -1786,7 +1786,7 @@
   input.addEventListener('keyup', function() {
     clearTimeout(timer);
     var q = input.value.trim();
-    if (q.length < 2) {
+    if (q.length < 3) {
       dropdown.style.display = 'none';
       dropdown.innerHTML = '';
       return;
@@ -1802,7 +1802,7 @@
               var badgeClass = r.origen === 'API' ? 'bg-info' : 'bg-success';
               var badgeLabel = r.origen === 'API' ? 'API' : 'Local';
               var href = r.id ? '/clientes/' + r.id : (r.fiscalId ? '/clientes/fiscal/' + encodeURIComponent(r.fiscalId) : '/clientes?search=' + encodeURIComponent(r.telefono || r.nombre));
-              if (r.origen === 'fiscal-suggest') { return '<a href="/clientes/fiscal/' + encodeURIComponent(r.fiscalId) + '" style="border-top:1px solid #eee;color:#0050A1;"><div class="d-flex justify-content-between align-items-start"><strong>' + r.nombre + '</strong> <span class="src-badge badge bg-primary">Fiscal</span></div><div class="small text-muted">Buscar en Likes Telecom</div></a>'; } return '<a href="' + href + '"><div class="d-flex justify-content-between align-items-start"><strong>' + r.nombre + '</strong> <span class="src-badge badge ' + badgeClass + '">' + badgeLabel + '</span></div><div class="small text-muted">' + (r.telefono ? r.telefono : '') + (r.fiscalId ? ' &middot; ' + r.fiscalId : '') + '</div></a>';
+              return '<a href="' + href + '"><div class="d-flex justify-content-between align-items-start"><strong>' + r.nombre + '</strong> <span class="src-badge badge ' + badgeClass + '">' + badgeLabel + '</span></div><div class="small text-muted">' + (r.telefono ? r.telefono : '') + (r.fiscalId ? ' &middot; ' + r.fiscalId : '') + '</div></a>';
             }).join('');
           }
           dropdown.style.display = 'block';
@@ -1822,7 +1822,7 @@
     setTimeout(function() { dropdown.style.display = 'none'; }, 200);
   });
   input.addEventListener('focus', function() {
-    if (input.value.trim().length >= 2 && dropdown.innerHTML) {
+    if (input.value.trim().length >= 3 && dropdown.innerHTML) {
       dropdown.style.display = 'block';
     }
   });
