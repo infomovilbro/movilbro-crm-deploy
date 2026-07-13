@@ -52,6 +52,44 @@
 - [x] No tener acceso a Render dashboard → pedir contraseña o URL de deploy hook al principio; no esperar a necesitarla
 - [x] Repetir el mismo error de escapado PowerShell 4+ veces → usar SIEMPRE archivo .js, nunca -e
 - [x] Quitar hardcoded fallback de credenciales Likes → NUNCA eliminar el hardcoded. Prioridad: `env vars → settings DB → hardcoded`. El hardcoded es el salvavidas.
+- [ ] Hacer commit/push sin permiso del admin → preguntar SIEMPRE antes, aunque parezca urgente. Cada push gasta minutos de build en Render.
+- [ ] Añadir funciones extras que no pide el admin y romper lo que ya funcionaba → si meto código nuevo (navegación meses, chart click, etc.), verificar que lo existente siga funcionando antes de commitear.
+- [ ] No verificar balance de llaves `{}` después de editar JS/EJS → siempre contar opens/closes antes de commitear. Un `}` extra rompe todo el DOMContentLoaded.
+- [ ] No preguntar antes de GitHub/commit → la regla es: **preguntar SIEMPRE antes de cualquier operación GitHub**. No asumir que tengo permiso.
+- [ ] Meter funciones nuevas sin pedir → preguntar antes de añadir cualquier feature. El admin decide si se hace o no.
+- [ ] Modificar `layout.ejs` sin leer skill `whatsapp-overlay` → ROMBO segura (vigilante WhatsApp, overlay, botón Analizar). Leer skill primero.
+- [ ] Modificar `routes/codeopen.js` sin leer skill `codeopen-ia` → ROMBO segura (webhooks, pending, approve/reject). Leer skill primero.
+- [ ] Tocar Google Drive sin verificar env vars → error silencioso (`[]`). Verificar `DRIVE_KEY_JSON` y `DRIVE_OAUTH_JSON` en Render dashboard.
+- [ ] Eliminar hardcoded de Likes API → NUNCA. Prioridad: `env vars → settings DB → hardcoded`.
+- [ ] Hacer deploy para probar cosas → investigar primero con `node -e` o leyendo docs. No deploy-tras-deploy.
+- [ ] Usar `node -e` con PowerShell → NUNCA. Siempre escribir archivo `.js`.
+- [ ] No leer `MEMORIA_ERRORES.md` al empezar sesión → leer SIEMPRE antes de tocar nada.
+- [ ] No leer fix-notes pendientes antes de codificar → leer TODAS las notas con conversaciones completas.
+- [ ] Asumir que auto-deploy funciona → verificar en dashboard.render.com, hacer Manual Deploy si es necesario.
+- [ ] No verificar en navegador real después del deploy → comprobar que funciona en la web real antes de informar.
+- [ ] No verificar estructura de datos de la API Likes antes de tocar routes/clients.js → la API devuelve subscriptions con `lineNumber`, `fixedNumber`, `products[].lineNumber`, `products[].fixedNumber`. El código debe extraer TODOS estos campos para poblar `allLines`, o líneas no aparecen en el selector.
+
+## API Likes — Formato de Datos (Obligatorio Leer Antes de Tocar)
+### Subscription (`apiSubscriptions`)
+```js
+{
+  id: "sub_123",
+  lineNumber: "677350267",     // ← LINEA PRINCIPAL
+  fixedNumber: "677350267",    // ← ALIAS de linea
+  productName: "40 GB PROMO + Ilimitadas",
+  status: "active",
+  startDate: "2026-01-01",
+  icc: "893404632409049",
+  line: { lineNumber: "...", number: "..." }, // ← alternativa anidada
+  products: [                   // ← array de productos (CADA UNO CON SU LINEA)
+    { lineNumber: "...", fixedNumber: "...", productName: "...", ... }
+  ]
+}
+```
+- **La línea puede venir en:** `s.lineNumber`, `s.fixedNumber`, `s.line.lineNumber`, `s.line.number`, `s.phone`, `s.msisdn`, `s.numero`
+- **O en cada producto:** `s.products[].lineNumber`, `s.products[].fixedNumber`, `s.products[].line.lineNumber`
+- **El EJS de la vista usa `p.lineNumber || s.lineNumber`** — esto funciona para mostrar, pero el servidor necesita los mismos fallbacks para poblar `allLines` y `lineNumbers`
+- **Siempre que toques `routes/clients.js` línea ~488 y ~782:** verifica que la extracción de `ln` use TODOS estos fallbacks
 
 ## AssemblyAI (Audio)
 - API key: cadenas hex de 32 caracteres
@@ -441,18 +479,32 @@ El admin pidió crear un asistente flotante con voz para la CRM. Se desarrollaro
 - **FREE endpoint**: `https://opencode.ai/zen/v1/chat/completions` (model: `deepseek-v4-flash-free`)
 - GO necesita billing en el workspace. Sin saldo, cae a FREE como fallback.
 
-### Pendientes para próxima sesión
-1. CodeOpen: implementar WebSockets o SSE para actualización en tiempo real (opcional)
-2. Mejorar el navegador de Drive en fix-notes (cargar snapshot importa notas a DB)
-3. Revisar por qué algunos botones de cliente fallan silenciosamente (posible error API Likes)
-4. Los scripts temporales `_*.js` en raíz deben limpiarse
+## Sesión 2026-07-13/14 — Fix líneas selector + Consumo modal + API format
 
-### Env vars en Render
-| Variable | Valor |
-|----------|-------|
-| `OPENCODE_API_KEY` | Misma que `sk-EPQB...cqe1` (para modelo free) |
-| `AI_ASSIST_SECRET` | `opencode2026` (para endpoint /ai-assist/respond) |
-| `DEEPSEEK_PAID_KEY` | `sk-EPQBFsNdGAJqIRJwW36M0Tdc4aFpVNGzFfemDX19jZkHrlrHa43BNRw85LKIcqe1` |
+### Problemas detectados y arreglados
+
+#### 1. Selector de líneas no aparecía para muchos clientes
+**Causa raíz:** En `routes/clients.js`, la extracción de `ln` en el bucle de suscripciones NO incluía `s.lineNumber` ni `s.fixedNumber` como fallback. Solo miraba `p.lineNumber`. Si el producto no tenía su propio número pero la suscripción sí, la línea se perdía y `allLines` quedaba vacío.
+
+**Fix:** Añadidos fallbacks `|| lineFromSub || s.lineNumber || s.fixedNumber` en ambas rutas (fiscal y `/:id`). También cambiada la condición de fallback de `s.fixedNumber` a `lineFromSub` para cubrir ambos campos.
+
+#### 2. DOMContentLoaded roto por `}` extra en `view.ejs`
+**Causa:** Mi script `_fix_consumo_modal.js` añadió funciones helper y un listener de radio buttons con un cierre de llaves incorrecto, cerrando el DOMContentLoaded antes de tiempo. Todo el JS del cliente quedó fuera de la función → no se ejecutaba nada.
+
+**Fix:** Eliminado `}` extra y reordenado el cierre correctamente.
+
+#### 3. Selector de líneas dentro de `if (Chart)` en `view.ejs`
+**Causa:** El poblado del `<select id="gbLineSelect">` y la función `loadGB` estaban dentro de `if (gbCtx && typeof Chart !== 'undefined')`. Si Chart.js no cargaba, el selector nunca se poblaba.
+
+**Fix:** Sacado el poblado del selector, `loadGB`, event listener y carga inicial FUERA del bloque Chart.js. El gráfico se crea aparte si Chart.js está disponible.
+
+#### 4. API format documentado
+**Añadido:** Sección "API Likes — Formato de Datos" con la estructura exacta de subscriptions, products, y todos los campos donde puede venir el número de línea.
+
+### Lecciones aprendidas (nuevas reglas)
+- **Siempre verificar `routes/clients.js`** líneas ~488 y ~782 cuando se toque extracción de líneas
+- **La API devuelve la línea en:** `s.lineNumber`, `s.fixedNumber`, `s.line.lineNumber`, `s.products[].lineNumber`, etc. El código debe buscar en TODOS
+- **No asumir que un fix funciona para todos los clientes** si no se verifica que los datos de la API tengan la misma estructura
 
 ### Último commit
-`98a9205` — `fix: badge refresh 3s, auto-process sin interrumpir, lineas todos los estados, AUTO inmediato, Voice Admin V5` (deployed live en Render ✅)
+`2c97f69` — `fix: cierre de llaves extra en DOMContentLoaded que rompia todo el JS` (deployed live en Render ✅)

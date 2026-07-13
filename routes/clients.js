@@ -448,6 +448,45 @@ router.get('/fiscal/:fiscalId', requireAuth, async (req, res) => {
         }
       });
     }
+    // Enriquecer ordenes con detalle completo de draft-order
+    try {
+      var apiForDetail = LikesAPI.getApiInstance();
+      var detailPromises = apiOrders.map(function(o) {
+        if (!o.id) return Promise.resolve(null);
+        return apiForDetail.getDraftOrder(o.id).then(function(detail) {
+          if (detail) {
+            var src = detail.data || detail;
+            // Campos adicionales de draft-order
+            if (src.products && Array.isArray(src.products)) {
+              var prodNames = src.products.map(function(p) { return p.productName || ''; }).filter(Boolean);
+              if (prodNames.length > 0) o.productName = prodNames.join(', ');
+              var prices = src.products.map(function(p) { return parseFloat(p.finalPrice || p.cessionPrice || p.price || 0); }).filter(function(v) { return v > 0; });
+              if (prices.length > 0) o.total = prices.reduce(function(a, b) { return a + b; }, 0);
+            }
+            if (!o.lineNumber || o.lineNumber === '-') {
+              if (src.products && Array.isArray(src.products)) {
+                var lines = src.products.map(function(p) { return p.fixedNumber || p.lineNumber || ''; }).filter(Boolean);
+                if (lines.length > 0) o.lineNumber = lines.join(', ');
+              }
+            }
+            // Fechas adicionales
+            o.updatedDetail = src.updated || src.updated_at || src.modified || '';
+            o.approvisionDate = src.approvisionDate || src.provisionDate || src.activationDate || '';
+            o.deliveryDate = src.deliveryDate || src.shippingDate || '';
+            o.statusTimeline = Array.isArray(src.statusHistory) ? src.statusHistory : (Array.isArray(src.status_history) ? src.status_history : (Array.isArray(src.history) ? src.history : []));
+            if (o.statusTimeline.length > 0) o.statusHistory = o.statusTimeline;
+            // Tipo de servicio y modalidad
+            o.serviceType = src.serviceType || src.type || src.modality || '';
+            o.contractUrl = '';
+            if (src.documentation && Array.isArray(src.documentation)) {
+              var docs = src.documentation.filter(function(d) { return d.downloadURL && d.downloadURL.startsWith('http'); });
+              if (docs.length > 0) o.contractUrl = docs[0].downloadURL;
+            }
+          }
+        }).catch(function() {});
+      });
+      await Promise.allSettled(detailPromises);
+    } catch(e) { console.error('[Clientes] Error enriching orders:', e.message); }
     apiInvoices = mapApiInvoices(data.invoices);
     apiInstallations = mapApiInstallations(data.installations);
     if (Array.isArray(data.portabilities)) apiPortabilities = data.portabilities;
@@ -485,15 +524,15 @@ router.get('/fiscal/:fiscalId', requireAuth, async (req, res) => {
     var prods = s.products && s.products.length ? s.products : (s.productName ? [{productName: s.productName, lineNumber: lineFromSub, status: s.status, icc: s.icc}] : []);
     prods.forEach(function(p) {
       var st = (p.status || s.status || '').toLowerCase();
-      var ln = p.lineNumber || p.fixedNumber || (p.line && (p.line.lineNumber || p.line.number)) || '';
+      var ln = p.lineNumber || p.fixedNumber || (p.line && (p.line.lineNumber || p.line.number)) || lineFromSub || s.lineNumber || s.fixedNumber || '';
       if (ln && !allLines.find(function(l) { return l.linea === ln; })) {
         allLines.push({ linea: ln, producto: p.productName || '', estado: st, iccid: p.icc || '', pin: '', puk: '', contrato_id: null, fecha_alta: null });
       }
     });
     // Si subscription no tiene products pero tiene fixedNumber directo
-    if (!s.products && s.fixedNumber && !allLines.find(function(l) { return l.linea === s.fixedNumber; })) {
-      allLines.push({ linea: s.fixedNumber, producto: s.productName || '', estado: (s.status || '').toLowerCase(), iccid: s.icc || '', pin: '', puk: '', contrato_id: null, fecha_alta: null });
-    }
+        if (lineFromSub && !allLines.find(function(l) { return l.linea === lineFromSub; })) {
+        allLines.push({ linea: lineFromSub, producto: s.productName || '', estado: (s.status || '').toLowerCase(), iccid: s.icc || '', pin: '', puk: '', contrato_id: null, fecha_alta: null });
+      }
   });
   // Si no hay lineas de API, anadir desde altas_ordenes (DB local)
   if (allLines.length === 0) {
@@ -689,6 +728,42 @@ router.get('/:id', requireAuth, async (req, res) => {
         }
       });
       apiOrders = mapApiOrders(data.orders);
+      // Enriquecer ordenes con detalle completo de draft-order
+      try {
+        var apiForDetail2 = LikesAPI.getApiInstance();
+        var detailPromises2 = apiOrders.map(function(o) {
+          if (!o.id) return Promise.resolve(null);
+          return apiForDetail2.getDraftOrder(o.id).then(function(detail) {
+            if (detail) {
+              var src = detail.data || detail;
+              if (src.products && Array.isArray(src.products)) {
+                var prodNames = src.products.map(function(p) { return p.productName || ''; }).filter(Boolean);
+                if (prodNames.length > 0) o.productName = prodNames.join(', ');
+                var prices = src.products.map(function(p) { return parseFloat(p.finalPrice || p.cessionPrice || p.price || 0); }).filter(function(v) { return v > 0; });
+                if (prices.length > 0) o.total = prices.reduce(function(a, b) { return a + b; }, 0);
+              }
+              if (!o.lineNumber || o.lineNumber === '-') {
+                if (src.products && Array.isArray(src.products)) {
+                  var lines = src.products.map(function(p) { return p.fixedNumber || p.lineNumber || ''; }).filter(Boolean);
+                  if (lines.length > 0) o.lineNumber = lines.join(', ');
+                }
+              }
+              o.updatedDetail = src.updated || src.updated_at || src.modified || '';
+              o.approvisionDate = src.approvisionDate || src.provisionDate || src.activationDate || '';
+              o.deliveryDate = src.deliveryDate || src.shippingDate || '';
+              o.statusTimeline = Array.isArray(src.statusHistory) ? src.statusHistory : (Array.isArray(src.status_history) ? src.status_history : (Array.isArray(src.history) ? src.history : []));
+              if (o.statusTimeline.length > 0) o.statusHistory = o.statusTimeline;
+              o.serviceType = src.serviceType || src.type || src.modality || '';
+              o.contractUrl = '';
+              if (src.documentation && Array.isArray(src.documentation)) {
+                var docs = src.documentation.filter(function(d) { return d.downloadURL && d.downloadURL.startsWith('http'); });
+                if (docs.length > 0) o.contractUrl = docs[0].downloadURL;
+              }
+            }
+          }).catch(function() {});
+        });
+        await Promise.allSettled(detailPromises2);
+      } catch(e2) { console.error('[Clientes] Error enriching orders (/:id):', e2.message); }
       apiInvoices = mapApiInvoices(data.invoices);
       apiInstallations = mapApiInstallations(data.installations);
       if (Array.isArray(data.portabilities)) apiPortabilities = data.portabilities;
@@ -779,7 +854,7 @@ router.get('/:id', requireAuth, async (req, res) => {
     prods.forEach(p => {
       const st = (p.status || s.status || '').toLowerCase();
       if (terminatedStatuses.includes(st)) return;
-      const ln = p.lineNumber || '';
+      const ln = p.lineNumber || p.fixedNumber || s.lineNumber || s.fixedNumber || '';
       if (ln && !allLines.find(l => l.linea === ln)) {
         allLines.push({
           linea: ln,
@@ -1625,25 +1700,25 @@ router.post('/:id/calculate-scoring', requireAuth, async (req, res) => {
       var custResp = await api.request('GET', '/customer?fiscalId=' + encodeURIComponent(fiscalId));
       var custData = custResp.data || custResp;
       var sc = parseFloat(custData.scoring || custData.score || custData.creditScore || custData.rating || -1);
-      if (sc >= 0) { puntuacion = sc; detalles.push('Scoring API Likes: ' + sc + '/10'); }
+      if (sc >= 0) { puntuacion = sc; detalles.push('Basado en scoring de API Likes: ' + sc + '/10'); }
       if (custData.aeatStatus) {
-        detalles.push('AEAT: ' + custData.aeatStatus);
+        detalles.push('Según AEAT: ' + custData.aeatStatus);
         if (custData.aeatStatus.toLowerCase().includes('ok') || custData.aeatStatus.toLowerCase().includes('valid')) puntuacion += 1;
         else puntuacion -= 1;
       }
-    } catch(e) { detalles.push('Sin scoring de API Likes'); }
+    } catch(e) { detalles.push('API Likes no devuelve scoring para este cliente'); }
     try {
       var facRow = db.prepare("SELECT COUNT(*) as total, SUM(CASE WHEN estado='pagada' OR estado='paid' OR pagado=1 THEN 1 ELSE 0 END) as pagadas FROM isp_facturas WHERE fiscal_id=?").get(fiscalId);
       if (facRow && facRow.total > 0) {
         var ratio = facRow.pagadas / facRow.total;
-        detalles.push(facRow.pagadas + '/' + facRow.total + ' facturas pagadas (' + Math.round(ratio*100) + '%)');
+        detalles.push('De ' + facRow.total + ' facturas ISP, ' + facRow.pagadas + ' pagadas (' + Math.round(ratio*100) + '%)');
         if (ratio >= 0.9) puntuacion += 2;
         else if (ratio >= 0.7) puntuacion += 1;
         else puntuacion -= 1;
-      } else { detalles.push('Sin historial de facturas ISP'); }
+      } else { detalles.push('No hay facturas ISP registradas en DB local'); }
     } catch(e) {}
     var dniClean = fiscalId.toUpperCase().replace(/[^0-9A-Z]/g, '');
-    if (/^(\d{8}[A-Z]|[XYZ]\d{7}[A-Z]|[A-Z]\d{7}[A-Z]|\d{8})$/i.test(dniClean)) { puntuacion += 1; detalles.push('DNI/NIF válido'); }
+    if (/^(\d{8}[A-Z]|[XYZ]\d{7}[A-Z]|[A-Z]\d{7}[A-Z]|\d{8})$/i.test(dniClean)) { puntuacion += 1; detalles.push('Formato DNI/NIF válido: +1 punto'); }
     else if (dniClean) { puntuacion -= 1; detalles.push('DNI/NIF formato inválido'); }
     puntuacion = Math.max(1, Math.min(10, Math.round(puntuacion)));
     if (puntuacion >= 7) riesgo = 'bajo';
