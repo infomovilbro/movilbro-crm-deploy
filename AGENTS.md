@@ -345,3 +345,106 @@ Estas reglas están escritas con sangre. Si una nueva sesión las ignora, el CRM
 - El backup del CRM está en `C:\Users\xtptx\Desktop\0707\` — copia exacta del código desplegado en Render (commit `461d14b`) + documentación actualizada
 - Contiene: rutas, vistas, helpers, server.js, database, skills, config
 - Excluye: `node_modules/`, `temp/`, `.opencode/` (secrets locales)
+
+---
+
+## Sesión 2026-07-11/12 — Asistente IA + Voice Admin + Fix-notes + Clientes
+
+### Contexto
+El admin pidió crear un asistente flotante con voz para la CRM. Se desarrollaron 2 herramientas: **Asistente IA** (diagnóstico con selector) y **Voice Admin** (asistente por voz tipo Siri). También se arreglaron 7 fix-notes de errores.
+
+### Hecho
+
+#### 1. Asistente IA Flotante (🤖) — `views/layout.ejs`
+- Botón 🤖 junto a 🧠🎤. Al pulsar, activa modo selector (cursor cruz)
+- Al hacer click en un elemento: captura URL + selector CSS + texto
+- Se abre ventana centrada con la información y **micrófono continuo** (sin timer, se para al pulsar ⏹)
+- Analiza con IA (DeepSeek V4 Flash GO via `https://opencode.ai/zen/go/v1/chat/completions`)
+- Botones **✅ Aceptar** y **❌ Cancelar** siempre visibles al fondo
+- Cada mensaje tiene **✕** para eliminar del historial
+- **⛶ Maximizar/minimizar** ventana
+- **Arrastrable** por la barra de título
+- Tamaño predeterminado: 420x500
+- **Mute 🔇 por defecto**, botón para activar voz
+- **💎 PAGO por defecto** (GO), ruleta para cambiar a 🆓 FREE
+- Al aceptar, guarda en fix-notes con **historial completo de la conversación**
+- **Eliminado** el antiguo 🐛 modo solución (reemplazado por este)
+
+#### 2. Voice Admin (🧠🎤) — `views/layout.ejs`
+- Panel propio (verde) independiente del Asistente IA
+- Al pulsar botón: se abre ventana con chat, modelo 💎/🆓, mute, maximizar
+- **Wake word desactivada hasta pulsar botón** (no escucha en background)
+- Al activar: escucha wake word "movilbro estas", "oye estas", variantes
+- Micrófono continuo con detección de silencio (3s) para enviar
+- **Interrupción**: si la IA habla y el usuario habla, la IA se calla
+- Historial interno de 6 interacciones para mantener contexto
+- **Respuesta en voz** siempre activa (sin mute)
+- Comandos automáticos: "acepta", "dale", "ok" → ejecutan acceptFix()
+
+#### 3. Respaldos IA
+- **Endpoint**: `POST /ai-assist/analyze` — llama a opencode API
+- **Endpoint GO**: `https://opencode.ai/zen/go/v1/chat/completions` (modelo: `deepseek-v4-flash`)
+- **Endpoint FREE**: `https://opencode.ai/zen/v1/chat/completions` (modelo: `deepseek-v4-flash-free`)
+- **PAGO con fallback**: si GO falla, cae a FREE automáticamente
+- API key: `sk-EPQBFsNdGAJqIRJwW36M0Tdc4aFpVNGzFfemDX19jZkHrlrHa43BNRw85LKIcqe1`
+- **Workspace GO**: `wrk_01KS8VQPTD4DY7J12080YWG0F2` (suscrito, uso 2%)
+- **Voice speed**: `speakText()` con `rate = 1.4`
+
+#### 4. Fix-notes arreglados
+| # | Problema | Solución |
+|---|---|---|
+| 1 | Tema Movilbro Original no default | Forzado como predeterminado en `layout.ejs` |
+| 2-3 | Voice Admin wake word | V5: wake word OFF, ventana al pulsar |
+| 4 | Drive guardar error | Error real mostrado, validación de respuesta |
+| - | Drive estructura | Guarda en `fix-notes/año/mes/día/` |
+| - | Cargar de Drive | Navegador por año→mes→día→archivos |
+| 5-7 | Botones cliente-específico | Eliminado filtro de líneas "activas" en `routes/clients.js` |
+
+#### 5. CodeOpen AUTO — `routes/codeopen.js`
+- Webhooks WhatsApp/Email ahora disparan **auto-process inmediato** si el contacto tiene AUTO
+- Badge de pendientes se refresca cada **3 segundos**
+- No interrumpe análisis en curso
+
+#### 6. Edge/Chrome Debugging
+- Edge se lanza vía Playwright con `channel: 'msedge'` y `--remote-debugging-port=9222`
+- Script: `_edge_ctrl.js` — lanza Edge con CDP y anti-detección
+- Icono "depurado" creado en el escritorio
+
+### Lecciones aprendidas (nuevas reglas)
+
+#### 📋 Leer fix-notes COMPLETO antes de codificar
+- **ANTES de escribir código, leer TODAS las notas de error pendientes en `/fix-notes` palabra por palabra, incluyendo conversaciones completas e historiales (`fullText`).**
+- **Extraer TODOS los problemas** de cada conversación. Un fix puede contener 3-4 issues distintos.
+- **NO saltarse ningún problema.** Verificar que cada uno tiene solución planificada.
+
+#### Deploy unificado
+- **CADA PUSH = 1 DEPLOY ≈ 1-3 min de build.** Tenemos ~440 min/mes.
+- **NO hacer push hasta que el admin diga explícitamente "hazlo" o "push".**
+- **NO forzar push (`--force`) sin permiso explícito.**
+- **Pushear SIEMPRE a ambos branches**: `git push origin master:main master:master --force`
+- **Un solo commit con TODOS los cambios**, no micro-commits.
+
+#### Pruebas locales antes de deploy
+- Probar TODO con `node --check` y `node -e` antes de commitear.
+- No desplegar para probar.
+
+#### Modelos GO vs FREE
+- **GO endpoint**: `https://opencode.ai/zen/go/v1/chat/completions` (model: `deepseek-v4-flash`)
+- **FREE endpoint**: `https://opencode.ai/zen/v1/chat/completions` (model: `deepseek-v4-flash-free`)
+- GO necesita billing en el workspace. Sin saldo, cae a FREE como fallback.
+
+### Pendientes para próxima sesión
+1. CodeOpen: implementar WebSockets o SSE para actualización en tiempo real (opcional)
+2. Mejorar el navegador de Drive en fix-notes (cargar snapshot importa notas a DB)
+3. Revisar por qué algunos botones de cliente fallan silenciosamente (posible error API Likes)
+4. Los scripts temporales `_*.js` en raíz deben limpiarse
+
+### Env vars en Render
+| Variable | Valor |
+|----------|-------|
+| `OPENCODE_API_KEY` | Misma que `sk-EPQB...cqe1` (para modelo free) |
+| `AI_ASSIST_SECRET` | `opencode2026` (para endpoint /ai-assist/respond) |
+| `DEEPSEEK_PAID_KEY` | `sk-EPQBFsNdGAJqIRJwW36M0Tdc4aFpVNGzFfemDX19jZkHrlrHa43BNRw85LKIcqe1` |
+
+### Último commit
+`98a9205` — `fix: badge refresh 3s, auto-process sin interrumpir, lineas todos los estados, AUTO inmediato, Voice Admin V5` (deployed live en Render ✅)
