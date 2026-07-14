@@ -321,11 +321,11 @@ Estas reglas están escritas con sangre. Si una nueva sesión las ignora, el CRM
 - **NO forzar push (`--force`) sin permiso explícito del admin.**
 - **Probar TODO localmente con `node -e` antes de commitear.**
 
-### 2b. Flujo GitHub — main → master en un solo commit
-- El flujo es: **main** (rama de trabajo) → **master** (rama de deploy). Primero se actualiza main, luego se fusiona en master.
-- **Siempre en un SOLO commit** para no romper el CRM. No micro-commits.
-- Ambos commits se hacen juntos: main envía los arreglos a master, y master hace el commit final para que se refleje todo en el CRM sin roturas.
-- NO pushear main sin preparar también master.
+### 2b. Flujo GitHub — push SOLO a main
+- Render despliega desde **main**. `master` no tiene deploy configurado.
+- Push siempre a main: `git push origin master:main`
+- **Un solo commit con TODOS los cambios**, no micro-commits.
+- Master se queda como está localmente, no se pushea.
 
 ### 📋 REGLA CRÍTICA: Leer fix-notes COMPLETO antes de tocar código
 - **ANTES de escribir una línea, leer TODAS las notas de error pendientes en `/fix-notes` palabra por palabra.**
@@ -473,7 +473,7 @@ El admin pidió crear un asistente flotante con voz para la CRM. Se desarrollaro
 - **CADA PUSH = 1 DEPLOY ≈ 1-3 min de build.** Tenemos ~440 min/mes.
 - **NO hacer push hasta que el admin diga explícitamente "hazlo" o "push".**
 - **NO forzar push (`--force`) sin permiso explícito.**
-- **NO pushear a ambos branches** — cada push = 1 deploy. Pushear SOLO a `master` (rama de deploy): `git push origin master:master`
+- **Push SOLO a `main`** — Render despliega desde `main`. `master` no hace deploy. Push: `git push origin master:main`
 - **Un solo commit con TODOS los cambios**, no micro-commits.
 
 #### Pruebas locales antes de deploy
