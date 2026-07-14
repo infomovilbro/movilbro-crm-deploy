@@ -112,8 +112,11 @@
             <div class="col-md-6">
               <div class="card h-100 border">
                 <div class="card-header d-flex justify-content-between align-items-center py-1" style="cursor:pointer;" onclick="toggleSection('dirPagoBody')">
-                  <span class="fw-semibold small"><i class="bi bi-geo-alt"></i> Direcci&oacute;n y pago</span><select class="form-select form-select-sm ms-2" id="pagoFilter"  style="width:auto;max-width:120px;font-size:0.7rem;"><option value="activa">Activas</option><option value="all">Todas</option><option value="cancelada">Canceladas</option></select>
+                  <span class="fw-semibold small"><i class="bi bi-geo-alt"></i> Direcci&oacute;n y pago</span>
                   <i class="bi bi-chevron-down" id="dirPagoIcon"></i>
+                </div>
+                <div class="card-header py-1 border-top-0 d-flex justify-content-end" style="padding:2px 8px;">
+                  <select class="form-select form-select-sm" id="pagoFilter" style="width:auto;max-width:140px;font-size:0.7rem;" onclick="event.stopPropagation()"><option value="activa">Activas</option><option value="all">Todas</option><option value="cancelada">Canceladas</option></select>
                 </div>
                 <div class="card-body p-2" id="dirPagoBody">
                   <table class="table table-sm mb-0">
@@ -195,6 +198,7 @@
                     </td></tr>
                     <tr><th>Scoring</th><td>
                       <span id="scoringBadge" class="fs-6" title="Puntuación de fiabilidad del cliente (0-10). Más alto = más fiable."><span class="text-muted">Pulsa "Calcular"</span></span>
+                      <div id="scoringResumen" class="small text-muted mt-1" style="display:none;"></div>
                     </td></tr>
                     <tr><th>Recomendaci&oacute;n</th><td>
                       <span id="scoringRecomendacion"><span class="text-muted">-</span></span><br><button class="btn btn-sm btn-link p-0 mt-1" onclick="toggleScoringDetalle()" style="font-size:0.75rem;text-decoration:none;"><i class="bi bi-chevron-down" id="scoringDetalleIcon"></i> Ver detalle del cálculo</button><div id="scoringDetalleBody" style="display:none;margin-top:4px;padding:6px;background:#f8f9fa;border-radius:6px;font-size:0.75rem;"><ul id="scoringDetalleList" style="margin:0;padding-left:16px;"><li class="text-muted">Pulsa "Calcular" primero</li></ul></div>
@@ -216,8 +220,11 @@
             <div class="col-md-6">
               <div class="card border">
                 <div class="card-header py-1 d-flex justify-content-between align-items-center" style="cursor:pointer;" onclick="toggleSection('estadoLineasBody')">
-                  <small><i class="bi bi-pie-chart"></i> Estado de L&iacute;neas</small><select class="form-select form-select-sm ms-2" id="estadoFilter"  style="width:auto;max-width:120px;font-size:0.7rem;"><option value="activa">Activas</option><option value="all">Todas</option><option value="cancelada">Canceladas</option></select>
+                  <small><i class="bi bi-pie-chart"></i> Estado de L&iacute;neas</small>
                   <i class="bi bi-chevron-down" id="estadoLineasIcon"></i>
+                </div>
+                <div class="card-header py-1 border-top-0 d-flex justify-content-end" style="padding:2px 8px;">
+                  <select class="form-select form-select-sm" id="estadoFilter" style="width:auto;max-width:140px;font-size:0.7rem;" onclick="event.stopPropagation()"><option value="activa">Activas</option><option value="all">Todas</option><option value="cancelada">Canceladas</option></select>
                 </div>
                 <div class="card-body p-2" id="estadoLineasBody">
                   <% if (apiSubscriptions && apiSubscriptions.length > 0) { %>
@@ -231,8 +238,8 @@
                             <small><%= p.productName || s.productName || '-' %></small>
                           </div>
                           <div class="text-end">
-                            <span class="badge bg-<%= est === 'activa' || est === 'active' ? 'success' : est === 'suspendida' || est === 'suspended' ? 'warning' : 'secondary' %>">
-                              <%= est %>
+                            <span class="badge bg-<%= est === 'activa' || est === 'active' || est === 'activo' ? 'success' : est === 'suspendida' || est === 'suspended' ? 'warning' : 'secondary' %>">
+                              <%= ({'active':'Activa','activa':'Activa','activo':'Activa','suspended':'Suspendida','suspendida':'Suspendida','cancelled':'Cancelada','cancelada':'Cancelada','terminated':'Cancelada','terminada':'Cancelada','baja':'Cancelada'})[est] || est %>
                             </span>
                             <% if (p.icc || s.icc) { %><br><small class="text-muted">ICC: <%= (p.icc || s.icc).substring(0,15) %>...</small><br><button class="btn btn-sm btn-outline-dark mostrar-pinpuk mt-1" data-line="<%= p.lineNumber || s.lineNumber %>" data-pin="<%= p.pin || s.pin || '' %>" data-puk="<%= p.puk || s.puk || '' %>" data-icc="<%= p.icc || s.icc || '' %>" title="PIN/PUK"><i class="bi bi-key"></i></button><% } %>
                           </div>
@@ -258,7 +265,12 @@
                     <canvas id="gbChart" width="300" height="120" style="width:100%;height:100%;"></canvas>
                   </div>
                   <div id="consPerLine" class="mt-1 small text-start"></div>
-                  <button class="btn btn-sm btn-outline-info mt-1" onclick="abrirConsumoModal()" title="Abrir consumo detallado"><i class="bi bi-graph-up"></i> Ver consumo detallado</button>
+                  <div class="d-flex justify-content-center gap-1 mt-1">
+                    <button class="btn btn-sm btn-outline-info" onclick="abrirConsumoModal('gb')" title="Consumo GB"><i class="bi bi-bar-chart"></i> GB</button>
+                    <button class="btn btn-sm btn-outline-info" onclick="abrirConsumoModal('calls')" title="Llamadas"><i class="bi bi-telephone"></i> Llamadas</button>
+                    <button class="btn btn-sm btn-outline-info" onclick="abrirConsumoModal('sms')" title="SMS"><i class="bi bi-chat-dots"></i> SMS</button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="abrirConsumoModal()" title="Ver todo detallado"><i class="bi bi-graph-up"></i> Detallado</button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1086,10 +1098,10 @@
             <label class="btn btn-outline-secondary btn-sm py-0" for="dailyChartSms">SMS</label>
           </div>
         </h6>
-        <div style="height:100px;margin-bottom:8px;">
+        <div style="height:100px;margin-bottom:16px;">
           <canvas id="consDailyChart" height="100"></canvas>
         </div>
-        <div style="max-height:250px;overflow:auto">
+        <div style="max-height:250px;overflow:auto;margin-top:10px;">
           <table class="table table-sm table-striped mb-0">
             <thead><tr><th>Fecha</th><th class="text-end">GB</th><th class="text-end">Llamadas</th><th class="text-end">SMS</th><th></th></tr></thead>
             <tbody id="consDailyBody2"><tr><td colspan="5" class="text-center text-muted">Cargando...</td></tr></tbody>
@@ -1097,13 +1109,19 @@
         </div>
         <hr>
         
-        <!-- Llamadas Recientes (CDRs) -->
-        <h6 class="mt-3"><i class="bi bi-telephone"></i> Llamadas Recientes</h6>
-        <div style="max-height:300px;overflow:auto">
-          <table class="table table-sm table-striped mb-0">
-            <thead><tr><th>Fecha</th><th>Tipo</th><th>Destino</th><th>Duración</th><th>Coste</th></tr></thead>
-            <tbody id="cdrsBody"><tr><td colspan="5" class="text-center text-muted">Cargando...</td></tr></tbody>
-          </table>
+        <!-- Llamadas Recientes (CDRs) colapsado por defecto -->
+        <div class="mt-3">
+          <h6 style="cursor:pointer;" onclick="var el=document.getElementById('cdrsCollapse');var ic=this.querySelector('.bi');if(el.style.display==='none'){el.style.display='';ic.className='bi bi-chevron-up'}else{el.style.display='none';ic.className='bi bi-chevron-down'}">
+            <i class="bi bi-chevron-down" id="cdrsCollapseIcon"></i> <i class="bi bi-telephone"></i> Llamadas Recientes
+          </h6>
+          <div id="cdrsCollapse" style="display:none;">
+            <div style="max-height:300px;overflow:auto">
+              <table class="table table-sm table-striped mb-0">
+                <thead><tr><th>Fecha</th><th>Tipo</th><th>Destino</th><th>Duración</th><th>Coste</th></tr></thead>
+                <tbody id="cdrsBody"><tr><td colspan="5" class="text-center text-muted">Cargando...</td></tr></tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -1616,6 +1634,24 @@ function calcularScoring(clienteId) {
           else recHtml = '<span class="badge bg-danger fs-6">❌ No recomendado</span>';
           sr.innerHTML = recHtml;
         }
+        // Mostrar resumen breve en el card
+        var sr2 = document.getElementById('scoringResumen');
+        if (sr2 && res.detalles && res.detalles.length > 0) {
+          var puntos = res.detalles.join(' · ');
+          sr2.innerHTML = puntos;
+          sr2.style.display = '';
+        }
+        // Actualizar resumen inline detallado
+        var sdl = document.getElementById('scoringDetalleList');
+        if (sdl) {
+          sdl.innerHTML = detallesHtml;
+          var sdb = document.getElementById('scoringDetalleBody');
+          if (sdb && sdb.style.display === 'none') {
+            sdb.style.display = '';
+            var sdi = document.getElementById('scoringDetalleIcon');
+            if (sdi) sdi.className = 'bi bi-chevron-up';
+          }
+        }
       } else {
         document.getElementById('scoringResultValue').textContent = 'Error';
         document.getElementById('scoringResultDetails').innerHTML = '<li class="text-danger">' + (res.error || 'Error al calcular scoring') + '</li>';
@@ -1885,7 +1921,7 @@ document.addEventListener('DOMContentLoaded', function() {
     } catch(e) { gbChart = null; }
   }
   // Funcion para abrir consumo detallado desde la tarjeta GB
-window.abrirConsumoModal = function() {
+window.abrirConsumoModal = function(tipo) {
   var sel = document.getElementById('gbLineSelect');
   var line = sel ? sel.value : '';
   if (!line && linesArr.length > 0) line = linesArr[0];
@@ -1893,6 +1929,15 @@ window.abrirConsumoModal = function() {
   document.getElementById('consLineNumber').textContent = line;
   cargarConsumoModal(line);
   new bootstrap.Modal(document.getElementById('consumptionModal')).show();
+  // Seleccionar pestana segun tipo
+  if (tipo) {
+    var rbMap = { gb: 'dailyChartGB', calls: 'dailyChartCalls', sms: 'dailyChartSms' };
+    var rbId = rbMap[tipo];
+    if (rbId) {
+      var rb = document.getElementById(rbId);
+      if (rb) { rb.checked = true; rb.dispatchEvent(new Event('change')); }
+    }
+  }
 };
 
 function cargarConsumoModal(line) {
@@ -1991,9 +2036,9 @@ function renderDailyView() {
   renderDailyTable(mesData, tipoSel);
   // Actualizar navegacion de meses
   var navHtml = '<div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:6px;">';
-  navHtml += '<button class="btn btn-sm btn-outline-secondary" onclick="navegarMes(-1)" ' + (window._dailyMesActual <= 0 ? 'disabled' : '') + '>�</button>';
+  navHtml += '<button class="btn btn-sm btn-outline-secondary" onclick="navegarMes(-1)" ' + (window._dailyMesActual <= 0 ? 'disabled' : '') + '><i class="bi bi-chevron-left"></i></button>';
   navHtml += '<span class="fw-semibold">' + labelMes + '</span>';
-  navHtml += '<button class="btn btn-sm btn-outline-secondary" onclick="navegarMes(1)" ' + (window._dailyMesActual >= mesesArr.length - 1 ? 'disabled' : '') + '>�</button>';
+  navHtml += '<button class="btn btn-sm btn-outline-secondary" onclick="navegarMes(1)" ' + (window._dailyMesActual >= mesesArr.length - 1 ? 'disabled' : '') + '><i class="bi bi-chevron-right"></i></button>';
   navHtml += '</div>';
   var navContainer = document.getElementById('dailyMonthNav');
   if (!navContainer) {
@@ -2026,7 +2071,21 @@ function renderDailyChart(mesData, tipo, mesSel) {
         if (items && items.length > 0) {
           var idx = items[0].dataIndex;
           var diaData = mesData[idx];
-          if (diaData && diaData.date) mostrarCDRsPorFecha(diaData.date, tipo);
+          if (diaData && diaData.date) {
+            // Expandir fila en la tabla
+            var row = document.querySelector('.cons-day-row[data-idx="' + idx + '"]');
+            var detailRow = document.querySelector('.cons-day-detail[data-idx="' + idx + '"]');
+            if (row && detailRow) {
+              if (detailRow.style.display === 'none') {
+                detailRow.style.display = '';
+                row.querySelector('.bi').className = 'bi bi-chevron-up';
+                if (!detailRow.dataset.loaded) {
+                  detailRow.dataset.loaded = '1';
+                  mostrarCDRsPorFecha(diaData.date, tipo);
+                }
+              }
+            }
+          }
         }
       },
       plugins: { legend: { display: false } },
