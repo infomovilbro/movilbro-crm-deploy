@@ -68,6 +68,8 @@
 - [ ] Asumir que auto-deploy funciona → verificar en dashboard.render.com, hacer Manual Deploy si es necesario.
 - [ ] No verificar en navegador real después del deploy → comprobar que funciona en la web real antes de informar.
 - [ ] No verificar estructura de datos de la API Likes antes de tocar routes/clients.js → la API devuelve subscriptions con `lineNumber`, `fixedNumber`, `products[].lineNumber`, `products[].fixedNumber`. El código debe extraer TODOS estos campos para poblar `allLines`, o líneas no aparecen en el selector.
+- [ ] Hacer push a ambos branches (main+master) → cada push gasta minutos de build. Push SOLO a master: `git push origin master:master`
+- [ ] No leer AGENTS.md antes de actuar → ANTES de commit, push, install, o tocar código, leer sección "REGLAS ABSOLUTAS" y "Errores Repetidos".
 
 ## API Likes — Formato de Datos (Obligatorio Leer Antes de Tocar)
 ### Subscription (`apiSubscriptions`)
@@ -469,7 +471,7 @@ El admin pidió crear un asistente flotante con voz para la CRM. Se desarrollaro
 - **CADA PUSH = 1 DEPLOY ≈ 1-3 min de build.** Tenemos ~440 min/mes.
 - **NO hacer push hasta que el admin diga explícitamente "hazlo" o "push".**
 - **NO forzar push (`--force`) sin permiso explícito.**
-- **Pushear SIEMPRE a ambos branches**: `git push origin master:main master:master --force`
+- **NO pushear a ambos branches** — cada push = 1 deploy. Pushear SOLO a `master` (rama de deploy): `git push origin master:master`
 - **Un solo commit con TODOS los cambios**, no micro-commits.
 
 #### Pruebas locales antes de deploy
