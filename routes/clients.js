@@ -485,7 +485,7 @@ router.get('/fiscal/:fiscalId', requireAuth, async (req, res) => {
     var prods = s.products && s.products.length ? s.products : (s.productName ? [{productName: s.productName, lineNumber: lineFromSub, status: s.status, icc: s.icc}] : []);
     prods.forEach(function(p) {
       var st = (p.status || s.status || '').toLowerCase();
-      var ln = p.lineNumber || p.fixedNumber || (p.line && (p.line.lineNumber || p.line.number)) || '';
+      var ln = p.lineNumber || p.fixedNumber || (p.line && (p.line.lineNumber || p.line.number)) || lineFromSub || s.lineNumber || s.fixedNumber || '';
       if (ln && !allLines.find(function(l) { return l.linea === ln; })) {
         allLines.push({ linea: ln, producto: p.productName || '', estado: st, iccid: p.icc || '', pin: '', puk: '', contrato_id: null, fecha_alta: null });
       }
@@ -779,7 +779,7 @@ router.get('/:id', requireAuth, async (req, res) => {
     prods.forEach(p => {
       const st = (p.status || s.status || '').toLowerCase();
       if (terminatedStatuses.includes(st)) return;
-      const ln = p.lineNumber || '';
+      const ln = p.lineNumber || p.fixedNumber || s.lineNumber || s.fixedNumber || '';
       if (ln && !allLines.find(l => l.linea === ln)) {
         allLines.push({
           linea: ln,
@@ -1625,25 +1625,25 @@ router.post('/:id/calculate-scoring', requireAuth, async (req, res) => {
       var custResp = await api.request('GET', '/customer?fiscalId=' + encodeURIComponent(fiscalId));
       var custData = custResp.data || custResp;
       var sc = parseFloat(custData.scoring || custData.score || custData.creditScore || custData.rating || -1);
-      if (sc >= 0) { puntuacion = sc; detalles.push('Scoring API Likes: ' + sc + '/10'); }
+      if (sc >= 0) { puntuacion = sc; detalles.push('Basado en scoring de API Likes: ' + sc + '/10'); }
       if (custData.aeatStatus) {
-        detalles.push('AEAT: ' + custData.aeatStatus);
+        detalles.push('Según AEAT: ' + custData.aeatStatus);
         if (custData.aeatStatus.toLowerCase().includes('ok') || custData.aeatStatus.toLowerCase().includes('valid')) puntuacion += 1;
         else puntuacion -= 1;
       }
-    } catch(e) { detalles.push('Sin scoring de API Likes'); }
+    } catch(e) { detalles.push('API Likes no devuelve scoring para este cliente'); }
     try {
       var facRow = db.prepare("SELECT COUNT(*) as total, SUM(CASE WHEN estado='pagada' OR estado='paid' OR pagado=1 THEN 1 ELSE 0 END) as pagadas FROM isp_facturas WHERE fiscal_id=?").get(fiscalId);
       if (facRow && facRow.total > 0) {
         var ratio = facRow.pagadas / facRow.total;
-        detalles.push(facRow.pagadas + '/' + facRow.total + ' facturas pagadas (' + Math.round(ratio*100) + '%)');
+        detalles.push('De ' + facRow.total + ' facturas ISP, ' + facRow.pagadas + ' pagadas (' + Math.round(ratio*100) + '%)');
         if (ratio >= 0.9) puntuacion += 2;
         else if (ratio >= 0.7) puntuacion += 1;
         else puntuacion -= 1;
-      } else { detalles.push('Sin historial de facturas ISP'); }
+      } else { detalles.push('No hay facturas ISP registradas en DB local'); }
     } catch(e) {}
     var dniClean = fiscalId.toUpperCase().replace(/[^0-9A-Z]/g, '');
-    if (/^(\d{8}[A-Z]|[XYZ]\d{7}[A-Z]|[A-Z]\d{7}[A-Z]|\d{8})$/i.test(dniClean)) { puntuacion += 1; detalles.push('DNI/NIF válido'); }
+    if (/^(\d{8}[A-Z]|[XYZ]\d{7}[A-Z]|[A-Z]\d{7}[A-Z]|\d{8})$/i.test(dniClean)) { puntuacion += 1; detalles.push('Formato DNI/NIF válido: +1 punto'); }
     else if (dniClean) { puntuacion -= 1; detalles.push('DNI/NIF formato inválido'); }
     puntuacion = Math.max(1, Math.min(10, Math.round(puntuacion)));
     if (puntuacion >= 7) riesgo = 'bajo';
