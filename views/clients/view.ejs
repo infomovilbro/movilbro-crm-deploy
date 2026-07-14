@@ -39,7 +39,7 @@
         <li class="nav-item" role="presentation">
           <button class="nav-link" id="lineas-tab" data-bs-toggle="tab" data-bs-target="#lineas" type="button" role="tab" aria-controls="lineas" aria-selected="false">
             <i class="bi bi-phone"></i> L&iacute;neas / Suscripciones
-            <% if (apiSubscriptions.length > 0) { %><span class="badge bg-secondary ms-1"><%= apiSubscriptions.length %></span><% } %>
+            <% if (apiSubscriptions.length > 0) { %><span class="badge bg-secondary ms-1"><%= apiSubscriptions.length %></span><select class="form-select form-select-sm d-inline-block ms-2" id="subsFilter" style="width:auto;max-width:120px;font-size:0.7rem;"><option value="activa">Activas</option><option value="all">Todas</option><option value="cancelada">Canceladas</option></select><% } %>
           </button>
         </li>
         <li class="nav-item" role="presentation">
@@ -112,7 +112,7 @@
             <div class="col-md-6">
               <div class="card h-100 border">
                 <div class="card-header d-flex justify-content-between align-items-center py-1" style="cursor:pointer;" onclick="toggleSection('dirPagoBody')">
-                  <span class="fw-semibold small"><i class="bi bi-geo-alt"></i> Direcci&oacute;n y pago</span><select class="form-select form-select-sm ms-2" id="pagoFilter" onchange="filtrarLineas()" style="width:auto;max-width:120px;font-size:0.7rem;"><option value="activa">Activas</option><option value="all">Todas</option><option value="cancelada">Canceladas</option></select>
+                  <span class="fw-semibold small"><i class="bi bi-geo-alt"></i> Direcci&oacute;n y pago</span><select class="form-select form-select-sm ms-2" id="pagoFilter"  style="width:auto;max-width:120px;font-size:0.7rem;"><option value="activa">Activas</option><option value="all">Todas</option><option value="cancelada">Canceladas</option></select>
                   <i class="bi bi-chevron-down" id="dirPagoIcon"></i>
                 </div>
                 <div class="card-body p-2" id="dirPagoBody">
@@ -215,7 +215,7 @@
             <div class="col-md-6">
               <div class="card border">
                 <div class="card-header py-1 d-flex justify-content-between align-items-center" style="cursor:pointer;" onclick="toggleSection('estadoLineasBody')">
-                  <small><i class="bi bi-pie-chart"></i> Estado de L&iacute;neas</small><select class="form-select form-select-sm ms-2" id="estadoFilter" onchange="filtrarLineas()" style="width:auto;max-width:120px;font-size:0.7rem;"><option value="activa">Activas</option><option value="all">Todas</option><option value="cancelada">Canceladas</option></select>
+                  <small><i class="bi bi-pie-chart"></i> Estado de L&iacute;neas</small><select class="form-select form-select-sm ms-2" id="estadoFilter"  style="width:auto;max-width:120px;font-size:0.7rem;"><option value="activa">Activas</option><option value="all">Todas</option><option value="cancelada">Canceladas</option></select>
                   <i class="bi bi-chevron-down" id="estadoLineasIcon"></i>
                 </div>
                 <div class="card-body p-2" id="estadoLineasBody">
@@ -1605,7 +1605,7 @@ function calcularScoring(clienteId) {
         if (sr) {
           var recHtml = '';
           if (res.scoring >= 7) recHtml = '<span class="badge bg-success fs-6">✅ Recomendado</span>';
-          else if (res.scoring >= 4) recHtml = '<span class="badge bg-warning fs-6">⚠️´©Å Revisar</span>';
+          else if (res.scoring >= 4) recHtml = '<span class="badge bg-warning fs-6">⚠️ Revisar</span>';
           else recHtml = '<span class="badge bg-danger fs-6">❌ No recomendado</span>';
           sr.innerHTML = recHtml;
         }
@@ -1622,7 +1622,7 @@ function calcularScoring(clienteId) {
 document.addEventListener('DOMContentLoaded', function() {
   var statusData = <%- JSON.stringify(linesByStatus || {}) %>;
   var linesArr = <%- JSON.stringify(lineNumbers || []) %>;
-  var clientId = <%- JSON.stringify(_cid || null) %>;
+  var clientId = <%- JSON.stringify(_cid || null) %>; if(!clientId){var _fb=document.querySelector('.ver-consumo');if(_fb)clientId=_fb.dataset.client}
   if (!clientId) { var _firstBtn = document.querySelector('.ver-consumo'); if (_firstBtn) clientId = _firstBtn.dataset.client; }
 
   function formatDate(d) {
@@ -2468,4 +2468,28 @@ function toggleScoringDetalle(){
   else{b.style.display='none';i.className='bi bi-chevron-down'}
 }
 if(document.getElementById('estadoFilter'))filtrarLineas();
+
+(function(){
+  var ef=document.getElementById('estadoFilter');
+  var pf=document.getElementById('pagoFilter');
+  if(ef){ef.addEventListener('change',filtrarLineas);ef.value='activa'}
+  if(pf){pf.addEventListener('change',filtrarLineas);pf.value='activa'}
+  setTimeout(function(){if(document.getElementById('estadoFilter'))filtrarLineas()},300);
+})();
+
+function filtrarSubs(){
+  var sf=document.getElementById('subsFilter');
+  if(!sf)return;
+  var val=sf.value;
+  document.querySelectorAll('#lineas tbody tr').forEach(function(row){
+    var badge=row.querySelector('td:nth-child(3) .badge');
+    if(!badge){row.style.display='';return}
+    var est=badge.textContent.trim().toLowerCase();
+    var isTerm=est==='cancelada'||est==='terminada'||est==='baja'||est==='cancelled';
+    var isAct=est==='activa'||est==='active';
+    if(val==='all')row.style.display='';
+    else if(val==='cancelada')row.style.display=isTerm?'':'none';
+    else row.style.display=isAct?'':'none';
+  });
+}
 </script>

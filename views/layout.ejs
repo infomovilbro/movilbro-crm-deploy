@@ -1823,7 +1823,16 @@
   });
   input.addEventListener('focus', function() {
     if (input.value.trim().length >= 2 && dropdown.innerHTML) {
-      dropdown.style.display = 'block';
+      
+      // Si hay pocos resultados, sugerir busqueda fiscal
+      if (data && data.length < 5 && q.length >= 3) {
+        var hasFiscal = data.some(function(r){return r.origen==='fiscal-suggest'});
+        if(!hasFiscal){
+          var fiscalHtml = '<a href="/clientes/fiscal/' + encodeURIComponent(q) + '" style="border-top:1px solid #eee;color:#0050A1;padding:8px 12px;display:block;font-size:0.85rem;"><strong>Buscar como cliente fiscal: ' + q + '</strong><br><small class="text-muted">Buscar en Likes Telecom</small></a>';
+          dropdown.innerHTML += fiscalHtml;
+        }
+      }
+dropdown.style.display = 'block';
     }
   });
 })();
