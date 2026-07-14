@@ -386,6 +386,8 @@ Estas reglas están escritas con sangre. Si una nueva sesión las ignora, el CRM
 - **Un solo punto de verdad** para cada funcionalidad. Si hay duplicados (como había en consumo: `abrirConsumoModal` + `.ver-consumo` handler duplicado), refactorizar a una sola función.
 - La vista `views/clients/view.ejs` es ÚNICA y compartida por todos los clientes. Cualquier cambio en consumo, selector de líneas, CDRs, facturación, etc. aplica a TODOS automáticamente.
 - **Cualquier función que toque líneas, clientes, consumo o CDRs debe funcionar IGUAL para todas las líneas y todos los clientes.** No importa si el ejemplo que uso para arreglar es un cliente concreto — el fix se aplica a todos por igual.
+- **Cualquier variable EJS renderizada dentro de un `<script>` tag debe ir con comillas o usar `JSON.stringify`.** Si un fiscal ID empieza con dígito (DNI como `74800315Z`), el JS interpreta el valor como identifier inválido → SyntaxError → TODO el bloque inline se descarta. Diferentes clientes tienen diferentes tipos de ID (NIF con letra, DNI con número) — lo que funciona para uno puede cascar para otros.
+- **Regla de escape en `<script>` tags:** `<%= variable %>` → `'<%= variable %>'` o `<%- JSON.stringify(variable) %>`. Verificar SIEMPRE que los valores EJS dentro de scripts se rendericen como strings válidos. El `_cid` (fiscal ID) es el caso más crítico porque varía por cliente.
 
 #### ⚠️ Verificar SIEMPRE antes de commitear
 - **Después de cualquier cambio en JS/EJS, verificar balance de llaves** (`{`/`}`) en los scripts. Un `}` extra rompe todo el DOMContentLoaded y casca todo el CRM.
@@ -577,3 +579,39 @@ const page = browser.contexts()[0].pages()[0]; // primera pestaña
 
 ### Último commit
 `c42ca15` — `fix: 10 arreglos completos - lineas selector, estados, pinpuk, encoding, scoring, ordenes AJAX, busqueda` (deployed live en Render ✅)
+
+---
+
+## Sesión 2026-07-14 — Fix crítico: _cid sin comillas rompía script para 189 clientes
+
+### Problema
+El fiscal ID (`_cid`) se renderizaba SIN comillas dentro del bloque `<script>` de `view.ejs`.
+Para clientes con DNI que empieza con dígito (ej: `74800315Z`, `24824374Z`), el JavaScript
+interpretaba el valor como identifier inválido → **SyntaxError** → todo el bloque inline
+(~60KB con todas las funciones del cliente) se descartaba.
+
+Para clientes con NIF que empieza con letra (ej: `X8365586A`) funcionaba porque `X` es letra
+→ identifier válido (aunque undefined, no daba error).
+
+**Afectaba:** PIN/PUK, selector de líneas, scoring, consumo, loadNubeInvoices, cambiarPagoLinea,
+guardarIBAN — todo lo que dependía del inline script.
+
+### Fix aplicado
+1. **`_cid` con comillas** en 4 lugares dentro de `<script>` tags:
+   - `guardarIBAN('<%= _cid %>')` — onclick
+   - `loadNubeInvoices('<%= _cid %>')` — onclick Drive
+   - `fetch('/clientes/' + '<%= _cid %>' + '/line/'` — cambiarPagoLinea
+   - `loadNubeInvoices('<%= _cid %>')` — DOMContentLoaded
+2. **Estado de Líneas**: quitado server-side skip de líneas terminadas
+3. **Dirección y pago**: añadido `data-estado` a cada línea para que el filtro funcione
+4. **Líneas/Suscripciones**: filtro movido del nav a dentro del contenido + event listeners
+5. **`isAct`** ahora reconoce también `'activo'` (líneas locales)
+
+### Lecciones nuevas
+- **Cualquier variable EJS dentro de `<script>` tag debe ir con comillas:** `<%= variable %>` → `'<%= variable %>'` o `<%- JSON.stringify(variable) %>`. El caso más crítico es `_cid` (fiscal ID) porque varía por cliente.
+- **Los filtros `<select>` necesitan `data-*` en los elementos a filtrar.** Sin `data-estado`, el JS no tiene elementos que ocultar/mostrar.
+- **Server-side skip en EJS impide client-side filtering.** Si una línea se omite en el render, el filtro JS nunca podrá mostrarla.
+- **Siempre probar con al menos DOS tipos de cliente** (NIF con letra y DNI numérico) antes de commitear cambios en `view.ejs`.
+
+### Commit
+`1e1009e` — `fix: _cid quoting syntax error + filtros lineas funcionales` (deployed live en Render ✅)

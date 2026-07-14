@@ -132,6 +132,34 @@ this.brandId = config.brandId || process.env.LIKES_BRAND_ID || '264';
 11. **NADA en local** — no asumir CDP, no leer archivos locales, no crear .bat/.ps1
 12. **NUNCA eliminar hardcoded fallback de credenciales** — la prioridad es `env vars → settings DB → hardcoded`. El hardcoded es el salvavidas para cualquier entorno.
 13. **Usar SIEMPRE `getApiInstance()`** — no crear `new LikesAPI()` directo desde settings. La instancia global ya maneja env vars + DB + hardcoded.
+14. **CUALQUIER variable EJS dentro de `<script>` tag → SIEMPRE con comillas:** `<%= var %>` → `'<%= var %>'` o `<%- JSON.stringify(var) %>`. El caso más crítico es `_cid` (fiscal ID) porque un DNI numérico (`74800315Z`) rompe todo el JS inline.
+15. **LOS FILTROS `<select>` necesitan `data-*`** en los elementos a filtrar. Sin `data-estado` o similar en el HTML, el JS `querySelectorAll('[data-estado]')` no encuentra nada.
+16. **NO hacer server-side skip en EJS para filtering** — `if (est === 'terminada') return;` en EJS impide que el filtro JS del cliente pueda mostrar esas líneas después.
+
+## [2026-07-14] _cid sin comillas en script — SyntaxError bloquea TODO el JS inline en clientes con DNI numérico
+**Error:** El fiscal ID (`_cid`) se renderizaba sin comillas dentro de etiquetas `<script>` en `view.ejs`.
+Para clientes con DNI que empieza con dígito (ej: `74800315Z`), el JavaScript interpretaba el valor como
+identifier inválido → **SyntaxError** → **todo el bloque inline de ~60KB se descartaba**.
+Para clientes con NIF que empieza con letra (ej: `X8365586A`) funcionaba porque `X` es letra.
+
+**Afectaba a 189 clientes:** PIN/PUK, selector de líneas, scoring, consumo, loadNubeInvoices,
+cambiarPagoLinea, guardarIBAN — todo muerto.
+
+**Causa:** `<%= _cid %>` en 4 lugares dentro de `<script>` tags sin comillas:
+- `guardarIBAN(<%= _cid %>)` → `guardarIBAN(74800315Z)` → SyntaxError
+- `loadNubeInvoices(<%= _cid %>)` → `loadNubeInvoices(74800315Z)` → SyntaxError
+- `fetch('/clientes/' + <%= _cid %> + '/line/'` → `'/clientes/' + 74800315Z` → SyntaxError
+
+**Reglas nuevas:**
+1. Cualquier `<%= variable %>` dentro de `<script>` tag → SIEMPRE con comillas: `'<%= variable %>'` o `<%- JSON.stringify(variable) %>`
+2. `_cid` (fiscal ID) es el más crítico porque varía por cliente (NIF letra vs DNI número)
+3. Siempre probar con al menos DOS tipos de cliente antes de commitear cambios en `view.ejs`
+4. Los filtros `<select>` necesitan `data-estado` en los elementos a filtrar — sin `data-*` no hay nada que ocultar
+5. Server-side `if (cond) return;` en EJS impide client-side filtering — si no se renderiza, no se puede filtrar
+
+**Solución:** `guardarIBAN('<%= _cid %>')`, `loadNubeInvoices('<%= _cid %>')`, `fetch('/clientes/' + '<%= _cid %>' + '/line/'`
+
+---
 
 ## [2026-07-03] QR WhatsApp roto 6 VECES por duplicación de rutas + formato incorrecto
 **Error:** Hay DOS endpoints `/codeopen/baileys-qr` — uno público en `server.js` y otro protegido en `routes/codeopen.js`. El público se registra primero y gana. El frontend espera `{status: {connected, state, hasQR, error}, qr: dataURL}` pero el público devolvía `getStatus()` directo (sin wrapper `status`).
