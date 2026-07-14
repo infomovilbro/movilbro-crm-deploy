@@ -481,7 +481,7 @@ router.get('/fiscal/:fiscalId', requireAuth, async (req, res) => {
 
   var allLines = [];
   apiSubscriptions.forEach(function(s) {
-    var lineFromSub = s.lineNumber || s.fixedNumber || (s.line && (s.line.lineNumber || s.line.number)) || '';
+    var lineFromSub = s.lineNumber || s.fixedNumber || (s.line && (s.line.lineNumber || s.line.number)) || s.phone || s.msisdn || s.numero || '';
     var prods = s.products && s.products.length ? s.products : (s.productName ? [{productName: s.productName, lineNumber: lineFromSub, status: s.status, icc: s.icc}] : []);
     prods.forEach(function(p) {
       var st = (p.status || s.status || '').toLowerCase();
@@ -772,7 +772,7 @@ router.get('/:id', requireAuth, async (req, res) => {
   apiSubscriptions.forEach(s => {
     const prods = s.products && s.products.length ? s.products : (s.productName ? [{
       productName: s.productName,
-      lineNumber: s.lineNumber,
+      lineNumber: s.lineNumber || s.fixedNumber || s.phone || s.msisdn || s.numero,
       status: s.status,
       icc: s.icc
     }] : []);
