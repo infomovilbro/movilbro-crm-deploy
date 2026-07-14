@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Historial de Cambios — Movilbro CRM</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+<style>
+body { background: #f5f5f5; font-family: system-ui, -apple-system, sans-serif; }
+.container { max-width: 800px; }
+.card { border: none; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+.badge-commit { font-family: monospace; font-size: .75rem; }
+.timeline { position: relative; padding-left: 30px; }
+.timeline::before { content: ''; position: absolute; left: 10px; top: 0; bottom: 0; width: 2px; background: #dee2e6; }
+.timeline-item { position: relative; margin-bottom: 1.5rem; }
+.timeline-item::before { content: ''; position: absolute; left: -24px; top: 6px; width: 12px; height: 12px; border-radius: 50%; background: #0d6efd; border: 2px solid #fff; box-shadow: 0 0 0 2px #0d6efd; }
+.timeline-item.deploy::before { background: #198754; box-shadow: 0 0 0 2px #198754; }
+.timeline-item.error::before { background: #dc3545; box-shadow: 0 0 0 2px #dc3545; }
+.fix-item { padding: 8px 12px; margin-bottom: 6px; border-radius: 8px; background: #f8f9fa; border-left: 3px solid #0d6efd; }
+.fix-item.done { border-left-color: #198754; }
+</style>
+</head>
+<body>
+<div class="container py-4">
+  <div class="d-flex align-items-center gap-2 mb-4">
+    <i class="bi bi-arrow-left-circle" style="font-size:1.5rem;cursor:pointer;" onclick="history.back()"></i>
+    <h4 class="mb-0"><i class="bi bi-journal-text"></i> Historial de Cambios</h4>
+    <a href="/" class="btn btn-sm btn-outline-secondary ms-auto">Volver al CRM</a>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <h5 class="card-title"><i class="bi bi-rocket-takeoff"></i> Último despliegue</h5>
+      <div class="d-flex align-items-center gap-2 mb-2">
+        <code class="badge-commit badge bg-dark">4bdc8ae</code>
+        <span class="text-success"><i class="bi bi-check-circle-fill"></i> Deployed live</span>
+        <small class="text-muted">14 jul 2026</small>
+      </div>
+      <p class="mb-1"><strong>fix: scoring resumen visible + filtros fuera collapsible + 4 iconos consumo + gráfico click día + llamadas plegadas</strong></p>
+      <div class="fix-item done"><i class="bi bi-check-circle-fill text-success me-1"></i> <strong>Scoring</strong> — Tras calcular, muestra resumen de factores visibles en el card (API Likes, facturas ISP, DNI/NIF). Detalle expandido automáticamente.</div>
+      <div class="fix-item done"><i class="bi bi-check-circle-fill text-success me-1"></i> <strong>Estado de Líneas</strong> — Filtro Activas/Todas/Canceladas fuera del collapsible. No se cierra al usarlo. Estados en español.</div>
+      <div class="fix-item done"><i class="bi bi-check-circle-fill text-success me-1"></i> <strong>Dirección y pago</strong> — Mismo arreglo, filtro fuera del collapsible.</div>
+      <div class="fix-item done"><i class="bi bi-check-circle-fill text-success me-1"></i> <strong>Consumo GB</strong> — 4 iconos: <span class="badge bg-info">GB</span> <span class="badge bg-info">Llamadas</span> <span class="badge bg-info">SMS</span> <span class="badge bg-secondary">Detallado</span>. Cada uno abre el modal con su pestaña.</div>
+      <div class="fix-item done"><i class="bi bi-check-circle-fill text-success me-1"></i> <strong>Consumo Diario</strong> — Flechas mes con Bootstrap icons. Más espaciado gráfica/tabla.</div>
+      <div class="fix-item done"><i class="bi bi-check-circle-fill text-success me-1"></i> <strong>Gráfico → detalle</strong> — Click en cualquier barra expande el detalle de ese día en la tabla.</div>
+      <div class="fix-item done"><i class="bi bi-check-circle-fill text-success me-1"></i> <strong>Llamadas Recientes</strong> — Sección plegada por defecto, click para expandir.</div>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <h5 class="card-title"><i class="bi bi-clock-history"></i> Historial completo</h5>
+      <div class="timeline">
+
+        <div class="timeline-item deploy">
+          <div class="d-flex align-items-center gap-2">
+            <code class="badge-commit badge bg-dark">1e1009e</code>
+            <span class="text-success"><i class="bi bi-check-circle-fill"></i> Live</span>
+            <small class="text-muted">14 jul 2026</small>
+          </div>
+          <p class="mb-1 mt-1"><strong>Fix crítico: _cid sin comillas rompía script para 189 clientes</strong></p>
+          <ul class="small mb-0">
+            <li>4 lugares donde <code>_cid</code> (fiscal ID) se renderizaba sin comillas → SyntaxError para DNI numéricos</li>
+            <li>Cliente con NIF tipo X... funcionaba, DNI tipo 7... rompía todo el JS inline</li>
+            <li>PIN/PUK, selector líneas, scoring, consumo, loadNubeInvoices, cambiarPagoLinea — todo funcionaba solo para la mitad</li>
+          </ul>
+        </div>
+
+        <div class="timeline-item deploy">
+          <div class="d-flex align-items-center gap-2">
+            <code class="badge-commit badge bg-dark">c42ca15</code>
+            <span class="text-success"><i class="bi bi-check-circle-fill"></i> Live</span>
+            <small class="text-muted">13 jul 2026</small>
+          </div>
+          <p class="mb-1 mt-1"><strong>10 arreglos completos</strong></p>
+          <ul class="small mb-0">
+            <li>Selector líneas universal (lineNumber, fixedNumber, products[].*), estados, PIN/PUK, encoding, scoring, órdenes AJAX, búsqueda</li>
+          </ul>
+        </div>
+
+        <div class="timeline-item deploy">
+          <div class="d-flex align-items-center gap-2">
+            <code class="badge-commit badge bg-dark">461d14b</code>
+            <span class="text-success"><i class="bi bi-check-circle-fill"></i> Live</span>
+            <small class="text-muted">7 jul 2026</small>
+          </div>
+          <p class="mb-1 mt-1"><strong>WhatsApp Ficha dropdown + Drive auth</strong></p>
+          <ul class="small mb-0">
+            <li>z-index, posición inteligente (flip arriba si no hay sitio), fiscalId real desde dataset</li>
+            <li>Drive: service account key, fallback DB settings</li>
+          </ul>
+        </div>
+
+        <div class="timeline-item deploy">
+          <div class="d-flex align-items-center gap-2">
+            <code class="badge-commit badge bg-dark">c208f9e</code>
+            <span class="text-success"><i class="bi bi-check-circle-fill"></i> Live</span>
+            <small class="text-muted">4 jul 2026</small>
+          </div>
+          <p class="mb-1 mt-1"><strong>CodeOpen AI + IMAP + Webhooks</strong></p>
+          <ul class="small mb-0">
+            <li>Webhooks WhatsApp/Email, IMAP polling, pending/approve/reject, badge contador</li>
+            <li>Filtro newsletters, rate limit DeepSeek, carpeta Drive codeopen-memoria</li>
+          </ul>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="text-center text-muted small py-3">
+    <i class="bi bi-git"></i> Movilbro CRM · 
+    <a href="https://github.com/infomovilbro/movilbro-crm-deploy" target="_blank">GitHub</a> · 
+    <a href="https://movilbro-crm.onrender.com" target="_blank">CRM</a>
+  </div>
+</div>
+</body>
+</html>
