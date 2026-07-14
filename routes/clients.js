@@ -495,6 +495,15 @@ router.get('/fiscal/:fiscalId', requireAuth, async (req, res) => {
       allLines.push({ linea: s.fixedNumber, producto: s.productName || '', estado: (s.status || '').toLowerCase(), iccid: s.icc || '', pin: '', puk: '', contrato_id: null, fecha_alta: null });
     }
   });
+    // Ultimo fallback: extraer lineas directamente de apiSubscriptions
+  if (allLines.length === 0 && apiSubscriptions.length > 0) {
+    apiSubscriptions.forEach(function(s) {
+      var lnFallback = s.lineNumber || s.fixedNumber || s.phone || s.msisdn || s.numero || (s.line && (s.line.lineNumber || s.line.number)) || "";
+      if (lnFallback && !allLines.find(function(l) { return l.linea === lnFallback; })) {
+        allLines.push({ linea: lnFallback, producto: s.productName || "", estado: (s.status || "").toLowerCase(), iccid: s.icc || "", pin: "", puk: "", contrato_id: null, fecha_alta: null });
+      }
+    });
+  }
   // Si no hay lineas de API, anadir desde altas_ordenes (DB local)
   if (allLines.length === 0) {
     try {
@@ -795,7 +804,17 @@ router.get('/:id', requireAuth, async (req, res) => {
     });
   });
 
-  // Intentar obtener PIN/PUK de API para cada linea
+  
+  // Ultimo fallback: extraer lineas directamente de apiSubscriptions
+  if (allLines.length === 0 && apiSubscriptions.length > 0) {
+    apiSubscriptions.forEach(function(s) {
+      var lnFb = s.lineNumber || s.fixedNumber || s.phone || s.msisdn || s.numero || (s.line && (s.line.lineNumber || s.line.number)) || "";
+      if (lnFb && !allLines.find(function(l) { return l.linea === lnFb; })) {
+        allLines.push({ linea: lnFb, producto: s.productName || "", estado: (s.status || "").toLowerCase(), iccid: s.icc || "", pin: "", puk: "", contrato_id: null, fecha_alta: null });
+      }
+    });
+  }
+// Intentar obtener PIN/PUK de API para cada linea
   // Primero intentar endpoint /line con withSims=true (el que SÍ devuelve simInfo.pin/puk)
   // Luego /line/pinpuk como fallback
   try {
