@@ -39,7 +39,7 @@
         <li class="nav-item" role="presentation">
           <button class="nav-link" id="lineas-tab" data-bs-toggle="tab" data-bs-target="#lineas" type="button" role="tab" aria-controls="lineas" aria-selected="false">
             <i class="bi bi-phone"></i> L&iacute;neas / Suscripciones
-            <% if (apiSubscriptions.length > 0) { %><span class="badge bg-secondary ms-1"><%= apiSubscriptions.length %></span><select class="form-select form-select-sm d-inline-block ms-2" id="subsFilter" style="width:auto;max-width:120px;font-size:0.7rem;"><option value="activa">Activas</option><option value="all">Todas</option><option value="cancelada">Canceladas</option></select><% } %>
+<% if (apiSubscriptions.length > 0) { %><span class="badge bg-secondary ms-1"><%= apiSubscriptions.length %></span><% } %>
           </button>
         </li>
         <li class="nav-item" role="presentation">
@@ -130,11 +130,12 @@
                       <% try { var pagosJson = JSON.parse(lineasPago); } catch(e) { var pagosJson = {}; } %>
                       <% if (apiSubscriptions.length > 0) { %>
                         <% apiSubscriptions.forEach(function(s) { %>
-                          <% var prods = s.products && s.products.length ? s.products : [{productName: s.productName, lineNumber: s.lineNumber}]; %>
+                          <% var prods = s.products && s.products.length ? s.products : [{productName: s.productName, lineNumber: s.lineNumber, status: s.status}]; %>
                           <% prods.forEach(function(p) { %>
                           <% var linea = p.lineNumber || s.lineNumber || ''; %>
                           <% var metodoActual = pagosJson[linea] || ''; %>
-                          <div class="d-flex align-items-center justify-content-between mb-1 pb-1 border-bottom">
+                          <% var _pagoEst = (p.status || s.status || 'activa').toLowerCase(); %>
+                          <div class="d-flex align-items-center justify-content-between mb-1 pb-1 border-bottom" data-estado="<%= _pagoEst %>">
                             <small><strong><%= linea || 'Nueva línea' %></strong> - <%= p.productName || s.productName || '' %></small>
                             <div class="d-flex align-items-center gap-1">
                               <% if (metodoActual) { %>
@@ -163,7 +164,7 @@
                     <tr><th>IBAN</th><td>
                       <div class="input-group input-group-sm">
                         <input type="text" id="clienteIban" class="form-control" value="<%= apiCustomer.iban || cliente.iban || '' %>" placeholder="ES00 0000 0000 00 0000000000">
-                        <button class="btn btn-outline-primary" onclick="guardarIBAN(<%= _cid %>)"><i class="bi bi-check"></i></button>
+                        <button class="btn btn-outline-primary" onclick="guardarIBAN('<%= _cid %>')"><i class="bi bi-check"></i></button>
                       </div>
                     </td></tr>
                   </table>
@@ -223,8 +224,8 @@
                     <% apiSubscriptions.forEach(function(s) { %>
                       <% var prods = s.products && s.products.length ? s.products : [{productName: s.productName, lineNumber: s.lineNumber, status: s.status, icc: s.icc}]; %>
                       <% prods.forEach(function(p) { %>
-                        <% var est = (p.status || s.status || 'activa').toLowerCase(); if (est === 'terminada' || est === 'baja' || est === 'cancelled' || est === 'cancelada') return; %>
-                        <div class="d-flex align-items-center justify-content-between mb-1 pb-1 border-bottom">
+                        <% var est = (p.status || s.status || 'activa').toLowerCase(); %>
+                        <div class="d-flex align-items-center justify-content-between mb-1 pb-1 border-bottom" data-estado="<%= est %>">
                           <div>
                             <strong><%= p.lineNumber || s.lineNumber || 'Nueva línea' %></strong><br>
                             <small><%= p.productName || s.productName || '-' %></small>
@@ -272,6 +273,13 @@
             <p class="mt-2">Este cliente no tiene l&iacute;neas o suscripciones</p>
           </div>
           <% } else { %>
+          <div class="d-flex justify-content-end mb-2">
+            <select class="form-select form-select-sm" id="subsFilter" style="width:auto;max-width:140px;font-size:0.75rem;">
+              <option value="activa">Activas</option>
+              <option value="all">Todas</option>
+              <option value="cancelada">Canceladas</option>
+            </select>
+          </div>
           <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
               <thead class="table-dark">
@@ -332,7 +340,6 @@
                 <% }); %>
                 <% }); %>
                 <% lineas.forEach(function(l) { %>
-                <% var _lest = (l.estado || '').toLowerCase(); if (_lest === 'terminada' || _lest === 'baja' || _lest === 'cancelled' || _lest === 'cancelada') return; %>
                 <% if (!apiSubscriptions.some(function(s) { var prods = s.products && s.products.length ? s.products : [{productName: s.productName, lineNumber: s.lineNumber, status: s.status, icc: s.icc}]; return prods.some(function(p) { return p.lineNumber === l.linea; }); })) { %>
                 <tr class="table-secondary">
                   <td>
@@ -484,7 +491,7 @@
             <a href="/isp/nube" class="btn btn-sm btn-outline-info" target="_blank">
               <i class="bi bi-cloud"></i> Ver nube/Drive
             </a>
-            <button class="btn btn-sm btn-outline-danger" onclick="loadNubeInvoices(<%= _cid %>)">
+            <button class="btn btn-sm btn-outline-danger" onclick="loadNubeInvoices('<%= _cid %>')">
               <i class="bi bi-google-drive"></i> Facturas en Drive
             </button>
           </div>
@@ -1542,7 +1549,7 @@ function editarCampo(campo, clienteId) {
 
 function cambiarPagoLinea(linea, metodo) {
   if (!confirm('┬┐Cambiar método de pago de la línea ' + linea + ' a ' + metodo + '?')) return;
-  fetch('/clientes/' + <%= _cid %> + '/line/' + encodeURIComponent(linea) + '/metodo-pago', {
+  fetch('/clientes/' + '<%= _cid %>' + '/line/' + encodeURIComponent(linea) + '/metodo-pago', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ metodo_pago: metodo })
@@ -2434,7 +2441,7 @@ document.querySelectorAll('input[name="dailyChartType"]').forEach(function(rb) {
   document.getElementById('facturas-tab')?.addEventListener('shown.bs.tab', function() {
     var container = document.getElementById('nubeInvoicesContainer');
     if (container && container.innerHTML === '') {
-      loadNubeInvoices(<%= _cid %>);
+      loadNubeInvoices('<%= _cid %>');
     }
   });
 
@@ -2454,7 +2461,7 @@ function filtrarLineas(){
   document.querySelectorAll('[data-estado]').forEach(function(el){
     var est=el.getAttribute('data-estado');
     var isTerm=est==='terminada'||est==='baja'||est==='cancelled'||est==='cancelada';
-    var isAct=est==='activa'||est==='active';
+    var isAct=est==='activa'||est==='active'||est==='activo';
     if(v==='all')el.style.display='';
     else if(v==='cancelada')el.style.display=isTerm?'':'none';
     else el.style.display=isAct?'':'none';
@@ -2468,13 +2475,16 @@ function toggleScoringDetalle(){
   else{b.style.display='none';i.className='bi bi-chevron-down'}
 }
 if(document.getElementById('estadoFilter'))filtrarLineas();
+if(document.getElementById('subsFilter'))filtrarSubs();
 
 (function(){
   var ef=document.getElementById('estadoFilter');
   var pf=document.getElementById('pagoFilter');
+  var sf=document.getElementById('subsFilter');
   if(ef){ef.addEventListener('change',filtrarLineas);ef.value='activa'}
   if(pf){pf.addEventListener('change',filtrarLineas);pf.value='activa'}
-  setTimeout(function(){if(document.getElementById('estadoFilter'))filtrarLineas()},300);
+  if(sf){sf.addEventListener('change',filtrarSubs);sf.value='activa'}
+  setTimeout(function(){if(document.getElementById('estadoFilter'))filtrarLineas();if(document.getElementById('subsFilter'))filtrarSubs()},300);
 })();
 
 function filtrarSubs(){
@@ -2486,7 +2496,7 @@ function filtrarSubs(){
     if(!badge){row.style.display='';return}
     var est=badge.textContent.trim().toLowerCase();
     var isTerm=est==='cancelada'||est==='terminada'||est==='baja'||est==='cancelled';
-    var isAct=est==='activa'||est==='active';
+    var isAct=est==='activa'||est==='active'||est==='activo';
     if(val==='all')row.style.display='';
     else if(val==='cancelada')row.style.display=isTerm?'':'none';
     else row.style.display=isAct?'':'none';

@@ -457,10 +457,39 @@ El admin pidió crear un asistente flotante con voz para la CRM. Se desarrollaro
 - Badge de pendientes se refresca cada **3 segundos**
 - No interrumpe análisis en curso
 
-#### 6. Edge/Chrome Debugging
-- Edge se lanza vía Playwright con `channel: 'msedge'` y `--remote-debugging-port=9222`
-- Script: `_edge_ctrl.js` — lanza Edge con CDP y anti-detección
-- Icono "depurado" creado en el escritorio
+#### 6. Edge/Chrome Debugging — Cómo abrir navegador depurado
+
+**⚠️ Métodos que NO funcionan:**
+- `chromium.launch({channel:'msedge', args:['--remote-debugging-port=9222']})` — NO funciona, `process()` no existe en esta version y port no bindea externamente.
+- `_edge_ctrl.js` (Playwright launch + CDP) — Playwright gestiona su propio perfil y no expone el puerto correctamente.
+- `connectOverCDP` sin tener Edge abierto con CDP — obviamente no.
+
+**✅ Único método que funciona:**
+
+Edge debe lanzarse como proceso **independiente** (no via Playwright `launch()`) con:
+1. `--user-data-dir` a un directorio **único/temporal** (no compartir con el perfil por defecto de Edge)
+2. `--remote-debugging-port=9222`
+3. Desde PowerShell/CMD, no desde Node.js
+
+```
+& "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" `
+  --remote-debugging-port=9222 `
+  --no-first-run --no-default-browser-check `
+  --user-data-dir="$env:TEMP\edge_cdp_crm" `
+  --window-size=1280,900 `
+  "https://movilbro-crm.onrender.com/auth/login"
+```
+
+**El truco está en `--user-data-dir`:** si usas el perfil por defecto y Edge ya está abierto, no bindea el puerto. Usar siempre un directorio temp único.
+
+**Conectarse desde Node.js:**
+```js
+const { chromium } = require('playwright');
+const browser = await chromium.connectOverCDP('http://127.0.0.1:9222');
+const page = browser.contexts()[0].pages()[0]; // primera pestaña
+```
+
+- Script de escritorio: `C:\Users\xtptx\Desktop\depurado.bat` (doble click → abre Edge con CDP)
 
 ### Lecciones aprendidas (nuevas reglas)
 
@@ -536,8 +565,8 @@ El admin pidió crear un asistente flotante con voz para la CRM. Se desarrollaro
 5. **No testear con require() y ejs.compile()** — Debería verificar que `require('./routes/X')` y `ejs.compile(template)` funcionan ANTES de commitear.
    - **Regla:** Siempre ejecutar `node -e "require('./routes/clients'); require('ejs').compile(...)"` antes de push.
 
-6. **CDP: usé Chromium cuando solo Edge funciona** — El admin lo dejó claro: solo Edge con `channel: 'msedge'`. Chromium prohibido.
-   - **Fix:** Usar `chromium.launch({channel:'msedge', headless:false})` para abrir Edge de prueba. No `connectOverCDP`.
+6. **CDP: usé `launch()` cuando solo `spawn` funciona** — `chromium.launch({channel:'msedge', args:['--remote-debugging-port=9222']})` NO expone el puerto. Edge debe lanzarse como proceso independiente con `Start-Process`/`spawn`, usando `--user-data-dir` único/temporal.
+   - **Fix:** Usar `connectOverCDP` después de spawnear Edge directamente (ver sección 6 arriba).
 
 ### Reglas nuevas
 - **Antes de escribir código nuevo, verificar qué patrones usa el código existente.** Si el código usa `Promise.all` con catch, NO usar `Promise.allSettled`.
