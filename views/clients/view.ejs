@@ -30,7 +30,7 @@
 
   <div class="card">
     <div class="card-header p-0">
-      <ul class="nav nav-tabs card-header-tabs mx-2 mt-2 flex-nowrap overflow-auto" style="white-space:nowrap;scrollbar-width:none;" id="detalleTab" role="tablist">
+      <ul class="nav nav-tabs card-header-tabs mx-2 mt-2" id="detalleTab" role="tablist">
         <li class="nav-item" role="presentation">
           <button class="nav-link active" id="info-tab" data-bs-toggle="tab" data-bs-target="#info" type="button" role="tab" aria-controls="info" aria-selected="true">
             <i class="bi bi-info-circle"></i> Informaci&oacute;n
@@ -83,7 +83,7 @@
               <div class="card h-100 border">
                 <div class="card-header fw-semibold"><i class="bi bi-person"></i> Datos personales</div>
                 <div class="card-body">
-                  <table class="table table-sm mb-0" style="font-size:0.85rem;">
+                  <table class="table table-sm mb-0">
                     <% var nom = apiCustomer.name || apiCustomer.firstName || cliente.nombre; %>
                     <% var ape = apiCustomer.lastName || apiCustomer.surname || cliente.apellidos || ''; %>
                     <tr><th style="width:100px;">Nombre</th><td><%= nom %> <%= ape %></td></tr>
@@ -112,10 +112,10 @@
             <div class="col-md-6">
               <div class="card h-100 border">
                 <div class="card-header d-flex justify-content-between align-items-center py-1" style="cursor:pointer;" onclick="toggleSection('dirPagoBody')">
-                  <span class="fw-semibold small"><i class="bi bi-geo-alt"></i> Direcci&oacute;n y pago</span><select class="form-select form-select-sm ms-2" id="pagoFilter" id="estadoFilter" style="width:auto;max-width:120px;font-size:0.7rem;"><option value="activa">Activas</option><option value="all">Todas</option><option value="cancelada">Canceladas</option></select>
+                  <span class="fw-semibold small"><i class="bi bi-geo-alt"></i> Direcci&oacute;n y pago</span><select class="form-select form-select-sm ms-2" id="pagoFilter" onchange="filtrarLineas()" style="width:auto;max-width:120px;font-size:0.7rem;"><option value="activa">Activas</option><option value="all">Todas</option><option value="cancelada">Canceladas</option></select>
                   <i class="bi bi-chevron-down" id="dirPagoIcon"></i>
                 </div>
-                <div class="card-body p-2 py-1" id="dirPagoBody">
+                <div class="card-body p-2" id="dirPagoBody">
                   <table class="table table-sm mb-0">
                     <% var addr = apiCustomer.billingAddress || {}; %>
                     <tr><th style="width:100px;">Direcci&oacute;n</th><td>
@@ -215,7 +215,7 @@
             <div class="col-md-6">
               <div class="card border">
                 <div class="card-header py-1 d-flex justify-content-between align-items-center" style="cursor:pointer;" onclick="toggleSection('estadoLineasBody')">
-                  <small><i class="bi bi-pie-chart"></i> Estado de L&iacute;neas</small><select class="form-select form-select-sm ms-2" id="pagoFilter"" id="estadoFilter" style="width:auto;max-width:120px;font-size:0.7rem;"><option value="activa">Activas</option><option value="all">Todas</option><option value="cancelada">Canceladas</option></select>
+                  <small><i class="bi bi-pie-chart"></i> Estado de L&iacute;neas</small><select class="form-select form-select-sm ms-2" id="estadoFilter" onchange="filtrarLineas()" style="width:auto;max-width:120px;font-size:0.7rem;"><option value="activa">Activas</option><option value="all">Todas</option><option value="cancelada">Canceladas</option></select>
                   <i class="bi bi-chevron-down" id="estadoLineasIcon"></i>
                 </div>
                 <div class="card-body p-2" id="estadoLineasBody">
@@ -252,7 +252,7 @@
                     <option value="">Seleccionar línea...</option>
                   </select>
                 </div>
-                <div class="card-body p-2 text-center" style="min-height:100px;">
+                <div class="card-body p-2 text-center" style="min-height:140px;">
                   <div style="position:relative;width:100%;max-width:300px;height:120px;margin:0 auto;">
                     <canvas id="gbChart" width="300" height="120" style="width:100%;height:100%;"></canvas>
                   </div>
@@ -1287,7 +1287,7 @@ function generarPinPuk() {
   var line = document.getElementById('pinPukModal').dataset.line;
   if (!line) return alert('Seleccione una l&iacute;nea');
   if (!confirm('Generar nuevo PIN/PUK para ' + line + '?')) return;
-  fetch('/clientes/' + (document.querySelector('.ver-consumo')?.dataset?.client || clientId) + '/line/' + encodeURIComponent(line) + '/generate-pinpuk', { method: 'POST' })
+  fetch('/clientes/' + clientId + '/line/' + encodeURIComponent(line) + '/generate-pinpuk', { method: 'POST' })
     .then(function(r) { return r.json(); })
     .then(function(res) {
       if (res.ok && res.data) {
@@ -1313,7 +1313,7 @@ function uploadKycDoc(tipo, btn) {
     var fd = new FormData();
     fd.append('file', file);
     fd.append('tipo', tipo);
-    fetch('/clientes/' + (document.querySelector('.ver-consumo')?.dataset?.client || clientId) + '/upload-kyc', { method: 'POST', body: fd })
+    fetch('/clientes/' + clientId + '/upload-kyc', { method: 'POST', body: fd })
       .then(function(r) { return r.json(); })
       .then(function(res) {
         if (res.ok) {
@@ -1335,7 +1335,7 @@ function fetchWorkOrder(btn) {
   var installId = document.getElementById('instalacionDetailModal').dataset.installId;
   if (!installId) return alert('ID de instalaci&oacute;n no disponible');
   btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Buscando...';
-  fetch('/clientes/' + (document.querySelector('.ver-consumo')?.dataset?.client || clientId) + '/installation/' + encodeURIComponent(installId) + '/work-order', { method: 'POST' })
+  fetch('/clientes/' + clientId + '/installation/' + encodeURIComponent(installId) + '/work-order', { method: 'POST' })
     .then(function(r) { return r.json(); })
     .then(function(res) {
       if (res.ok && res.data) {
@@ -1393,7 +1393,7 @@ function verResumenOrden(orderId) {
   body.innerHTML = '<div class="text-center py-4"><span class="spinner-border"></span> Cargando...</div>';
   document.getElementById('ordenSummaryDownload').classList.add('d-none');
   modal.show();
-  fetch('/clientes/' + (document.querySelector('.ver-consumo')?.dataset?.client || clientId) + '/order/' + encodeURIComponent(orderId) + '/summary')
+  fetch('/clientes/' + clientId + '/order/' + encodeURIComponent(orderId) + '/summary')
     .then(function(r) { return r.json(); })
     .then(function(res) {
       if (!res.ok) { body.innerHTML = '<div class="alert alert-danger">Error: ' + (res.error || '') + '</div>'; return; }
@@ -1462,7 +1462,7 @@ function submitTicket() {
   if (!subject) { alert('Escribe un asunto'); return; }
   var data = { type: type, subject: subject, description: desc || subject };
   if (line) data.line = line;
-  fetch('/clientes/' + (document.querySelector('.ver-consumo')?.dataset?.client || clientId) + '/ticket', {
+  fetch('/clientes/' + clientId + '/ticket', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   })
@@ -1605,7 +1605,7 @@ function calcularScoring(clienteId) {
         if (sr) {
           var recHtml = '';
           if (res.scoring >= 7) recHtml = '<span class="badge bg-success fs-6">✅ Recomendado</span>';
-          else if (res.scoring >= 4) recHtml = '<span class="badge bg-warning fs-6">⚠️ Revisar</span>';
+          else if (res.scoring >= 4) recHtml = '<span class="badge bg-warning fs-6">⚠️´©Å Revisar</span>';
           else recHtml = '<span class="badge bg-danger fs-6">❌ No recomendado</span>';
           sr.innerHTML = recHtml;
         }
@@ -1652,7 +1652,7 @@ document.addEventListener('DOMContentLoaded', function() {
         mostrarPinPuk(line, pin, puk, icc);
       } else {
         mostrarPinPuk(line, 'Consultando...', '', icc);
-        fetch('/clientes/' + (document.querySelector('.ver-consumo')?.dataset?.client || clientId) + '/line/' + encodeURIComponent(line) + '/pinpuk', { method: 'POST' })
+        fetch('/clientes/' + clientId + '/line/' + encodeURIComponent(line) + '/pinpuk', { method: 'POST' })
           .then(function(r) { return r.json(); })
           .then(function(res) {
             if (res.ok && res.data) {
@@ -1827,7 +1827,7 @@ document.addEventListener('DOMContentLoaded', function() {
   function loadGB(line) {
     if (!line) return;
     var consPerLine = document.getElementById('consPerLine');
-    fetch('/clientes/' + (document.querySelector('.ver-consumo')?.dataset?.client || clientId) + '/line/' + encodeURIComponent(line) + '/consumption', { method: 'POST' })
+    fetch('/clientes/' + clientId + '/line/' + encodeURIComponent(line) + '/consumption', { method: 'POST' })
       .then(function(r) { return r.json(); })
       .then(function(res) {
         if (res.ok && res.data) {
@@ -1891,7 +1891,7 @@ window.abrirConsumoModal = function() {
 function cargarConsumoModal(line) {
   if (!line) return;
   // 1) Cargar info de linea
-  fetch('/clientes/' + (document.querySelector('.ver-consumo')?.dataset?.client || clientId) + '/line/' + encodeURIComponent(line) + '/info', { method: 'POST' })
+  fetch('/clientes/' + clientId + '/line/' + encodeURIComponent(line) + '/info', { method: 'POST' })
     .then(function(r) { return r.json(); })
     .then(function(res) {
       if (res.ok && res.data) {
@@ -1908,7 +1908,7 @@ function cargarConsumoModal(line) {
       } else { document.getElementById('consLineInfoCard').style.display = 'none'; }
     }).catch(function() { document.getElementById('consLineInfoCard').style.display = 'none'; });
   // 2) Cargar consumo GB
-  fetch('/clientes/' + (document.querySelector('.ver-consumo')?.dataset?.client || clientId) + '/line/' + encodeURIComponent(line) + '/consumption', { method: 'POST' })
+  fetch('/clientes/' + clientId + '/line/' + encodeURIComponent(line) + '/consumption', { method: 'POST' })
     .then(function(r) { return r.json(); })
     .then(function(res) {
       if (res.ok && res.data) {
@@ -1940,7 +1940,7 @@ function cargarConsumoModal(line) {
   var dailyBody2 = document.getElementById('consDailyBody2');
   if (dailyBody2) {
     dailyBody2.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Cargando...</td></tr>';
-    fetch('/clientes/' + (document.querySelector('.ver-consumo')?.dataset?.client || clientId) + '/line/' + encodeURIComponent(line) + '/daily-consumption', { method: 'POST' })
+    fetch('/clientes/' + clientId + '/line/' + encodeURIComponent(line) + '/daily-consumption', { method: 'POST' })
       .then(function(r) { return r.json(); })
       .then(function(res) {
         if (res.ok && res.data && res.data.length > 0) {
@@ -2144,7 +2144,7 @@ document.querySelectorAll('input[name="dailyChartType"]').forEach(function(rb) {
   }
 
   function fetchCDRData(line, tbody) {
-    fetch('/clientes/' + (document.querySelector('.ver-consumo')?.dataset?.client || clientId) + '/line/' + encodeURIComponent(line) + '/cdrs', { method: 'POST' })
+    fetch('/clientes/' + clientId + '/line/' + encodeURIComponent(line) + '/cdrs', { method: 'POST' })
       .then(function(r) { return r.json(); })
       .then(function(res) {
         tbody.innerHTML = '';
@@ -2198,7 +2198,12 @@ document.querySelectorAll('input[name="dailyChartType"]').forEach(function(rb) {
       var blocked = this.dataset.blocked === 'true';
       if (!line) return;
       if (!confirm((blocked ? 'Desbloquear' : 'Bloquear') + ' la l&iacute;nea ' + line + '?')) return;
-      var cid = this.dataset.client || clientId; fetch('/clientes/' + cid; })
+      fetch('/clientes/' + clientId + '/line/' + encodeURIComponent(line) + '/block', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ blocked: !blocked })
+      })
+        .then(function(r) { return r.json(); })
         .then(function(res) {
           if (res.ok) { location.reload(); }
           else { alert('Error: ' + (res.error || 'Desconocido')); }
@@ -2251,7 +2256,7 @@ document.querySelectorAll('input[name="dailyChartType"]').forEach(function(rb) {
     var sel = document.getElementById('tariffProduct');
     container.innerHTML = '<div class="col-12 text-center text-muted py-3">Cargando productos...</div>';
     sel.classList.add('d-none');
-    fetch('/clientes/' + (document.querySelector('.ver-consumo')?.dataset?.client || clientId) + '/compatible-products')
+    fetch('/clientes/' + clientId + '/compatible-products')
       .then(function(r) { return r.json(); })
       .then(function(res) {
         container.innerHTML = '';
@@ -2300,7 +2305,7 @@ document.querySelectorAll('input[name="dailyChartType"]').forEach(function(rb) {
     var product = document.getElementById('tariffProduct').value;
     var schedule = document.getElementById('tariffSchedule').value || null;
     if (!line || !product) { alert('Seleccione l&iacute;nea y producto'); return; }
-    fetch('/clientes/' + (document.querySelector('.ver-consumo')?.dataset?.client || clientId) + '/line/' + encodeURIComponent(line) + '/change-tariff', {
+    fetch('/clientes/' + clientId + '/line/' + encodeURIComponent(line) + '/change-tariff', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ line: line, productId: product, productCode: product, schedule: schedule })
@@ -2322,7 +2327,7 @@ document.querySelectorAll('input[name="dailyChartType"]').forEach(function(rb) {
     var line = document.getElementById('blockLineSelect').value;
     var blocked = document.querySelector('input[name="blockAction"]:checked').value === 'block';
     if (!line) { alert('Seleccione una l&iacute;nea'); return; }
-    fetch('/clientes/' + (document.querySelector('.ver-consumo')?.dataset?.client || clientId) + '/line/' + encodeURIComponent(line) + '/block', {
+    fetch('/clientes/' + clientId + '/line/' + encodeURIComponent(line) + '/block', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ blocked: blocked })
@@ -2346,7 +2351,7 @@ document.querySelectorAll('input[name="dailyChartType"]').forEach(function(rb) {
     var reason = document.getElementById('simReason').value;
     var simType = document.querySelector('input[name="simType"]:checked').value;
     if (!line) { alert('Seleccione una l&iacute;nea'); return; }
-    fetch('/clientes/' + (document.querySelector('.ver-consumo')?.dataset?.client || clientId) + '/line/' + encodeURIComponent(line) + '/duplicate-sim', {
+    fetch('/clientes/' + clientId + '/line/' + encodeURIComponent(line) + '/duplicate-sim', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ line: line, reason: reason, simType: simType, type: simType })
@@ -2382,7 +2387,7 @@ document.querySelectorAll('input[name="dailyChartType"]').forEach(function(rb) {
       var orderId = matchO ? matchO[1] : fullId;
       if (!orderId) return;
       productCell.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
-      fetch('/clientes/' + (document.querySelector('.ver-consumo')?.dataset?.client || clientId) + '/order/' + encodeURIComponent(orderId) + '/summary')
+      fetch('/clientes/' + clientId + '/order/' + encodeURIComponent(orderId) + '/summary')
         .then(function(r) { return r.json(); })
         .then(function(res) {
           if (res.ok && res.data) {
@@ -2463,41 +2468,4 @@ function toggleScoringDetalle(){
   else{b.style.display='none';i.className='bi bi-chevron-down'}
 }
 if(document.getElementById('estadoFilter'))filtrarLineas();
-
-document.addEventListener('DOMContentLoaded',function(){
-  var ef=document.getElementById('estadoFilter');
-  var pf=document.getElementById('pagoFilter');
-  if(ef){ef.addEventListener('change',filtrarLineas);ef.value='activa'}
-  if(pf){pf.addEventListener('change',filtrarLineas);pf.value='activa'}
-  setTimeout(filtrarLineas,100);
-});
-
-function filtrarSubs(){
-  var sf=document.getElementById('subsFilter');
-  if(!sf)return;
-  var v=sf.value;
-  document.querySelectorAll('#lineas tbody tr').forEach(function(row){
-    var estadoCell=row.querySelector('td:nth-child(3) .badge');
-    if(!estadoCell){row.style.display='';return}
-    var est=estadoCell.textContent.trim().toLowerCase();
-    var isTerm=est==='cancelada'||est==='terminada'||est==='baja'||est==='cancelled';
-    var isAct=est==='activa'||est==='active';
-    if(v==='all')row.style.display='';
-    else if(v==='cancelada')row.style.display=isTerm?'':'none';
-    else row.style.display=isAct?'':'none';
-  });
-}
-
-// Filtro init
-document.addEventListener('DOMContentLoaded',function(){
-  var ef=document.getElementById('estadoFilter');
-  var pf=document.getElementById('pagoFilter');
-  if(ef){ef.value='activa';ef.addEventListener('change',filtrarLineas)}
-  if(pf){pf.value='activa';pf.addEventListener('change',filtrarLineas)}
-  setTimeout(filtrarLineas,200);
-  var sf=document.getElementById('subsFilter');
-  if(sf){sf.value='activa';sf.addEventListener('change',filtrarSubs);setTimeout(filtrarSubs,300)}
-});
-
-setTimeout(function(){if(document.getElementById('estadoFilter'))filtrarLineas();if(document.getElementById('subsFilter'))filtrarSubs()},500);
 </script>
