@@ -1636,14 +1636,14 @@ router.post('/:id/calculate-scoring', requireAuth, async (req, res) => {
       var facRow = db.prepare("SELECT COUNT(*) as total, SUM(CASE WHEN estado='pagada' OR estado='paid' OR pagado=1 THEN 1 ELSE 0 END) as pagadas FROM isp_facturas WHERE fiscal_id=?").get(fiscalId);
       if (facRow && facRow.total > 0) {
         var ratio = facRow.pagadas / facRow.total;
-        detalles.push(facRow.pagadas + '/' + facRow.total + ' facturas pagadas (' + Math.round(ratio*100) + '%)');
+        detalles.push('De ' + facRow.total + ' facturas ISP, ' + facRow.pagadas + ' pagadas (' + Math.round(ratio*100) + '%)');
         if (ratio >= 0.9) puntuacion += 2;
         else if (ratio >= 0.7) puntuacion += 1;
         else puntuacion -= 1;
       } else { detalles.push('No hay facturas ISP registradas en DB local'); }
     } catch(e) {}
     var dniClean = fiscalId.toUpperCase().replace(/[^0-9A-Z]/g, '');
-    if (/^(\d{8}[A-Z]|[XYZ]\d{7}[A-Z]|[A-Z]\d{7}[A-Z]|\d{8})$/i.test(dniClean)) { puntuacion += 1; detalles.push('DNI/NIF válido'); }
+    if (/^(\d{8}[A-Z]|[XYZ]\d{7}[A-Z]|[A-Z]\d{7}[A-Z]|\d{8})$/i.test(dniClean)) { puntuacion += 1; detalles.push('Formato DNI/NIF válido: +1 punto'); }
     else if (dniClean) { puntuacion -= 1; detalles.push('DNI/NIF formato inválido'); }
     puntuacion = Math.max(1, Math.min(10, Math.round(puntuacion)));
     if (puntuacion >= 7) riesgo = 'bajo';

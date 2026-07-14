@@ -70,6 +70,8 @@
 - [ ] No verificar estructura de datos de la API Likes antes de tocar routes/clients.js → la API devuelve subscriptions con `lineNumber`, `fixedNumber`, `products[].lineNumber`, `products[].fixedNumber`. El código debe extraer TODOS estos campos para poblar `allLines`, o líneas no aparecen en el selector.
 - [ ] Hacer push a ambos branches (main+master) → cada push gasta minutos de build. Push SOLO a master: `git push origin master:master`
 - [ ] No leer AGENTS.md antes de actuar → ANTES de commit, push, install, o tocar código, leer sección "REGLAS ABSOLUTAS" y "Errores Repetidos".
+- [ ] Verificar mal los arreglos → buscar lo que el usuario pidió ESPECÍFICAMENTE, no solo si existe la palabra clave en cualquier parte. Ej: si pide PIN/PUK en Estado de Líneas, verificar que esté DENTRO de esa sección, no solo que exista en el archivo.
+- [ ] No verificar el commit REAL desplegado vs lo que digo → antes de decir "está listo", comprobar con `git show COMMIT:archivo` lo que realmente se subió.
 
 ## API Likes — Formato de Datos (Obligatorio Leer Antes de Tocar)
 ### Subscription (`apiSubscriptions`)

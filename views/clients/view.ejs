@@ -145,10 +145,10 @@
                                   <i class="bi bi-credit-card"></i>
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end">
-                                  <li><a class="dropdown-item" href="#" onclick="cambiarPagoLinea('<%= linea %>','IBAN')">­ƒÅª IBAN</a></li>
-                                  <li><a class="dropdown-item" href="#" onclick="cambiarPagoLinea('<%= linea %>','Stripe')">­ƒÆ│ Stripe</a></li>
-                                  <li><a class="dropdown-item" href="#" onclick="cambiarPagoLinea('<%= linea %>','Prepago')">­ƒô▒ Prepago</a></li>
-                                  <li><a class="dropdown-item" href="#" onclick="cambiarPagoLinea('<%= linea %>','Efectivo')">­ƒÆÁ Efectivo</a></li>
+                                  <li><a class="dropdown-item" href="#" onclick="cambiarPagoLinea('<%= linea %>','IBAN')"> IBAN</a></li>
+                                  <li><a class="dropdown-item" href="#" onclick="cambiarPagoLinea('<%= linea %>','Stripe')"> Stripe</a></li>
+                                  <li><a class="dropdown-item" href="#" onclick="cambiarPagoLinea('<%= linea %>','Prepago')"> Prepago</a></li>
+                                  <li><a class="dropdown-item" href="#" onclick="cambiarPagoLinea('<%= linea %>','Efectivo')"> Efectivo</a></li>
                                 </ul>
                               </div>
                             </div>
@@ -233,7 +233,7 @@
                             <span class="badge bg-<%= est === 'activa' || est === 'active' ? 'success' : est === 'suspendida' || est === 'suspended' ? 'warning' : 'secondary' %>">
                               <%= est %>
                             </span>
-                            <% if (p.icc || s.icc) { %><br><small class="text-muted">ICC: <%= (p.icc || s.icc).substring(0,15) %>...</small><% } %>
+                            <% if (p.icc || s.icc) { %><br><small class="text-muted">ICC: <%= (p.icc || s.icc).substring(0,15) %>...</small><br><button class="btn btn-sm btn-outline-dark mostrar-pinpuk mt-1" data-line="<%= p.lineNumber || s.lineNumber %>" data-pin="<%= p.pin || s.pin || '' %>" data-puk="<%= p.puk || s.puk || '' %>" data-icc="<%= p.icc || s.icc || '' %>" title="PIN/PUK"><i class="bi bi-key"></i></button><% } %>
                           </div>
                         </div>
                       <% }); %>
@@ -293,7 +293,7 @@
                 <tr class="<%= (_est === 'terminada' || _est === 'cancelada' || _est === 'baja') ? 'table-secondary text-muted' : '' %>">
                   <td>
                     <% var pname = (p.productName || s.productName || '').toLowerCase(); %>
-                    <% if (pname.includes('fibra') || pname.includes('ftth')) { %><span>­ƒîÉ</span><% } else if (pname.includes('tv') || pname.includes('television')) { %><span>­ƒô║</span><% } else if (pname.includes('fijo') || pname.includes('voip')) { %><span>­ƒô×</span><% } else if (pname.includes('movil') || pname.includes('mobile') || pname.includes('tarifa')) { %><span>­ƒô▒</span><% } else { %><span>­ƒôí</span><% } %>
+                    <% if (pname.includes('fibra') || pname.includes('ftth')) { %><span></span><% } else if (pname.includes('tv') || pname.includes('television')) { %><span></span><% } else if (pname.includes('fijo') || pname.includes('voip')) { %><span></span><% } else if (pname.includes('movil') || pname.includes('mobile') || pname.includes('tarifa')) { %><span></span><% } else { %><span></span><% } %>
                     <strong><%= linea || '-' %></strong>
                   </td>
                   <td><%= p.productName || s.productName || '-' %></td>
@@ -337,7 +337,7 @@
                 <tr class="table-secondary">
                   <td>
                     <% var lpname = (l.producto || '').toLowerCase(); %>
-                    <% if (lpname.includes('fibra') || lpname.includes('ftth')) { %><span>­ƒîÉ</span><% } else if (lpname.includes('tv') || lpname.includes('television')) { %><span>­ƒô║</span><% } else if (lpname.includes('fijo') || lpname.includes('voip')) { %><span>­ƒô×</span><% } else if (lpname.includes('movil') || lpname.includes('mobile') || lpname.includes('tarifa')) { %><span>­ƒô▒</span><% } else { %><span>­ƒôí</span><% } %>
+                    <% if (lpname.includes('fibra') || lpname.includes('ftth')) { %><span></span><% } else if (lpname.includes('tv') || lpname.includes('television')) { %><span></span><% } else if (lpname.includes('fijo') || lpname.includes('voip')) { %><span></span><% } else if (lpname.includes('movil') || lpname.includes('mobile') || lpname.includes('tarifa')) { %><span></span><% } else { %><span></span><% } %>
                     <strong><%= l.linea || '-' %></strong>
                   </td>
                   <td><%= l.producto || '-' %> <small class="text-muted">(local)</small></td>
@@ -954,17 +954,17 @@
           <div class="tab-pane fade" id="scoringExterno">
             <p class="small text-muted mb-2">B&uacute;squeda manual en bases de datos p&uacute;blicas (abre cada web e introduce el DNI/NIF manualmente):</p>
             <p class="small mb-2" style="line-height:1.6;">
-              <strong>­ƒôè Axesor</strong> - Informes financieros y riesgo de empresas<br>
-              <strong>­ƒôè Infocif</strong> - Datos mercantiles y financieros<br>
-              <strong>­ƒôè Iberinform</strong> - Informes de solvencia y riesgo<br>
+              <strong> Axesor</strong> - Informes financieros y riesgo de empresas<br>
+              <strong> Infocif</strong> - Datos mercantiles y financieros<br>
+              <strong> Iberinform</strong> - Informes de solvencia y riesgo<br>
               <strong>⚠️ LibreBOR.me</strong> - Buscador gratuito del BOE (morosidad, embargos)<br>
-              <strong>­ƒôè Einforma</strong> - Informes comerciales de empresas<br>
-              <strong>­ƒîÉ OpenCorporates</strong> - Base de datos mundial de empresas<br>
-              <strong>­ƒÆ¼ Rankia</strong> - Foro de opiniones y experiencias financieras<br>
-              <strong>­ƒô£ BORME</strong> - Boletín Oficial del Registro Mercantil<br>
-              <strong>­ƒÜ½ ASNEF</strong> - Fichero de morosidad (impagos)<br>
-              <strong>­ƒÜ½ RAI</strong> - Registro de Aceptaciones Impagadas<br>
-              <strong>­ƒöì Google</strong> - B&uacute;squeda general con t&eacute;rminos de morosidad
+              <strong> Einforma</strong> - Informes comerciales de empresas<br>
+              <strong> OpenCorporates</strong> - Base de datos mundial de empresas<br>
+              <strong> Rankia</strong> - Foro de opiniones y experiencias financieras<br>
+              <strong> BORME</strong> - Boletín Oficial del Registro Mercantil<br>
+              <strong> ASNEF</strong> - Fichero de morosidad (impagos)<br>
+              <strong> RAI</strong> - Registro de Aceptaciones Impagadas<br>
+              <strong> Google</strong> - B&uacute;squeda general con t&eacute;rminos de morosidad
             </p>
             <div class="d-flex flex-wrap gap-2">
               <% var _dn = (apiCustomer.fiscalId || cliente.dni_nif || '').toUpperCase(); %>
@@ -2269,10 +2269,10 @@ document.querySelectorAll('input[name="dailyChartType"]').forEach(function(rb) {
             if (!familias[familia]) familias[familia] = [];
             familias[familia].push({ name: name, val: val, price: p.price, desc: p.description || '' });
           });
-          var familiaIconos = { 'Movil': '­ƒô▒', 'Móvil': '­ƒô▒', 'Fibra': '­ƒîÉ', 'TV': '­ƒô║', 'Television': '­ƒô║', 'Fijo': '­ƒô×', 'VoIP': '­ƒô×', 'General': '­ƒôí' };
+          var familiaIconos = { 'Movil': '', 'Móvil': '', 'Fibra': '', 'TV': '', 'Television': '', 'Fijo': '', 'VoIP': '', 'General': '' };
           var famKeys = Object.keys(familias);
           famKeys.forEach(function(fam, idx) {
-            var icono = familiaIconos[fam] || '­ƒôí';
+            var icono = familiaIconos[fam] || '';
             var isFirst = idx === 0;
             container.innerHTML += '<div class="col-12"><h6 class="mt-2 mb-1 border-bottom pb-1" style="cursor:pointer;" onclick="var n=this.nextElementSibling;n.style.display=n.style.display===\'none\'?\'\':\'none\';this.querySelector(\'.bi-chevron\').classList.toggle(\'bi-chevron-down\');this.querySelector(\'.bi-chevron\').classList.toggle(\'bi-chevron-up\');"><i class="bi bi-chevron-' + (isFirst ? 'down' : 'right') + ' bi-chevron me-1"></i> ' + icono + ' ' + fam + ' <span class="badge bg-secondary">' + familias[fam].length + '</span></h6><div class="row g-2" style="display:' + (isFirst ? '' : 'none') + ';">';
             familias[fam].forEach(function(prod) {
@@ -2448,7 +2448,9 @@ document.querySelectorAll('input[name="dailyChartType"]').forEach(function(rb) {
 function filtrarLineas(){
   var e=document.getElementById('estadoFilter');
   var p=document.getElementById('pagoFilter');
-  if(e){var v=e.value;if(p)p.value=v;
+  var v=(e?e.value:(p?p.value:'activa'));
+  if(e)e.value=v;
+  if(p)p.value=v;
   document.querySelectorAll('[data-estado]').forEach(function(el){
     var est=el.getAttribute('data-estado');
     var isTerm=est==='terminada'||est==='baja'||est==='cancelled'||est==='cancelada';
@@ -2456,7 +2458,7 @@ function filtrarLineas(){
     if(v==='all')el.style.display='';
     else if(v==='cancelada')el.style.display=isTerm?'':'none';
     else el.style.display=isAct?'':'none';
-  })}
+  });
 }
 function toggleScoringDetalle(){
   var b=document.getElementById('scoringDetalleBody');
