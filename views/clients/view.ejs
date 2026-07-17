@@ -270,7 +270,7 @@
                     <button class="btn btn-sm btn-outline-info" id="cardBtnGb" onclick="switchCardChart('gb')" title="Consumo GB"><i class="bi bi-bar-chart"></i> GB</button>
                     <button class="btn btn-sm btn-outline-info" id="cardBtnCalls" onclick="switchCardChart('calls')" title="Llamadas"><i class="bi bi-telephone"></i> Llamadas</button>
                     <button class="btn btn-sm btn-outline-info" id="cardBtnSms" onclick="switchCardChart('sms')" title="SMS"><i class="bi bi-chat-dots"></i> SMS</button>
-                    <button class="btn btn-sm btn-outline-secondary" onclick="abrirConsumoModal()" title="Ver todo detallado"><i class="bi bi-graph-up"></i> Detallado</button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="irDetallado()" title="Ver todo detallado"><i class="bi bi-graph-up"></i> Detallado</button>
                   </div>
                 </div>
               </div>
@@ -1881,6 +1881,7 @@ document.addEventListener('DOMContentLoaded', function() {
   var _cardDailyData = null;
   var _cardChartTipo = 'gb';
   var _cardChart = null;
+  var _cardChartDoughnut = null;
   window._cardMesActual = -1;
 
   // Load GB for a specific line
@@ -1899,6 +1900,11 @@ document.addEventListener('DOMContentLoaded', function() {
           if (remaining < 0) remaining = 0;
           consPerLine.innerHTML = '<div class="d-flex justify-content-between small"><span>Usado: <strong>' + used.toFixed(2) + ' GB</strong></span><span>Total: <strong>' + total.toFixed(2) + ' GB</strong></span><span>Restante: <strong>' + remaining.toFixed(2) + ' GB</strong></span></div>';
           if (roaming > 0) consPerLine.innerHTML += '<div class="small text-muted">Roaming: ' + roaming.toFixed(2) + ' GB</div>';
+          // Mostrar el doughnut con datos reales
+          if (_cardChartDoughnut) {
+            _cardChartDoughnut.data.datasets[0].data = [used, remaining];
+            _cardChartDoughnut.update();
+          }
         } else {
           consPerLine.innerHTML = '<div class="small text-muted">Sin datos de consumo</div>';
         }
@@ -1925,7 +1931,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function renderCardChart() {
     var ctx = document.getElementById('gbChart');
-    if (!ctx || !_cardDailyData) return;
+    if (!ctx) return;
+    // Si no hay datos diarios, mostrar doughnut
+    if (!_cardDailyData) {
+      document.getElementById('dailyMonthNavCard').style.display = 'none';
+      if (_cardChart) { _cardChart.destroy(); _cardChart = null; }
+      if (_cardChartDoughnut && typeof Chart !== 'undefined') {
+        // El doughnut ya se actualiza en loadGB, solo asegurarse que sea visible
+        _cardChartDoughnut.canvas.style.display = '';
+      }
+      return;
+    }
     var meses = {};
     _cardDailyData.forEach(function(d) { if (d.date && d.date.length >= 7) meses[d.date.substring(0, 7)] = true; });
     var mesesArr = Object.keys(meses).sort();
@@ -1966,6 +1982,50 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
+  // Doughnut chart por defecto (total GB usado vs restante)
+  var gbCtx = document.getElementById('gbChart');
+  if (gbCtx && typeof Chart !== 'undefined') {
+    try {
+      _cardChartDoughnut = new Chart(gbCtx, {
+        type: 'doughnut',
+        data: { labels: ['Usado', 'Disponible'],
+          datasets: [{ data: [0, 30], backgroundColor: ['#17a2b8', '#e9ecef'], borderWidth: 0 }]
+        },
+        options: { animation: false, responsive: true, maintainAspectRatio: true, cutout: '65%',
+          plugins: { legend: { display: false }, tooltip: { enabled: true } }
+        }
+      });
+    } catch(e) { _cardChartDoughnut = null; }
+  }
+
+  // Navegacion a sub-paginas via URL params
+  window.irDetallado = function() {
+    var sel = document.getElementById('gbLineSelect');
+    var line = sel ? sel.value : '';
+    if (!line && linesArr.length > 0) line = linesArr[0];
+    if (line) window.location.href = window.location.pathname + '?detallado=' + encodeURIComponent(line);
+  };
+
+  // Auto-abrir modal si hay parametro en URL
+  (function() {
+    var params = new URLSearchParams(window.location.search);
+    var detLine = params.get('detallado');
+    var gesLine = params.get('gestion');
+    var gesClient = params.get('client');
+    if (detLine) {
+      setTimeout(function() {
+        var sel = document.getElementById('gbLineSelect');
+        if (sel && sel.value !== detLine) { sel.value = detLine; sel.dispatchEvent(new Event('change')); }
+        setTimeout(function() { window.abrirConsumoModal(); }, 1000);
+      }, 500);
+    }
+    if (gesLine && gesClient) {
+      setTimeout(function() {
+        window.abrirLineModal(gesLine, gesClient);
+      }, 500);
+    }
+  })();
+
   window.switchCardChart = function(tipo) {
     _cardChartTipo = tipo;
     ['cardBtnGb','cardBtnCalls','cardBtnSms'].forEach(function(id) {
@@ -1974,6 +2034,10 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     var activeBtn = document.getElementById('cardBtn' + tipo.charAt(0).toUpperCase() + tipo.slice(1));
     if (activeBtn) activeBtn.className = activeBtn.className.replace('btn-outline-info', 'btn-info');
+    // Si no hay datos diarios, no forzar el chart diario
+    if (!_cardDailyData) return;
+    // Ocultar doughnut si estaba visible
+    if (_cardChartDoughnut) _cardChartDoughnut.canvas.style.display = 'none';
     renderCardChart();
   };
 
@@ -2617,7 +2681,13 @@ if(document.getElementById('subsFilter'))filtrarSubs();
 
 document.addEventListener('click', function(e) {
   var btn = e.target.closest('.gestion-linea');
-  if (btn) abrirLineModal(btn.getAttribute('data-line'), btn.getAttribute('data-client'));
+  if (btn) {
+    var line = btn.getAttribute('data-line');
+    var client = btn.getAttribute('data-client');
+    if (line && client) {
+      window.location.href = window.location.pathname + '?gestion=' + encodeURIComponent(line) + '&client=' + encodeURIComponent(client);
+    }
+  }
 });
 
 function filtrarSubs(){
