@@ -69,6 +69,7 @@
 - [ ] No verificar en navegador real después del deploy → comprobar que funciona en la web real antes de informar.
 - [ ] No verificar estructura de datos de la API Likes antes de tocar routes/clients.js → la API devuelve subscriptions con `lineNumber`, `fixedNumber`, `products[].lineNumber`, `products[].fixedNumber`. El código debe extraer TODOS estos campos para poblar `allLines`, o líneas no aparecen en el selector.
 - [ ] Hacer push a ambos branches (main+master) → cada push gasta minutos de build. Push SOLO a master: `git push origin master:master`
+- [ ] Hacer 2 commits separados (fix + docs) → CADA push a master = 1 deploy automático. TODO (código + AGENTS.md + MEMORIA_ERRORES.md) en un SOLO commit.
 - [ ] No leer AGENTS.md antes de actuar → ANTES de commit, push, install, o tocar código, leer sección "REGLAS ABSOLUTAS" y "Errores Repetidos".
 - [ ] Verificar mal los arreglos → buscar lo que el usuario pidió ESPECÍFICAMENTE, no solo si existe la palabra clave en cualquier parte. Ej: si pide PIN/PUK en Estado de Líneas, verificar que esté DENTRO de esa sección, no solo que exista en el archivo.
 - [ ] No verificar el commit REAL desplegado vs lo que digo → antes de decir "está listo", comprobar con `git show COMMIT:archivo` lo que realmente se subió.
@@ -321,11 +322,12 @@ Estas reglas están escritas con sangre. Si una nueva sesión las ignora, el CRM
 - **NO forzar push (`--force`) sin permiso explícito del admin.**
 - **Probar TODO localmente con `node -e` antes de commitear.**
 
-### 2b. Flujo GitHub — main → master en un solo commit
-- El flujo es: **main** (rama de trabajo) → **master** (rama de deploy). Primero se actualiza main, luego se fusiona en master.
-- **Siempre en un SOLO commit** para no romper el CRM. No micro-commits.
-- Ambos commits se hacen juntos: main envía los arreglos a master, y master hace el commit final para que se refleje todo en el CRM sin roturas.
-- NO pushear main sin preparar también master.
+### 2b. Flujo GitHub — UN SOLO PUSH a master, no a main
+- **Push SOLO a master:** `git push origin master:master`
+- **NO push a main.** `git push origin master:main` gasta otro deploy innecesario.
+- **Un solo commit + un solo push = un solo deploy.**
+- Si main se queda atrás, no importa — master es la rama de deploy.
+- Todo en un SOLO commit. No micro-commits. Código + docs en el mismo commit.
 
 ### 📋 REGLA CRÍTICA: Leer fix-notes COMPLETO antes de tocar código
 - **ANTES de escribir una línea, leer TODAS las notas de error pendientes en `/fix-notes` palabra por palabra.**
@@ -370,7 +372,9 @@ Estas reglas están escritas con sangre. Si una nueva sesión las ignora, el CRM
 #### ⚡ Deploy
 - He asumido que auto-deploy funciona → no funcionaba
 - He hecho deploy-tras-deploy como método de debugging → pérdida de tiempo
+- **Hice 2 deploys separados** (fix + docs) → 2 deploys = 2 builds = doble de minutos gastados
 - **Regla:** Push → dashboard Render → Manual Deploy → esperar "deploy live" → verificar en navegador
+- **Regla CRÍTICA: UN SOLO COMMIT = UN SOLO DEPLOY.** Todos los cambios (código + AGENTS.md + MEMORIA_ERRORES.md) deben ir en el MISMO commit. NO commitear docs después del fix. TODO en uno, push una vez. Si hay cambios nuevos después, esperar al siguiente batch.
 
 #### 🛠️ Otras roturas comunes
 - `node -e` con PowerShell → usar SIEMPRE archivos `.js`
@@ -613,5 +617,13 @@ guardarIBAN — todo lo que dependía del inline script.
 - **Server-side skip en EJS impide client-side filtering.** Si una línea se omite en el render, el filtro JS nunca podrá mostrarla.
 - **Siempre probar con al menos DOS tipos de cliente** (NIF con letra y DNI numérico) antes de commitear cambios en `view.ejs`.
 
+### Error cometido: 2 deploys en vez de 1
+- Hice commit del fix, push → deploy #1
+- Luego hice commit de docs, push → deploy #2
+- **Cada push a master = deploy automático.** No se pueden separar.
+- **Lección: TODO en un solo commit antes de push.** Código + AGENTS.md + MEMORIA_ERRORES.md, todo junto. Un solo push = un solo deploy.
+
 ### Commit
 `1e1009e` — `fix: _cid quoting syntax error + filtros lineas funcionales` (deployed live en Render ✅)
+
+`70123ae` — `docs: update AGENTS.md + MEMORIA_ERRORES.md` (NO debí separarlo, provocó deploy innecesario)

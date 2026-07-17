@@ -2083,34 +2083,27 @@ function cargarConsumoModal(line) {
 };
 
 // ===== FUNCIONES AYUDA CONSUMO DIARIO =====
-function renderDailyView() {
+window.renderDailyView = function renderDailyView() {
   var data = window._dailyData || [];
   if (data.length === 0) return;
-  // Determinar meses disponibles
   var meses = {};
   data.forEach(function(d) {
     if (d.date && d.date.length >= 7) {
-      var m = d.date.substring(0, 7); // YYYY-MM
+      var m = d.date.substring(0, 7);
       meses[m] = (meses[m] || 0) + 1;
     }
   });
   var mesesArr = Object.keys(meses).sort();
   if (mesesArr.length === 0) return;
-  // Indice del mes seleccionado
   if (window._dailyMesActual === -1 || window._dailyMesActual >= mesesArr.length) window._dailyMesActual = mesesArr.length - 1;
   var mesSel = mesesArr[window._dailyMesActual];
-  // Filtrar datos del mes seleccionado
   var mesData = data.filter(function(d) { return d.date && d.date.substring(0, 7) === mesSel; });
   var labelMes = mesSel.substring(0, 4) + '/' + mesSel.substring(5, 7);
-  // Obtener tipo seleccionado
   var tipoSel = 'gb';
   var rb = document.querySelector('input[name="dailyChartType"]:checked');
   if (rb) tipoSel = rb.value;
-  // Renderizar chart
   renderDailyChart(mesData, tipoSel, mesSel);
-  // Renderizar tabla
   renderDailyTable(mesData, tipoSel);
-  // Actualizar navegacion de meses
   var navHtml = '<div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:6px;">';
   navHtml += '<button class="btn btn-sm btn-outline-secondary" onclick="navegarMes(-1)" ' + (window._dailyMesActual <= 0 ? 'disabled' : '') + '><i class="bi bi-chevron-left"></i></button>';
   navHtml += '<span class="fw-semibold">' + labelMes + '</span>';
@@ -2211,7 +2204,7 @@ function renderDailyTable(mesData, tipo) {
   });
 }
 
-function navegarMes(dir) {
+window.navegarMes = function(dir) {
   var data = window._dailyData || [];
   if (data.length === 0) return;
   var meses = {};
@@ -2219,8 +2212,8 @@ function navegarMes(dir) {
   var mesesArr = Object.keys(meses).sort();
   if (mesesArr.length === 0) return;
   window._dailyMesActual = Math.max(0, Math.min(mesesArr.length - 1, (window._dailyMesActual || 0) + dir));
-  renderDailyView();
-}
+  window.renderDailyView();
+};
 
 function mostrarCDRsPorFecha(fecha, tipo) {
   var cdrBody = document.getElementById('cdrsBody');
@@ -2595,7 +2588,7 @@ function filtrarLineas(){
   if(p)p.value=v;
   document.querySelectorAll('[data-estado]').forEach(function(el){
     var est=el.getAttribute('data-estado');
-    var isTerm=est==='terminada'||est==='baja'||est==='cancelled'||est==='canceled'||est==='cancelada';
+    var isTerm=est==='terminada'||est==='terminated'||est==='baja'||est==='cancelled'||est==='canceled'||est==='cancelada';
     var isAct=est==='activa'||est==='active'||est==='activo';
     if(v==='all')el.style.display='';
     else if(v==='cancelada')el.style.display=isTerm?'':'none';
@@ -2635,7 +2628,7 @@ function filtrarSubs(){
     var badge=row.querySelector('td:nth-child(3) .badge');
     if(!badge){row.style.display='';return}
     var est=badge.textContent.trim().toLowerCase();
-    var isTerm=est==='cancelada'||est==='canceled'||est==='terminada'||est==='baja'||est==='cancelled';
+    var isTerm=est==='cancelada'||est==='canceled'||est==='terminada'||est==='terminated'||est==='baja'||est==='cancelled';
     var isAct=est==='activa'||est==='active'||est==='activo';
     if(val==='all')row.style.display='';
     else if(val==='cancelada')row.style.display=isTerm?'':'none';
@@ -2722,15 +2715,19 @@ function renderLineModal(data, lineNumber, fiscalId) {
   html += renderSvaToggle(lineNumber, fiscalId, svas, 'llamadas_salientes', 'Llamadas salientes', 'voice');
   html += renderSvaToggle(lineNumber, fiscalId, svas, 'llamadas_internacionales', 'Llamadas internacionales', 'voice');
   html += renderSvaToggle(lineNumber, fiscalId, svas, 'llamada_espera', 'Llamada en espera', 'voice');
-  html += '    <div class="small text-muted mt-1">VoLTE: ' + (svas.find(function(s){return s.name==='VoLTE'||s.name==='volte'}) ? 'Activo' : 'Inactivo') + ' (solo info)</div>';
+  html += '    <div class="small text-muted mt-1">VoLTE: ' + (svas.find(function(s){return s.spanishName==='VoLTE';}) ? (svas.find(function(s){return s.spanishName==='VoLTE';}).status ? 'Activo' : 'Inactivo') : 'Inactivo') + ' (solo info)</div>';
+  html += renderSvaToggle(lineNumber, fiscalId, svas, 'servicios_premium', 'Servicios premium', 'phone');
   html += '  </div></div>';
   html += '  <div class="mt-2"><h6 class="mb-1">Internet</h6><div class="p-2 border rounded">';
   html += renderSvaToggle(lineNumber, fiscalId, svas, 'datos', 'Datos', 'data');
   html += renderSvaToggle(lineNumber, fiscalId, svas, 'roaming', 'Roaming', 'data');
-  html += '    <div class="small text-muted mt-1">5G: ' + (svas.find(function(s){return s.name==='5G'||s.name==='5g'}) ? 'Activo' : 'Inactivo') + ' (solo info)</div>';
+  html += '  </div></div>';
+  html += '  <div class="mt-2"><h6 class="mb-1">SMS</h6><div class="p-2 border rounded">';
+  html += renderSvaToggle(lineNumber, fiscalId, svas, 'sms_entrantes', 'SMSs Entrantes', 'sms');
+  html += renderSvaToggle(lineNumber, fiscalId, svas, 'sms_salientes', 'SMSs Salientes', 'sms');
   html += '  </div></div>';
   html += '  <div class="mt-2"><h6 class="mb-1">Desvíos</h6><div class="p-2 border rounded small">';
-  html += renderSvaToggle(lineNumber, fiscalId, svas, 'buzon_voz', 'Buzón de voz', 'forward');
+  html += renderSvaToggle(lineNumber, fiscalId, svas, 'buzon_voz', 'Buzón de Voz', 'forward');
   html += renderDesvio(lineNumber, fiscalId, svas, 'desvio_incondicional', 'Desvío incondicional', 'forward');
   html += renderDesvio(lineNumber, fiscalId, svas, 'desvio_si_comunica', 'Desvío si comunica', 'forward');
   html += renderDesvio(lineNumber, fiscalId, svas, 'desvio_sin_cobertura', 'Desvío sin cobertura', 'forward');
@@ -2765,21 +2762,21 @@ function cambiarTabLinea(el, tabId) {
   return false;
 }
 function renderSvaToggle(lineNumber, fiscalId, svas, name, label, group) {
-  var sv = svas.find(function(s){ return s.name === name || s.nombre === name || s.id === name; });
-  var active = sv ? (sv.active || sv.enabled || sv.status === 'active' || sv.valor === true) : false;
+  var sv = svas.find(function(s){ return s.spanishName === label || s.name === name || s.nombre === name || s.id === name; });
+  var active = sv ? (sv.status === true || sv.status === 'active' || sv.active || sv.enabled || sv.valor === true) : false;
   var checked = active ? 'checked' : '';
-  return '<div class="form-check form-switch mb-1"><input class="form-check-input" type="checkbox" ' + checked + ' onchange="updateSVA(\'' + escapeStr(lineNumber) + '\',\'' + escapeStr(fiscalId) + '\',\'' + escapeStr(name) + '\',this.checked)" id="sva-' + name + '"><label class="form-check-label" for="sva-' + name + '">' + label + '</label></div>';
+  return '<div class="form-check form-switch mb-1"><input class="form-check-input" type="checkbox" ' + checked + ' onchange="updateSVA(\'' + escapeStr(lineNumber) + '\',\'' + escapeStr(fiscalId) + '\',\'' + escapeStr(label) + '\',this.checked)" id="sva-' + name + '"><label class="form-check-label" for="sva-' + name + '">' + label + '</label></div>';
 }
 function renderDesvio(lineNumber, fiscalId, svas, name, label, group) {
-  var sv = svas.find(function(s){ return s.name === name || s.nombre === name || s.id === name; });
-  var active = sv ? (sv.active || sv.enabled || sv.status === 'active' || sv.valor === true) : false;
+  var sv = svas.find(function(s){ return s.spanishName === label || (s.extName && s.extName.toLowerCase() === name) || s.name === name || s.nombre === name || s.id === name; });
+  var active = sv ? (sv.status === true || sv.status === 'active' || sv.active || sv.enabled || sv.valor === true) : false;
   var checked = active ? 'checked' : '';
-  var number = sv ? (sv.number || sv.numero || sv.destination || '') : '';
-  return '<div class="mb-1 p-1 border-bottom"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" ' + checked + ' onchange="updateSVA(\'' + escapeStr(lineNumber) + '\',\'' + escapeStr(fiscalId) + '\',\'' + escapeStr(name) + '\',this.checked)" id="sva-' + name + '"><label class="form-check-label" for="sva-' + name + '">' + label + '</label></div><div class="input-group input-group-sm mt-1"><span class="input-group-text">Número</span><input type="text" class="form-control" value="' + esc(number) + '" onchange="updateSVA(\'' + escapeStr(lineNumber) + '\',\'' + escapeStr(fiscalId) + '\',\'' + escapeStr(name) + '\',document.getElementById(\'sva-' + name + '\').checked,this.value)"></div></div>';
+  var number = sv ? (sv.parm1 || sv.number || sv.numero || sv.destination || '') : '';
+  return '<div class="mb-1 p-1 border-bottom"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" ' + checked + ' onchange="updateSVA(\'' + escapeStr(lineNumber) + '\',\'' + escapeStr(fiscalId) + '\',\'' + escapeStr(label) + '\',this.checked)" id="sva-' + name + '"><label class="form-check-label" for="sva-' + name + '">' + label + '</label></div><div class="input-group input-group-sm mt-1"><span class="input-group-text">Número</span><input type="text" class="form-control" value="' + esc(number) + '" onchange="updateSVA(\'' + escapeStr(lineNumber) + '\',\'' + escapeStr(fiscalId) + '\',\'' + escapeStr(label) + '\',document.getElementById(\'sva-' + name + '\').checked,this.value)"></div></div>';
 }
-function updateSVA(lineNumber, fiscalId, name, active, number) {
-  var body = { name: name, active: active };
-  if (number !== undefined) body.number = number;
+function updateSVA(lineNumber, fiscalId, spanishName, status, number) {
+  var body = { spanishName: spanishName, status: status };
+  if (number !== undefined) body.parm1 = number;
   fetch('/clientes/' + encodeURIComponent(fiscalId) + '/line/' + encodeURIComponent(lineNumber) + '/svas', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
