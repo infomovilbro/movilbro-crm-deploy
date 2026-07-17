@@ -1470,16 +1470,41 @@ router.post('/:id/line/:line/full-consumption', requireAuth, async (req, res) =>
   try {
     var api = LikesAPI.getApiInstance();
     var lineNumber = req.params.line;
-    var results = { gb: null, pinpuk: null, lineInfo: null, svas: [], cdrs: [], sim: null };
+    var results = { gb: null, pinpuk: null, lineInfo: null, svas: [], cdrs: [], sim: null, creditLimit: null };
     try { var gb = await api.getLineGB(lineNumber); results.gb = gb && gb.data ? gb.data : gb; } catch(e) {}
     try { var cdrs = await api.getLineCDRs(lineNumber); results.cdrs = Array.isArray(cdrs) ? cdrs : (cdrs && cdrs.data ? cdrs.data : []); } catch(e) {}
     try { var pinpuk = await api.getLinePINPUK(lineNumber); results.pinpuk = pinpuk && pinpuk.data ? pinpuk.data : pinpuk; } catch(e) {}
     try { var info = await api.getLineInfo(lineNumber); results.lineInfo = Array.isArray(info) ? info[0] : (info && info.data ? info.data : info); } catch(e) {}
     try { var svas = await api.getLineSVAs(lineNumber); results.svas = Array.isArray(svas) ? svas : (svas && svas.data ? svas.data : []); } catch(e) {}
     try { var sim = await api.request('GET', '/line/sim?lineNumber=' + encodeURIComponent(lineNumber)); results.sim = sim && sim.data ? sim.data : sim; } catch(e) {}
+    try { var cl = await api.getLineCreditLimit(lineNumber); results.creditLimit = cl && cl.data ? cl.data : cl; } catch(e) {}
     res.json({ ok: true, data: results });
   } catch(e) {
     res.json({ ok: false, error: e.message });
+  }
+});
+
+// Generar QR para eSIM
+router.get('/:id/line/:line/qr', requireAuth, async (req, res) => {
+  try {
+    var api = LikesAPI.getApiInstance();
+    var lineNumber = req.params.line;
+    var info = await api.getLineInfo(lineNumber);
+    var lineData = Array.isArray(info) ? info[0] : (info && info.data ? info.data : info);
+    var icc = '';
+    var pin = '';
+    var puk = '';
+    if (lineData && lineData.sims && lineData.sims.length > 0) {
+      icc = lineData.sims[0].icc || lineData.sims[0].iccid || '';
+      pin = lineData.sims[0].pin || '';
+      puk = lineData.sims[0].puk || '';
+    }
+    var qrText = 'ICC:' + icc + '\nPIN:' + pin + '\nPUK:' + puk + '\nLINE:' + lineNumber;
+    var QR = require('qrcode');
+    var qrBuffer = await QR.toBuffer(qrText, { type: 'png', width: 300, margin: 2 });
+    res.type('image/png').send(qrBuffer);
+  } catch(e) {
+    res.status(500).json({ ok: false, error: e.message });
   }
 });
 
@@ -1488,6 +1513,17 @@ router.post('/:id/line/:line/svas', requireAuth, async (req, res) => {
   try {
     var api = LikesAPI.getApiInstance();
     var result = await api.updateLineSVAs(req.params.line, req.body);
+    res.json({ ok: true, data: result });
+  } catch(e) {
+    res.json({ ok: false, error: e.message });
+  }
+});
+
+// Actualizar límite de crédito
+router.post('/:id/line/:line/credit-limit', requireAuth, async (req, res) => {
+  try {
+    var api = LikesAPI.getApiInstance();
+    var result = await api.setLineCreditLimit(req.params.line, req.body.limit || req.body.amount || 0);
     res.json({ ok: true, data: result });
   } catch(e) {
     res.json({ ok: false, error: e.message });
@@ -1638,37 +1674,114 @@ router.post('/:id/calculate-scoring', requireAuth, async (req, res) => {
     var fiscalId = (cliente && (cliente.dni_nif || cliente.likes_customer_id)) || req.params.id;
     var api = LikesAPI.getApiInstance();
     var detalles = [];
+    var detalleCompleto = [];
     var puntuacion = 5;
     var riesgo = 'medio';
+
+    // 1. API Likes scoring
     try {
       var custResp = await api.request('GET', '/customer?fiscalId=' + encodeURIComponent(fiscalId));
       var custData = custResp.data || custResp;
       var sc = parseFloat(custData.scoring || custData.score || custData.creditScore || custData.rating || -1);
-      if (sc >= 0) { puntuacion = sc; detalles.push('Basado en scoring de API Likes: ' + sc + '/10'); }
+      if (sc >= 0) { puntuacion = sc; detalles.push('Basado en scoring de API Likes: ' + sc + '/10'); detalleCompleto.push({ factor: 'Scoring API Likes', valor: sc + '/10', impacto: 'base ' + sc, color: sc >= 6 ? 'success' : 'warning' }); }
       if (custData.aeatStatus) {
         detalles.push('Según AEAT: ' + custData.aeatStatus);
-        if (custData.aeatStatus.toLowerCase().includes('ok') || custData.aeatStatus.toLowerCase().includes('valid')) puntuacion += 1;
-        else puntuacion -= 1;
+        if (custData.aeatStatus.toLowerCase().includes('ok') || custData.aeatStatus.toLowerCase().includes('valid')) { puntuacion += 1; detalleCompleto.push({ factor: 'Situación AEAT', valor: custData.aeatStatus, impacto: '+1 punto', color: 'success' }); }
+        else { puntuacion -= 1; detalleCompleto.push({ factor: 'Situación AEAT', valor: custData.aeatStatus, impacto: '-1 punto', color: 'danger' }); }
       }
-    } catch(e) { detalles.push('API Likes no devuelve scoring para este cliente'); }
+    } catch(e) { detalles.push('API Likes no devuelve scoring'); detalleCompleto.push({ factor: 'Scoring API Likes', valor: 'No disponible', impacto: 'neutro', color: 'secondary' }); }
+
+    // 2. Facturas ISP
     try {
-      var facRow = db.prepare("SELECT COUNT(*) as total, SUM(CASE WHEN estado='pagada' OR estado='paid' OR pagado=1 THEN 1 ELSE 0 END) as pagadas FROM isp_facturas WHERE fiscal_id=?").get(fiscalId);
+      var facRow = db.prepare("SELECT COUNT(*) as total, SUM(CASE WHEN estado='pagada' OR estado='paid' OR pagado=1 THEN 1 ELSE 0 END) as pagadas, SUM(CASE WHEN estado='pagada' OR estado='paid' OR pagado=1 THEN 0 ELSE importe END) as deuda FROM isp_facturas WHERE fiscal_id=?").get(fiscalId);
       if (facRow && facRow.total > 0) {
         var ratio = facRow.pagadas / facRow.total;
-        detalles.push('De ' + facRow.total + ' facturas ISP, ' + facRow.pagadas + ' pagadas (' + Math.round(ratio*100) + '%)');
-        if (ratio >= 0.9) puntuacion += 2;
-        else if (ratio >= 0.7) puntuacion += 1;
-        else puntuacion -= 1;
-      } else { detalles.push('No hay facturas ISP registradas en DB local'); }
+        var deuda = parseFloat(facRow.deuda || 0).toFixed(2);
+        detalles.push('De ' + facRow.total + ' facturas ISP, ' + facRow.pagadas + ' pagadas (' + Math.round(ratio*100) + '%)' + (deuda > 0 ? ', deuda pendiente: ' + deuda + '€' : ''));
+        if (ratio >= 0.9) { puntuacion += 2; detalleCompleto.push({ factor: 'Pago facturas ISP', valor: facRow.pagadas + '/' + facRow.total + ' pagadas', impacto: '+2 puntos', color: 'success' }); }
+        else if (ratio >= 0.7) { puntuacion += 1; detalleCompleto.push({ factor: 'Pago facturas ISP', valor: facRow.pagadas + '/' + facRow.total + ' pagadas', impacto: '+1 punto', color: 'success' }); }
+        else { puntuacion -= 1; detalleCompleto.push({ factor: 'Pago facturas ISP', valor: facRow.pagadas + '/' + facRow.total + ' pagadas', impacto: '-1 punto', color: 'danger' }); }
+        if (deuda > 0) { puntuacion -= 1; detalleCompleto.push({ factor: 'Deuda pendiente ISP', valor: deuda + '€', impacto: '-1 punto', color: 'danger' }); }
+      } else { detalles.push('No hay facturas ISP en DB'); detalleCompleto.push({ factor: 'Pago facturas ISP', valor: 'Sin historial', impacto: 'neutro', color: 'secondary' }); }
     } catch(e) {}
+
+    // 3. DNI/NIF
     var dniClean = fiscalId.toUpperCase().replace(/[^0-9A-Z]/g, '');
-    if (/^(\d{8}[A-Z]|[XYZ]\d{7}[A-Z]|[A-Z]\d{7}[A-Z]|\d{8})$/i.test(dniClean)) { puntuacion += 1; detalles.push('Formato DNI/NIF válido: +1 punto'); }
-    else if (dniClean) { puntuacion -= 1; detalles.push('DNI/NIF formato inválido'); }
+    if (/^(\d{8}[A-Z]|[XYZ]\d{7}[A-Z]|[A-Z]\d{7}[A-Z]|\d{8})$/i.test(dniClean)) { puntuacion += 1; detalleCompleto.push({ factor: 'Formato DNI/NIF', valor: fiscalId, impacto: '+1 punto', color: 'success' }); }
+    else if (dniClean) { puntuacion -= 1; detalleCompleto.push({ factor: 'Formato DNI/NIF', valor: fiscalId, impacto: '-1 punto (inválido)', color: 'danger' }); }
+
+    // 4. Antigüedad del cliente
+    try {
+      var fCreacion = cliente ? (cliente.created_at || '') : '';
+      if (!fCreacion) { try { var custInfo = await api.request('GET', '/customer?fiscalId=' + encodeURIComponent(fiscalId)); if (custInfo && custInfo.data) fCreacion = custInfo.data.created || custInfo.data.created_at || ''; } catch(e) {} }
+      if (fCreacion) {
+        var meses = Math.floor((Date.now() - new Date(fCreacion).getTime()) / (30 * 24 * 60 * 60 * 1000));
+        if (meses >= 24) { puntuacion += 2; detalleCompleto.push({ factor: 'Antigüedad como cliente', valor: meses + ' meses', impacto: '+2 puntos (fidelidad)', color: 'success' }); }
+        else if (meses >= 12) { puntuacion += 1; detalleCompleto.push({ factor: 'Antigüedad como cliente', valor: meses + ' meses', impacto: '+1 punto', color: 'success' }); }
+        else { detalleCompleto.push({ factor: 'Antigüedad como cliente', valor: (meses || '<1') + ' meses', impacto: 'neutro (poco tiempo)', color: 'secondary' }); }
+      } else { detalleCompleto.push({ factor: 'Antigüedad como cliente', valor: 'Desconocida', impacto: 'neutro', color: 'secondary' }); }
+    } catch(e) {}
+
+    // 5. Número de líneas activas
+    try {
+      var subsData = null;
+      try { subsData = await api.request('GET', '/subscription?fiscalId=' + encodeURIComponent(fiscalId)); } catch(e) {}
+      var subsList = subsData && subsData.data ? (Array.isArray(subsData.data) ? subsData.data : [subsData.data]) : (Array.isArray(subsData) ? subsData : []);
+      if (subsList.length > 0) {
+        var activas = subsList.filter(function(s) {
+          var st = (s.status || '').toLowerCase();
+          return st === 'active' || st === 'activa' || st === 'activo';
+        }).length;
+        if (activas >= 3) { puntuacion += 1; detalleCompleto.push({ factor: 'Líneas activas', valor: activas + ' activas', impacto: '+1 punto (cliente consolidado)', color: 'success' }); }
+        else if (activas >= 1) { detalleCompleto.push({ factor: 'Líneas activas', valor: activas + ' activa(s)', impacto: 'neutro', color: 'secondary' }); }
+        else { puntuacion -= 1; detalleCompleto.push({ factor: 'Líneas activas', valor: '0 activas', impacto: '-1 punto (sin actividad)', color: 'danger' }); }
+      }
+    } catch(e) {}
+
+    // 6. Verificación de dirección con Nominatim (OpenStreetMap, gratis)
+    try {
+      var direccion = cliente ? (cliente.direccion || cliente.address || '') : '';
+      if (!direccion || direccion.length < 5) { try { var custInfo2 = await api.request('GET', '/customer?fiscalId=' + encodeURIComponent(fiscalId) + '&withAddress=true'); if (custInfo2 && custInfo2.data) { var ba = custInfo2.data.billingAddress || {}; direccion = (ba.street || ba.address || '') + ' ' + (ba.city || ''); } } catch(e) {} }
+      if (direccion && direccion.length > 5) {
+        var https = require('https');
+        var addrClean = direccion.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s,.-]/g, ' ').trim().substring(0, 100);
+        var result = await new Promise(function(resolve) {
+          https.get('https://nominatim.openstreetmap.org/search?q=' + encodeURIComponent(addrClean) + '&format=json&limit=1&countrycodes=es', { headers: { 'User-Agent': 'MovilbroCRM/1.0' } }, function(r) {
+            var b = '';
+            r.on('data', function(c) { b += c; });
+            r.on('end', function() { try { var d = JSON.parse(b); resolve(d && d.length > 0 ? d[0] : null); } catch(e) { resolve(null); } });
+            r.on('error', function() { resolve(null); });
+          }).on('error', function() { resolve(null); });
+        });
+        if (result && result.lat && result.lon) {
+          var tipo = result.type || result.class || 'lugar';
+          puntuacion += 1;
+          detalleCompleto.push({ factor: 'Dirección verificada', valor: addrClean.substring(0, 50) + '... (' + tipo + ')', impacto: '+1 punto (dirección real)', color: 'success' });
+        } else {
+          detalleCompleto.push({ factor: 'Dirección verificada', valor: 'No confirmada en OpenStreetMap', impacto: 'neutro', color: 'secondary' });
+        }
+      } else {
+        detalleCompleto.push({ factor: 'Dirección verificada', valor: 'Sin datos de dirección', impacto: 'neutro', color: 'secondary' });
+      }
+    } catch(e) { detalleCompleto.push({ factor: 'Dirección verificada', valor: 'Error en verificación', impacto: 'neutro', color: 'secondary' }); }
+
+    // 7. Tickets/incidencias abiertos
+    try {
+      var ticRow = db.prepare("SELECT COUNT(*) as total FROM tickets WHERE fiscal_id=? AND estado!='closed' AND estado!='resuelto' AND estado!='cerrado'").get(fiscalId);
+      if (ticRow && ticRow.total > 0) {
+        puntuacion -= ticRow.total;
+        detalleCompleto.push({ factor: 'Tickets abiertos', valor: ticRow.total + ' pendientes', impacto: '-' + ticRow.total + ' punto(s)', color: 'danger' });
+      } else {
+        detalleCompleto.push({ factor: 'Tickets abiertos', valor: '0 pendientes', impacto: 'neutro', color: 'success' });
+      }
+    } catch(e) {}
+
     puntuacion = Math.max(1, Math.min(10, Math.round(puntuacion)));
     if (puntuacion >= 7) riesgo = 'bajo';
     else if (puntuacion >= 4) riesgo = 'medio';
     else riesgo = 'alto';
-    res.json({ ok: true, fiscalId: fiscalId, scoring: puntuacion, risk: riesgo, detalles: detalles, fiable: riesgo === 'bajo', recomendacion: riesgo === 'alto' ? '⚠️ Revisar antes de nueva contratación' : (riesgo === 'medio' ? '➡️ Cliente estándar' : '✅ Cliente confiable') });
+    var recomendacion = riesgo === 'alto' ? '⚠️ Revisar antes de nueva contratación. Cliente con riesgo alto.' : (riesgo === 'medio' ? '➡️ Cliente estándar. Se recomienda seguimiento periódico.' : '✅ Cliente confiable. Bajo riesgo crediticio.');
+    res.json({ ok: true, fiscalId: fiscalId, scoring: puntuacion, risk: riesgo, detalles: detalles, detalleCompleto: detalleCompleto, fiable: riesgo === 'bajo', recomendacion: recomendacion });
   } catch(e) {
     res.status(500).json({ ok: false, error: e.message });
   }

@@ -239,9 +239,9 @@
                           </div>
                           <div class="text-end">
                             <span class="badge bg-<%= est === 'activa' || est === 'active' || est === 'activo' ? 'success' : est === 'suspendida' || est === 'suspended' ? 'warning' : 'secondary' %>">
-                              <%= ({'active':'Activa','activa':'Activa','activo':'Activa','suspended':'Suspendida','suspendida':'Suspendida','cancelled':'Cancelada','cancelada':'Cancelada','terminated':'Cancelada','terminada':'Cancelada','baja':'Cancelada'})[est] || est %>
+                              <%= ({'active':'Activa','activa':'Activa','activo':'Activa','suspended':'Suspendida','suspendida':'Suspendida','cancelled':'Cancelada','canceled':'Cancelada','cancelada':'Cancelada','terminated':'Cancelada','terminada':'Cancelada','baja':'Cancelada'})[est] || est %>
                             </span>
-                            <% if (p.icc || s.icc) { %><br><small class="text-muted">ICC: <%= (p.icc || s.icc).substring(0,15) %>...</small><br><button class="btn btn-sm btn-outline-dark mostrar-pinpuk mt-1" data-line="<%= p.lineNumber || s.lineNumber %>" data-pin="<%= p.pin || s.pin || '' %>" data-puk="<%= p.puk || s.puk || '' %>" data-icc="<%= p.icc || s.icc || '' %>" title="PIN/PUK"><i class="bi bi-key"></i></button><% } %>
+                            <% if (p.icc || s.icc) { %><br><small class="text-muted">ICC: <%= (p.icc || s.icc).substring(0,15) %>...</small><br><button class="btn btn-sm btn-outline-dark mostrar-pinpuk mt-1" data-line="<%= p.lineNumber || s.lineNumber %>" data-pin="<%= p.pin || s.pin || '' %>" data-puk="<%= p.puk || s.puk || '' %>" data-icc="<%= p.icc || s.icc || '' %>" title="PIN/PUK"><i class="bi bi-key"></i></button><% } %><br><button class="btn btn-sm btn-outline-info mt-1 gestion-linea" data-line="<%= p.lineNumber || s.lineNumber %>" data-client="<%= _cid %>" title="Gestionar línea"><i class="bi bi-gear"></i> Gestión</button>
                           </div>
                         </div>
                       <% }); %>
@@ -260,15 +260,16 @@
                     <option value="">Seleccionar línea...</option>
                   </select>
                 </div>
-                <div class="card-body p-2 text-center" style="min-height:140px;">
-                  <div style="position:relative;width:100%;max-width:300px;height:120px;margin:0 auto;">
-                    <canvas id="gbChart" width="300" height="120" style="width:100%;height:100%;"></canvas>
+                <div class="card-body p-2 text-center" style="min-height:200px;">
+                  <div style="position:relative;width:100%;height:160px;margin:0 auto;">
+                    <canvas id="gbChart" width="300" height="160" style="width:100%;height:100%;"></canvas>
                   </div>
+                  <div id="dailyMonthNavCard" class="small mt-1" style="display:none;"></div>
                   <div id="consPerLine" class="mt-1 small text-start"></div>
                   <div class="d-flex justify-content-center gap-1 mt-1">
-                    <button class="btn btn-sm btn-outline-info" onclick="abrirConsumoModal('gb')" title="Consumo GB"><i class="bi bi-bar-chart"></i> GB</button>
-                    <button class="btn btn-sm btn-outline-info" onclick="abrirConsumoModal('calls')" title="Llamadas"><i class="bi bi-telephone"></i> Llamadas</button>
-                    <button class="btn btn-sm btn-outline-info" onclick="abrirConsumoModal('sms')" title="SMS"><i class="bi bi-chat-dots"></i> SMS</button>
+                    <button class="btn btn-sm btn-outline-info" id="cardBtnGb" onclick="switchCardChart('gb')" title="Consumo GB"><i class="bi bi-bar-chart"></i> GB</button>
+                    <button class="btn btn-sm btn-outline-info" id="cardBtnCalls" onclick="switchCardChart('calls')" title="Llamadas"><i class="bi bi-telephone"></i> Llamadas</button>
+                    <button class="btn btn-sm btn-outline-info" id="cardBtnSms" onclick="switchCardChart('sms')" title="SMS"><i class="bi bi-chat-dots"></i> SMS</button>
                     <button class="btn btn-sm btn-outline-secondary" onclick="abrirConsumoModal()" title="Ver todo detallado"><i class="bi bi-graph-up"></i> Detallado</button>
                   </div>
                 </div>
@@ -966,9 +967,9 @@
             </div>
             <hr>
             <h6><i class="bi bi-list-check"></i> Detalles del c&aacute;lculo</h6>
-            <ul id="scoringResultDetails" style="max-height:250px;overflow:auto;">
-              <li class="text-muted">Calculando...</li>
-            </ul>
+            <div id="scoringResultDetails" style="max-height:300px;overflow:auto;">
+              <div class="text-muted">Calculando...</div>
+            </div>
           </div>
           <div class="tab-pane fade" id="scoringExterno">
             <p class="small text-muted mb-2">B&uacute;squeda manual en bases de datos p&uacute;blicas (abre cada web e introduce el DNI/NIF manualmente):</p>
@@ -1615,10 +1616,15 @@ function calcularScoring(clienteId) {
         else if (res.risk === 'alto' || res.risk === 'high') riskBadge = 'danger';
         document.getElementById('scoringResultRisk').innerHTML = '<span class="badge bg-' + riskBadge + ' fs-6">Riesgo: ' + res.risk + '</span>';
         var detallesHtml = '';
-        if (res.detalles && res.detalles.length > 0) {
-          res.detalles.forEach(function(det) {
-            detallesHtml += '<li>' + det + '</li>';
+        if (res.detalleCompleto && res.detalleCompleto.length > 0) {
+          detallesHtml += '<table class="table table-sm table-borderless mb-0" style="font-size:0.75rem;"><thead><tr><th>Factor</th><th>Valor</th><th>Impacto</th></tr></thead><tbody>';
+          res.detalleCompleto.forEach(function(d) {
+            var icono = d.color === 'success' ? '✅' : d.color === 'danger' ? '❌' : '➖';
+            detallesHtml += '<tr><td>' + d.factor + '</td><td>' + d.valor + '</td><td><span class="badge bg-' + d.color + '">' + icono + ' ' + d.impacto + '</span></td></tr>';
           });
+          detallesHtml += '</tbody></table>';
+        } else if (res.detalles && res.detalles.length > 0) {
+          res.detalles.forEach(function(det) { detallesHtml += '<li>' + det + '</li>'; });
         } else {
           detallesHtml += '<li class="text-muted">Sin detalles</li>';
         }
@@ -1632,14 +1638,19 @@ function calcularScoring(clienteId) {
           if (res.scoring >= 7) recHtml = '<span class="badge bg-success fs-6">✅ Recomendado</span>';
           else if (res.scoring >= 4) recHtml = '<span class="badge bg-warning fs-6">⚠️ Revisar</span>';
           else recHtml = '<span class="badge bg-danger fs-6">❌ No recomendado</span>';
+          if (res.recomendacion) recHtml += '<br><small class="text-muted">' + res.recomendacion + '</small>';
           sr.innerHTML = recHtml;
         }
         // Mostrar resumen breve en el card
         var sr2 = document.getElementById('scoringResumen');
-        if (sr2 && res.detalles && res.detalles.length > 0) {
-          var puntos = res.detalles.join(' · ');
-          sr2.innerHTML = puntos;
-          sr2.style.display = '';
+        if (sr2) {
+          var resumenPts = [];
+          if (res.detalleCompleto) { res.detalleCompleto.forEach(function(d) { resumenPts.push(d.factor + ': ' + d.impacto); }); }
+          else if (res.detalles) { resumenPts = res.detalles; }
+          if (resumenPts.length > 0) {
+            sr2.innerHTML = resumenPts.slice(0, 4).join(' · ') + (resumenPts.length > 4 ? ' (+' + (resumenPts.length-4) + ' más)' : '');
+            sr2.style.display = '';
+          }
         }
         // Actualizar resumen inline detallado
         var sdl = document.getElementById('scoringDetalleList');
@@ -1866,7 +1877,13 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // Load GB for a specific line (independiente de Chart.js)
+  // Variables para datos diarios y chart en la tarjeta
+  var _cardDailyData = null;
+  var _cardChartTipo = 'gb';
+  var _cardChart = null;
+  window._cardMesActual = -1;
+
+  // Load GB for a specific line
   function loadGB(line) {
     if (!line) return;
     var consPerLine = document.getElementById('consPerLine');
@@ -1880,10 +1897,6 @@ document.addEventListener('DOMContentLoaded', function() {
           var roaming = parseFloat(d.roamingGB || d.roaming_gb || d.roaming || 0);
           var remaining = total - used;
           if (remaining < 0) remaining = 0;
-          if (gbChart) {
-            gbChart.data.datasets[0].data = [used, remaining];
-            gbChart.update();
-          }
           consPerLine.innerHTML = '<div class="d-flex justify-content-between small"><span>Usado: <strong>' + used.toFixed(2) + ' GB</strong></span><span>Total: <strong>' + total.toFixed(2) + ' GB</strong></span><span>Restante: <strong>' + remaining.toFixed(2) + ' GB</strong></span></div>';
           if (roaming > 0) consPerLine.innerHTML += '<div class="small text-muted">Roaming: ' + roaming.toFixed(2) + ' GB</div>';
         } else {
@@ -1891,7 +1904,88 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       })
       .catch(function() { consPerLine.innerHTML = '<div class="small text-muted">Error al cargar consumo</div>'; });
+    loadCardDailyData(line);
   }
+
+  function loadCardDailyData(line) {
+    fetch('/clientes/' + clientId + '/line/' + encodeURIComponent(line) + '/daily-consumption', { method: 'POST' })
+      .then(function(r) { return r.json(); })
+      .then(function(res) {
+        if (res.ok && res.data && res.data.length > 0) {
+          _cardDailyData = res.data;
+          window._cardMesActual = -1;
+          renderCardChart();
+          // Marcar boton GB como activo inicial
+          var gbBtn = document.getElementById('cardBtnGb');
+          if (gbBtn) gbBtn.className = gbBtn.className.replace('btn-outline-info', 'btn-info');
+        }
+      })
+      .catch(function() {});
+  }
+
+  function renderCardChart() {
+    var ctx = document.getElementById('gbChart');
+    if (!ctx || !_cardDailyData) return;
+    var meses = {};
+    _cardDailyData.forEach(function(d) { if (d.date && d.date.length >= 7) meses[d.date.substring(0, 7)] = true; });
+    var mesesArr = Object.keys(meses).sort();
+    if (mesesArr.length === 0) return;
+    if (window._cardMesActual === -1 || window._cardMesActual >= mesesArr.length) window._cardMesActual = mesesArr.length - 1;
+    var mesSel = mesesArr[window._cardMesActual];
+    var mesData = _cardDailyData.filter(function(d) { return d.date && d.date.substring(0, 7) === mesSel; });
+    if (mesData.length === 0) return;
+    var labelMes = mesSel.substring(0, 4) + '/' + mesSel.substring(5, 7);
+    var nav = document.getElementById('dailyMonthNavCard');
+    if (nav) {
+      nav.style.display = '';
+      nav.innerHTML = '<button class="btn btn-sm btn-outline-secondary py-0" onclick="navegarCardMes(-1)" ' + (window._cardMesActual <= 0 ? 'disabled' : '') + '><i class="bi bi-chevron-left"></i></button> <span class="fw-semibold">' + labelMes + '</span> <button class="btn btn-sm btn-outline-secondary py-0" onclick="navegarCardMes(1)" ' + (window._cardMesActual >= mesesArr.length - 1 ? 'disabled' : '') + '><i class="bi bi-chevron-right"></i></button>';
+    }
+    var labels = mesData.map(function(d) { var p = d.date.split('-'); return p[2] + '/' + p[1]; });
+    var valores = mesData.map(function(d) { return d[_cardChartTipo] || 0; });
+    var colores = { gb: '#06b6d4', calls: '#8b5cf6', sms: '#10b981' };
+    var etiquetas = { gb: 'GB', calls: 'Llamadas', sms: 'SMS' };
+    if (_cardChart) { _cardChart.destroy(); _cardChart = null; }
+    if (typeof Chart !== 'undefined') {
+      try {
+        _cardChart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: labels,
+            datasets: [{ label: etiquetas[_cardChartTipo] || _cardChartTipo, data: valores, backgroundColor: colores[_cardChartTipo] || '#06b6d4', borderRadius: 3 }]
+          },
+          options: {
+            animation: false, responsive: true, maintainAspectRatio: true,
+            plugins: { legend: { display: false }, tooltip: { enabled: true } },
+            scales: {
+              x: { grid: { display: false }, ticks: { font: { size: 8 }, maxRotation: 0 } },
+              y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 8 } } }
+            }
+          }
+        });
+      } catch(e) { _cardChart = null; }
+    }
+  }
+
+  window.switchCardChart = function(tipo) {
+    _cardChartTipo = tipo;
+    ['cardBtnGb','cardBtnCalls','cardBtnSms'].forEach(function(id) {
+      var btn = document.getElementById(id);
+      if (btn) btn.className = btn.className.replace('btn-info', 'btn-outline-info');
+    });
+    var activeBtn = document.getElementById('cardBtn' + tipo.charAt(0).toUpperCase() + tipo.slice(1));
+    if (activeBtn) activeBtn.className = activeBtn.className.replace('btn-outline-info', 'btn-info');
+    renderCardChart();
+  };
+
+  window.navegarCardMes = function(dir) {
+    if (!_cardDailyData) return;
+    var meses = {};
+    _cardDailyData.forEach(function(d) { if (d.date && d.date.length >= 7) meses[d.date.substring(0, 7)] = true; });
+    var mesesArr = Object.keys(meses).sort();
+    if (mesesArr.length === 0) return;
+    window._cardMesActual = Math.max(0, Math.min(mesesArr.length - 1, (window._cardMesActual || 0) + dir));
+    renderCardChart();
+  };
 
   if (gbLineSelect) {
     gbLineSelect.addEventListener('change', function() { loadGB(this.value); });
@@ -1901,24 +1995,6 @@ document.addEventListener('DOMContentLoaded', function() {
   if (linesArr.length > 0) {
     if (gbLineSelect) gbLineSelect.value = linesArr[0];
     loadGB(linesArr[0]);
-  }
-
-  // Grafico Chart.js SOLO si esta disponible
-  if (gbCtx && typeof Chart !== 'undefined') {
-    try {
-      gbChart = new Chart(gbCtx, {
-        type: 'doughnut',
-        data: { labels: ['Usado', 'Disponible'],
-          datasets: [{ data: [0, 30], backgroundColor: ['#17a2b8', '#e9ecef'], borderWidth: 0 }]
-        },
-        options: {
-          animation: false, resizeDelay: 0,
-          responsive: true, maintainAspectRatio: true,
-          cutout: '65%',
-          plugins: { legend: { display: false }, tooltip: { enabled: true } }
-        }
-      });
-    } catch(e) { gbChart = null; }
   }
   // Funcion para abrir consumo detallado desde la tarjeta GB
 window.abrirConsumoModal = function(tipo) {
@@ -2519,7 +2595,7 @@ function filtrarLineas(){
   if(p)p.value=v;
   document.querySelectorAll('[data-estado]').forEach(function(el){
     var est=el.getAttribute('data-estado');
-    var isTerm=est==='terminada'||est==='baja'||est==='cancelled'||est==='cancelada';
+    var isTerm=est==='terminada'||est==='baja'||est==='cancelled'||est==='canceled'||est==='cancelada';
     var isAct=est==='activa'||est==='active'||est==='activo';
     if(v==='all')el.style.display='';
     else if(v==='cancelada')el.style.display=isTerm?'':'none';
@@ -2546,6 +2622,11 @@ if(document.getElementById('subsFilter'))filtrarSubs();
   setTimeout(function(){if(document.getElementById('estadoFilter'))filtrarLineas();if(document.getElementById('subsFilter'))filtrarSubs()},300);
 })();
 
+document.addEventListener('click', function(e) {
+  var btn = e.target.closest('.gestion-linea');
+  if (btn) abrirLineModal(btn.getAttribute('data-line'), btn.getAttribute('data-client'));
+});
+
 function filtrarSubs(){
   var sf=document.getElementById('subsFilter');
   if(!sf)return;
@@ -2554,11 +2635,224 @@ function filtrarSubs(){
     var badge=row.querySelector('td:nth-child(3) .badge');
     if(!badge){row.style.display='';return}
     var est=badge.textContent.trim().toLowerCase();
-    var isTerm=est==='cancelada'||est==='terminada'||est==='baja'||est==='cancelled';
+    var isTerm=est==='cancelada'||est==='canceled'||est==='terminada'||est==='baja'||est==='cancelled';
     var isAct=est==='activa'||est==='active'||est==='activo';
     if(val==='all')row.style.display='';
     else if(val==='cancelada')row.style.display=isTerm?'':'none';
     else row.style.display=isAct?'':'none';
   });
 }
+
+// ===== MODAL DE LINEA =====
+function abrirLineModal(lineNumber, fiscalId) {
+  var modal = document.getElementById('lineModal');
+  var bsModal = bootstrap.Modal.getInstance(modal);
+  if (!bsModal) bsModal = new bootstrap.Modal(modal);
+  document.getElementById('lineModalNumber').textContent = lineNumber;
+  document.getElementById('lineModalBody').innerHTML = '<div class="text-center py-4"><div class="spinner-border" role="status"></div><p class="mt-2 text-muted">Cargando datos de la línea...</p></div>';
+  bsModal.show();
+  fetch('/clientes/' + encodeURIComponent(fiscalId) + '/line/' + encodeURIComponent(lineNumber) + '/full-consumption', { method: 'POST' })
+    .then(function(r){ return r.json() })
+    .then(function(res){
+      if (!res.ok) { document.getElementById('lineModalBody').innerHTML = '<div class="alert alert-danger">Error al cargar datos</div>'; return; }
+      renderLineModal(res.data, lineNumber, fiscalId);
+    })
+    .catch(function(err){
+      document.getElementById('lineModalBody').innerHTML = '<div class="alert alert-danger">Error de conexión: ' + err.message + '</div>';
+    });
+}
+function renderLineModal(data, lineNumber, fiscalId) {
+  var gb = data.gb || {};
+  var lineInfo = data.lineInfo || {};
+  var svas = Array.isArray(data.svas) ? data.svas : [];
+  var cdrs = Array.isArray(data.cdrs) ? data.cdrs : [];
+  var sim = data.sim || {};
+  var creditLimit = data.creditLimit || {};
+  var pinpuk = data.pinpuk || {};
+  var icc = lineInfo.sims && lineInfo.sims[0] ? (lineInfo.sims[0].icc || lineInfo.sims[0].iccid || '') : (pinpuk.icc || pinpuk.iccid || '');
+  var pin = lineInfo.sims && lineInfo.sims[0] ? (lineInfo.sims[0].pin || '') : (pinpuk.pin || '');
+  var puk = lineInfo.sims && lineInfo.sims[0] ? (lineInfo.sims[0].puk || '') : (pinpuk.puk || '');
+  var emailSim = lineInfo.sims && lineInfo.sims[0] ? (lineInfo.sims[0].email || '') : '';
+  var spn = lineInfo.spn || lineInfo.brand || '';
+  var status = lineInfo.status || '';
+
+  var gbNac = gb.nationalConsumed || gb.national || gb.nacionalConsumed || gb.consumed || 0;
+  var gbNacTotal = gb.nationalAllowance || gb.nationalTotal || gb.nacional || gb.allowance || 1;
+  var gbRoam = gb.roamingConsumed || gb.roaming || 0;
+  var gbRoamTotal = gb.roamingAllowance || gb.roamingTotal || 1;
+
+  var html = '';
+  html += '<ul class="nav nav-tabs nav-justified small" id="lineModalTabs">';
+  html += '  <li class="nav-item"><a class="nav-link active" href="#" data-tab="resumen" onclick="return cambiarTabLinea(this,\'resumen\')">Resumen</a></li>';
+  html += '  <li class="nav-item"><a class="nav-link" href="#" data-tab="servicios" onclick="return cambiarTabLinea(this,\'servicios\')">Servicios</a></li>';
+  html += '  <li class="nav-item"><a class="nav-link" href="#" data-tab="consumo" onclick="return cambiarTabLinea(this,\'consumo\')">Consumo</a></li>';
+  html += '  <li class="nav-item"><a class="nav-link" href="#" data-tab="esim" onclick="return cambiarTabLinea(this,\'esim\')">eSIM</a></li>';
+  html += '</ul>';
+
+  // Tab Resumen
+  html += '<div id="tab-resumen" class="line-tab">';
+  html += '  <div class="row g-2 mt-2">';
+  html += '    <div class="col-6"><div class="p-2 border rounded"><small class="text-muted">GB Nacionales</small><div class="fw-bold">' + gbNac.toFixed(1) + ' / ' + gbNacTotal.toFixed(1) + ' GB</div><div class="progress" style="height:4px"><div class="progress-bar" style="width:' + Math.min(100,(gbNac/gbNacTotal)*100) + '%"></div></div></div></div>';
+  html += '    <div class="col-6"><div class="p-2 border rounded"><small class="text-muted">GB Roaming</small><div class="fw-bold">' + gbRoam.toFixed(1) + ' / ' + gbRoamTotal.toFixed(1) + ' GB</div><div class="progress" style="height:4px"><div class="progress-bar bg-warning" style="width:' + Math.min(100,(gbRoam/gbRoamTotal)*100) + '%"></div></div></div></div>';
+  html += '  </div>';
+  html += '  <div class="mt-2 p-2 border rounded"><small class="text-muted">SPN</small><div class="fw-bold">' + esc(spn || 'Movilbro') + '</div></div>';
+  html += '  <div class="mt-2 p-2 border rounded"><h6 class="mb-2">Límite de crédito</h6><div class="d-flex flex-wrap gap-1 mb-2">';
+  var limActual = creditLimit.amount || creditLimit.limit || 0;
+  [1,5,25,150].forEach(function(v){
+    var sel = Math.abs(limActual - v) < 0.01 ? 'btn-primary' : 'btn-outline-secondary';
+    html += '<button class="btn btn-sm ' + sel + '" onclick="setCreditLimit(\'' + escapeStr(lineNumber) + '\',\'' + escapeStr(fiscalId) + '\',' + v + ')">' + v + '€</button>';
+  });
+  html += '  </div><div class="input-group input-group-sm"><input type="number" id="customLimitInput" class="form-control" placeholder="Personalizado" step="1" min="0"><button class="btn btn-sm btn-outline-secondary" onclick="setCreditLimit(\'' + escapeStr(lineNumber) + '\',\'' + escapeStr(fiscalId) + '\',document.getElementById(\'customLimitInput\').value)">OK</button></div>';
+  html += '  <div class="form-check form-switch mt-1"><input class="form-check-input" type="checkbox" id="notifyLimit" ' + (creditLimit.notify ? 'checked' : '') + '><label class="form-check-label" for="notifyLimit">Notificar al alcanzar</label></div>';
+  html += '  <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="blockLimit" ' + (creditLimit.block ? 'checked' : '') + '><label class="form-check-label" for="blockLimit">Bloquear al alcanzar</label></div></div>';
+  // CDRs recientes
+  html += '  <div class="mt-2 p-2 border rounded"><h6 class="mb-1">Últimas llamadas</h6><div style="max-height:150px;overflow:auto"><table class="table table-sm mb-0"><thead><tr><th>Fecha</th><th>Destino</th><th>Dur.</th></tr></thead><tbody>';
+  cdrs.slice(0,8).forEach(function(c){
+    var dest = c.destination || c.dest || c.called || c.numero || '';
+    var dur = c.duration || c.duracion || c.secs || 0;
+    dur = typeof dur === 'number' ? Math.round(dur/60) + 'min' : dur;
+    html += '<tr><td class="small">' + esc((c.date || c.fecha || '').substring(0,10)) + '</td><td class="small">' + esc(dest) + '</td><td class="small">' + dur + '</td></tr>';
+  });
+  html += '</tbody></table></div></div></div>';
+
+  // Tab Servicios (SVAs)
+  html += '<div id="tab-servicios" class="line-tab" style="display:none">';
+  html += '  <div class="mt-2"><h6 class="mb-1">Teléfono</h6><div class="p-2 border rounded">';
+  html += renderSvaToggle(lineNumber, fiscalId, svas, 'llamadas_entrantes', 'Llamadas entrantes', 'voice');
+  html += renderSvaToggle(lineNumber, fiscalId, svas, 'llamadas_salientes', 'Llamadas salientes', 'voice');
+  html += renderSvaToggle(lineNumber, fiscalId, svas, 'llamadas_internacionales', 'Llamadas internacionales', 'voice');
+  html += renderSvaToggle(lineNumber, fiscalId, svas, 'llamada_espera', 'Llamada en espera', 'voice');
+  html += '    <div class="small text-muted mt-1">VoLTE: ' + (svas.find(function(s){return s.name==='VoLTE'||s.name==='volte'}) ? 'Activo' : 'Inactivo') + ' (solo info)</div>';
+  html += '  </div></div>';
+  html += '  <div class="mt-2"><h6 class="mb-1">Internet</h6><div class="p-2 border rounded">';
+  html += renderSvaToggle(lineNumber, fiscalId, svas, 'datos', 'Datos', 'data');
+  html += renderSvaToggle(lineNumber, fiscalId, svas, 'roaming', 'Roaming', 'data');
+  html += '    <div class="small text-muted mt-1">5G: ' + (svas.find(function(s){return s.name==='5G'||s.name==='5g'}) ? 'Activo' : 'Inactivo') + ' (solo info)</div>';
+  html += '  </div></div>';
+  html += '  <div class="mt-2"><h6 class="mb-1">Desvíos</h6><div class="p-2 border rounded small">';
+  html += renderSvaToggle(lineNumber, fiscalId, svas, 'buzon_voz', 'Buzón de voz', 'forward');
+  html += renderDesvio(lineNumber, fiscalId, svas, 'desvio_incondicional', 'Desvío incondicional', 'forward');
+  html += renderDesvio(lineNumber, fiscalId, svas, 'desvio_si_comunica', 'Desvío si comunica', 'forward');
+  html += renderDesvio(lineNumber, fiscalId, svas, 'desvio_sin_cobertura', 'Desvío sin cobertura', 'forward');
+  html += renderDesvio(lineNumber, fiscalId, svas, 'desvio_no_contesta', 'Desvío no contesta', 'forward');
+  html += '  </div></div></div>';
+
+  // Tab Consumo
+  html += '<div id="tab-consumo" class="line-tab" style="display:none">';
+  html += '  <div class="mt-2"><div class="p-2 border rounded"><small class="text-muted">Minutos consumidos</small><div class="fw-bold">' + (gb.minutesConsumed || gb.minutos || 0) + ' min</div></div></div>';
+  html += '  <div class="mt-2"><div class="p-2 border rounded"><small class="text-muted">Datos consumidos</small><div class="fw-bold">' + (gb.dataConsumed || gb.datos || gb.nationalConsumed || 0).toFixed(2) + ' MB</div></div></div>';
+  html += '  <div class="mt-2"><div class="p-2 border rounded"><small class="text-muted">SMS enviados</small><div class="fw-bold">' + (gb.smsConsumed || gb.sms || 0) + '</div></div></div>';
+  html += '  <div class="mt-2"><div class="p-2 border rounded"><small class="text-muted">Gasto adicional</small><div class="fw-bold">' + (gb.extraCost || gb.extra_cost || gb.coste_adicional || 0).toFixed(2) + '€</div></div></div></div>';
+
+  // Tab eSIM
+  html += '<div id="tab-esim" class="line-tab" style="display:none">';
+  html += '  <div class="mt-2"><div class="p-2 border rounded"><table class="table table-sm mb-0"><tr><th>ICC</th><td>' + esc(icc) + '</td></tr><tr><th>PIN</th><td>' + esc(pin) + '</td></tr><tr><th>PUK</th><td>' + esc(puk) + '</td></tr><tr><th>Email</th><td>' + esc(emailSim) + '</td></tr></table></div></div>';
+  html += '  <div class="mt-2"><div class="p-2 border rounded text-center"><img id="esimQR" src="/clientes/' + encodeURIComponent(fiscalId) + '/line/' + encodeURIComponent(lineNumber) + '/qr" style="width:180px;height:180px" alt="QR eSIM"><p class="small text-muted mt-1">Escanea para guardar datos eSIM</p></div></div>';
+  html += '  <div class="mt-2 d-flex flex-wrap gap-1">';
+  html += '    <button class="btn btn-sm btn-success" onclick="compartirWhatsApp(\'' + escapeStr(lineNumber) + '\',\'' + escapeStr(icc) + '\',\'' + escapeStr(pin) + '\',\'' + escapeStr(puk) + '\')"><i class="bi bi-whatsapp"></i> WhatsApp</button>';
+  html += '    <button class="btn btn-sm btn-primary" onclick="copiarESIM(\'' + escapeStr(lineNumber) + '\',\'' + escapeStr(icc) + '\',\'' + escapeStr(pin) + '\',\'' + escapeStr(puk) + '\')"><i class="bi bi-clipboard"></i> Copiar datos</button>';
+  html += '    <button class="btn btn-sm btn-outline-secondary" onclick="enviarEmailESIM(\'' + escapeStr(lineNumber) + '\',\'' + escapeStr(fiscalId) + '\')"><i class="bi bi-envelope"></i> Email</button>';
+  html += '  </div></div>';
+
+  document.getElementById('lineModalBody').innerHTML = html;
+}
+function cambiarTabLinea(el, tabId) {
+  document.querySelectorAll('#lineModalTabs .nav-link').forEach(function(t){ t.classList.remove('active'); });
+  el.classList.add('active');
+  document.querySelectorAll('.line-tab').forEach(function(t){ t.style.display = 'none'; });
+  var tab = document.getElementById('tab-' + tabId);
+  if (tab) tab.style.display = '';
+  return false;
+}
+function renderSvaToggle(lineNumber, fiscalId, svas, name, label, group) {
+  var sv = svas.find(function(s){ return s.name === name || s.nombre === name || s.id === name; });
+  var active = sv ? (sv.active || sv.enabled || sv.status === 'active' || sv.valor === true) : false;
+  var checked = active ? 'checked' : '';
+  return '<div class="form-check form-switch mb-1"><input class="form-check-input" type="checkbox" ' + checked + ' onchange="updateSVA(\'' + escapeStr(lineNumber) + '\',\'' + escapeStr(fiscalId) + '\',\'' + escapeStr(name) + '\',this.checked)" id="sva-' + name + '"><label class="form-check-label" for="sva-' + name + '">' + label + '</label></div>';
+}
+function renderDesvio(lineNumber, fiscalId, svas, name, label, group) {
+  var sv = svas.find(function(s){ return s.name === name || s.nombre === name || s.id === name; });
+  var active = sv ? (sv.active || sv.enabled || sv.status === 'active' || sv.valor === true) : false;
+  var checked = active ? 'checked' : '';
+  var number = sv ? (sv.number || sv.numero || sv.destination || '') : '';
+  return '<div class="mb-1 p-1 border-bottom"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" ' + checked + ' onchange="updateSVA(\'' + escapeStr(lineNumber) + '\',\'' + escapeStr(fiscalId) + '\',\'' + escapeStr(name) + '\',this.checked)" id="sva-' + name + '"><label class="form-check-label" for="sva-' + name + '">' + label + '</label></div><div class="input-group input-group-sm mt-1"><span class="input-group-text">Número</span><input type="text" class="form-control" value="' + esc(number) + '" onchange="updateSVA(\'' + escapeStr(lineNumber) + '\',\'' + escapeStr(fiscalId) + '\',\'' + escapeStr(name) + '\',document.getElementById(\'sva-' + name + '\').checked,this.value)"></div></div>';
+}
+function updateSVA(lineNumber, fiscalId, name, active, number) {
+  var body = { name: name, active: active };
+  if (number !== undefined) body.number = number;
+  fetch('/clientes/' + encodeURIComponent(fiscalId) + '/line/' + encodeURIComponent(lineNumber) + '/svas', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  }).then(function(r){ return r.json() }).then(function(res){
+    if (res.ok) {
+      console.log('SVA actualizado:', name, active);
+    } else {
+      alert('Error al actualizar ' + name);
+    }
+  }).catch(function(err){
+    alert('Error de conexión');
+  });
+}
+function setCreditLimit(lineNumber, fiscalId, amount) {
+  if (!amount || amount <= 0) return;
+  fetch('/clientes/' + encodeURIComponent(fiscalId) + '/line/' + encodeURIComponent(lineNumber) + '/credit-limit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ limit: parseFloat(amount) })
+  }).then(function(r){ return r.json() }).then(function(res){
+    if (res.ok) {
+      document.querySelectorAll('#tab-resumen .btn-primary').forEach(function(b){ b.className = b.className.replace('btn-primary','btn-outline-secondary'); });
+      var btns = document.querySelectorAll('#tab-resumen button');
+      btns.forEach(function(b){
+        if (b.textContent.trim() === amount + '€') b.className = b.className.replace('btn-outline-secondary','btn-primary');
+      });
+    } else {
+      alert('Error al actualizar límite');
+    }
+  }).catch(function(err){
+    alert('Error de conexión');
+  });
+}
+function compartirWhatsApp(line, icc, pin, puk) {
+  var msg = 'eSIM Movilbro - ICC: ' + icc + ', PIN: ' + pin + ', PUK: ' + puk + ', Línea: ' + line;
+  var url = 'https://wa.me/34633242242?text=' + encodeURIComponent(msg);
+  window.open(url, '_blank');
+}
+function copiarESIM(line, icc, pin, puk) {
+  var txt = 'Línea: ' + line + '\nICC: ' + icc + '\nPIN: ' + pin + '\nPUK: ' + puk;
+  navigator.clipboard.writeText(txt).then(function(){
+    alert('Datos eSIM copiados');
+  }).catch(function(){
+    prompt('Copia estos datos:', txt);
+  });
+}
+function enviarEmailESIM(line, fiscalId) {
+  var subject = encodeURIComponent('eSIM Línea ' + line);
+  var body = encodeURIComponent('Datos eSIM de la línea ' + line + ':\n\nICC: (consultar en el CRM)\nPIN: (consultar en el CRM)\nPUK: (consultar en el CRM)');
+  window.open('mailto:?subject=' + subject + '&body=' + body, '_blank');
+}
+function esc(t) {
+  if (!t) return '';
+  return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+function escapeStr(s) {
+  if (!s) return '';
+  return String(s).replace(/'/g,"\\'").replace(/"/g,'&quot;');
+}
 </script>
+
+<!-- Modal de Línea -->
+<div class="modal fade" id="lineModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header py-2">
+        <h6 class="modal-title" id="lineModalTitle">Línea: <span id="lineModalNumber"></span></h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-2" id="lineModalBody">
+        <div class="text-center py-4 text-muted">Cargando...</div>
+      </div>
+    </div>
+  </div>
+</div>
