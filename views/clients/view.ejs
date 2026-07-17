@@ -260,9 +260,9 @@
                     <option value="">Seleccionar línea...</option>
                   </select>
                 </div>
-                <div class="card-body p-2 text-center" style="min-height:200px;">
-                  <div style="position:relative;width:100%;height:160px;margin:0 auto;">
-                    <canvas id="gbChart" width="300" height="160" style="width:100%;height:100%;"></canvas>
+                <div class="card-body p-2 text-center" style="min-height:140px;">
+                  <div style="position:relative;width:100%;max-width:300px;height:120px;margin:0 auto;">
+                    <canvas id="gbChart" width="300" height="120" style="width:100%;height:100%;"></canvas>
                   </div>
                   <div id="dailyMonthNavCard" class="small mt-1" style="display:none;"></div>
                   <div id="consPerLine" class="mt-1 small text-start"></div>
@@ -1881,7 +1881,6 @@ document.addEventListener('DOMContentLoaded', function() {
   var _cardDailyData = null;
   var _cardChartTipo = 'gb';
   var _cardChart = null;
-  var _cardChartDoughnut = null;
   window._cardMesActual = -1;
 
   // Load GB for a specific line
@@ -1901,10 +1900,7 @@ document.addEventListener('DOMContentLoaded', function() {
           consPerLine.innerHTML = '<div class="d-flex justify-content-between small"><span>Usado: <strong>' + used.toFixed(2) + ' GB</strong></span><span>Total: <strong>' + total.toFixed(2) + ' GB</strong></span><span>Restante: <strong>' + remaining.toFixed(2) + ' GB</strong></span></div>';
           if (roaming > 0) consPerLine.innerHTML += '<div class="small text-muted">Roaming: ' + roaming.toFixed(2) + ' GB</div>';
           // Mostrar el doughnut con datos reales
-          if (_cardChartDoughnut) {
-            _cardChartDoughnut.data.datasets[0].data = [used, remaining];
-            _cardChartDoughnut.update();
-          }
+          // Chart diario se renderiza via loadCardDailyData
         } else {
           consPerLine.innerHTML = '<div class="small text-muted">Sin datos de consumo</div>';
         }
@@ -1932,14 +1928,10 @@ document.addEventListener('DOMContentLoaded', function() {
   function renderCardChart() {
     var ctx = document.getElementById('gbChart');
     if (!ctx) return;
-    // Si no hay datos diarios, mostrar doughnut
+    // Si no hay datos diarios, limpiar canvas y ocultar navegacion
     if (!_cardDailyData) {
       document.getElementById('dailyMonthNavCard').style.display = 'none';
       if (_cardChart) { _cardChart.destroy(); _cardChart = null; }
-      if (_cardChartDoughnut && typeof Chart !== 'undefined') {
-        // El doughnut ya se actualiza en loadGB, solo asegurarse que sea visible
-        _cardChartDoughnut.canvas.style.display = '';
-      }
       return;
     }
     var meses = {};
@@ -1970,7 +1962,7 @@ document.addEventListener('DOMContentLoaded', function() {
             datasets: [{ label: etiquetas[_cardChartTipo] || _cardChartTipo, data: valores, backgroundColor: colores[_cardChartTipo] || '#06b6d4', borderRadius: 3 }]
           },
           options: {
-            animation: false, responsive: true, maintainAspectRatio: true,
+            animation: false, responsive: true, maintainAspectRatio: false,
             plugins: { legend: { display: false }, tooltip: { enabled: true } },
             scales: {
               x: { grid: { display: false }, ticks: { font: { size: 8 }, maxRotation: 0 } },
@@ -2020,9 +2012,16 @@ document.addEventListener('DOMContentLoaded', function() {
       }, 500);
     }
     if (gesLine && gesClient) {
-      setTimeout(function() {
-        window.abrirLineModal(gesLine, gesClient);
-      }, 500);
+      var intentos = 0;
+      var abrir = function() {
+        if (typeof window.abrirLineModal === 'function') {
+          try { window.abrirLineModal(gesLine, gesClient); } catch(e) { console.log('Error abrirLineModal:', e); }
+        } else if (intentos < 10) {
+          intentos++;
+          setTimeout(abrir, 500);
+        }
+      };
+      setTimeout(abrir, 800);
     }
   })();
 
@@ -2034,10 +2033,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     var activeBtn = document.getElementById('cardBtn' + tipo.charAt(0).toUpperCase() + tipo.slice(1));
     if (activeBtn) activeBtn.className = activeBtn.className.replace('btn-outline-info', 'btn-info');
-    // Si no hay datos diarios, no forzar el chart diario
     if (!_cardDailyData) return;
-    // Ocultar doughnut si estaba visible
-    if (_cardChartDoughnut) _cardChartDoughnut.canvas.style.display = 'none';
     renderCardChart();
   };
 
@@ -2708,20 +2704,42 @@ function filtrarSubs(){
 
 // ===== MODAL DE LINEA =====
 function abrirLineModal(lineNumber, fiscalId) {
+  if (!lineNumber || !fiscalId) return;
   var modal = document.getElementById('lineModal');
-  var bsModal = bootstrap.Modal.getInstance(modal);
-  if (!bsModal) bsModal = new bootstrap.Modal(modal);
+  if (!modal) return;
+  try {
+    var bsModal = bootstrap.Modal.getInstance(modal);
+    if (!bsModal) bsModal = new bootstrap.Modal(modal);
+  } catch(e) {
+    var body = document.getElementById('lineModalBody');
+    if (body) body.innerHTML = '<div class="alert alert-danger">Error al abrir modal: Bootstrap no disponible</div>';
+    return;
+  }
   document.getElementById('lineModalNumber').textContent = lineNumber;
   document.getElementById('lineModalBody').innerHTML = '<div class="text-center py-4"><div class="spinner-border" role="status"></div><p class="mt-2 text-muted">Cargando datos de la línea...</p></div>';
   bsModal.show();
-  fetch('/clientes/' + encodeURIComponent(fiscalId) + '/line/' + encodeURIComponent(lineNumber) + '/full-consumption', { method: 'POST' })
-    .then(function(r){ return r.json() })
-    .then(function(res){
-      if (!res.ok) { document.getElementById('lineModalBody').innerHTML = '<div class="alert alert-danger">Error al cargar datos</div>'; return; }
-      renderLineModal(res.data, lineNumber, fiscalId);
+
+  // Timeout de 15s para el fetch
+  var controller = new AbortController();
+  var timeoutId = setTimeout(function() { controller.abort(); }, 15000);
+
+  fetch('/clientes/' + encodeURIComponent(fiscalId) + '/line/' + encodeURIComponent(lineNumber) + '/full-consumption', { method: 'POST', signal: controller.signal })
+    .then(function(r) {
+      clearTimeout(timeoutId);
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
     })
-    .catch(function(err){
-      document.getElementById('lineModalBody').innerHTML = '<div class="alert alert-danger">Error de conexión: ' + err.message + '</div>';
+    .then(function(res) {
+      if (!res.ok) { document.getElementById('lineModalBody').innerHTML = '<div class="alert alert-danger">Error del servidor: ' + (res.error || 'desconocido') + '</div>'; return; }
+      if (typeof renderLineModal === 'function') {
+        renderLineModal(res.data, lineNumber, fiscalId);
+      } else {
+        document.getElementById('lineModalBody').innerHTML = '<div class="alert alert-danger">Error interno: renderLineModal no disponible</div>';
+      }
+    })
+    .catch(function(err) {
+      var msg = err.name === 'AbortError' ? 'Tiempo de espera agotado (15s)' : err.message;
+      document.getElementById('lineModalBody').innerHTML = '<div class="alert alert-danger">Error: ' + msg + '</div>';
     });
 }
 function renderLineModal(data, lineNumber, fiscalId) {
@@ -2739,10 +2757,10 @@ function renderLineModal(data, lineNumber, fiscalId) {
   var spn = lineInfo.spn || lineInfo.brand || '';
   var status = lineInfo.status || '';
 
-  var gbNac = gb.nationalConsumed || gb.national || gb.nacionalConsumed || gb.consumed || 0;
-  var gbNacTotal = gb.nationalAllowance || gb.nationalTotal || gb.nacional || gb.allowance || 1;
-  var gbRoam = gb.roamingConsumed || gb.roaming || 0;
-  var gbRoamTotal = gb.roamingAllowance || gb.roamingTotal || 1;
+  var gbNac = gb.usedGB || gb.used_gb || gb.used || gb.nationalConsumed || gb.consumed || 0;
+  var gbNacTotal = gb.totalGB || gb.total_gb || gb.total || gb.nationalAllowance || gb.allowance || 30;
+  var gbRoam = gb.usedRoamingGB || gb.used_roaming_gb || gb.roamingConsumed || gb.roaming || 0;
+  var gbRoamTotal = gb.totalRoamingGB || gb.total_roaming_gb || gb.roamingAllowance || gb.roamingTotal || 1;
 
   var html = '';
   html += '<ul class="nav nav-tabs nav-justified small" id="lineModalTabs">';

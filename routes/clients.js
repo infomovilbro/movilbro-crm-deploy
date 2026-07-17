@@ -1707,13 +1707,21 @@ router.post('/:id/calculate-scoring', requireAuth, async (req, res) => {
 
     // 3. DNI/NIF
     var dniClean = fiscalId.toUpperCase().replace(/[^0-9A-Z]/g, '');
-    if (/^(\d{8}[A-Z]|[XYZ]\d{7}[A-Z]|[A-Z]\d{7}[A-Z]|\d{8})$/i.test(dniClean)) { puntuacion += 1; detalleCompleto.push({ factor: 'Formato DNI/NIF', valor: fiscalId, impacto: '+1 punto', color: 'success' }); }
-    else if (dniClean) { puntuacion -= 1; detalleCompleto.push({ factor: 'Formato DNI/NIF', valor: fiscalId, impacto: '-1 punto (inválido)', color: 'danger' }); }
+    if (/^(\d{8}[A-Z]|[XYZ]\d{7}[A-Z]|[A-Z]\d{7}[A-Z]|\d{8}|[A-Z]\d{8})$/i.test(dniClean)) { puntuacion += 1; detalleCompleto.push({ factor: 'Formato DNI/NIF/CIF', valor: fiscalId, impacto: '+1 punto', color: 'success' }); }
+    else if (dniClean) { puntuacion -= 1; detalleCompleto.push({ factor: 'Formato DNI/NIF/CIF', valor: fiscalId, impacto: '-1 punto (inválido)', color: 'danger' }); }
 
     // 4. Antigüedad del cliente
     try {
       var fCreacion = cliente ? (cliente.created_at || '') : '';
-      if (!fCreacion) { try { var custInfo = await api.request('GET', '/customer?fiscalId=' + encodeURIComponent(fiscalId)); if (custInfo && custInfo.data) fCreacion = custInfo.data.created || custInfo.data.created_at || ''; } catch(e) {} }
+      if (!fCreacion) {
+        try {
+          var custInfo = await api.request('GET', '/customer?fiscalId=' + encodeURIComponent(fiscalId));
+          if (custInfo) {
+            var cd = custInfo.data || custInfo;
+            fCreacion = cd.created || cd.created_at || cd.creationDate || cd.registrationDate || cd.fecha_alta || cd.fecha_creacion || '';
+          }
+        } catch(e) {}
+      }
       if (fCreacion) {
         var meses = Math.floor((Date.now() - new Date(fCreacion).getTime()) / (30 * 24 * 60 * 60 * 1000));
         if (meses >= 24) { puntuacion += 2; detalleCompleto.push({ factor: 'Antigüedad como cliente', valor: meses + ' meses', impacto: '+2 puntos (fidelidad)', color: 'success' }); }
@@ -1765,7 +1773,35 @@ router.post('/:id/calculate-scoring', requireAuth, async (req, res) => {
       }
     } catch(e) { detalleCompleto.push({ factor: 'Dirección verificada', valor: 'Error en verificación', impacto: 'neutro', color: 'secondary' }); }
 
-    // 7. Tickets/incidencias abiertos
+    // 7. Validación de IBAN si existe
+    try {
+      if (cliente && cliente.lineas_pago) {
+        var lp = cliente.lineas_pago;
+        if (typeof lp === 'string') try { lp = JSON.parse(lp); } catch(e) { lp = null; }
+        if (lp && typeof lp === 'object') {
+          var ibanes = Object.values(lp).filter(function(v) { return typeof v === 'string' && v.toUpperCase().startsWith('ES'); });
+          if (ibanes.length > 0) {
+            puntuacion += 1;
+            detalleCompleto.push({ factor: 'IBAN registrado', valor: ibanes.length + ' cuenta(s)', impacto: '+1 punto', color: 'success' });
+          } else {
+            detalleCompleto.push({ factor: 'IBAN registrado', valor: 'Sin IBAN', impacto: 'neutro', color: 'secondary' });
+          }
+        }
+      }
+    } catch(e) {}
+
+    // 8. KYC/Contrato firmado
+    try {
+      var kycRow = db.prepare("SELECT COUNT(*) as total FROM kyc WHERE fiscal_id=? AND estado='completado'").get(fiscalId);
+      if (kycRow && kycRow.total > 0) {
+        puntuacion += 1;
+        detalleCompleto.push({ factor: 'KYC/Contrato firmado', valor: 'Completado', impacto: '+1 punto', color: 'success' });
+      } else {
+        detalleCompleto.push({ factor: 'KYC/Contrato firmado', valor: 'Pendiente', impacto: 'neutro', color: 'secondary' });
+      }
+    } catch(e) {}
+
+    // 9. Tickets/incidencias abiertos
     try {
       var ticRow = db.prepare("SELECT COUNT(*) as total FROM tickets WHERE fiscal_id=? AND estado!='closed' AND estado!='resuelto' AND estado!='cerrado'").get(fiscalId);
       if (ticRow && ticRow.total > 0) {

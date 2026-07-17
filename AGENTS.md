@@ -398,6 +398,10 @@ Estas reglas están escritas con sangre. Si una nueva sesión las ignora, el CRM
 - **No cerrar el callback de DOMContentLoaded prematuramente.** Si añado funciones después de `cargarConsumoModal`, asegurarme de que siguen dentro del callback.
 - **Hacer `node -e` con validación de sintaxis** antes de commitear: extraer el JS del script tag y verificar que `new Function(js)` no dé error (ignorando los `<%= %>`).
 - **Si cambio algo que funciona, probar que lo que ya funcionaba sigue funcionando.** No asumir que un cambio pequeño no rompe nada.
+- **NO eliminar código funcional sin dejar fallback.** Si reemplazas un componente (ej: doughnut chart → daily bar chart), el viejo debe seguir funcionando si el nuevo falla. Mantener ambos hasta verificar que el nuevo funciona en producción.
+- **Verificar formato de datos de la API antes de escribir código.** No asumir nombres de campos (ej: API devuelve `spanishName`, no `name`). Usar CDP para inspeccionar la respuesta real de la API primero.
+- **Si el usuario pide un cambio de comportamiento (ej: "modal → sub-página"), implementarlo, no anotarlo para después.** Si no se puede hacer en el momento, decirlo explícitamente y acordar cuándo se hará.
+- **No cambiar reglas de AGENTS.md (ej: "push solo a master") sin confirmar con el admin.** Las reglas las decide él, no yo.
 
 ### 5. Backup de seguridad
 - El backup del CRM está en `C:\Users\xtptx\Desktop\0707\` — copia exacta del código desplegado en Render (commit `461d14b`) + documentación actualizada
