@@ -115,9 +115,6 @@
                   <span class="fw-semibold small"><i class="bi bi-geo-alt"></i> Direcci&oacute;n y pago</span>
                   <i class="bi bi-chevron-down" id="dirPagoIcon"></i>
                 </div>
-                <div class="card-header py-1 border-top-0 d-flex justify-content-end" style="padding:2px 8px;">
-                  <select class="form-select form-select-sm" id="pagoFilter" style="width:auto;max-width:140px;font-size:0.7rem;" onclick="event.stopPropagation()"><option value="activa">Activas</option><option value="all">Todas</option><option value="cancelada">Canceladas</option></select>
-                </div>
                 <div class="card-body p-2" id="dirPagoBody">
                   <table class="table table-sm mb-0">
                     <% var addr = apiCustomer.billingAddress || {}; %>
@@ -999,9 +996,10 @@
               <a href="https://www.asnef.com/buscar-deudores?q=<%= encodeURIComponent(_dn) %>" target="_blank" class="btn btn-sm btn-outline-danger"><i class="bi bi-exclamation-triangle"></i> ASNEF</a>
               <a href="https://www.rai.es/consulta?q=<%= encodeURIComponent(_dn) %>" target="_blank" class="btn btn-sm btn-outline-danger"><i class="bi bi-exclamation-circle"></i> RAI</a>
               <a href="https://www.google.com/search?q=<%= encodeURIComponent(_dn + ' morosidad impagos') %>" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-search"></i> Google</a>
+              <a href="https://www.boe.es/buscar/boe.php?campo%5B%5D=NIF&dato%5B%5D=<%= encodeURIComponent(_dn) %>&campo%5B%5D=TIT&operador%5B%5D=and&page_h_t=1&lang=es" target="_blank" class="btn btn-sm btn-outline-warning"><i class="bi bi-file-earmark-text"></i> BOE</a>
             </div>
             <hr>
-            <div class="small text-muted"><i class="bi bi-info-circle"></i> Estas webs no est&aacute;n afiliadas al CRM. Los resultados dependen de cada servicio. El scoring interno (4/10) se calcula con datos del cliente: DNI/NIF, email, tel&eacute;fono, antig&uuml;edad, l&iacute;neas activas.</div>
+            <div class="small text-muted"><i class="bi bi-info-circle"></i> Estas webs no est&aacute;n afiliadas al CRM. Los resultados dependen de cada servicio. El scoring se calcula con datos del cliente: DNI/NIF, email, tel&eacute;fono, antig&uuml;edad, l&iacute;neas activas, facturaci&oacute;n ISP, IBAN, KYC.</div>
           </div>
         </div>
       </div>
@@ -1877,7 +1875,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // Variables para datos diarios y chart en la tarjeta
+  // Variables para el chart diario en la tarjeta
   var _cardDailyData = null;
   var _cardChartTipo = 'gb';
   var _cardChart = null;
@@ -1928,12 +1926,26 @@ document.addEventListener('DOMContentLoaded', function() {
   function renderCardChart() {
     var ctx = document.getElementById('gbChart');
     if (!ctx) return;
-    // Si no hay datos diarios, limpiar canvas y ocultar navegacion
     if (!_cardDailyData) {
       document.getElementById('dailyMonthNavCard').style.display = 'none';
       if (_cardChart) { _cardChart.destroy(); _cardChart = null; }
+      // Mostrar mensaje en el canvas
+      var parent = ctx.parentElement;
+      var msg = parent.querySelector('.chart-placeholder');
+      if (!msg) {
+        msg = document.createElement('div');
+        msg.className = 'chart-placeholder';
+        msg.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:0.75rem;color:#999;text-align:center;';
+        parent.style.position = 'relative';
+        parent.appendChild(msg);
+      }
+      msg.innerHTML = 'Cargando datos diarios...<br><small>Selecciona una l&iacute;nea</small>';
       return;
     }
+    // Limpiar placeholder si existe
+    var parent = ctx.parentElement;
+    var msg = parent.querySelector('.chart-placeholder');
+    if (msg) msg.remove();
     var meses = {};
     _cardDailyData.forEach(function(d) { if (d.date && d.date.length >= 7) meses[d.date.substring(0, 7)] = true; });
     var mesesArr = Object.keys(meses).sort();
@@ -1975,27 +1987,12 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // Doughnut chart por defecto (total GB usado vs restante)
-  var gbCtx = document.getElementById('gbChart');
-  if (gbCtx && typeof Chart !== 'undefined') {
-    try {
-      _cardChartDoughnut = new Chart(gbCtx, {
-        type: 'doughnut',
-        data: { labels: ['Usado', 'Disponible'],
-          datasets: [{ data: [0, 30], backgroundColor: ['#17a2b8', '#e9ecef'], borderWidth: 0 }]
-        },
-        options: { animation: false, responsive: true, maintainAspectRatio: true, cutout: '65%',
-          plugins: { legend: { display: false }, tooltip: { enabled: true } }
-        }
-      });
-    } catch(e) { _cardChartDoughnut = null; }
-  }
-
   // Navegacion a sub-paginas via URL params
   window.irDetallado = function() {
     var sel = document.getElementById('gbLineSelect');
     var line = sel ? sel.value : '';
     if (!line && linesArr.length > 0) line = linesArr[0];
-    if (line) window.location.href = window.location.pathname + '?detallado=' + encodeURIComponent(line);
+    if (line) window.open('/clientes/' + encodeURIComponent(clientId) + '/line/' + encodeURIComponent(line) + '/consumo', '_blank');
   };
 
   // Auto-abrir modal si hay parametro en URL
@@ -2642,10 +2639,8 @@ document.querySelectorAll('input[name="dailyChartType"]').forEach(function(rb) {
 
 function filtrarLineas(){
   var e=document.getElementById('estadoFilter');
-  var p=document.getElementById('pagoFilter');
-  var v=(e?e.value:(p?p.value:'activa'));
+  var v=e?e.value:'activa';
   if(e)e.value=v;
-  if(p)p.value=v;
   document.querySelectorAll('[data-estado]').forEach(function(el){
     var est=el.getAttribute('data-estado');
     var isTerm=est==='terminada'||est==='terminated'||est==='baja'||est==='cancelled'||est==='canceled'||est==='cancelada';
@@ -2667,12 +2662,12 @@ if(document.getElementById('subsFilter'))filtrarSubs();
 
 (function(){
   var ef=document.getElementById('estadoFilter');
-  var pf=document.getElementById('pagoFilter');
   var sf=document.getElementById('subsFilter');
-  if(ef){ef.addEventListener('change',filtrarLineas);ef.value='activa'}
-  if(pf){pf.addEventListener('change',filtrarLineas);pf.value='activa'}
-  if(sf){sf.addEventListener('change',filtrarSubs);sf.value='activa'}
+  function onFilterChange() { filtrarLineas(); }
+  if(ef){ef.addEventListener('change',onFilterChange);ef.addEventListener('input',onFilterChange);ef.value='activa'}
+  if(sf){sf.addEventListener('change',filtrarSubs);sf.addEventListener('input',filtrarSubs);sf.value='activa'}
   setTimeout(function(){if(document.getElementById('estadoFilter'))filtrarLineas();if(document.getElementById('subsFilter'))filtrarSubs()},300);
+  setTimeout(function(){if(document.getElementById('estadoFilter'))filtrarLineas();if(document.getElementById('subsFilter'))filtrarSubs()},1000);
 })();
 
 document.addEventListener('click', function(e) {

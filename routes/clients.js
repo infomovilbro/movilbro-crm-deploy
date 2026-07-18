@@ -2065,4 +2065,18 @@ router.get('/drive-download', requireAuth, async (req, res) => {
   }
 });
 
+// Pagina completa de consumo por linea
+router.get('/:id/line/:line/consumo', requireAuth, async (req, res) => {
+  try {
+    var api = LikesAPI.getApiInstance();
+    var lineNumber = req.params.line;
+    var cliente = db.prepare("SELECT * FROM clients WHERE id=?").get(req.params.id);
+    if (!cliente) cliente = db.prepare("SELECT * FROM clients WHERE dni_nif=?").get(req.params.id);
+    var fiscalId = (cliente && (cliente.dni_nif || cliente.likes_customer_id)) || req.params.id;
+    res.render('clients/consumo', { title: 'Consumo ' + lineNumber, lineNumber: lineNumber, fiscalId: fiscalId, layout: false });
+  } catch(e) {
+    res.status(500).send('Error: ' + e.message);
+  }
+});
+
 module.exports = router;

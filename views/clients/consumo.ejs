@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Consumo - <%= lineNumber %></title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+body { background:#f5f5f5; font-family:system-ui,-apple-system,sans-serif; }
+.container-fluid { max-width:1200px; }
+.card { border:none; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+</style>
+</head>
+<body>
+<div class="container-fluid py-3">
+  <div class="d-flex align-items-center gap-2 mb-3">
+    <a href="/clientes/fiscal/<%= fiscalId %>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i> Volver</a>
+    <h5 class="mb-0"><i class="bi bi-graph-up"></i> Consumo detallado - <%= lineNumber %></h5>
+  </div>
+
+  <div id="loading" class="text-center py-5"><div class="spinner-border"></div><p class="mt-2 text-muted">Cargando...</p></div>
+  <div id="content" style="display:none;">
+    <div class="row g-3">
+      <div class="col-md-6">
+        <div class="card p-3"><h6>GB Nacionales</h6><div id="gbNac" class="fs-4 fw-bold text-info">-</div><div class="progress mt-1" style="height:6px"><div id="gbNacBar" class="progress-bar" style="width:0%"></div></div></div>
+      </div>
+      <div class="col-md-6">
+        <div class="card p-3"><h6>GB Roaming</h6><div id="gbRoam" class="fs-4 fw-bold text-warning">-</div><div class="progress mt-1" style="height:6px"><div id="gbRoamBar" class="progress-bar bg-warning" style="width:0%"></div></div></div>
+      </div>
+    </div>
+
+    <div class="card mt-3 p-3">
+      <h6 class="mb-2"><i class="bi bi-calendar-day"></i> Consumo diario</h6>
+      <div id="monthNav" class="d-flex align-items-center justify-content-center gap-2 mb-2"></div>
+      <div style="height:200px;"><canvas id="dailyChart"></canvas></div>
+      <div class="d-flex justify-content-center gap-2 mt-2">
+        <button class="btn btn-sm btn-info" onclick="switchTipo('gb')" id="tipoGb">GB</button>
+        <button class="btn btn-sm btn-outline-info" onclick="switchTipo('calls')" id="tipoCalls">Llamadas</button>
+        <button class="btn btn-sm btn-outline-info" onclick="switchTipo('sms')" id="tipoSms">SMS</button>
+      </div>
+      <div style="max-height:300px;overflow:auto;margin-top:10px;">
+        <table class="table table-sm table-striped mb-0"><thead><tr><th>Fecha</th><th class="text-end">GB</th><th class="text-end">Llamadas</th><th class="text-end">SMS</th></tr></thead>
+          <tbody id="dailyTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card mt-3 p-3">
+      <h6><i class="bi bi-telephone"></i> Últimas llamadas</h6>
+      <div style="max-height:250px;overflow:auto;"><table class="table table-sm"><thead><tr><th>Fecha</th><th>Destino</th><th>Duración</th></tr></thead>
+        <tbody id="cdrsBody"></tbody></table></div>
+    </div>
+  </div>
+</div>
+
+<script>
+var line = <%- JSON.stringify(lineNumber) %>;
+var fiscalId = <%- JSON.stringify(fiscalId) %>;
+var _dailyData = null;
+var _chart = null;
+var _tipo = 'gb';
+var _mesActual = -1;
+
+fetch('/clientes/' + encodeURIComponent(fiscalId) + '/line/' + encodeURIComponent(line) + '/full-consumption', { method: 'POST' })
+  .then(function(r) { return r.json(); })
+  .then(function(res) {
+    if (!res.ok) throw new Error('Error');
+    var d = res.data;
+    var gb = d.gb || {};
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('content').style.display = '';
+
+    var nac = gb.usedGB || gb.used_gb || 0;
+    var nacTot = gb.totalGB || gb.total_gb || 30;
+    var roam = gb.usedRoamingGB || gb.used_roaming_gb || 0;
+    var roamTot = gb.totalRoamingGB || gb.total_roaming_gb || 1;
+    document.getElementById('gbNac').textContent = nac.toFixed(2) + ' / ' + nacTot.toFixed(2) + ' GB';
+    document.getElementById('gbNacBar').style.width = Math.min(100, nac/nacTot*100) + '%';
+    document.getElementById('gbRoam').textContent = roam.toFixed(2) + ' / ' + roamTot.toFixed(2) + ' GB';
+    document.getElementById('gbRoamBar').style.width = Math.min(100, roam/roamTot*100) + '%';
+
+    if (d.cdrs && d.cdrs.length > 0) {
+      var html = '';
+      d.cdrs.slice(0,20).forEach(function(c) {
+        var dest = c.destination || c.dest || c.called || '';
+        var dur = c.duration || c.duracion || '';
+        html += '<tr><td class="small">' + (c.date||c.fecha||'').substring(0,10) + '</td><td class="small">' + dest + '</td><td class="small">' + dur + '</td></tr>';
+      });
+      document.getElementById('cdrsBody').innerHTML = html;
+    }
+  })
+  .catch(function(err) {
+    document.getElementById('loading').innerHTML = '<div class="alert alert-danger">Error: ' + err.message + '</div>';
+  });
+
+fetch('/clientes/' + encodeURIComponent(fiscalId) + '/line/' + encodeURIComponent(line) + '/daily-consumption', { method: 'POST' })
+  .then(function(r) { return r.json(); })
+  .then(function(res) {
+    if (res.ok && res.data && res.data.length > 0) {
+      _dailyData = res.data;
+      _mesActual = -1;
+      renderDaily();
+    }
+  })
+  .catch(function() {});
+
+function renderDaily() {
+  if (!_dailyData) return;
+  var meses = {};
+  _dailyData.forEach(function(d) { if (d.date && d.date.length >= 7) meses[d.date.substring(0,7)] = true; });
+  var mesesArr = Object.keys(meses).sort();
+  if (!mesesArr.length) return;
+  if (_mesActual === -1 || _mesActual >= mesesArr.length) _mesActual = mesesArr.length - 1;
+  var mesSel = mesesArr[_mesActual];
+  var mesData = _dailyData.filter(function(d) { return d.date && d.date.substring(0,7) === mesSel; });
+  if (!mesData.length) return;
+
+  var nav = document.getElementById('monthNav');
+  nav.innerHTML = '<button class="btn btn-sm btn-outline-secondary" onclick="navegar(-1)" ' + (_mesActual <= 0 ? 'disabled' : '') + '><i class="bi bi-chevron-left"></i></button>';
+  nav.innerHTML += ' <span class="fw-semibold">' + mesSel.substring(0,4) + '/' + mesSel.substring(5,7) + '</span> ';
+  nav.innerHTML += '<button class="btn btn-sm btn-outline-secondary" onclick="navegar(1)" ' + (_mesActual >= mesesArr.length - 1 ? 'disabled' : '') + '><i class="bi bi-chevron-right"></i></button>';
+
+  var ctx = document.getElementById('dailyChart');
+  if (_chart) { _chart.destroy(); _chart = null; }
+  var labels = mesData.map(function(d) { var p = d.date.split('-'); return p[2] + '/' + p[1]; });
+  var valores = mesData.map(function(d) { return d[_tipo] || 0; });
+  var colores = { gb: '#06b6d4', calls: '#8b5cf6', sms: '#10b981' };
+  var etiquetas = { gb: 'GB', calls: 'Llamadas', sms: 'SMS' };
+  if (typeof Chart !== 'undefined') {
+    _chart = new Chart(ctx, {
+      type: 'bar',
+      data: { labels: labels, datasets: [{ label: etiquetas[_tipo] || _tipo, data: valores, backgroundColor: colores[_tipo] || '#06b6d4', borderRadius: 3 }] },
+      options: { animation: false, responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+        scales: { x: { grid: { display: false }, ticks: { font: { size: 9 }, maxRotation: 0 } }, y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } } } }
+    });
+  }
+
+  var html = '';
+  mesData.forEach(function(d) {
+    html += '<tr><td>' + d.date + '</td><td class="text-end">' + (d.gb||0).toFixed(4) + '</td><td class="text-end">' + (d.calls||0) + '</td><td class="text-end">' + (d.sms||0) + '</td></tr>';
+  });
+  document.getElementById('dailyTable').innerHTML = html;
+}
+
+function switchTipo(tipo) {
+  _tipo = tipo;
+  ['tipoGb','tipoCalls','tipoSms'].forEach(function(id) {
+    var btn = document.getElementById(id);
+    if (btn) btn.className = btn.className.replace('btn-info', 'btn-outline-info');
+  });
+  var active = document.getElementById('tipo' + tipo.charAt(0).toUpperCase() + tipo.slice(1));
+  if (active) active.className = active.className.replace('btn-outline-info', 'btn-info');
+  renderDaily();
+}
+
+window.navegar = function(dir) {
+  if (!_dailyData) return;
+  var meses = {};
+  _dailyData.forEach(function(d) { if (d.date && d.date.length >= 7) meses[d.date.substring(0,7)] = true; });
+  var mesesArr = Object.keys(meses).sort();
+  if (!mesesArr.length) return;
+  _mesActual = Math.max(0, Math.min(mesesArr.length - 1, (_mesActual || 0) + dir));
+  renderDaily();
+};
+</script>
+</body>
+</html>
