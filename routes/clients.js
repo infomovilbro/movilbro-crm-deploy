@@ -1204,20 +1204,24 @@ router.post("/:id/line/:line/daily-consumption", requireAuth, async (req, res) =
       if (!fecha) return;
       var dia = fecha.substring(0, 10);
       if (!consumoDiario[dia]) {
-        consumoDiario[dia] = { date: dia, gb: 0, calls: 0, sms: 0 };
+        consumoDiario[dia] = { date: dia, gb: 0, calls: 0, sms: 0, cost: 0 };
       }
       var duracion = parseFloat(cdr.duracion || cdr.duration || cdr.seconds || cdr.secs || 0);
       var volumen = parseFloat(cdr.volumen || cdr.volume || cdr.bytes || cdr.kb || cdr.mb || 0);
+      var coste = parseFloat(cdr.coste || cdr.cost || cdr.cargo || cdr.price || cdr.importe || 0);
       var tipo = (cdr.type || cdr.tipo || cdr.callType || cdr.call_type || "").toLowerCase();
 
       if (tipo === "sms" || tipo === "mensaje" || tipo === "texto" || tipo === "message") {
         consumoDiario[dia].sms += 1;
+        consumoDiario[dia].cost += coste;
       } else if (tipo === "llamada" || tipo === "call" || tipo === "voz" || tipo === "voice" || tipo === "outgoing" || tipo === "incoming" || tipo === "entrante" || tipo === "saliente") {
         consumoDiario[dia].calls += 1;
+        consumoDiario[dia].cost += coste;
         if (duracion > 0) {
           consumoDiario[dia].gb += duracion / 3600 * 0.0005;
         }
       } else if (tipo === "datos" || tipo === "data" || tipo === "internet" || tipo === "navegacion" || tipo === "gprs" || tipo === "lte" || tipo === "4g" || tipo === "5g") {
+        consumoDiario[dia].cost += coste;
         if (volumen > 0) {
           if (cdr.bytes) consumoDiario[dia].gb += volumen / (1024 * 1024 * 1024);
           else if (cdr.kb) consumoDiario[dia].gb += volumen / (1024 * 1024);
@@ -1810,6 +1814,30 @@ router.post('/:id/calculate-scoring', requireAuth, async (req, res) => {
       } else {
         detalleCompleto.push({ factor: 'Tickets abiertos', valor: '0 pendientes', impacto: 'neutro', color: 'success' });
       }
+    } catch(e) {}
+
+    // 10. Email domain check (DNS MX)
+    try {
+      var email = cliente ? (cliente.email || '') : '';
+      if (!email) { try { var ec = await api.request('GET', '/customer?fiscalId=' + encodeURIComponent(fiscalId)); if (ec && ec.data) email = ec.data.email || ''; } catch(e) {} }
+      if (email && email.includes('@')) {
+        var domain = email.split('@')[1].toLowerCase();
+        var dns = require('dns');
+        try {
+          await new Promise(function(resolve, reject) { dns.resolveMx(domain, function(err, addresses) { if (err || !addresses || addresses.length === 0) { detalleCompleto.push({ factor: 'Email válido', valor: domain, impacto: 'neutro (dominio sin MX)', color: 'secondary' }); } else { puntuacion += 1; detalleCompleto.push({ factor: 'Email válido', valor: domain, impacto: '+1 punto (dominio existe)', color: 'success' }); } resolve(); }); });
+        } catch(e) { detalleCompleto.push({ factor: 'Email válido', valor: domain, impacto: 'neutro', color: 'secondary' }); }
+      } else { detalleCompleto.push({ factor: 'Email válido', valor: 'No disponible', impacto: 'neutro', color: 'secondary' }); }
+    } catch(e) {}
+
+    // 11. Teléfono formato
+    try {
+      var tel = cliente ? (cliente.telefono || '') : '';
+      if (!tel) { try { var ec2 = await api.request('GET', '/customer?fiscalId=' + encodeURIComponent(fiscalId)); if (ec2 && ec2.data) tel = ec2.data.phone || ''; } catch(e) {} }
+      if (tel) {
+        var digits = tel.replace(/\D/g, '');
+        if (digits.length === 9) { puntuacion += 1; detalleCompleto.push({ factor: 'Teléfono válido', valor: tel, impacto: '+1 punto (9 dígitos)', color: 'success' }); }
+        else { detalleCompleto.push({ factor: 'Teléfono válido', valor: tel, impacto: 'neutro (formato extraño)', color: 'secondary' }); }
+      } else { detalleCompleto.push({ factor: 'Teléfono válido', valor: 'No disponible', impacto: 'neutro', color: 'secondary' }); }
     } catch(e) {}
 
     puntuacion = Math.max(1, Math.min(10, Math.round(puntuacion)));

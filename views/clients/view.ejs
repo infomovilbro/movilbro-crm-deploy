@@ -21,7 +21,12 @@
       </h4>
       <small class="text-muted"><%= apiCustomer.fiscalId || cliente.dni_nif || '' %> &middot; #<%= _cid %></small>
     </div>
-    <div class="d-flex gap-2 flex-wrap">
+    <div class="d-flex gap-2 flex-wrap align-items-center">
+      <select id="globalFilter" class="form-select form-select-sm" style="width:auto;max-width:140px;font-size:0.75rem;">
+        <option value="activa">Activas</option>
+        <option value="all">Todas</option>
+        <option value="cancelada">Canceladas</option>
+      </select>
       <a href="/clientes/<%= _cid %>/editar" class="btn btn-warning"><i class="bi bi-pencil"></i> Editar</a>
       <button class="btn btn-outline-warning" onclick="openTicketModal()"><i class="bi bi-ticket"></i> Ticket</button>
       <a href="/clientes" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Volver</a>
@@ -198,7 +203,7 @@
                       <div id="scoringResumen" class="small text-muted mt-1" style="display:none;"></div>
                     </td></tr>
                     <tr><th>Recomendaci&oacute;n</th><td>
-                      <span id="scoringRecomendacion"><span class="text-muted">-</span></span><br><button class="btn btn-sm btn-link p-0 mt-1" onclick="toggleScoringDetalle()" style="font-size:0.75rem;text-decoration:none;"><i class="bi bi-chevron-down" id="scoringDetalleIcon"></i> Ver detalle del cálculo</button><div id="scoringDetalleBody" style="display:none;margin-top:4px;padding:6px;background:#f8f9fa;border-radius:6px;font-size:0.75rem;"><ul id="scoringDetalleList" style="margin:0;padding-left:16px;"><li class="text-muted">Pulsa "Calcular" primero</li></ul></div>
+                      <span id="scoringRecomendacion"><span class="text-muted">-</span></span><br><button class="btn btn-sm btn-link p-0 mt-1" onclick="toggleScoringDetalle()" style="font-size:0.75rem;text-decoration:none;"><i class="bi bi-chevron-down" id="scoringDetalleIcon"></i> Ver detalle del cálculo</button><div id="scoringDetalleBody" style="display:none;margin-top:4px;padding:6px;background:#f8f9fa;border-radius:6px;font-size:0.75rem;max-height:200px;overflow:auto;"><ul id="scoringDetalleList" style="margin:0;padding-left:16px;"><li class="text-muted">Pulsa "Calcular" primero</li></ul></div>
                     </td></tr>
                   </table>
                 </div>
@@ -220,9 +225,6 @@
                   <small><i class="bi bi-pie-chart"></i> Estado de L&iacute;neas</small>
                   <i class="bi bi-chevron-down" id="estadoLineasIcon"></i>
                 </div>
-                <div class="card-header py-1 border-top-0 d-flex justify-content-end" style="padding:2px 8px;">
-                  <select class="form-select form-select-sm" id="estadoFilter" style="width:auto;max-width:140px;font-size:0.7rem;" onclick="event.stopPropagation()"><option value="activa">Activas</option><option value="all">Todas</option><option value="cancelada">Canceladas</option></select>
-                </div>
                 <div class="card-body p-2" id="estadoLineasBody">
                   <% if (apiSubscriptions && apiSubscriptions.length > 0) { %>
                     <% apiSubscriptions.forEach(function(s) { %>
@@ -238,7 +240,7 @@
                             <span class="badge bg-<%= est === 'activa' || est === 'active' || est === 'activo' ? 'success' : est === 'suspendida' || est === 'suspended' ? 'warning' : 'secondary' %>">
                               <%= ({'active':'Activa','activa':'Activa','activo':'Activa','suspended':'Suspendida','suspendida':'Suspendida','cancelled':'Cancelada','canceled':'Cancelada','cancelada':'Cancelada','terminated':'Cancelada','terminada':'Cancelada','baja':'Cancelada'})[est] || est %>
                             </span>
-                            <% if (p.icc || s.icc) { %><br><small class="text-muted">ICC: <%= (p.icc || s.icc).substring(0,15) %>...</small><br><button class="btn btn-sm btn-outline-dark mostrar-pinpuk mt-1" data-line="<%= p.lineNumber || s.lineNumber %>" data-pin="<%= p.pin || s.pin || '' %>" data-puk="<%= p.puk || s.puk || '' %>" data-icc="<%= p.icc || s.icc || '' %>" title="PIN/PUK"><i class="bi bi-key"></i></button><% } %><br><button class="btn btn-sm btn-outline-info mt-1 gestion-linea" data-line="<%= p.lineNumber || s.lineNumber %>" data-client="<%= _cid %>" title="Gestionar línea"><i class="bi bi-gear"></i> Gestión</button>
+                            <% if (p.icc || s.icc) { %><br><small class="text-muted">ICC: <%= (p.icc || s.icc).substring(0,15) %>...</small><br><button class="btn btn-sm btn-outline-dark mostrar-pinpuk mt-1 py-0" data-line="<%= p.lineNumber || s.lineNumber %>" data-pin="<%= p.pin || s.pin || '' %>" data-puk="<%= p.puk || s.puk || '' %>" data-icc="<%= p.icc || s.icc || '' %>" title="PIN/PUK" style="font-size:0.65rem;"><i class="bi bi-key"></i></button><% } %><br><button class="btn btn-sm btn-outline-info mt-1 py-0 gestion-linea" data-line="<%= p.lineNumber || s.lineNumber %>" data-client="<%= _cid %>" title="Gestionar línea" style="font-size:0.65rem;"><i class="bi bi-gear"></i> Gestión</button>
                           </div>
                         </div>
                       <% }); %>
@@ -283,13 +285,6 @@
             <p class="mt-2">Este cliente no tiene l&iacute;neas o suscripciones</p>
           </div>
           <% } else { %>
-          <div class="d-flex justify-content-end mb-2">
-            <select class="form-select form-select-sm" id="subsFilter" style="width:auto;max-width:140px;font-size:0.75rem;">
-              <option value="activa">Activas</option>
-              <option value="all">Todas</option>
-              <option value="cancelada">Canceladas</option>
-            </select>
-          </div>
           <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
               <thead class="table-dark">
@@ -2036,11 +2031,15 @@ document.addEventListener('DOMContentLoaded', function() {
     renderCardChart();
     // Actualizar texto segun tipo
     var totalTipo = 0;
-    _cardDailyData.forEach(function(d) { totalTipo += (d[tipo] || 0); });
+    var totalCoste = 0;
+    _cardDailyData.forEach(function(d) { totalTipo += (d[tipo] || 0); totalCoste += (d.cost || 0); });
     var labelTipo = { gb: 'GB', calls: 'Llamadas', sms: 'SMS' }[tipo] || tipo;
     var consLine = document.getElementById('consPerLine');
     if (consLine) {
-      consLine.innerHTML = '<div class="d-flex justify-content-between small"><span>Total ' + labelTipo + ': <strong>' + (tipo === 'gb' ? totalTipo.toFixed(2) + ' GB' : totalTipo) + '</strong></span></div>';
+      var txt = '<div class="d-flex justify-content-between small"><span>Total ' + labelTipo + ': <strong>' + (tipo === 'gb' ? totalTipo.toFixed(2) + ' GB' : totalTipo) + '</strong></span>';
+      if (totalCoste > 0) txt += '<span>Coste: <strong>' + totalCoste.toFixed(2) + '€</strong></span>';
+      txt += '</div>';
+      consLine.innerHTML = txt;
     }
   };
 
@@ -2648,9 +2647,8 @@ document.querySelectorAll('input[name="dailyChartType"]').forEach(function(rb) {
 });
 
 function filtrarLineas(){
-  var e=document.getElementById('estadoFilter');
-  var v=e?e.value:'activa';
-  if(e)e.value=v;
+  var g=document.getElementById('globalFilter');
+  var v=g?g.value:'activa';
   document.querySelectorAll('[data-estado]').forEach(function(el){
     var est=el.getAttribute('data-estado');
     var isTerm=est==='terminada'||est==='terminated'||est==='baja'||est==='cancelled'||est==='canceled'||est==='cancelada';
@@ -2667,17 +2665,15 @@ function toggleScoringDetalle(){
   if(b.style.display==='none'){b.style.display='';i.className='bi bi-chevron-up'}
   else{b.style.display='none';i.className='bi bi-chevron-down'}
 }
-if(document.getElementById('estadoFilter'))filtrarLineas();
-if(document.getElementById('subsFilter'))filtrarSubs();
+if(document.getElementById('globalFilter'))filtrarLineas();
+if(document.getElementById('globalFilter'))filtrarSubs();
 
 (function(){
-  var ef=document.getElementById('estadoFilter');
-  var sf=document.getElementById('subsFilter');
-  function onFilterChange() { filtrarLineas(); }
-  if(ef){ef.addEventListener('change',onFilterChange);ef.addEventListener('input',onFilterChange);ef.value='activa'}
-  if(sf){sf.addEventListener('change',filtrarSubs);sf.addEventListener('input',filtrarSubs);sf.value='activa'}
-  setTimeout(function(){if(document.getElementById('estadoFilter'))filtrarLineas();if(document.getElementById('subsFilter'))filtrarSubs()},300);
-  setTimeout(function(){if(document.getElementById('estadoFilter'))filtrarLineas();if(document.getElementById('subsFilter'))filtrarSubs()},1000);
+  var gf=document.getElementById('globalFilter');
+  function onFilterChange() { filtrarLineas(); filtrarSubs(); }
+  if(gf){gf.addEventListener('change',onFilterChange);gf.addEventListener('input',onFilterChange);gf.value='activa'}
+  setTimeout(function(){if(document.getElementById('globalFilter')){filtrarLineas();filtrarSubs()}},300);
+  setTimeout(function(){if(document.getElementById('globalFilter')){filtrarLineas();filtrarSubs()}},1000);
 })();
 
 document.addEventListener('click', function(e) {
@@ -2692,9 +2688,9 @@ document.addEventListener('click', function(e) {
 });
 
 function filtrarSubs(){
-  var sf=document.getElementById('subsFilter');
-  if(!sf)return;
-  var val=sf.value;
+  var g=document.getElementById('globalFilter');
+  if(!g)return;
+  var val=g.value;
   document.querySelectorAll('#lineas tbody tr').forEach(function(row){
     var badge=row.querySelector('td:nth-child(3) .badge');
     if(!badge){row.style.display='';return}
