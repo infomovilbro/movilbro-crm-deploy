@@ -215,7 +215,7 @@
             </div>
             <% } %>
             <div class="col-md-6">
-              <div class="card border">
+              <div class="card h-100 border">
                 <div class="card-header py-1 d-flex justify-content-between align-items-center" style="cursor:pointer;" onclick="toggleSection('estadoLineasBody')">
                   <small><i class="bi bi-pie-chart"></i> Estado de L&iacute;neas</small>
                   <i class="bi bi-chevron-down" id="estadoLineasIcon"></i>
@@ -250,7 +250,7 @@
               </div>
             </div>
             <div class="col-md-6">
-              <div class="card border">
+              <div class="card h-100 border">
                 <div class="card-header py-1 d-flex justify-content-between align-items-center">
                   <small><i class="bi bi-bar-chart"></i> Consumo GB</small>
                   <select id="gbLineSelect" class="form-select form-select-sm" style="width:auto;max-width:160px;">
@@ -1902,6 +1902,8 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
           consPerLine.innerHTML = '<div class="small text-muted">Sin datos de consumo</div>';
         }
+        // Re-aplicar filtro despues de cargar datos
+        if (document.getElementById('estadoFilter')) filtrarLineas();
       })
       .catch(function() { consPerLine.innerHTML = '<div class="small text-muted">Error al cargar consumo</div>'; });
     loadCardDailyData(line);
@@ -2032,6 +2034,14 @@ document.addEventListener('DOMContentLoaded', function() {
     if (activeBtn) activeBtn.className = activeBtn.className.replace('btn-outline-info', 'btn-info');
     if (!_cardDailyData) return;
     renderCardChart();
+    // Actualizar texto segun tipo
+    var totalTipo = 0;
+    _cardDailyData.forEach(function(d) { totalTipo += (d[tipo] || 0); });
+    var labelTipo = { gb: 'GB', calls: 'Llamadas', sms: 'SMS' }[tipo] || tipo;
+    var consLine = document.getElementById('consPerLine');
+    if (consLine) {
+      consLine.innerHTML = '<div class="d-flex justify-content-between small"><span>Total ' + labelTipo + ': <strong>' + (tipo === 'gb' ? totalTipo.toFixed(2) + ' GB' : totalTipo) + '</strong></span></div>';
+    }
   };
 
   window.navegarCardMes = function(dir) {
@@ -2676,7 +2686,7 @@ document.addEventListener('click', function(e) {
     var line = btn.getAttribute('data-line');
     var client = btn.getAttribute('data-client');
     if (line && client) {
-      window.location.href = window.location.pathname + '?gestion=' + encodeURIComponent(line) + '&client=' + encodeURIComponent(client);
+      window.open('/clientes/' + encodeURIComponent(client) + '/line/' + encodeURIComponent(line) + '/gestion', '_blank');
     }
   }
 });

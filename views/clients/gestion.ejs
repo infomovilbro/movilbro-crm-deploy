@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gestión - <%= lineNumber %></title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+body { background:#f5f5f5; font-family:system-ui,-apple-system,sans-serif; }
+.container-fluid { max-width:1200px; }
+.card { border:none; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+.tab-content { margin-top:12px; }
+</style>
+</head>
+<body>
+<div class="container-fluid py-3">
+  <div class="d-flex align-items-center gap-2 mb-3">
+    <a href="/clientes/fiscal/<%= fiscalId %>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i> Volver</a>
+    <h5 class="mb-0"><i class="bi bi-gear"></i> Gestión de línea - <%= lineNumber %></h5>
+  </div>
+
+  <div id="loading" class="text-center py-5"><div class="spinner-border"></div><p class="mt-2 text-muted">Cargando datos de la línea...</p></div>
+  <div id="content" style="display:none;">
+    <ul class="nav nav-tabs" id="gestionTabs">
+      <li class="nav-item"><button class="nav-link active" data-tab="resumen" onclick="return cambiarTab('resumen')">Resumen</button></li>
+      <li class="nav-item"><button class="nav-link" data-tab="servicios" onclick="return cambiarTab('servicios')">Servicios</button></li>
+      <li class="nav-item"><button class="nav-link" data-tab="consumo" onclick="return cambiarTab('consumo')">Consumo</button></li>
+      <li class="nav-item"><button class="nav-link" data-tab="esim" onclick="return cambiarTab('esim')">eSIM</button></li>
+    </ul>
+
+    <div class="tab-content">
+      <div class="tab-pane active" id="tab-resumen"></div>
+      <div class="tab-pane" id="tab-servicios"></div>
+      <div class="tab-pane" id="tab-consumo"></div>
+      <div class="tab-pane" id="tab-esim"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+var line = <%- JSON.stringify(lineNumber) %>;
+var fiscalId = <%- JSON.stringify(fiscalId) %>;
+var _data = null;
+
+fetch('/clientes/' + encodeURIComponent(fiscalId) + '/line/' + encodeURIComponent(line) + '/full-consumption', { method: 'POST' })
+  .then(function(r) { return r.json(); })
+  .then(function(res) {
+    if (!res.ok) throw new Error(res.error || 'Error al cargar');
+    _data = res.data;
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('content').style.display = '';
+    renderResumen();
+    renderServicios();
+    renderConsumo();
+    renderESIM();
+  })
+  .catch(function(err) {
+    document.getElementById('loading').innerHTML = '<div class="alert alert-danger">Error: ' + err.message + '</div>';
+  });
+
+function esc(t) { if (!t) return ''; return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;'); }
+
+function cambiarTab(tabId) {
+  document.querySelectorAll('#gestionTabs .nav-link').forEach(function(t) { t.classList.remove('active'); });
+  document.querySelectorAll('.tab-pane').forEach(function(t) { t.classList.remove('active'); });
+  var tabBtn = document.querySelector('#gestionTabs [data-tab="' + tabId + '"]');
+  if (tabBtn) tabBtn.classList.add('active');
+  var pane = document.getElementById('tab-' + tabId);
+  if (pane) pane.classList.add('active');
+  return false;
+}
+
+function renderResumen() {
+  var d = _data;
+  var gb = d.gb || {};
+  var info = d.lineInfo || {};
+  var cdrs = Array.isArray(d.cdrs) ? d.cdrs : [];
+  var credit = d.creditLimit || {};
+  var spn = info.spn || info.brand || 'Movilbro';
+
+  var nac = gb.usedGB || gb.used_gb || 0;
+  var nacTot = gb.totalGB || gb.total_gb || 30;
+  var roam = gb.usedRoamingGB || gb.used_roaming_gb || 0;
+  var roamTot = gb.totalRoamingGB || gb.total_roaming_gb || 1;
+
+  var html = '<div class="row g-3 mt-1">';
+  html += '<div class="col-md-6"><div class="card p-3"><h6>GB Nacionales</h6><div class="fs-4 fw-bold text-info">' + nac.toFixed(2) + ' / ' + nacTot.toFixed(2) + ' GB</div><div class="progress mt-1" style="height:6px"><div class="progress-bar" style="width:' + Math.min(100,nac/nacTot*100) + '%"></div></div></div></div>';
+  html += '<div class="col-md-6"><div class="card p-3"><h6>GB Roaming</h6><div class="fs-4 fw-bold text-warning">' + roam.toFixed(2) + ' / ' + roamTot.toFixed(2) + ' GB</div><div class="progress mt-1" style="height:6px"><div class="progress-bar bg-warning" style="width:' + Math.min(100,roam/roamTot*100) + '%"></div></div></div></div>';
+  html += '<div class="col-md-6"><div class="card p-3"><h6>SPN</h6><div class="fw-bold">' + esc(spn) + '</div></div></div>';
+  html += '<div class="col-md-6"><div class="card p-3"><h6>Límite de crédito</h6>';
+  html += '<div class="d-flex flex-wrap gap-1 mb-2">';
+  [1,5,25,150].forEach(function(v) {
+    var sel = Math.abs((credit.amount||credit.limit||0) - v) < 0.01 ? 'btn-primary' : 'btn-outline-secondary';
+    html += '<button class="btn btn-sm ' + sel + '" onclick="setCreditLimit(' + v + ')">' + v + '€</button>';
+  });
+  html += '</div><div class="input-group input-group-sm"><input type="number" id="customLimit" class="form-control" placeholder="Personalizado"><button class="btn btn-sm btn-outline-secondary" onclick="setCreditLimit(document.getElementById(\'customLimit\').value)">OK</button></div>';
+  html += '<div class="form-check form-switch mt-1"><input class="form-check-input" type="checkbox" id="notifyLimit" ' + (credit.notify?'checked':'') + '><label class="form-check-label">Notificar</label></div>';
+  html += '<div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="blockLimit" ' + (credit.block?'checked':'') + '><label class="form-check-label">Bloquear</label></div></div></div>';
+  html += '<div class="col-12"><div class="card p-3"><h6 style="cursor:pointer;" onclick="var e=document.getElementById(\'cdrList\');e.style.display=e.style.display===\'none\'?\'\':\'none\'"><i class="bi bi-chevron-down"></i> Últimas llamadas</h6>';
+  html += '<div id="cdrList" style="display:none;max-height:200px;overflow:auto;"><table class="table table-sm mb-0"><thead><tr><th>Fecha</th><th>Destino</th><th>Duración</th></tr></thead><tbody>';
+  cdrs.slice(0,15).forEach(function(c) {
+    html += '<tr><td class="small">' + (c.date||c.fecha||'').substring(0,10) + '</td><td class="small">' + esc(c.destination||c.dest||c.called||'') + '</td><td class="small">' + (c.duration||c.duracion||'') + '</td></tr>';
+  });
+  html += '</tbody></table></div></div></div></div>';
+  document.getElementById('tab-resumen').innerHTML = html;
+}
+
+function renderServicios() {
+  var svas = Array.isArray(_data.svas) ? _data.svas : [];
+  var html = '<div class="row g-3 mt-1">';
+
+  html += '<div class="col-md-6"><div class="card p-3"><h6>Teléfono</h6>';
+  html += renderToggle(svas, 'Llamadas entrantes') + renderToggle(svas, 'Llamadas salientes') + renderToggle(svas, 'Llamadas salientes internacionales');
+  html += renderToggle(svas, 'Llamada en espera') + renderToggle(svas, 'Servicios premium');
+  var volte = svas.find(function(s){return s.spanishName==='VoLTE';});
+  html += '<div class="small text-muted mt-1">VoLTE: ' + (volte && volte.status ? 'Activo' : 'Inactivo') + ' (solo info)</div>';
+  html += '</div></div>';
+
+  html += '<div class="col-md-6"><div class="card p-3"><h6>Internet</h6>';
+  html += renderToggle(svas, 'Datos') + renderToggle(svas, 'Roaming');
+  html += '</div><div class="card p-3 mt-2"><h6>SMS</h6>';
+  html += renderToggle(svas, 'SMSs Entrantes') + renderToggle(svas, 'SMSs Salientes');
+  html += '</div></div>';
+
+  html += '<div class="col-12"><div class="card p-3"><h6>Desvíos</h6>';
+  html += renderToggle(svas, 'Buzón de Voz');
+  ['Desvío incondicional','Desvío si comunica','Desvío si no hay cobertura','Desvío si no contesta'].forEach(function(n) {
+    var sv = svas.find(function(s){return s.spanishName===n;});
+    var active = sv ? (sv.status===true) : false;
+    var num = sv ? (sv.parm1||'') : '';
+    html += '<div class="mb-1 p-1 border-bottom"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" ' + (active?'checked':'') + ' onchange="updateSVA(\'' + esc(n) + '\',this.checked)" id="sva-' + n.replace(/\s/g,'') + '"><label class="form-check-label">' + n + '</label></div>';
+    html += '<div class="input-group input-group-sm mt-1"><span class="input-group-text">Número</span><input type="text" class="form-control" value="' + esc(num) + '" onchange="updateSVA(\'' + esc(n) + '\',document.getElementById(\'sva-' + n.replace(/\s/g,'') + '\').checked,this.value)"></div></div>';
+  });
+  html += '</div></div></div>';
+  document.getElementById('tab-servicios').innerHTML = html;
+}
+
+function renderToggle(svas, label) {
+  var sv = svas.find(function(s){return s.spanishName===label;});
+  var active = sv ? (sv.status===true) : false;
+  return '<div class="form-check form-switch"><input class="form-check-input" type="checkbox" ' + (active?'checked':'') + ' onchange="updateSVA(\'' + esc(label) + '\',this.checked)"><label class="form-check-label">' + label + '</label></div>';
+}
+
+function renderConsumo() {
+  var gb = _data.gb || {};
+  var html = '<div class="row g-3 mt-1">';
+  html += '<div class="col-md-3"><div class="card p-3 text-center"><h6>Minutos</h6><div class="fs-5 fw-bold">' + (gb.minutesConsumed||gb.minutos||0) + '</div></div></div>';
+  html += '<div class="col-md-3"><div class="card p-3 text-center"><h6>Datos</h6><div class="fs-5 fw-bold">' + (gb.dataConsumed||gb.datos||gb.nationalConsumed||0).toFixed(2) + ' MB</div></div></div>';
+  html += '<div class="col-md-3"><div class="card p-3 text-center"><h6>SMS</h6><div class="fs-5 fw-bold">' + (gb.smsConsumed||gb.sms||0) + '</div></div></div>';
+  html += '<div class="col-md-3"><div class="card p-3 text-center"><h6>Gasto</h6><div class="fs-5 fw-bold">' + (gb.extraCost||gb.extra_cost||0).toFixed(2) + '€</div></div></div>';
+  html += '</div>';
+  document.getElementById('tab-consumo').innerHTML = html;
+}
+
+function renderESIM() {
+  var info = _data.lineInfo || {};
+  var pinpuk = _data.pinpuk || {};
+  var sims = info.sims || [];
+  var sim = sims[0] || {};
+  var icc = sim.icc || sim.iccid || pinpuk.icc || pinpuk.iccid || '';
+  var pin = sim.pin || pinpuk.pin || '';
+  var puk = sim.puk || pinpuk.puk || '';
+  var email = sim.email || '';
+  var html = '<div class="row g-3 mt-1">';
+  html += '<div class="col-md-6"><div class="card p-3"><h6>Datos eSIM</h6><table class="table table-sm mb-0"><tr><th>ICC</th><td>' + esc(icc) + '</td></tr><tr><th>PIN</th><td>' + esc(pin) + '</td></tr><tr><th>PUK</th><td>' + esc(puk) + '</td></tr><tr><th>Email</th><td>' + esc(email) + '</td></tr></table></div></div>';
+  html += '<div class="col-md-6"><div class="card p-3 text-center"><h6>QR eSIM</h6><img src="/clientes/' + encodeURIComponent(fiscalId) + '/line/' + encodeURIComponent(line) + '/qr" style="width:180px;height:180px" alt="QR" class="img-fluid"><p class="small text-muted mt-1">Escanea para guardar datos</p></div></div>';
+  html += '<div class="col-12"><div class="d-flex flex-wrap gap-2">';
+  html += '<button class="btn btn-success" onclick="compartirWhatsApp()"><i class="bi bi-whatsapp"></i> WhatsApp</button>';
+  html += '<button class="btn btn-primary" onclick="copiarESIM()"><i class="bi bi-clipboard"></i> Copiar</button>';
+  html += '<a href="mailto:?subject=eSIM ' + encodeURIComponent(line) + '&body=Datos eSIM de ' + encodeURIComponent(line) + ': ICC=' + encodeURIComponent(icc) + ' PIN=' + encodeURIComponent(pin) + ' PUK=' + encodeURIComponent(puk) + '" class="btn btn-outline-secondary"><i class="bi bi-envelope"></i> Email</a>';
+  html += '</div></div></div>';
+  document.getElementById('tab-esim').innerHTML = html;
+}
+
+function updateSVA(name, active, number) {
+  var body = { spanishName: name, status: active };
+  if (number !== undefined) body.parm1 = number;
+  fetch('/clientes/' + encodeURIComponent(fiscalId) + '/line/' + encodeURIComponent(line) + '/svas', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+  }).then(function(r){}).catch(function(){});
+}
+
+function setCreditLimit(amount) {
+  if (!amount || amount <= 0) return;
+  fetch('/clientes/' + encodeURIComponent(fiscalId) + '/line/' + encodeURIComponent(line) + '/credit-limit', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ limit: parseFloat(amount) })
+  }).then(function(r){}).catch(function(){});
+}
+
+function compartirWhatsApp() {
+  var info = _data.lineInfo || {};
+  var sims = info.sims || [];
+  var sim = sims[0] || {};
+  var icc = sim.icc || '';
+  var pin = sim.pin || '';
+  var puk = sim.puk || '';
+  var msg = 'eSIM Movilbro - ICC: ' + icc + ', PIN: ' + pin + ', PUK: ' + puk + ', Linea: ' + line;
+  window.open('https://wa.me/34633242242?text=' + encodeURIComponent(msg), '_blank');
+}
+function copiarESIM() {
+  var info = _data.lineInfo || {};
+  var sims = info.sims || [];
+  var sim = sims[0] || {};
+  var icc = sim.icc || '';
+  var pin = sim.pin || '';
+  var puk = sim.puk || '';
+  var txt = 'Linea: ' + line + '\nICC: ' + icc + '\nPIN: ' + pin + '\nPUK: ' + puk;
+  navigator.clipboard.writeText(txt).then(function(){alert('Datos eSIM copiados');}).catch(function(){prompt('Copia:', txt);});
+}
+</script>
+</body>
+</html>

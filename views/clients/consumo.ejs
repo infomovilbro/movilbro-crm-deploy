@@ -41,16 +41,18 @@ body { background:#f5f5f5; font-family:system-ui,-apple-system,sans-serif; }
         <button class="btn btn-sm btn-outline-info" onclick="switchTipo('sms')" id="tipoSms">SMS</button>
       </div>
       <div style="max-height:300px;overflow:auto;margin-top:10px;">
-        <table class="table table-sm table-striped mb-0"><thead><tr><th>Fecha</th><th class="text-end">GB</th><th class="text-end">Llamadas</th><th class="text-end">SMS</th></tr></thead>
+        <table class="table table-sm table-striped mb-0"><thead><tr><th>Fecha</th><th class="text-end">GB</th><th class="text-end">Llamadas</th><th class="text-end">SMS</th><th></th></tr></thead>
           <tbody id="dailyTable"></tbody>
         </table>
       </div>
     </div>
 
     <div class="card mt-3 p-3">
-      <h6><i class="bi bi-telephone"></i> Últimas llamadas</h6>
-      <div style="max-height:250px;overflow:auto;"><table class="table table-sm"><thead><tr><th>Fecha</th><th>Destino</th><th>Duración</th></tr></thead>
-        <tbody id="cdrsBody"></tbody></table></div>
+      <h6 style="cursor:pointer;" onclick="toggleCDRs()"><i class="bi bi-chevron-down" id="cdrIcon"></i> <i class="bi bi-telephone"></i> Últimas llamadas</h6>
+      <div id="cdrSection" style="display:none;max-height:250px;overflow:auto;">
+        <table class="table table-sm"><thead><tr><th>Fecha</th><th>Destino</th><th>Duración</th></tr></thead>
+        <tbody id="cdrsBody"></tbody></table>
+      </div>
     </div>
   </div>
 </div>
@@ -68,14 +70,16 @@ fetch('/clientes/' + encodeURIComponent(fiscalId) + '/line/' + encodeURIComponen
   .then(function(res) {
     if (!res.ok) throw new Error('Error');
     var d = res.data;
-    var gb = d.gb || {};
-    document.getElementById('loading').style.display = 'none';
-    document.getElementById('content').style.display = '';
+  var gb = d.gb || {};
+  var cdrs = Array.isArray(d.cdrs ? d.cdrs : (d.data && d.data.cdrs ? d.data.cdrs : []));
+  // Si cdrs esta vacio, intentar desde cdrsBody ya cargado
+  if (cdrs.length === 0 && d.cdrs && Array.isArray(d.cdrs)) cdrs = d.cdrs;
+  var credit = d.creditLimit || {};
 
-    var nac = gb.usedGB || gb.used_gb || 0;
-    var nacTot = gb.totalGB || gb.total_gb || 30;
-    var roam = gb.usedRoamingGB || gb.used_roaming_gb || 0;
-    var roamTot = gb.totalRoamingGB || gb.total_roaming_gb || 1;
+  var nac = gb.usedGB || gb.used_gb || gb.used || gb.consumed || gb.nationalConsumed || gb.usage || 0;
+  var nacTot = gb.totalGB || gb.total_gb || gb.total || gb.allowance || gb.nationalAllowance || gb.limit || gb.totalGb || 30;
+  var roam = gb.usedRoamingGB || gb.used_roaming_gb || gb.roamingConsumed || gb.roaming || gb.roaming_used || 0;
+  var roamTot = gb.totalRoamingGB || gb.total_roaming_gb || gb.roamingAllowance || gb.roamingTotal || gb.roaming_limit || 1;
     document.getElementById('gbNac').textContent = nac.toFixed(2) + ' / ' + nacTot.toFixed(2) + ' GB';
     document.getElementById('gbNacBar').style.width = Math.min(100, nac/nacTot*100) + '%';
     document.getElementById('gbRoam').textContent = roam.toFixed(2) + ' / ' + roamTot.toFixed(2) + ' GB';
@@ -139,10 +143,39 @@ function renderDaily() {
 
   var html = '';
   mesData.forEach(function(d) {
-    html += '<tr><td>' + d.date + '</td><td class="text-end">' + (d.gb||0).toFixed(4) + '</td><td class="text-end">' + (d.calls||0) + '</td><td class="text-end">' + (d.sms||0) + '</td></tr>';
+    html += '<tr style="cursor:pointer;" onclick="mostrarCDRsFecha(\'' + d.date + '\')"><td>' + d.date + '</td><td class="text-end">' + (d.gb||0).toFixed(4) + '</td><td class="text-end">' + (d.calls||0) + '</td><td class="text-end">' + (d.sms||0) + '</td><td><i class="bi bi-chevron-down"></i></td></tr>';
   });
   document.getElementById('dailyTable').innerHTML = html;
+
+  // Limpiar detalle de CDRs
+  document.getElementById('cdrSection').style.display = 'none';
 }
+
+function mostrarCDRsFecha(fecha) {
+  // Mostrar CDRs de ese dia
+  var cdrs = _data && _data.cdrs ? _data.cdrs : [];
+  var filtrados = cdrs.filter(function(c) { return (c.date||c.fecha||'').startsWith(fecha); });
+  if (filtrados.length === 0) {
+    document.getElementById('cdrsBody').innerHTML = '<tr><td colspan="3" class="text-center text-muted p-2">Sin llamadas este día</td></tr>';
+  } else {
+    var html = '';
+    filtrados.slice(0,20).forEach(function(c) {
+      html += '<tr><td class="small">' + (c.date||c.fecha||c.startDate||'').substring(0,10) + '</td><td class="small">' + esc(c.destination||c.dest||c.called||c.numero||'') + '</td><td class="small">' + (c.duration||c.duracion||c.secs||'') + '</td></tr>';
+    });
+    document.getElementById('cdrsBody').innerHTML = html;
+  }
+  document.getElementById('cdrSection').style.display = '';
+}
+
+function toggleCDRs() {
+  var s = document.getElementById('cdrSection');
+  var i = document.getElementById('cdrIcon');
+  if (!s) return;
+  if (s.style.display === 'none') { s.style.display = ''; if(i)i.className='bi bi-chevron-up'; }
+  else { s.style.display = 'none'; if(i)i.className='bi bi-chevron-down'; }
+}
+
+function esc(t) { if (!t) return ''; return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 function switchTipo(tipo) {
   _tipo = tipo;
