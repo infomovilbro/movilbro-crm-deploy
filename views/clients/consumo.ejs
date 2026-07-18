@@ -65,8 +65,14 @@ var _chart = null;
 var _tipo = 'gb';
 var _mesActual = -1;
 
-fetch('/clientes/' + encodeURIComponent(fiscalId) + '/line/' + encodeURIComponent(line) + '/full-consumption', { method: 'POST' })
-  .then(function(r) { return r.json(); })
+// Si fiscalId es el mismo que line (como ID), usarlo directamente
+var apiClient = fiscalId;
+
+fetch('/clientes/' + encodeURIComponent(apiClient) + '/line/' + encodeURIComponent(line) + '/full-consumption', { method: 'POST' })
+  .then(function(r) {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  })
   .then(function(res) {
     if (!res.ok) throw new Error('Error');
     var d = res.data;
@@ -99,7 +105,7 @@ fetch('/clientes/' + encodeURIComponent(fiscalId) + '/line/' + encodeURIComponen
     document.getElementById('loading').innerHTML = '<div class="alert alert-danger">Error: ' + err.message + '</div>';
   });
 
-fetch('/clientes/' + encodeURIComponent(fiscalId) + '/line/' + encodeURIComponent(line) + '/daily-consumption', { method: 'POST' })
+fetch('/clientes/' + encodeURIComponent(apiClient) + '/line/' + encodeURIComponent(line) + '/daily-consumption', { method: 'POST' })
   .then(function(r) { return r.json(); })
   .then(function(res) {
     if (res.ok && res.data && res.data.length > 0) {
