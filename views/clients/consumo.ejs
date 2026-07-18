@@ -90,6 +90,8 @@ fetch('/clientes/' + encodeURIComponent(apiClient) + '/line/' + encodeURICompone
     document.getElementById('gbNacBar').style.width = Math.min(100, nac/nacTot*100) + '%';
     document.getElementById('gbRoam').textContent = roam.toFixed(2) + ' / ' + roamTot.toFixed(2) + ' GB';
     document.getElementById('gbRoamBar').style.width = Math.min(100, roam/roamTot*100) + '%';
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('content').style.display = '';
 
     if (d.cdrs && d.cdrs.length > 0) {
       var html = '';
