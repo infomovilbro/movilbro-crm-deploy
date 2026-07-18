@@ -992,9 +992,12 @@
               <a href="https://www.rai.es/consulta?q=<%= encodeURIComponent(_dn) %>" target="_blank" class="btn btn-sm btn-outline-danger"><i class="bi bi-exclamation-circle"></i> RAI</a>
               <a href="https://www.google.com/search?q=<%= encodeURIComponent(_dn + ' morosidad impagos') %>" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-search"></i> Google</a>
               <a href="https://www.boe.es/buscar/boe.php?campo%5B%5D=NIF&dato%5B%5D=<%= encodeURIComponent(_dn) %>&campo%5B%5D=TIT&operador%5B%5D=and&page_h_t=1&lang=es" target="_blank" class="btn btn-sm btn-outline-warning"><i class="bi bi-file-earmark-text"></i> BOE</a>
+              <a href="https://www1.sedecatastro.gob.es/OVCFrames.aspx?TIPO=CONSULTA&NIF=<%= encodeURIComponent(_dn) %>" target="_blank" class="btn btn-sm btn-outline-success"><i class="bi bi-building"></i> Catastro</a>
+              <a href="https://www.google.com/search?q=<%= encodeURIComponent(_dn + ' LinkedIn') %>" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-linkedin"></i> LinkedIn</a>
+              <a href="https://www.google.com/search?q=<%= encodeURIComponent(_dn + ' ' + (apiCustomer.name || cliente.nombre || '')) %>" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-person"></i> Nombre+DNI</a>
             </div>
             <hr>
-            <div class="small text-muted"><i class="bi bi-info-circle"></i> Estas webs no est&aacute;n afiliadas al CRM. Los resultados dependen de cada servicio. El scoring se calcula con datos del cliente: DNI/NIF, email, tel&eacute;fono, antig&uuml;edad, l&iacute;neas activas, facturaci&oacute;n ISP, IBAN, KYC.</div>
+            <div class="small text-muted"><i class="bi bi-info-circle"></i> El scoring combina 12+ factores autom&aacute;ticos (DNI, email, tel&eacute;fono, antig&uuml;edad, l&iacute;neas, facturas ISP, IBAN, KYC, BOE, tickets) + b&uacute;squeda externa manual.</div>
           </div>
         </div>
       </div>

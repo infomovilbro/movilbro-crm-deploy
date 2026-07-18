@@ -1840,6 +1840,25 @@ router.post('/:id/calculate-scoring', requireAuth, async (req, res) => {
       } else { detalleCompleto.push({ factor: 'Teléfono válido', valor: 'No disponible', impacto: 'neutro', color: 'secondary' }); }
     } catch(e) {}
 
+    // 12. BOE automatic search (public debts, embargoes)
+    try {
+      var https = require('https');
+      var boeResult = await new Promise(function(resolve) {
+        https.get('https://www.boe.es/buscar/boe.php?campo%5B%5D=NIF&dato%5B%5D=' + encodeURIComponent(fiscalId) + '&campo%5B%5D=TIT&operador%5B%5D=and&page_h_t=1&lang=es', { headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 8000 }, function(r) {
+          var b = '';
+          r.on('data', function(c) { b += c; });
+          r.on('end', function() {
+            var noResults = b.includes('No se han encontrado') || b.includes('0 resultados') || b.includes('sin resultados');
+            if (noResults) { detalleCompleto.push({ factor: 'BOE (embargos/deudas)', valor: 'Sin resultados', impacto: 'neutro (limpio)', color: 'success' }); }
+            else if (b.includes('resultado')) { puntuacion -= 2; detalleCompleto.push({ factor: 'BOE (embargos/deudas)', valor: 'Con resultados', impacto: '-2 puntos', color: 'danger' }); }
+            else { detalleCompleto.push({ factor: 'BOE (embargos/deudas)', valor: 'No se pudo consultar', impacto: 'neutro', color: 'secondary' }); }
+            resolve();
+          });
+          r.on('error', function() { detalleCompleto.push({ factor: 'BOE (embargos/deudas)', valor: 'Error de consulta', impacto: 'neutro', color: 'secondary' }); resolve(); });
+        }).on('error', function() { detalleCompleto.push({ factor: 'BOE (embargos/deudas)', valor: 'Error de conexión', impacto: 'neutro', color: 'secondary' }); resolve(); });
+      });
+    } catch(e) { detalleCompleto.push({ factor: 'BOE (embargos/deudas)', valor: 'Error', impacto: 'neutro', color: 'secondary' }); }
+
     puntuacion = Math.max(1, Math.min(10, Math.round(puntuacion)));
     if (puntuacion >= 7) riesgo = 'bajo';
     else if (puntuacion >= 4) riesgo = 'medio';
