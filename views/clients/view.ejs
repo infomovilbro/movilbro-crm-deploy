@@ -231,16 +231,32 @@
                       <% var prods = s.products && s.products.length ? s.products : [{productName: s.productName, lineNumber: s.lineNumber, status: s.status, icc: s.icc}]; %>
                       <% prods.forEach(function(p) { %>
                         <% var est = (p.status || s.status || 'activa').toLowerCase(); %>
-                        <div class="d-flex align-items-center justify-content-between mb-1 pb-1 border-bottom" data-estado="<%= est %>">
-                          <div>
-                            <strong><%= p.lineNumber || s.lineNumber || 'Nueva línea' %></strong><br>
-                            <small><%= p.productName || s.productName || '-' %></small>
+                        <% var lineNum = p.lineNumber || s.lineNumber || ''; %>
+                        <div class="mb-1" data-estado="<%= est %>">
+                          <div class="d-flex align-items-center justify-content-between pb-1 border-bottom" style="cursor:pointer;" onclick="toggleLineChart('<%= lineNum %>')">
+                            <div>
+                              <strong><%= lineNum %></strong><br>
+                              <small><%= p.productName || s.productName || '-' %></small>
+                            </div>
+                            <div class="text-end">
+                              <span class="badge bg-<%= est === 'activa' || est === 'active' || est === 'activo' ? 'success' : est === 'suspendida' || est === 'suspended' ? 'warning' : 'secondary' %>">
+                                <%= ({'active':'Activa','activa':'Activa','activo':'Activa','suspended':'Suspendida','suspendida':'Suspendida','cancelled':'Cancelada','canceled':'Cancelada','cancelada':'Cancelada','terminated':'Cancelada','terminada':'Cancelada','baja':'Cancelada'})[est] || est %>
+                              </span>
+                              <div class="mt-1 d-flex gap-1 justify-content-end">
+                                <% if (p.icc || s.icc) { %><button class="btn btn-sm btn-outline-dark mostrar-pinpuk py-0" data-line="<%= lineNum %>" data-pin="<%= p.pin || s.pin || '' %>" data-puk="<%= p.puk || s.puk || '' %>" data-icc="<%= p.icc || s.icc || '' %>" title="PIN/PUK" style="font-size:0.65rem;"><i class="bi bi-key"></i></button><% } %>
+                                <button class="btn btn-sm btn-outline-info py-0 gestion-linea" data-line="<%= lineNum %>" data-client="<%= _cid %>" title="Gestionar línea" style="font-size:0.65rem;"><i class="bi bi-gear"></i></button>
+                              </div>
+                            </div>
                           </div>
-                          <div class="text-end">
-                            <span class="badge bg-<%= est === 'activa' || est === 'active' || est === 'activo' ? 'success' : est === 'suspendida' || est === 'suspended' ? 'warning' : 'secondary' %>">
-                              <%= ({'active':'Activa','activa':'Activa','activo':'Activa','suspended':'Suspendida','suspendida':'Suspendida','cancelled':'Cancelada','canceled':'Cancelada','cancelada':'Cancelada','terminated':'Cancelada','terminada':'Cancelada','baja':'Cancelada'})[est] || est %>
-                            </span>
-                            <% if (p.icc || s.icc) { %><br><small class="text-muted">ICC: <%= (p.icc || s.icc).substring(0,15) %>...</small><br><button class="btn btn-sm btn-outline-dark mostrar-pinpuk mt-1 py-0" data-line="<%= p.lineNumber || s.lineNumber %>" data-pin="<%= p.pin || s.pin || '' %>" data-puk="<%= p.puk || s.puk || '' %>" data-icc="<%= p.icc || s.icc || '' %>" title="PIN/PUK" style="font-size:0.65rem;"><i class="bi bi-key"></i></button><% } %><br><button class="btn btn-sm btn-outline-info mt-1 py-0 gestion-linea" data-line="<%= p.lineNumber || s.lineNumber %>" data-client="<%= _cid %>" title="Gestionar línea" style="font-size:0.65rem;"><i class="bi bi-gear"></i> Gestión</button>
+                          <div class="line-chart-container" id="chart-<%= lineNum %>" style="display:none;padding:4px;margin-top:4px;background:#f8f9fa;border-radius:6px;">
+                            <div style="width:100%;height:80px;"><canvas id="gbChart-<%= lineNum %>" width="300" height="80" style="width:100%;height:100%;"></canvas></div>
+                            <div class="small d-flex align-items-center justify-content-center gap-2 mt-1" id="nav-<%= lineNum %>" style="display:none;"></div>
+                            <div class="d-flex justify-content-center gap-1 mt-1">
+                              <button class="btn btn-sm btn-info py-0" style="font-size:0.6rem;line-height:1;" onclick="toggleLineChartTipo('<%= lineNum %>','gb',this)">GB</button>
+                              <button class="btn btn-sm btn-outline-info py-0" style="font-size:0.6rem;line-height:1;" onclick="toggleLineChartTipo('<%= lineNum %>','calls',this)">📞</button>
+                              <button class="btn btn-sm btn-outline-info py-0" style="font-size:0.6rem;line-height:1;" onclick="toggleLineChartTipo('<%= lineNum %>','sms',this)">💬</button>
+                            </div>
+                            <div class="small text-muted mt-1 text-center" id="usage-<%= lineNum %>"></div>
                           </div>
                         </div>
                       <% }); %>
@@ -2695,6 +2711,75 @@ document.addEventListener('click', function(e) {
     }
   }
 });
+
+// ===== PER-LINE CHARTS =====
+var _lineChartData = {};
+var _lineCharts = {};
+
+function toggleLineChart(line) {
+  var container = document.getElementById('chart-' + line);
+  if (!container) return;
+  if (container.style.display !== 'none') { container.style.display = 'none'; return; }
+  container.style.display = '';
+  if (_lineChartData[line]) { renderLineChart(line); return; }
+  var clientEl = document.querySelector('.ver-consumo');
+  var cid = clientEl ? clientEl.dataset.client : '';
+  fetch('/clientes/' + encodeURIComponent(cid) + '/line/' + encodeURIComponent(line) + '/daily-consumption', { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+      if (res.ok && res.data && res.data.length > 0) {
+        _lineChartData[line] = res.data;
+        renderLineChart(line);
+      }
+    })
+    .catch(function() { container.innerHTML = '<div class="small text-muted p-2">Sin datos</div>'; });
+}
+
+function renderLineChart(line) {
+  var data = _lineChartData[line];
+  if (!data || !data.length) return;
+  var tipo = 'gb';
+  var meses = {};
+  data.forEach(function(d) { if (d.date && d.date.length >= 7) meses[d.date.substring(0, 7)] = true; });
+  var mesesArr = Object.keys(meses).sort();
+  if (!mesesArr.length) return;
+  var mesSel = mesesArr[mesesArr.length - 1];
+  var mesData = data.filter(function(d) { return d.date && d.date.substring(0, 7) === mesSel; });
+  if (!mesData.length) return;
+  var nav = document.getElementById('nav-' + line);
+  if (nav) { nav.style.display = ''; nav.innerHTML = '<span class="fw-semibold" style="font-size:0.65rem;">' + mesSel.substring(0,4) + '/' + mesSel.substring(5,7) + '</span>'; }
+  var ctx = document.getElementById('gbChart-' + line);
+  if (!ctx) return;
+  if (_lineCharts[line]) { _lineCharts[line].destroy(); }
+  var labels = mesData.map(function(d) { var p = d.date.split('-'); return p[2] + '/' + p[1]; });
+  var valores = mesData.map(function(d) { return d[tipo] || 0; });
+  if (typeof Chart !== 'undefined') {
+    try {
+      _lineCharts[line] = new Chart(ctx, { type: 'bar',
+        data: { labels: labels, datasets: [{ label: 'GB', data: valores, backgroundColor: '#06b6d4', borderRadius: 2 }] },
+        options: { animation: false, responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+          scales: { x: { grid: { display: false }, ticks: { font: { size: 7 }, maxRotation: 0 } }, y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.03)' } } } }
+      });
+    } catch(e) {}
+  }
+  var total = 0;
+  mesData.forEach(function(d) { total += (d[tipo] || 0); });
+  var usage = document.getElementById('usage-' + line);
+  if (usage) usage.textContent = 'Total GB: ' + total.toFixed(2) + ' GB';
+}
+
+function toggleLineChartTipo(line, tipo, btn) {
+  if (!_lineChartData[line]) return;
+  var container = document.getElementById('chart-' + line);
+  if (container) {
+    container.querySelectorAll('button').forEach(function(b) {
+      b.className = 'btn btn-sm btn-outline-info py-0';
+    });
+    btn.className = 'btn btn-sm btn-info py-0';
+  }
+  // Re-render with new tipo (simplificado: recargar datos)
+  // Por ahora solo soporta GB
+}
 
 function filtrarSubs(){
   var g=document.getElementById('globalFilter');
