@@ -41,7 +41,7 @@ body { background:#f5f5f5; font-family:system-ui,-apple-system,sans-serif; }
         <button class="btn btn-sm btn-outline-info" onclick="switchTipo('sms')" id="tipoSms">SMS</button>
       </div>
       <div style="max-height:300px;overflow:auto;margin-top:10px;">
-        <table class="table table-sm table-striped mb-0"><thead><tr><th>Fecha</th><th class="text-end">GB</th><th class="text-end">Llamadas</th><th class="text-end">SMS</th><th></th></tr></thead>
+        <table class="table table-sm table-striped mb-0"><thead><tr><th>Fecha</th><th class="text-end">GB</th><th class="text-end">Llamadas</th><th class="text-end">SMS</th><th class="text-end">Coste</th><th></th></tr></thead>
           <tbody id="dailyTable"></tbody>
         </table>
       </div>
@@ -50,7 +50,7 @@ body { background:#f5f5f5; font-family:system-ui,-apple-system,sans-serif; }
     <div class="card mt-3 p-3">
       <h6 style="cursor:pointer;" onclick="toggleCDRs()"><i class="bi bi-chevron-down" id="cdrIcon"></i> <i class="bi bi-telephone"></i> Últimas llamadas</h6>
       <div id="cdrSection" style="display:none;max-height:250px;overflow:auto;">
-        <table class="table table-sm"><thead><tr><th>Fecha</th><th>Destino</th><th>Duración</th></tr></thead>
+        <table class="table table-sm"><thead><tr><th>Fecha</th><th>Destino</th><th>Duración</th><th>Coste</th></tr></thead>
         <tbody id="cdrsBody"></tbody></table>
       </div>
     </div>
@@ -151,7 +151,7 @@ function renderDaily() {
 
   var html = '';
   mesData.forEach(function(d) {
-    html += '<tr style="cursor:pointer;" onclick="mostrarCDRsFecha(\'' + d.date + '\')"><td>' + d.date + '</td><td class="text-end">' + (d.gb||0).toFixed(4) + '</td><td class="text-end">' + (d.calls||0) + '</td><td class="text-end">' + (d.sms||0) + '</td><td><i class="bi bi-chevron-down"></i></td></tr>';
+    html += '<tr style="cursor:pointer;" onclick="mostrarCDRsFecha(\'' + d.date + '\')"><td>' + d.date + '</td><td class="text-end">' + (d.gb||0).toFixed(4) + '</td><td class="text-end">' + (d.calls||0) + '</td><td class="text-end">' + (d.sms||0) + '</td><td class="text-end">' + ((d.cost||0) > 0 ? (d.cost).toFixed(2)+'€' : '-') + '</td><td><i class="bi bi-chevron-down"></i></td></tr>';
   });
   document.getElementById('dailyTable').innerHTML = html;
 
@@ -164,11 +164,12 @@ function mostrarCDRsFecha(fecha) {
   var cdrs = _data && _data.cdrs ? _data.cdrs : [];
   var filtrados = cdrs.filter(function(c) { return (c.date||c.fecha||'').startsWith(fecha); });
   if (filtrados.length === 0) {
-    document.getElementById('cdrsBody').innerHTML = '<tr><td colspan="3" class="text-center text-muted p-2">Sin llamadas este día</td></tr>';
+    document.getElementById('cdrsBody').innerHTML = '<tr><td colspan="4" class="text-center text-muted p-2">Sin llamadas este día</td></tr>';
   } else {
     var html = '';
     filtrados.slice(0,20).forEach(function(c) {
-      html += '<tr><td class="small">' + (c.date||c.fecha||c.startDate||'').substring(0,10) + '</td><td class="small">' + esc(c.destination||c.dest||c.called||c.numero||'') + '</td><td class="small">' + (c.duration||c.duracion||c.secs||'') + '</td></tr>';
+      var coste = parseFloat(c.coste || c.cost || c.cargo || c.price || 0);
+      html += '<tr><td class="small">' + (c.date||c.fecha||c.startDate||'').substring(0,10) + '</td><td class="small">' + esc(c.destination||c.dest||c.called||c.numero||'') + '</td><td class="small">' + (c.duration||c.duracion||c.secs||'') + '</td><td class="small">' + (coste > 0 ? coste.toFixed(2)+'€' : '') + '</td></tr>';
     });
     document.getElementById('cdrsBody').innerHTML = html;
   }

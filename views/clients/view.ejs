@@ -436,7 +436,7 @@
                     <% } else { %>
                     <span class="text-muted">-</span>
                     <% } %>
-                    <button class="btn btn-sm btn-outline-info" onclick="verResumenOrden('<%= o.id %>')" title="Ver detalle completo"><i class="bi bi-eye"></i></button>
+                    <button class="btn btn-sm btn-outline-info" onclick="verResumenOrden('<%= o.id %>','<%= _cid %>')" title="Ver detalle completo"><i class="bi bi-eye"></i></button>
                     </div>
                   </td>
                 </tr>
@@ -1408,8 +1408,11 @@ function editarCampoInst(nombre, elemId) {
 }
 
 // Ver resumen de orden
-function verResumenOrden(orderId) {
+function verResumenOrden(orderId, cid) {
   if (!orderId) { alert('ID de orden no disponible'); return; }
+  var clientId = cid || (typeof clientIdGlobal !== 'undefined' ? clientIdGlobal : '');
+  if (!clientId) { var fb = document.querySelector('.ver-consumo'); if (fb) clientId = fb.dataset.client; }
+  if (!clientId) { alert('Cliente no identificado'); return; }
   var modal = new bootstrap.Modal(document.getElementById('ordenSummaryModal'));
   var body = document.getElementById('ordenSummaryBody');
   body.innerHTML = '<div class="text-center py-4"><span class="spinner-border"></span> Cargando...</div>';
@@ -1860,15 +1863,15 @@ document.addEventListener('DOMContentLoaded', function() {
   var gbChart = null;
   var gbLineSelect = document.getElementById('gbLineSelect');
 
-  // Populate line selector from linesArr (SIEMPRE, no depende de Chart.js)
+  // Populate line selector from linesArr - SOLO LINEAS MOVILES ACTIVAS
   if (gbLineSelect && linesArr.length > 0) {
     linesArr.forEach(function(ln) {
       if (!ln) return;
       var opt = document.createElement('option');
       opt.value = ln;
-      var esTelefono = /^\d{6,}$/.test(ln);
-      opt.textContent = esTelefono ? ln : ln + ' (sin consumo)';
-      if (!esTelefono) opt.disabled = true;
+      var esMovilActiva = /^[67]\d{8}$/.test(ln);
+      opt.textContent = esMovilActiva ? ln : ln + ' (sin consumo)';
+      if (!esMovilActiva) opt.disabled = true;
       gbLineSelect.appendChild(opt);
     });
   }
@@ -2573,7 +2576,10 @@ document.querySelectorAll('input[name="dailyChartType"]').forEach(function(rb) {
   });
 
   // ========== ENRICH ORDERS WITH DRAFT ORDER DATA ==========
-  function enrichOrders() {
+  window.enrichOrders = function enrichOrders() {
+    var cid = typeof clientId !== 'undefined' ? clientId : (typeof window.clientIdGlobal !== 'undefined' ? window.clientIdGlobal : '');
+    if (!cid) { var fb = document.querySelector('.ver-consumo'); if (fb) cid = fb.dataset.client; }
+    if (!cid) return;
     var rows = document.querySelectorAll('#ordenes tbody tr');
     rows.forEach(function(row) {
       var idCell = row.querySelector('td:nth-child(1) small');
