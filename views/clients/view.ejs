@@ -52,6 +52,10 @@
 .bd table { font-size:0.44rem; width:100%; }
 .bd table th { color:#6c757d; font-weight:400; padding:1px 4px; width:55px; }
 .bd table td { padding:1px 4px; }
+.tab-row { display:flex; gap:4px; margin-bottom:6px; flex-wrap:wrap; }
+.tab-card { background:#fff; border-radius:6px; box-shadow:0 1px 2px rgba(0,0,0,.06); padding:8px 14px; font-size:0.72rem; cursor:pointer; color:#495057; border:1px solid #e9ecef; }
+.tab-card.active { background:#e7f1ff; border-color:#0d6efd; color:#0d6efd; font-weight:600; }
+.tab-card .badge { font-size:0.45rem; background:#e9ecef; color:#495057; padding:1px 5px; border-radius:5px; margin-left:3px; }
 </style>
 <section>
   <% if (typeof apiError !== 'undefined' && apiError) { %>
@@ -61,74 +65,37 @@
   </div>
   <% } %>
 
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-      <h4 class="mb-1"><i class="bi bi-person-circle text-primary"></i>
-        <%= (apiCustomer.name || apiCustomer.firstName || cliente.nombre) %> <%= (apiCustomer.lastName || apiCustomer.surname || cliente.apellidos || '') %>
-      </h4>
-      <small class="text-muted"><%= apiCustomer.fiscalId || cliente.dni_nif || '' %> &middot; #<%= _cid %></small>
-    </div>
-    <div class="d-flex gap-2 flex-wrap align-items-center">
-      <select id="globalFilter" class="form-select form-select-sm" style="width:auto;max-width:140px;font-size:0.75rem;">
-        <option value="activa">Activas</option>
-        <option value="all">Todas</option>
-        <option value="cancelada">Canceladas</option>
-      </select>
-      <a href="/clientes/<%= _cid %>/editar" class="btn btn-warning"><i class="bi bi-pencil"></i> Editar</a>
-      <button class="btn btn-outline-warning" onclick="openTicketModal()"><i class="bi bi-ticket"></i> Ticket</button>
-      <a href="/clientes" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Volver</a>
-    </div>
+  <!-- TABS como cards independientes -->
+  <div class="tab-row">
+    <button class="tab-card active" data-bs-toggle="tab" data-bs-target="#info"><i class="bi bi-info-circle"></i> Informaci&oacute;n</button>
+    <button class="tab-card" data-bs-toggle="tab" data-bs-target="#lineas"><i class="bi bi-phone"></i> L&iacute;neas / Suscripciones <% if (apiSubscriptions.length > 0 || lineas.length > 0) { %><span class="badge"><%= apiSubscriptions.length + lineas.length %></span><% } %></button>
+    <button class="tab-card" data-bs-toggle="tab" data-bs-target="#ordenes"><i class="bi bi-cart"></i> &Oacute;rdenes <% if (apiOrders.length > 0) { %><span class="badge"><%= apiOrders.length %></span><% } %></button>
+    <button class="tab-card" data-bs-toggle="tab" data-bs-target="#facturas"><i class="bi bi-receipt"></i> Facturas <% if (apiInvoices.length > 0) { %><span class="badge"><%= apiInvoices.length %></span><% } %></button>
+    <button class="tab-card" data-bs-toggle="tab" data-bs-target="#instalaciones"><i class="bi bi-wrench"></i> Instalaciones <% if (apiInstallations.length > 0) { %><span class="badge"><%= apiInstallations.length %></span><% } %></button>
+    <button class="tab-card" data-bs-toggle="tab" data-bs-target="#kyc"><i class="bi bi-file-earmark-text"></i> KYC</button>
+    <button class="tab-card" data-bs-toggle="tab" data-bs-target="#contrato"><i class="bi bi-file-text"></i> Contrato <% if (contratos.length > 0 || altasOrdenes.length > 0) { %><span class="badge"><%= contratos.length + altasOrdenes.length + contratosS3.length %></span><% } %></button>
   </div>
 
-  <div class="card">
-    <div class="card-header p-0">
-      <ul class="nav nav-tabs card-header-tabs mx-2 mt-2" id="detalleTab" role="tablist">
-        <li class="nav-item" role="presentation">
-          <button class="nav-link active" id="info-tab" data-bs-toggle="tab" data-bs-target="#info" type="button" role="tab" aria-controls="info" aria-selected="true">
-            <i class="bi bi-info-circle"></i> Informaci&oacute;n
-          </button>
-        </li>
-        <li class="nav-item" role="presentation">
-          <button class="nav-link" id="lineas-tab" data-bs-toggle="tab" data-bs-target="#lineas" type="button" role="tab" aria-controls="lineas" aria-selected="false">
-            <i class="bi bi-phone"></i> L&iacute;neas / Suscripciones
-<% if (apiSubscriptions.length > 0) { %><span class="badge bg-secondary ms-1"><%= apiSubscriptions.length %></span><% } %>
-          </button>
-        </li>
-        <li class="nav-item" role="presentation">
-          <button class="nav-link" id="ordenes-tab" data-bs-toggle="tab" data-bs-target="#ordenes" type="button" role="tab" aria-controls="ordenes" aria-selected="false">
-            <i class="bi bi-cart"></i> &Oacute;rdenes
-            <% if (apiOrders.length > 0) { %><span class="badge bg-secondary ms-1"><%= apiOrders.length %></span><% } %>
-          </button>
-        </li>
-        <li class="nav-item" role="presentation">
-          <button class="nav-link" id="facturas-tab" data-bs-toggle="tab" data-bs-target="#facturas" type="button" role="tab" aria-controls="facturas" aria-selected="false">
-            <i class="bi bi-receipt"></i> Facturas
-            <% if (apiInvoices.length > 0) { %><span class="badge bg-secondary ms-1"><%= apiInvoices.length %></span><% } %>
-          </button>
-        </li>
-        <li class="nav-item" role="presentation">
-          <button class="nav-link" id="instalaciones-tab" data-bs-toggle="tab" data-bs-target="#instalaciones" type="button" role="tab" aria-controls="instalaciones" aria-selected="false">
-            <i class="bi bi-wrench"></i> Instalaciones
-            <% if (apiInstallations.length > 0) { %><span class="badge bg-secondary ms-1"><%= apiInstallations.length %></span><% } %>
-          </button>
-        </li>
-        <li class="nav-item" role="presentation">
-          <button class="nav-link" id="kyc-tab" data-bs-toggle="tab" data-bs-target="#kyc" type="button" role="tab" aria-controls="kyc" aria-selected="false">
-            <i class="bi bi-file-earmark-text"></i> Documentos KYC
-          </button>
-        </li>
-        <li class="nav-item" role="presentation">
-          <button class="nav-link" id="contrato-tab" data-bs-toggle="tab" data-bs-target="#contrato" type="button" role="tab" aria-controls="contrato" aria-selected="false">
-            <i class="bi bi-file-text"></i> Contrato
-            <% if (contratos.length > 0 || altasOrdenes.length > 0) { %><span class="badge bg-secondary ms-1"><%= contratos.length + altasOrdenes.length + contratosS3.length %></span><% } %>
-          </button>
-        </li>
-      </ul>
-    </div>
-    <div class="card-body">
-      <div class="tab-content" id="detalleTabContent">
+  <!-- INFO CARD compacta -->
+  <div class="info-card">
+    <span><strong><%= (apiCustomer.name || apiCustomer.firstName || cliente.nombre) %> <%= (apiCustomer.lastName || apiCustomer.surname || cliente.apellidos || '') %></strong> · <%= apiCustomer.fiscalId || cliente.dni_nif || '' %></span>
+    <span class="text-muted">|</span>
+    <span>📧 <%= apiCustomer.email || cliente.email || '-' %></span>
+    <span>📱 <%= apiCustomer.phone || cliente.telefono || '-' %></span>
+    <span class="text-muted">|</span>
+    <span>🏢 <%= apiCustomer.customerType || cliente.tipo_cliente || 'particular' %></span>
+    <span>📅 <%= apiCustomer.created || cliente.created_at ? new Date(apiCustomer.created || cliente.created_at).toLocaleDateString('es-ES') : '-' %></span>
+    <span>📍 <%= (apiCustomer.billingAddress && (apiCustomer.billingAddress.street || apiCustomer.billingAddress.cityName)) || cliente.direccion || cliente.ciudad || '-' %></span>
+    <a href="/clientes/<%= _cid %>/editar">✏️ Editar</a>
+    <span class="text-muted">|</span>
+    <select id="globalFilter" style="font-size:0.6rem;border:1px solid #dee2e6;border-radius:4px;padding:2px 4px;">
+      <option value="activa">Activas</option>
+      <option value="all">Todas</option>
+      <option value="cancelada">Canceladas</option>
+    </select>
+  </div>
 
-        <!-- ==================== TAB 1: INFO ==================== -->
+  <div class="tab-content" id="detalleTabContent">
         <div class="tab-pane fade show active" id="info" role="tabpanel" aria-labelledby="info-tab">
 
   <!-- INFO CARD -->
