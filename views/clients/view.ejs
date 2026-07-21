@@ -83,150 +83,122 @@
 
         <!-- ==================== TAB 1: INFO ==================== -->
         <div class="tab-pane fade show active" id="info" role="tabpanel" aria-labelledby="info-tab">
-          <!-- INFO BAR -->
-          <div class="card mb-2" style="border:1px solid #e9ecef;border-radius:6px;box-shadow:0 1px 2px rgba(0,0,0,.04);">
-            <div class="card-body" style="padding:7px 14px;">
-              <div style="display:flex;flex-wrap:wrap;align-items:center;gap:3px 14px;font-size:0.72rem;">
-                <span><strong><%= (apiCustomer.name || apiCustomer.firstName || cliente.nombre) %> <%= (apiCustomer.lastName || apiCustomer.surname || cliente.apellidos || '') %></strong> · <%= apiCustomer.fiscalId || cliente.dni_nif || '' %></span>
-                <span class="text-muted">|</span>
-                <span>📧 <%= apiCustomer.email || cliente.email || '-' %></span>
-                <span>📱 <%= apiCustomer.phone || cliente.telefono || '-' %></span>
-                <span class="text-muted">|</span>
-                <span>🏢 <%= apiCustomer.customerType || cliente.tipo_cliente || 'particular' %></span>
-                <span>📅 <%= apiCustomer.created || cliente.created_at ? new Date(apiCustomer.created || cliente.created_at).toLocaleDateString('es-ES') : '-' %></span>
-                <span>📍 <%= (apiCustomer.billingAddress && (apiCustomer.billingAddress.street || apiCustomer.billingAddress.cityName)) || cliente.direccion || cliente.ciudad || '-' %></span>
-                <a href="/clientes/<%= _cid %>/editar" style="color:#0d6efd;font-size:0.6rem;text-decoration:none;">✏️ Editar</a>
-              </div>
-            </div>
-          </div>
-          <!-- LINEAS + SCORING + PANEL INFERIOR -->
-          <% 
-            var movilesActivas = [];
-            if (apiSubscriptions && apiSubscriptions.length > 0) {
-              apiSubscriptions.forEach(function(s) {
-                var prods = s.products && s.products.length ? s.products : [{productName: s.productName, lineNumber: s.lineNumber, status: s.status, icc: s.icc}];
-                prods.forEach(function(p) {
-                  var est = (p.status || s.status || '').toLowerCase();
-                  var ln = p.lineNumber || s.lineNumber || '';
-                  if (/^[67]\d{8}$/.test(ln)) {
-                    movilesActivas.push({ lineNumber: ln, productName: p.productName || s.productName || '', status: est, icc: p.icc || s.icc || '' });
-                  }
-                });
-              });
-            }
-            var lineCharts = {};
-            var lineTipos = {};
-          %>
 
-          <!-- 70/30 MAIN -->
-          <div class="line-grid-70">
-            <div class="line-col70">
-              <% movilesActivas.slice(0,2).forEach(function(line) { %>
-              <div class="line-card">
-                <div class="line-h"><span><strong style="font-size:0.68rem;"><%= line.lineNumber %></strong> <span class="badge" style="font-size:0.4rem;padding:1px 5px;border-radius:4px;background:<%= line.status === 'active' || line.status === 'activa' ? '#d1e7dd;color:#0f5132' : '#e9ecef;color:#495057' %>;"><%= line.status === 'active' || line.status === 'activa' ? 'Activa' : line.status %></span></span><span style="font-size:0.32rem;color:#adb5bd;">⋮</span></div>
-                <div class="line-b">
-                  <div style="font-size:0.48rem;color:#6c757d;display:flex;justify-content:space-between;"><span><%= line.productName.substring(0,30) %></span><span>💳 IBAN</span></div>
-                  <div style="font-size:0.36rem;color:#6c757d;">📅 Julio 2026 ◀ ▶</div>
-                  <div style="position:relative;height:60px;margin:4px 0;">
-                    <canvas id="chart-<%= line.lineNumber %>" style="width:100%;height:100%;"></canvas>
-                  </div>
-                  <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.4rem;color:#6c757d;">
-                    <span>GB 📞 💬</span>
-                    <span id="usage-<%= line.lineNumber %>">-</span>
-                  </div>
-                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px 6px;font-size:0.4rem;margin-top:3px;">
-                    <div style="display:flex;justify-content:space-between;padding:1px 0;border-bottom:1px solid #f5f5f5;"><span style="color:#6c757d;">ICC</span><span style="font-weight:500;"><%= (line.icc || '').substring(0,12) %>.. 📋</span></div>
-                    <div style="display:flex;justify-content:space-between;padding:1px 0;border-bottom:1px solid #f5f5f5;"><span style="color:#6c757d;">PIN/PUK</span><span style="font-weight:500;">****/**** 👁️</span></div>
-                    <div style="display:flex;justify-content:space-between;padding:1px 0;border-bottom:1px solid #f5f5f5;"><span style="color:#6c757d;">💳 Pago</span><span style="font-weight:500;">IBAN ✏️</span></div>
-                    <div style="display:flex;justify-content:space-between;padding:1px 0;border-bottom:1px solid #f5f5f5;"><span style="color:#6c757d;">💰 Crédito</span><span style="font-weight:500;">25€ ✏️</span></div>
-                    <div style="display:flex;justify-content:space-between;padding:1px 0;border-bottom:1px solid #f5f5f5;"><span style="color:#6c757d;">📊 GB Nac</span><span id="gbNac-<%= line.lineNumber %>" style="font-weight:500;">-</span></div>
-                    <div style="display:flex;justify-content:space-between;padding:1px 0;border-bottom:1px solid #f5f5f5;"><span style="color:#6c757d;">🌍 GB Roam</span><span id="gbRoam-<%= line.lineNumber %>" style="font-weight:500;">-</span></div>
-                    <div style="display:flex;justify-content:space-between;padding:1px 0;border-bottom:1px solid #f5f5f5;"><span style="color:#6c757d;">📱 Notificar</span><span><input type="checkbox" style="transform:scale(0.35);"></span></div>
-                    <div style="display:flex;justify-content:space-between;padding:1px 0;border-bottom:1px solid #f5f5f5;"><span style="color:#6c757d;">🚫 Bloquear</span><span><input type="checkbox" style="transform:scale(0.35);"> ✏️</span></div>
-                  </div>
-                  <div style="display:flex;gap:2px;margin-top:3px;flex-wrap:wrap;">
-                    <button class="btn btn-sm py-0" style="font-size:0.36rem;background:#0d6efd;color:#fff;border:1px solid #0d6efd;">⚙️ Gestión</button>
-                    <button class="btn btn-sm py-0" style="font-size:0.36rem;border:1px solid #ced4da;background:#fff;" onclick="mostrarPinPuk('<%= line.lineNumber %>')">🔑 PIN/PUK</button>
-                    <button class="btn btn-sm py-0" style="font-size:0.36rem;border:1px solid #ced4da;background:#fff;">💳 Pago</button>
-                    <button class="btn btn-sm py-0" style="font-size:0.36rem;border:1px solid #ced4da;background:#fff;">📱 eSIM</button>
-                  </div>
-                </div>
-              </div>
-              <% }); %>
+  <!-- INFO CARD -->
+  <div class="info-card">
+    <span><strong><%= (apiCustomer.name || apiCustomer.firstName || cliente.nombre) %> <%= (apiCustomer.lastName || apiCustomer.surname || cliente.apellidos || '') %></strong> · <%= apiCustomer.fiscalId || cliente.dni_nif || '' %></span>
+    <span class="text-muted">|</span>
+    <span>📧 <%= apiCustomer.email || cliente.email || '-' %></span>
+    <span>📱 <%= apiCustomer.phone || cliente.telefono || '-' %></span>
+    <span class="text-muted">|</span>
+    <span>🏢 <%= apiCustomer.customerType || cliente.tipo_cliente || 'particular' %></span>
+    <span>📅 <%= apiCustomer.created || cliente.created_at ? new Date(apiCustomer.created || cliente.created_at).toLocaleDateString('es-ES') : '-' %></span>
+    <span>📍 <%= (apiCustomer.billingAddress && (apiCustomer.billingAddress.street || apiCustomer.billingAddress.cityName)) || cliente.direccion || cliente.ciudad || '-' %></span>
+    <a href="/clientes/<%= _cid %>/editar">✏️ Editar</a>
+  </div>
+
+  <!-- 70/30 GRID -->
+  <div class="row2">
+    <div class="col70">
+      <% var movilesActivas = []; if (apiSubscriptions) { apiSubscriptions.forEach(function(s) { (s.products && s.products.length ? s.products : [{productName: s.productName, lineNumber: s.lineNumber, status: s.status, icc: s.icc}]).forEach(function(p) { var est = (p.status || s.status || '').toLowerCase(); var ln = p.lineNumber || s.lineNumber || ''; if (/^[67]\d{8}$/.test(ln)) movilesActivas.push({ lineNumber: ln, productName: p.productName || s.productName || '', status: est, icc: p.icc || s.icc || '' }); }); }); } %>
+
+      <% movilesActivas.slice(0,2).forEach(function(line) { %>
+      <div class="lc">
+        <div class="h"><span>📱 <span class="ln"><%= line.lineNumber %></span> <span class="be ba"><%= line.status === 'active' || line.status === 'activa' ? 'Activa' : line.status %></span></span><span style="font-size:0.32rem;color:#adb5bd;">⋮</span></div>
+        <div class="b">
+          <div class="lp"><span><%= line.productName.substring(0,30) %></span><span>💳 IBAN</span></div>
+          <div style="font-size:0.36rem;color:#6c757d;">📅 Julio 2026 ◀ ▶</div>
+          <div class="cr" style="height:28px;"><% for(var d=1;d<=31;d++) { %><div class="b" style="height:<%= 20+Math.floor(Math.random()*45) %>%;position:relative;"><span class="bl"><%= d %></span></div><% } %></div>
+          <div class="cl"><div class="tg"><span class="tb act">GB</span><span class="tb">📞</span><span class="tb">💬</span></div><span class="ut" id="usage-<%= line.lineNumber %>">-</span></div>
+          <div class="dg">
+            <div class="r"><span class="l">ICC</span><span class="v"><%= (line.icc || '-').substring(0,12) %>.. <span class="ei">📋</span></span></div>
+            <div class="r"><span class="l">PIN/PUK</span><span class="v">****/**** <span class="ei">👁️</span></span></div>
+            <div class="r"><span class="l">💳 Pago</span><span class="v">IBAN <span class="ei">✏️</span></span></div>
+            <div class="r"><span class="l">💰 Crédito</span><span class="v">25€ <span class="ei">✏️</span></span></div>
+            <div class="r"><span class="l">🏢 SPN</span><span class="v">Movilbro</span></div>
+            <div class="r"><span class="l">📅 Alta</span><span class="v">-</span></div>
+            <div class="r"><span class="l">📊 GB Nac</span><span class="v" id="gbNac-<%= line.lineNumber %>">-</span></div>
+            <div class="r"><span class="l">🌍 GB Roam</span><span class="v" id="gbRoam-<%= line.lineNumber %>">-</span></div>
+            <div class="r"><span class="l">📱 Notificar</span><span class="v"><input type="checkbox" checked style="transform:scale(0.4);"></span></div>
+            <div class="r"><span class="l">🚫 Bloquear</span><span class="v"><input type="checkbox" style="transform:scale(0.4);"> <span class="ei">✏️</span></span></div>
+          </div>
+          <div class="ar">
+            <button class="ab pri" onclick="window.location.href='/clientes/<%= _cid %>/line/<%= line.lineNumber %>/gestion'">⚙️ Gestión</button>
+            <button class="ab" onclick="mostrarPinPuk('<%= line.lineNumber %>')">🔑 PIN/PUK</button>
+            <button class="ab">💳 Pago</button>
+            <button class="ab">📱 eSIM</button>
+            <button class="ab">📊 Consumo</button>
+          </div>
+        </div>
+      </div>
+      <% }); %>
+    </div>
+
+    <div class="col30">
+      <!-- SCORING -->
+      <div class="lc">
+        <div class="h"><span>🧠 Scoring</span><span style="font-size:0.32rem;">⋮</span></div>
+        <div class="b">
+          <div class="sc-bg" style="text-align:center;"><div class="sc-val" id="scoringVal">-</div><span style="font-size:0.7rem;">/10</span><div style="font-size:0.38rem;">Riesgo: <strong id="scoringRisk">-</strong></div><button class="sc-btn" onclick="calcularScoring('<%= _cid %>')">🔄 Calcular</button></div>
+          <div class="sc-bg"><h6>🌐 Factores</h6><table class="sc-tb"><tbody id="scoringFactores"><tr><td style="color:#6c757d;">Pulsa Calcular</td></tr></tbody></table></div>
+          <div class="sc-bg"><h6>🔍 Links</h6><div class="sc-links"><a href="https://www.boe.es/buscar/boe.php?campo%5B%5D=NIF&dato%5B%5D=<%= encodeURIComponent(apiCustomer.fiscalId || cliente.dni_nif || '') %>&campo%5B%5D=TIT&operador%5B%5D=and&page_h_t=1&lang=es" target="_blank">BOE</a><a href="https://www.google.com/search?q=<%= encodeURIComponent((apiCustomer.fiscalId || cliente.dni_nif || '') + ' morosidad') %>" target="_blank">Google</a></div></div>
+        </div>
+      </div>
+
+      <!-- 50/50 LINEAS DEBAJO SCORING -->
+      <div class="sub2">
+        <% movilesActivas.slice(2,4).forEach(function(line) { %>
+        <div class="lc">
+          <div class="h" style="padding:3px 6px;font-size:0.5rem;"><span><%= line.lineNumber %> <span class="be ba"><%= line.status === 'active' || line.status === 'activa' ? 'Activa' : line.status %></span></span></div>
+          <div class="b" style="padding:3px 6px;">
+            <div class="lp" style="font-size:0.42rem;"><span><%= line.productName.substring(0,20) %></span></div>
+            <div style="height:20px;display:flex;align-items:flex-end;gap:1px;margin:2px 0;">
+              <% for(var d=1;d<=10;d++) { %><div style="flex:1;background:#0dcaf0;height:<%= 15+Math.floor(Math.random()*40) %>%;border-radius:1px;"></div><% } %>
             </div>
-            <div class="line-col30">
-              <div class="line-card">
-                <div class="line-h"><span>🧠 Scoring</span></div>
-                <div class="line-b">
-                  <div class="sc-box" style="text-align:center;"><span class="sc-val" id="scoringVal">-</span><span style="font-size:0.7rem;">/10</span><div style="font-size:0.38rem;">Riesgo: <strong id="scoringRisk">-</strong></div><button class="btn btn-sm py-0 mt-1" style="font-size:0.38rem;border:1px solid #0d6efd;background:#fff;color:#0d6efd;" onclick="calcularScoring('<%= _cid %>')">🔄 Calcular</button></div>
-                  <div class="sc-box"><h6>🌐 Factores</h6><table class="sc-tbl"><tbody id="scoringFactores"><tr><td style="color:#6c757d;">Pulsa Calcular</td></tr></tbody></table></div>
-                  <div class="sc-box"><h6>🔍 Links</h6><div class="sc-links"><a href="https://www.boe.es/buscar/boe.php?campo%5B%5D=NIF&dato%5B%5D=<%= encodeURIComponent(apiCustomer.fiscalId || cliente.dni_nif || '') %>&campo%5B%5D=TIT&operador%5B%5D=and&page_h_t=1&lang=es" target="_blank">BOE</a><a href="https://www.google.com/search?q=<%= encodeURIComponent((apiCustomer.fiscalId || cliente.dni_nif || '') + ' morosidad') %>" target="_blank">Google</a></div></div>
-                </div>
-              </div>
-              <% movilesActivas.slice(2,4).forEach(function(line) { %>
-              <div class="line-card" style="margin-top:4px;">
-                <div class="line-h" style="padding:3px 6px;font-size:0.45rem;"><span><%= line.lineNumber %> <span class="badge" style="font-size:0.35rem;background:<%= line.status === 'active' || line.status === 'activa' ? '#d1e7dd;color:#0f5132' : '#e9ecef;color:#495057' %>;"><%= line.status === 'active' || line.status === 'activa' ? 'Activa' : line.status %></span></span></div>
-                <div class="line-b" style="padding:3px 6px;">
-                  <div style="font-size:0.38rem;color:#6c757d;"><%= line.productName.substring(0,25) %></div>
-                  <div style="position:relative;height:40px;margin:2px 0;">
-                    <canvas id="chart-<%= line.lineNumber %>" style="width:100%;height:100%;"></canvas>
-                  </div>
-                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px 6px;font-size:0.36rem;margin-top:2px;">
-                    <div style="display:flex;justify-content:space-between;"><span style="color:#6c757d;">ICC</span><span><%= (line.icc || '').substring(0,10) %>..</span></div>
-                    <div style="display:flex;justify-content:space-between;"><span style="color:#6c757d;">PIN/PUK</span><span>****/****</span></div>
-                    <div style="display:flex;justify-content:space-between;"><span style="color:#6c757d;">📊 GB Nac</span><span id="gbNac-<%= line.lineNumber %>" style="font-weight:500;">-</span></div>
-                    <div style="display:flex;justify-content:space-between;"><span style="color:#6c757d;">🌍 GB Roam</span><span id="gbRoam-<%= line.lineNumber %>" style="font-weight:500;">-</span></div>
-                  </div>
-                  <div style="display:flex;gap:2px;margin-top:2px;">
-                    <button class="btn btn-sm py-0" style="font-size:0.32rem;background:#0d6efd;color:#fff;border:1px solid #0d6efd;">⚙️</button>
-                    <button class="btn btn-sm py-0" style="font-size:0.32rem;border:1px solid #ced4da;background:#fff;" onclick="mostrarPinPuk('<%= line.lineNumber %>')">🔑</button>
-                  </div>
-                </div>
-              </div>
-              <% }); %>
+            <div class="ut" style="font-size:0.36rem;" id="usage-<%= line.lineNumber %>">-</div>
+            <div style="display:flex;gap:2px;margin-top:2px;">
+              <button class="ab pri" style="font-size:0.3rem;" onclick="window.location.href='/clientes/<%= _cid %>/line/<%= line.lineNumber %>/gestion'">⚙️</button>
+              <button class="ab" style="font-size:0.3rem;" onclick="mostrarPinPuk('<%= line.lineNumber %>')">🔑</button>
             </div>
           </div>
         </div>
-        </div>
+        <% }); %>
+      </div>
+    </div>
+  </div>
 
-            </div>
-          </div>
+  <!-- BOTTOM PANEL -->
+  <div class="bp">
+    <div class="bph">
+      <span style="font-weight:600;">📱 Líneas / Suscripciones</span>
+      <select style="font-size:0.38rem;"><option selected>Activas</option><option>Todas</option><option>Canceladas</option></select>
+      <span style="margin-left:auto;font-size:0.38rem;"><%= (apiSubscriptions || []).length %> líneas</span>
+    </div>
+    <div class="pills">
+      <% (apiSubscriptions || []).slice(0,8).forEach(function(s) { %>
+        <% (s.products && s.products.length ? s.products : [{productName: s.productName, lineNumber: s.lineNumber, status: s.status}]).forEach(function(p) { %>
+          <span class="pill"><%= p.lineNumber || s.lineNumber %></span>
+        <% }); %>
+      <% }); %>
+    </div>
+    <div class="bd">
+      <div><table><tr><th>Producto</th><td id="detProducto">-</td></tr><tr><th>Estado</th><td id="detEstado">-</td></tr><tr><th>ICC</th><td id="detIcc">-</td></tr><tr><th>PIN/PUK</th><td id="detPinPuk">-</td></tr></table></div>
+      <div><table><tr><th>💳 Pago</th><td id="detPago">-</td></tr><tr><th>💰 Crédito</th><td id="detCredito">-</td></tr><tr><th>🏢 SPN</th><td>Movilbro</td></tr><tr><th>📅 Alta</th><td id="detAlta">-</td></tr></table></div>
+      <div><table><tr><th>📊 GB Nac</th><td id="detGbNac">-</td></tr><tr><th>🌍 GB Roam</th><td id="detGbRoam">-</td></tr><tr><th>📱 Notificar</th><td><input type="checkbox" checked style="transform:scale(0.4);"></td></tr><tr><th>🚫 Bloquear</th><td><input type="checkbox" style="transform:scale(0.4);"> ✏️</td></tr></table></div>
+      <div style="display:flex;flex-direction:column;gap:2px;">
+        <button class="ab pri" style="font-size:0.36rem;">⚙️ Gestión</button>
+        <button class="ab" style="font-size:0.36rem;">🔑 PIN/PUK</button>
+        <button class="ab" style="font-size:0.36rem;">🚫 Bloquear</button>
+        <button class="ab" style="font-size:0.36rem;">✅ Desbloquear</button>
+        <button class="ab" style="font-size:0.36rem;">💳 Cambiar pago</button>
+        <button class="ab" style="font-size:0.36rem;">📱 eSIM</button>
+        <button class="ab" style="font-size:0.36rem;">📝 Cambio tarifa</button>
+        <button class="ab" style="font-size:0.36rem;">📋 Duplicar SIM</button>
+      </div>
+    </div>
+  </div>
 
-          <!-- BOTTOM PANEL -->
-          <div class="bot-panel">
-            <div class="bot-h">
-              <span style="font-weight:600;">📱 Líneas / Suscripciones</span>
-              <select class="form-select form-select-sm" style="width:auto;font-size:0.4rem;" id="subsFilter">
-                <option value="activa">Activas</option>
-                <option value="all">Todas</option>
-                <option value="cancelada">Canceladas</option>
-              </select>
-              <span style="margin-left:auto;font-size:0.4rem;"><%= apiSubscriptions.length %> líneas</span>
-            </div>
-            <div class="bot-pills" id="botPills">
-              <% apiSubscriptions.slice(0,8).forEach(function(s) { %>
-                <% (s.products && s.products.length ? s.products : [{productName: s.productName, lineNumber: s.lineNumber, status: s.status}]).forEach(function(p) { %>
-                  <span class="bot-pill" data-line="<%= p.lineNumber || s.lineNumber %>" onclick="selectLine('<%= p.lineNumber || s.lineNumber %>')"><%= p.lineNumber || s.lineNumber %></span>
-                <% }); %>
-              <% }); %>
-            </div>
-            <div class="bot-det">
-              <div><table><tr><th>Producto</th><td id="detProducto">-</td></tr><tr><th>Estado</th><td id="detEstado">-</td></tr><tr><th>ICC</th><td id="detIcc">-</td></tr><tr><th>PIN/PUK</th><td id="detPinPuk">-</td></tr></table></div>
-              <div><table><tr><th>💳 Pago</th><td id="detPago">-</td></tr><tr><th>💰 Crédito</th><td id="detCredito">-</td></tr><tr><th>🏢 SPN</th><td>Movilbro</td></tr><tr><th>📅 Alta</th><td id="detAlta">-</td></tr></table></div>
-              <div><table><tr><th>📊 GB Nac</th><td id="detGbNac">-</td></tr><tr><th>🌍 GB Roam</th><td id="detGbRoam">-</td></tr></table></div>
-            </div>
-            <div class="bot-btns">
-              <button class="pri" onclick="gestionLinea()">⚙️ Gestión</button>
-              <button onclick="pinPukLinea()">🔑 PIN/PUK</button>
-              <button>🚫 Bloquear</button>
-              <button>✅ Desbloquear</button>
-              <button>💳 Cambiar pago</button>
-              <button>📱 eSIM</button>
-              <button>📝 Cambio tarifa</button>
-              <button>📋 Duplicar SIM</button>
-            </div>
-          </div>
-        </div>
+</div>
         <!-- ==================== TAB 2: L├ìNEAS / SUSCRIPCIONES ==================== -->
         <div class="tab-pane fade" id="lineas" role="tabpanel" aria-labelledby="lineas-tab">
           <% if (apiSubscriptions.length === 0 && lineas.length === 0) { %>
