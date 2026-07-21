@@ -127,7 +127,9 @@
                 <div class="line-b">
                   <div style="font-size:0.48rem;color:#6c757d;display:flex;justify-content:space-between;"><span><%= line.productName.substring(0,30) %></span><span>💳 IBAN</span></div>
                   <div style="font-size:0.36rem;color:#6c757d;">📅 Julio 2026 ◀ ▶</div>
-                  <div class="chart-mini" id="chart-<%= line.lineNumber %>"></div>
+                  <div style="position:relative;height:60px;margin:4px 0;">
+                    <canvas id="chart-<%= line.lineNumber %>" style="width:100%;height:100%;"></canvas>
+                  </div>
                   <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.4rem;color:#6c757d;">
                     <span>GB 📞 💬</span>
                     <span id="usage-<%= line.lineNumber %>">-</span>
@@ -2665,7 +2667,7 @@ function renderLineChart(line) {
   if (!mesData.length) return;
   var nav = document.getElementById('nav-' + line);
   if (nav) { nav.style.display = ''; nav.innerHTML = '<span class="fw-semibold" style="font-size:0.65rem;">' + mesSel.substring(0,4) + '/' + mesSel.substring(5,7) + '</span>'; }
-  var ctx = document.getElementById('gbChart-' + line);
+  var ctx = document.getElementById('chart-' + line);
   if (!ctx) return;
   if (_lineCharts[line]) { _lineCharts[line].destroy(); }
   var labels = mesData.map(function(d) { var p = d.date.split('-'); return p[2] + '/' + p[1]; });
@@ -2697,6 +2699,62 @@ function toggleLineChartTipo(line, tipo, btn) {
   // Re-render with new tipo (simplificado: recargar datos)
   // Por ahora solo soporta GB
 }
+
+// ===== AUTO LOAD PER-LINE DATA =====
+var _lineChartData = {};
+var _lineCharts = {};
+function initLineCharts() {
+  var cidEl = document.querySelector('[data-client]');
+  var cid = cidEl ? cidEl.getAttribute('data-client') : '';
+  if (!cid) { var fb = document.querySelector('.ver-consumo'); if (fb) cid = fb.dataset.client; }
+  if (!cid) return;
+  var canvases = document.querySelectorAll('[id^="chart-"]');
+  var lines = [];
+  canvases.forEach(function(c) { var id = c.id || ''; if (id.startsWith('chart-')) lines.push(id.replace('chart-', '')); });
+  lines = lines.filter(function(v,i,a) { return a.indexOf(v) === i; });
+  lines.forEach(function(line) {
+    loadLineData(line, cid);
+    loadLineGB(line, cid);
+  });
+}
+function loadLineData(line, cid) {
+  fetch('/clientes/' + encodeURIComponent(cid) + '/line/' + encodeURIComponent(line) + '/daily-consumption', { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+      if (res.ok && res.data && res.data.length > 0) {
+        _lineChartData[line] = res.data;
+        renderLineChart(line);
+      }
+    }).catch(function() {});
+}
+function loadLineGB(line, cid) {
+  fetch('/clientes/' + encodeURIComponent(cid) + '/line/' + encodeURIComponent(line) + '/consumption', { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+      if (res.ok && res.data) {
+        var d = res.data.data || res.data;
+        var nac = d.usedGB || d.used_gb || d.used || 0;
+        var nacTotal = d.totalGB || d.total_gb || d.total || 0;
+        var roam = d.usedRoamingGB || d.used_roaming_gb || d.roaming || 0;
+        var roamTotal = d.totalRoamingGB || d.total_roaming_gb || 0;
+        var nacEl = document.getElementById('gbNac-' + line);
+        if (nacEl) nacEl.textContent = nac.toFixed(2) + ' / ' + (nacTotal || 30).toFixed(2) + ' GB';
+        var roamEl = document.getElementById('gbRoam-' + line);
+        if (roamEl) roamEl.textContent = (roam || 0).toFixed(2) + ' / ' + (roamTotal || 1).toFixed(2) + ' GB';
+      }
+    }).catch(function() {});
+}
+// ===== BOTTOM PANEL =====
+var detLineSelected = '';
+function selectLine(line) {
+  detLineSelected = line;
+  document.querySelectorAll('.bot-pill').forEach(function(p) { p.classList.remove('act'); });
+  var pill = document.querySelector('.bot-pill[data-line="' + line + '"]');
+  if (pill) pill.classList.add('act');
+  document.getElementById('detProducto').textContent = line;
+}
+function gestionLinea() { if (detLineSelected) window.location.href = window.location.pathname + '?gestion=' + encodeURIComponent(detLineSelected) + '&client=' + encodeURIComponent(document.querySelector('[data-client]')?.getAttribute('data-client') || ''); }
+function pinPukLinea() { if (detLineSelected) mostrarPinPuk(detLineSelected); }
 
 function filtrarSubs(){
   var g=document.getElementById('globalFilter');
@@ -2937,6 +2995,9 @@ function escapeStr(s) {
   if (!s) return '';
   return String(s).replace(/'/g,"\\'").replace(/"/g,'&quot;');
 }
+// Auto-load per-line data
+setTimeout(function() { if (typeof initLineCharts === 'function') initLineCharts(); }, 500);
+setTimeout(function() { if (document.querySelector('.bot-pill')) selectLine(document.querySelector('.bot-pill').getAttribute('data-line') || ''); }, 600);
 </script>
 
 <!-- Modal de Línea -->
