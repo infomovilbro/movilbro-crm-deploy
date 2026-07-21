@@ -166,7 +166,22 @@
               <% movilesActivas.slice(2,4).forEach(function(line) { %>
               <div class="line-card" style="margin-top:4px;">
                 <div class="line-h" style="padding:3px 6px;font-size:0.45rem;"><span><%= line.lineNumber %> <span class="badge" style="font-size:0.35rem;background:<%= line.status === 'active' || line.status === 'activa' ? '#d1e7dd;color:#0f5132' : '#e9ecef;color:#495057' %>;"><%= line.status === 'active' || line.status === 'activa' ? 'Activa' : line.status %></span></span></div>
-                <div class="line-b" style="padding:3px 6px;"><div style="font-size:0.38rem;color:#6c757d;"><%= line.productName.substring(0,25) %></div></div>
+                <div class="line-b" style="padding:3px 6px;">
+                  <div style="font-size:0.38rem;color:#6c757d;"><%= line.productName.substring(0,25) %></div>
+                  <div style="position:relative;height:40px;margin:2px 0;">
+                    <canvas id="chart-<%= line.lineNumber %>" style="width:100%;height:100%;"></canvas>
+                  </div>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px 6px;font-size:0.36rem;margin-top:2px;">
+                    <div style="display:flex;justify-content:space-between;"><span style="color:#6c757d;">ICC</span><span><%= (line.icc || '').substring(0,10) %>..</span></div>
+                    <div style="display:flex;justify-content:space-between;"><span style="color:#6c757d;">PIN/PUK</span><span>****/****</span></div>
+                    <div style="display:flex;justify-content:space-between;"><span style="color:#6c757d;">📊 GB Nac</span><span id="gbNac-<%= line.lineNumber %>" style="font-weight:500;">-</span></div>
+                    <div style="display:flex;justify-content:space-between;"><span style="color:#6c757d;">🌍 GB Roam</span><span id="gbRoam-<%= line.lineNumber %>" style="font-weight:500;">-</span></div>
+                  </div>
+                  <div style="display:flex;gap:2px;margin-top:2px;">
+                    <button class="btn btn-sm py-0" style="font-size:0.32rem;background:#0d6efd;color:#fff;border:1px solid #0d6efd;">⚙️</button>
+                    <button class="btn btn-sm py-0" style="font-size:0.32rem;border:1px solid #ced4da;background:#fff;" onclick="mostrarPinPuk('<%= line.lineNumber %>')">🔑</button>
+                  </div>
+                </div>
               </div>
               <% }); %>
             </div>
@@ -2704,18 +2719,16 @@ function toggleLineChartTipo(line, tipo, btn) {
 var _lineChartData = {};
 var _lineCharts = {};
 function initLineCharts() {
-  var cidEl = document.querySelector('[data-client]');
-  var cid = cidEl ? cidEl.getAttribute('data-client') : '';
-  if (!cid) { var fb = document.querySelector('.ver-consumo'); if (fb) cid = fb.dataset.client; }
+  if (typeof Chart === 'undefined') { setTimeout(initLineCharts, 1000); return; }
+  var cid = document.querySelector('[data-client]')?.getAttribute('data-client') || document.querySelector('.ver-consumo')?.dataset.client || '';
+  if (!cid) { var match = window.location.pathname.match(/\/fiscal\/([^\/]+)/); if (match) cid = match[1]; }
   if (!cid) return;
-  var canvases = document.querySelectorAll('[id^="chart-"]');
-  var lines = [];
-  canvases.forEach(function(c) { var id = c.id || ''; if (id.startsWith('chart-')) lines.push(id.replace('chart-', '')); });
-  lines = lines.filter(function(v,i,a) { return a.indexOf(v) === i; });
-  lines.forEach(function(line) {
-    loadLineData(line, cid);
-    loadLineGB(line, cid);
+  var lineIds = [];
+  document.querySelectorAll('[id^="chart-"]').forEach(function(c) {
+    var id = c.id.replace('chart-', '');
+    if (id && lineIds.indexOf(id) === -1 && /^\d+$/.test(id)) lineIds.push(id);
   });
+  lineIds.forEach(function(line) { loadLineData(line, cid); loadLineGB(line, cid); });
 }
 function loadLineData(line, cid) {
   fetch('/clientes/' + encodeURIComponent(cid) + '/line/' + encodeURIComponent(line) + '/daily-consumption', { method: 'POST' })
