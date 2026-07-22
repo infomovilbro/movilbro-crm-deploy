@@ -114,7 +114,7 @@
   <!-- 70/30 GRID -->
   <div class="row2">
     <div class="col70">
-      <% var movilesActivas = []; if (apiSubscriptions) { apiSubscriptions.forEach(function(s) { (s.products && s.products.length ? s.products : [{productName: s.productName, lineNumber: s.lineNumber, status: s.status, icc: s.icc}]).forEach(function(p) { var est = (p.status || s.status || '').toLowerCase(); var ln = p.lineNumber || s.lineNumber || ''; if (/^[67]\d{8}$/.test(ln)) movilesActivas.push({ lineNumber: ln, productName: p.productName || s.productName || '', status: est, icc: p.icc || s.icc || '' }); }); }); } %>
+      <% var movilesActivas = []; if (apiSubscriptions) { apiSubscriptions.forEach(function(s) { (s.products && s.products.length ? s.products : [{productName: s.productName, lineNumber: s.lineNumber, status: s.status, icc: s.icc}]).forEach(function(p) { var est = (p.status || s.status || '').toLowerCase(); var ln = p.lineNumber || s.lineNumber || ''; if (/^[67]\d{8}$/.test(ln) && !movilesActivas.some(function(m) { return m.lineNumber === ln; })) movilesActivas.push({ lineNumber: ln, productName: p.productName || s.productName || '', status: est, icc: p.icc || s.icc || '' }); }); }); } %>
 
       <% movilesActivas.slice(0,2).forEach(function(line) { %>
       <div class="lc">
@@ -2706,8 +2706,10 @@ var _lineChartData = {};
 var _lineCharts = {};
 function initLineCharts() {
   if (typeof Chart === 'undefined') { setTimeout(initLineCharts, 1000); return; }
-  var cid = document.querySelector('[data-client]')?.getAttribute('data-client') || document.querySelector('.ver-consumo')?.dataset.client || '';
-  if (!cid) { var match = window.location.pathname.match(/\/fiscal\/([^\/]+)/); if (match) cid = match[1]; }
+  var cid = '';
+  var match = window.location.pathname.match(/\/fiscal\/([^\/]+)/);
+  if (match) cid = match[1];
+  if (!cid) cid = document.querySelector('[data-client]')?.getAttribute('data-client') || document.querySelector('.ver-consumo')?.dataset.client || '';
   if (!cid) return;
   var lineIds = [];
   document.querySelectorAll('[id^="chart-"]').forEach(function(c) {
@@ -2996,6 +2998,7 @@ function escapeStr(s) {
 }
 // Auto-load per-line data
 setTimeout(function() { if (typeof initLineCharts === 'function') initLineCharts(); }, 500);
+setTimeout(function() { if (typeof calcularScoring === 'function') { var c = document.querySelector('[onclick*=\"calcularScoring\"]'); if (c) { var m = c.getAttribute('onclick').match(/'([^']+)'/); if (m) calcularScoring(m[1]); } } }, 2000);
 setTimeout(function() { if (document.querySelector('.bot-pill')) selectLine(document.querySelector('.bot-pill').getAttribute('data-line') || ''); }, 600);
 </script>
 
