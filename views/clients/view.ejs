@@ -122,7 +122,9 @@
         <div class="b">
           <div class="lp"><span><%= line.productName.substring(0,30) %></span><span>💳 IBAN</span></div>
           <div style="font-size:0.36rem;color:#6c757d;">📅 Julio 2026 ◀ ▶</div>
-          <div class="cr" style="height:28px;"><% for(var d=1;d<=31;d++) { %><div class="b" style="height:<%= 20+Math.floor(Math.random()*45) %>%;position:relative;"><span class="bl"><%= d %></span></div><% } %></div>
+          <div style="position:relative;height:60px;margin:4px 0;">
+            <canvas id="chart-<%= line.lineNumber %>" style="width:100%;height:100%;"></canvas>
+          </div>
           <div class="cl"><div class="tg"><span class="tb act">GB</span><span class="tb">📞</span><span class="tb">💬</span></div><span class="ut" id="usage-<%= line.lineNumber %>">-</span></div>
           <div class="dg">
             <div class="r"><span class="l">ICC</span><span class="v"><%= (line.icc || '-').substring(0,12) %>.. <span class="ei">📋</span></span></div>
@@ -139,9 +141,9 @@
           <div class="ar">
             <button class="ab pri" onclick="window.location.href='/clientes/<%= _cid %>/line/<%= line.lineNumber %>/gestion'">⚙️ Gestión</button>
             <button class="ab" onclick="mostrarPinPuk('<%= line.lineNumber %>')">🔑 PIN/PUK</button>
-            <button class="ab">💳 Pago</button>
-            <button class="ab">📱 eSIM</button>
-            <button class="ab">📊 Consumo</button>
+            <button class="ab" onclick="window.location.href='/clientes/<%= _cid %>/line/<%= line.lineNumber %>/gestion'">💳 Pago</button>
+            <button class="ab" onclick="window.location.href='/clientes/<%= _cid %>/line/<%= line.lineNumber %>/gestion'">📱 eSIM</button>
+            <button class="ab" onclick="window.location.href=window.location.pathname+'?detallado=<%= line.lineNumber %>'">📊 Consumo</button>
           </div>
         </div>
       </div>
@@ -200,14 +202,14 @@
       <div><table><tr><th>💳 Pago</th><td id="detPago">-</td></tr><tr><th>💰 Crédito</th><td id="detCredito">-</td></tr><tr><th>🏢 SPN</th><td>Movilbro</td></tr><tr><th>📅 Alta</th><td id="detAlta">-</td></tr></table></div>
       <div><table><tr><th>📊 GB Nac</th><td id="detGbNac">-</td></tr><tr><th>🌍 GB Roam</th><td id="detGbRoam">-</td></tr><tr><th>📱 Notificar</th><td><input type="checkbox" checked style="transform:scale(0.4);"></td></tr><tr><th>🚫 Bloquear</th><td><input type="checkbox" style="transform:scale(0.4);"> ✏️</td></tr></table></div>
       <div style="display:flex;flex-direction:column;gap:2px;">
-        <button class="ab pri" style="font-size:0.36rem;">⚙️ Gestión</button>
-        <button class="ab" style="font-size:0.36rem;">🔑 PIN/PUK</button>
-        <button class="ab" style="font-size:0.36rem;">🚫 Bloquear</button>
-        <button class="ab" style="font-size:0.36rem;">✅ Desbloquear</button>
-        <button class="ab" style="font-size:0.36rem;">💳 Cambiar pago</button>
-        <button class="ab" style="font-size:0.36rem;">📱 eSIM</button>
-        <button class="ab" style="font-size:0.36rem;">📝 Cambio tarifa</button>
-        <button class="ab" style="font-size:0.36rem;">📋 Duplicar SIM</button>
+        <button class="ab pri" style="font-size:0.36rem;" onclick="window.location.href='/clientes/<%= _cid %>/line/'+detLineSelected+'/gestion'">⚙️ Gestión</button>
+        <button class="ab" style="font-size:0.36rem;" onclick="if(detLineSelected)mostrarPinPuk(detLineSelected)">🔑 PIN/PUK</button>
+        <button class="ab" style="font-size:0.36rem;" onclick="if(detLineSelected)alert('Bloquear '+detLineSelected)">🚫 Bloquear</button>
+        <button class="ab" style="font-size:0.36rem;" onclick="if(detLineSelected)alert('Desbloquear '+detLineSelected)">✅ Desbloquear</button>
+        <button class="ab" style="font-size:0.36rem;" onclick="if(detLineSelected)window.location.href='/clientes/<%= _cid %>/line/'+detLineSelected+'/gestion'">💳 Cambiar pago</button>
+        <button class="ab" style="font-size:0.36rem;" onclick="if(detLineSelected)window.location.href='/clientes/<%= _cid %>/line/'+detLineSelected+'/gestion'">📱 eSIM</button>
+        <button class="ab" style="font-size:0.36rem;" onclick="if(detLineSelected)alert('Cambio tarifa '+detLineSelected)">📝 Cambio tarifa</button>
+        <button class="ab" style="font-size:0.36rem;" onclick="if(detLineSelected)alert('Duplicar SIM '+detLineSelected)">📋 Duplicar SIM</button>
       </div>
     </div>
   </div>
