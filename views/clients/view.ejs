@@ -67,32 +67,33 @@
 
   <!-- TABS como cards independientes -->
   <div class="tab-row">
-    <button class="tab-card active" data-bs-toggle="tab" data-bs-target="#info"><i class="bi bi-info-circle"></i> Informaci&oacute;n</button>
-    <button class="tab-card" data-bs-toggle="tab" data-bs-target="#lineas"><i class="bi bi-phone"></i> L&iacute;neas / Suscripciones <% if (apiSubscriptions.length > 0 || lineas.length > 0) { %><span class="badge"><%= apiSubscriptions.length + lineas.length %></span><% } %></button>
-    <button class="tab-card" data-bs-toggle="tab" data-bs-target="#ordenes"><i class="bi bi-cart"></i> &Oacute;rdenes <% if (apiOrders.length > 0) { %><span class="badge"><%= apiOrders.length %></span><% } %></button>
-    <button class="tab-card" data-bs-toggle="tab" data-bs-target="#facturas"><i class="bi bi-receipt"></i> Facturas <% if (apiInvoices.length > 0) { %><span class="badge"><%= apiInvoices.length %></span><% } %></button>
-    <button class="tab-card" data-bs-toggle="tab" data-bs-target="#instalaciones"><i class="bi bi-wrench"></i> Instalaciones <% if (apiInstallations.length > 0) { %><span class="badge"><%= apiInstallations.length %></span><% } %></button>
-    <button class="tab-card" data-bs-toggle="tab" data-bs-target="#kyc"><i class="bi bi-file-earmark-text"></i> KYC</button>
-    <button class="tab-card" data-bs-toggle="tab" data-bs-target="#contrato"><i class="bi bi-file-text"></i> Contrato <% if (contratos.length > 0 || altasOrdenes.length > 0) { %><span class="badge"><%= contratos.length + altasOrdenes.length + contratosS3.length %></span><% } %></button>
+    <button class="tab-card active" data-target="#info"><i class="bi bi-info-circle"></i> Informaci&oacute;n</button>
+    <button class="tab-card" data-target="#lineas"><i class="bi bi-phone"></i> L&iacute;neas / Suscripciones <% if (apiSubscriptions.length > 0 || lineas.length > 0) { %><span class="badge"><%= apiSubscriptions.length + lineas.length %></span><% } %></button>
+    <button class="tab-card" data-target="#ordenes"><i class="bi bi-cart"></i> &Oacute;rdenes <% if (apiOrders.length > 0) { %><span class="badge"><%= apiOrders.length %></span><% } %></button>
+    <button class="tab-card" data-target="#facturas"><i class="bi bi-receipt"></i> Facturas <% if (apiInvoices.length > 0) { %><span class="badge"><%= apiInvoices.length %></span><% } %></button>
+    <button class="tab-card" data-target="#instalaciones"><i class="bi bi-wrench"></i> Instalaciones <% if (apiInstallations.length > 0) { %><span class="badge"><%= apiInstallations.length %></span><% } %></button>
+    <button class="tab-card" data-target="#kyc"><i class="bi bi-file-earmark-text"></i> KYC</button>
+    <button class="tab-card" data-target="#contrato"><i class="bi bi-file-text"></i> Contrato <% if (contratos.length > 0 || altasOrdenes.length > 0) { %><span class="badge"><%= contratos.length + altasOrdenes.length + contratosS3.length %></span><% } %></button>
   </div>
 
-  <!-- INFO CARD compacta -->
+  <!-- INFO CARD -->
   <div class="info-card">
-    <span><strong><%= (apiCustomer.name || apiCustomer.firstName || cliente.nombre) %> <%= (apiCustomer.lastName || apiCustomer.surname || cliente.apellidos || '') %></strong> · <%= apiCustomer.fiscalId || cliente.dni_nif || '' %></span>
-    <span class="text-muted">|</span>
-    <span>📧 <%= apiCustomer.email || cliente.email || '-' %></span>
-    <span>📱 <%= apiCustomer.phone || cliente.telefono || '-' %></span>
-    <span class="text-muted">|</span>
-    <span>🏢 <%= apiCustomer.customerType || cliente.tipo_cliente || 'particular' %></span>
-    <span>📅 <%= apiCustomer.created || cliente.created_at ? new Date(apiCustomer.created || cliente.created_at).toLocaleDateString('es-ES') : '-' %></span>
-    <span>📍 <%= (apiCustomer.billingAddress && (apiCustomer.billingAddress.street || apiCustomer.billingAddress.cityName)) || cliente.direccion || cliente.ciudad || '-' %></span>
-    <a href="/clientes/<%= _cid %>/editar">✏️ Editar</a>
-    <span class="text-muted">|</span>
-    <select id="globalFilter" style="font-size:0.6rem;border:1px solid #dee2e6;border-radius:4px;padding:2px 4px;">
-      <option value="activa">Activas</option>
-      <option value="all">Todas</option>
-      <option value="cancelada">Canceladas</option>
-    </select>
+    <table style="width:100%;font-size:0.65rem;">
+      <tr><th style="color:#6c757d;font-weight:400;padding:2px 6px;width:70px;">Nombre</th><td style="padding:2px 6px;"><strong><%= (apiCustomer.name || apiCustomer.firstName || cliente.nombre) %> <%= (apiCustomer.lastName || apiCustomer.surname || cliente.apellidos || '') %></strong> · <%= apiCustomer.fiscalId || cliente.dni_nif || '' %></td></tr>
+      <tr><th style="color:#6c757d;font-weight:400;padding:2px 6px;">📧 Email</th><td style="padding:2px 6px;"><%= apiCustomer.email || cliente.email || '-' %></td></tr>
+      <tr><th style="color:#6c757d;font-weight:400;padding:2px 6px;">📱 Teléfono</th><td style="padding:2px 6px;"><%= apiCustomer.phone || cliente.telefono || '-' %></td></tr>
+      <tr><th style="color:#6c757d;font-weight:400;padding:2px 6px;">🏢 Tipo</th><td style="padding:2px 6px;"><%= apiCustomer.customerType || cliente.tipo_cliente || 'particular' %></td></tr>
+      <tr><th style="color:#6c757d;font-weight:400;padding:2px 6px;">📅 Cliente desde</th><td style="padding:2px 6px;"><%= apiCustomer.created || cliente.created_at ? new Date(apiCustomer.created || cliente.created_at).toLocaleDateString('es-ES') : '-' %></td></tr>
+      <tr><th style="color:#6c757d;font-weight:400;padding:2px 6px;">📍 Dirección</th><td style="padding:2px 6px;"><%= (apiCustomer.billingAddress && (apiCustomer.billingAddress.street || apiCustomer.billingAddress.cityName)) || cliente.direccion || cliente.ciudad || '-' %></td></tr>
+    </table>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;padding-top:4px;border-top:1px solid #f0f0f0;">
+      <div><a href="/clientes/<%= _cid %>/editar" style="color:#0d6efd;font-size:0.55rem;">✏️ Editar</a> <a href="#" onclick="openTicketModal()" style="color:#0d6efd;font-size:0.55rem;margin-left:8px;">🎫 Ticket</a></div>
+      <select id="globalFilter" style="font-size:0.55rem;border:1px solid #dee2e6;border-radius:4px;padding:1px 4px;">
+        <option value="activa">Activas</option>
+        <option value="all">Todas</option>
+        <option value="cancelada">Canceladas</option>
+      </select>
+    </div>
   </div>
 
   <div class="tab-content" id="detalleTabContent">
@@ -144,7 +145,7 @@
     <div class="pills" id="subsPills2">
       <% (apiSubscriptions||[]).forEach(function(s) { %>
         <% (s.products && s.products.length ? s.products : [{productName: s.productName, lineNumber: s.lineNumber, status: s.status}]).forEach(function(p) { %>
-          <span class="pill"><%= p.lineNumber || s.lineNumber %></span>
+          <span class="pill" onclick="selectLine('<%= (p.lineNumber || s.lineNumber || '').replace(/'/g, "\\'") %>')"><%= p.lineNumber || s.lineNumber %></span>
         <% }); %>
       <% }); %>
     </div>
@@ -1587,6 +1588,33 @@ function calcularScoring(clienteId) {
       document.getElementById('scoringResultDetails').innerHTML = '<li class="text-danger">Error de conexión: ' + err.message + '</li>';
     });
 }
+function autoCalcularScoring(clienteId) {
+  fetch('/clientes/' + clienteId + '/calculate-scoring', { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+      if (!res.ok) return;
+      var riskBadge = 'secondary';
+      if (res.risk === 'bajo' || res.risk === 'low') riskBadge = 'success';
+      else if (res.risk === 'medio' || res.risk === 'medium') riskBadge = 'warning';
+      else if (res.risk === 'alto' || res.risk === 'high') riskBadge = 'danger';
+      var sv = document.getElementById('scoringVal');
+      if (sv) { sv.textContent = res.scoring || '-'; sv.style.color = riskBadge === 'success' ? '#198754' : riskBadge === 'warning' ? '#ffc107' : riskBadge === 'danger' ? '#dc3545' : '#6c757d'; }
+      var sr = document.getElementById('scoringRisk');
+      if (sr) { sr.textContent = res.risk || '-'; sr.style.color = riskBadge === 'success' ? '#198754' : riskBadge === 'warning' ? '#ffc107' : riskBadge === 'danger' ? '#dc3545' : '#6c757d'; }
+      var sf = document.getElementById('scoringFactores');
+      if (sf && res.detalleCompleto && res.detalleCompleto.length > 0) {
+        var html = '';
+        res.detalleCompleto.forEach(function(d) {
+          var icono = d.color === 'success' ? '✅' : d.color === 'danger' ? '❌' : '➖';
+          html += '<tr><td style="padding:1px 2px;font-size:0.38rem;">' + d.factor + '</td><td style="padding:1px 2px;font-size:0.38rem;">' + d.valor + '</td><td style="padding:1px 2px;"><span class="badge bg-' + d.color + '" style="font-size:0.35rem;">' + icono + ' ' + d.impacto + '</span></td></tr>';
+        });
+        sf.innerHTML = html;
+      } else if (sf) {
+        sf.innerHTML = '<tr><td style="color:#6c757d;padding:1px 2px;font-size:0.38rem;">Sin detalles</td></tr>';
+      }
+    })
+    .catch(function() {});
+}
 document.addEventListener('DOMContentLoaded', function() {
   var statusData = <%- JSON.stringify(linesByStatus || {}) %>;
   var linesArr = <%- JSON.stringify(lineNumbers || []) %>;
@@ -2563,6 +2591,19 @@ document.querySelectorAll('input[name="dailyChartType"]').forEach(function(rb) {
     }
   });
 
+  // ========== TABS CASEROS ==========
+  document.querySelector('.tab-row').addEventListener('click', function(e) {
+    var btn = e.target.closest('.tab-card');
+    if (!btn) return;
+    var targetId = btn.getAttribute('data-target');
+    if (!targetId) return;
+    document.querySelectorAll('.tab-card').forEach(function(b) { b.classList.remove('active'); });
+    document.querySelectorAll('.tab-pane').forEach(function(p) { p.classList.remove('show', 'active'); });
+    btn.classList.add('active');
+    var pane = document.querySelector(targetId);
+    if (pane) pane.classList.add('show', 'active');
+  });
+
   // ========== INIT POPOVERS ==========
   var popoverList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
   popoverList.forEach(function(el) {
@@ -2589,15 +2630,18 @@ function toggleScoringDetalle(){
   if(b.style.display==='none'){b.style.display='';i.className='bi bi-chevron-up'}
   else{b.style.display='none';i.className='bi bi-chevron-down'}
 }
-if(document.getElementById('globalFilter'))filtrarLineas();
-if(document.getElementById('globalFilter'))filtrarSubs();
-
+function conectarFiltro(selId) {
+  var sel = document.getElementById(selId);
+  if (!sel) return;
+  function onChange() { filtrarLineas(); filtrarSubs(); }
+  sel.addEventListener('change', onChange);
+  sel.addEventListener('input', onChange);
+}
+conectarFiltro('globalFilter');
+conectarFiltro('subsFilter2');
 (function(){
-  var gf=document.getElementById('globalFilter');
-  function onFilterChange() { filtrarLineas(); filtrarSubs(); }
-  if(gf){gf.addEventListener('change',onFilterChange);gf.addEventListener('input',onFilterChange);gf.value='activa'}
-  setTimeout(function(){if(document.getElementById('globalFilter')){filtrarLineas();filtrarSubs()}},300);
-  setTimeout(function(){if(document.getElementById('globalFilter')){filtrarLineas();filtrarSubs()}},1000);
+  setTimeout(function(){filtrarLineas();filtrarSubs()},300);
+  setTimeout(function(){filtrarLineas();filtrarSubs()},1000);
 })();
 
 document.addEventListener('click', function(e) {
@@ -2740,10 +2784,45 @@ function loadLineGB(line, cid) {
 var detLineSelected = '';
 function selectLine(line) {
   detLineSelected = line;
-  document.querySelectorAll('.bot-pill').forEach(function(p) { p.classList.remove('act'); });
-  var pill = document.querySelector('.bot-pill[data-line="' + line + '"]');
-  if (pill) pill.classList.add('act');
-  document.getElementById('detProducto').textContent = line;
+  document.querySelectorAll('.pill').forEach(function(p) { p.classList.remove('act'); });
+  document.querySelectorAll('.pill').forEach(function(p) {
+    if ((p.textContent || '').trim() === line) { p.classList.add('act'); }
+  });
+  // Get clientId from URL
+  var _m = window.location.pathname.match(/\/fiscal\/([^\/]+)/);
+  var cid = _m ? _m[1] : '';
+  if (!cid) { var _el = document.querySelector('[data-client]'); if (_el) cid = _el.getAttribute('data-client'); }
+  if (!cid) { var _el2 = document.querySelector('.ver-consumo'); if (_el2) cid = _el2.dataset.client; }
+  // Update line card header
+  var hdr = document.querySelector('.lc .h span');
+  if (hdr) hdr.innerHTML = '<span style="font-weight:600;font-size:0.7rem;">' + esc(line) + '</span> <span class="be ba">Activa</span>';
+  // Update action buttons with selected line
+  document.querySelectorAll('.lc .b .ab').forEach(function(b) {
+    var oc = b.getAttribute('onclick') || '';
+    oc = oc.replace(/'[^']*'/g, "'" + line.replace(/'/g,'') + "'");
+    b.setAttribute('onclick', oc);
+  });
+  // Load chart data
+  if (cid) {
+    fetch('/clientes/' + encodeURIComponent(cid) + '/line/' + encodeURIComponent(line) + '/daily-consumption', { method: 'POST' })
+      .then(function(r) { return r.json(); })
+      .then(function(res) {
+        if (res.ok && res.data && res.data.length > 0) {
+          window._chartDailyData = res.data;
+          window._chartTipo = window._chartTipo || 'gb';
+          actualizarChart();
+        }
+      }).catch(function() {});
+    fetch('/clientes/' + encodeURIComponent(cid) + '/line/' + encodeURIComponent(line) + '/consumption', { method: 'POST' })
+      .then(function(r) { return r.json(); })
+      .then(function(res) {
+        if (res.ok && res.data) {
+          var d = res.data.data || res.data;
+          document.getElementById('detGbNac').textContent = (d.totalGB || 0).toFixed(2) + ' GB';
+          document.getElementById('detGbRoam').textContent = (d.totalRoamingGB || 0).toFixed(2) + ' GB';
+        }
+      }).catch(function() {});
+  }
 }
 function gestionLinea() { if (detLineSelected) window.location.href = window.location.pathname + '?gestion=' + encodeURIComponent(detLineSelected) + '&client=' + encodeURIComponent(document.querySelector('[data-client]')?.getAttribute('data-client') || ''); }
 function pinPukLinea() { if (detLineSelected) mostrarPinPuk(detLineSelected); }
@@ -2989,8 +3068,8 @@ function escapeStr(s) {
 }
 // Auto-load per-line data
 setTimeout(function() { if (typeof initLineCharts === 'function') initLineCharts(); }, 500);
-setTimeout(function() { if (typeof calcularScoring === 'function') { var c = document.querySelector('[onclick*=\"calcularScoring\"]'); if (c) { var m = c.getAttribute('onclick').match(/'([^']+)'/); if (m) calcularScoring(m[1]); } } }, 2000);
-setTimeout(function() { if (document.querySelector('.bot-pill')) selectLine(document.querySelector('.bot-pill').getAttribute('data-line') || ''); }, 600);
+setTimeout(function() { if (typeof autoCalcularScoring === 'function') { var c = document.querySelector('[onclick*=\"calcularScoring\"]'); if (c) { var m = c.getAttribute('onclick').match(/'([^']+)'/); if (m) autoCalcularScoring(m[1]); } } }, 2000);
+setTimeout(function() { var fp = document.querySelector('.pill'); if (fp) selectLine((fp.textContent || '').trim()); }, 600);
 </script>
 
 <!-- Modal de Línea -->
