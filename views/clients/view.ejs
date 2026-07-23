@@ -2720,6 +2720,18 @@ function initLineCharts() {
   });
   lineIds.forEach(function(line) { loadLineData(line, cid); loadLineGB(line, cid); });
 }
+function actualizarChart() {
+  var tipo = window._chartTipo || 'gb';
+  document.querySelectorAll('#chartBars ~ .cl .tb').forEach(function(b) { b.classList.remove('act'); });
+  var btn = document.querySelector('#chartBars ~ .cl .tb[onclick*=\"' + tipo + '\"]');
+  if (btn) btn.classList.add('act');
+  var data = window._chartDailyData || [];
+  if (data.length === 0) return;
+  var total = 0, coste = 0;
+  data.forEach(function(d) { total += d[tipo] || 0; coste += d.cost || 0; });
+  var label = { gb: 'GB', calls: 'Llamadas', sms: 'SMS' }[tipo] || 'GB';
+  document.getElementById('chartInfoText').innerHTML = 'Total ' + label + ': <strong>' + (tipo === 'gb' ? total.toFixed(2) + ' GB' : total) + '</strong> · Coste: ' + coste.toFixed(2) + '€';
+}
 function loadLineData(line, cid) {
   fetch('/clientes/' + encodeURIComponent(cid) + '/line/' + encodeURIComponent(line) + '/daily-consumption', { method: 'POST' })
     .then(function(r) { return r.json(); })
