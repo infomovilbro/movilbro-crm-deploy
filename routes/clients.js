@@ -1555,13 +1555,20 @@ router.post('/:id/line/:line/full-consumption', requireAuth, async (req, res) =>
   try {
     var api = LikesAPI.getApiInstance();
     var lineNumber = req.params.line;
-    // Ejecutar todas las llamadas a la API EN PARALELO para que el modal cargue rapido
+    // Ejecutar todas las llamadas a la API EN PARALELO con timeout individual
+    // para que una llamada lenta no bloquee el modal completo
+    function conTimeout(promise, ms) {
+      return Promise.race([
+        promise,
+        new Promise(function(_, reject) { setTimeout(function() { reject(new Error('timeout')); }, ms); })
+      ]);
+    }
     var [gbRes, cdrsRes, infoRes, svasRes, clRes] = await Promise.all([
-      Promise.resolve().then(function() { return api.getLineGB(lineNumber); }).catch(function() { return null; }),
-      Promise.resolve().then(function() { return api.getLineCDRs(lineNumber); }).catch(function() { return null; }),
-      Promise.resolve().then(function() { return api.getLineInfo(lineNumber); }).catch(function() { return null; }),
-      Promise.resolve().then(function() { return api.getLineSVAs(lineNumber); }).catch(function() { return []; }),
-      Promise.resolve().then(function() { return api.getLineCreditLimit(lineNumber); }).catch(function() { return null; })
+      conTimeout(api.getLineGB(lineNumber).catch(function() { return null; }), 5000),
+      conTimeout(api.getLineCDRs(lineNumber).catch(function() { return null; }), 5000),
+      conTimeout(api.getLineInfo(lineNumber).catch(function() { return null; }), 5000),
+      conTimeout(api.getLineSVAs(lineNumber).catch(function() { return []; }), 5000),
+      conTimeout(api.getLineCreditLimit(lineNumber).catch(function() { return null; }), 5000)
     ]);
     var results = { gb: null, pinpuk: null, lineInfo: null, svas: [], cdrs: [], sim: null, creditLimit: null };
     var gb = gbRes;
