@@ -161,9 +161,9 @@
       <div style="height:60px;display:flex;align-items:flex-end;gap:1px;margin:3px 0;" id="chartBars"></div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin:3px 0;flex-wrap:wrap;">
         <div style="display:flex;gap:2px;">
-          <span class="tb act" onclick="window._chartTipo='gb';actualizarChart()">GB</span>
-          <span class="tb" onclick="window._chartTipo='calls';actualizarChart()">📞</span>
-          <span class="tb" onclick="window._chartTipo='sms';actualizarChart()">💬</span>
+          <span class="tb act" onclick="window._chartTipo='gb';renderChartBars()">GB</span>
+          <span class="tb" onclick="window._chartTipo='calls';renderChartBars()">📞</span>
+          <span class="tb" onclick="window._chartTipo='sms';renderChartBars()">💬</span>
         </div>
         <span style="font-size:0.42rem;color:#6c757d;" id="chartInfoText">Total GB: -</span>
       </div>
@@ -2849,7 +2849,51 @@ function selectLine(line) {
           if (roamEl) roamEl.textContent = (d.totalRoamingGB || d.total_roaming_gb || 0).toFixed(2) + ' GB';
         }
       }).catch(function() {});
+    // Cargar consumo diario para la gráfica de la line card
+    fetch('/clientes/' + encodeURIComponent(cid) + '/line/' + encodeURIComponent(line) + '/daily-consumption', { method: 'POST' })
+      .then(function(r) { return r.json(); })
+      .then(function(res) {
+        if (res.ok && res.data && res.data.length > 0) {
+          window._chartDailyData = res.data;
+          window._chartTipo = window._chartTipo || 'gb';
+          renderChartBars();
+        } else {
+          window._chartDailyData = [];
+          renderChartBars();
+        }
+      }).catch(function() {});
   }
+}
+function renderChartBars() {
+  var container = document.getElementById('chartBars');
+  if (!container) return;
+  var tipo = window._chartTipo || 'gb';
+  var data = window._chartDailyData || [];
+  if (!data.length) {
+    container.innerHTML = '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#adb5bd;font-size:0.55rem;">Sin datos de consumo diario</div>';
+    return;
+  }
+  // Mostrar últimos 31 días
+  var ultimos = data.slice(0, 31);
+  var max = 1;
+  ultimos.forEach(function(d) { var v = d[tipo] || 0; if (v > max) max = v; });
+  var html = '';
+  ultimos.forEach(function(d) {
+    var v = d[tipo] || 0;
+    var h = Math.max(2, Math.round((v / max) * 100));
+    var label = d.date ? d.date.substring(8, 10) : '';
+    html += '<div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;gap:1px;" title="' + (d.date || '') + ': ' + v + '">' +
+      '<div style="width:100%;background:#06b6d4;height:' + h + '%;border-radius:1px;min-height:2px;"></div>' +
+      (ultimos.length <= 15 ? '<span style="font-size:0.3rem;color:#adb5bd;">' + label + '</span>' : '') +
+      '</div>';
+  });
+  container.innerHTML = html;
+  // Actualizar texto total
+  var total = 0, coste = 0;
+  data.forEach(function(d) { total += d[tipo] || 0; coste += d.cost || 0; });
+  var label = { gb: 'GB', calls: 'Llamadas', sms: 'SMS' }[tipo] || 'GB';
+  var info = document.getElementById('chartInfoText');
+  if (info) info.innerHTML = 'Total ' + label + ': <strong>' + (tipo === 'gb' ? total.toFixed(2) + ' GB' : total) + '</strong>' + (coste ? ' · Coste: ' + coste.toFixed(2) + '€' : '');
 }
 function gestionLinea() { if (detLineSelected) window.location.href = window.location.pathname + '?gestion=' + encodeURIComponent(detLineSelected) + '&client=' + encodeURIComponent(document.querySelector('[data-client]')?.getAttribute('data-client') || ''); }
 function pinPukLinea() { if (detLineSelected) mostrarPinPuk(detLineSelected); }
@@ -3110,6 +3154,7 @@ function escapeStr(s) {
 setTimeout(function() { if (typeof initLineCharts === 'function') initLineCharts(); }, 500);
 setTimeout(function() { if (typeof autoCalcularScoring === 'function') { var c = document.querySelector('[onclick*="calcularScoring"]'); if (c) { var m = c.getAttribute('onclick').match(/'([^']+)'/); if (m) autoCalcularScoring(m[1]); } } }, 1500);
 setTimeout(function() { var fp = document.querySelector('.pill'); if (fp) selectLine((fp.textContent || '').trim()); }, 600);
+setTimeout(function() { if (typeof renderChartBars === 'function') renderChartBars(); }, 3500);
 </script>
 
 <!-- Modal de Línea -->
