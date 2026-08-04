@@ -2815,18 +2815,25 @@ function selectLine(line) {
   var subData = null;
   _apiSubsData.forEach(function(s) {
     (s.products && s.products.length ? s.products : [{productName: s.productName, lineNumber: s.lineNumber, status: s.status, icc: s.icc, startDate: s.startDate}]).forEach(function(p) {
-      if ((p.lineNumber || s.lineNumber) === line) subData = p;
+      if ((p.lineNumber || s.lineNumber) === line) {
+        subData = {
+          productName: p.productName || s.productName || '-',
+          status: p.status || s.status || '-',
+          icc: p.icc || s.icc || '-',
+          startDate: p.startDate || s.startDate || '-'
+        };
+      }
     });
   });
   if (subData) {
     var eProd = document.getElementById('detProd');
-    if (eProd) eProd.textContent = subData.productName || s.productName || '-';
+    if (eProd) eProd.textContent = subData.productName;
     var eEst = document.getElementById('detEstado');
-    if (eEst) eEst.textContent = subData.status || s.status || '-';
+    if (eEst) eEst.textContent = subData.status;
     var eIcc = document.getElementById('detIcc');
-    if (eIcc) eIcc.textContent = subData.icc || s.icc || '-';
+    if (eIcc) eIcc.textContent = subData.icc;
     var eAlta = document.getElementById('detAlta');
-    if (eAlta) eAlta.textContent = subData.startDate || s.startDate || '-';
+    if (eAlta) eAlta.textContent = subData.startDate;
   }
   // Cargar consumo real de la línea
   var cid = window.clientId || '';
