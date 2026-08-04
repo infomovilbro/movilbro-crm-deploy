@@ -677,3 +677,17 @@ ode -e con PowerShell** — escribir archivo .js y ejecutarlo.
 - **Hacer click REAL (playwright click + snapshot), no solo el.click() por JS.**
 - Si el usuario dice "lo veo vacío" y tú "ves" contenido con evaluate ? el problema es de estructura/visibilidad, no de datos.
 - Un </div> que falta en un pane anida todos los siguientes dentro de él ? crash visual masivo.
+
+### ?? REGLA CRÍTICA: Verificar que cada botón llega a la API REAL (no inventar)
+- **UN BOTÓN NO FUNCIONA SOLO POR TENER HTML/CSS.** Debe hacer un fetch a un endpoint del backend que llame a la API de Likes Telecom con el FORMATO EXACTO que acepta.
+- **Antes de dar un botón por bueno, probar el endpoint contra la API real** (https://api.likestelecom.com) con el token, y verificar el formato del body.
+- Formato real verificado (agosto 2026):
+  - Límite crédito: PUT /line/credit-limit ? {lineNumber, creditLimit, toBeBlocked, autoUnlocking} (NO limit)
+  - SVAs: PUT /line/svas ? {lineNumber, svas: [ARRAY completo]} (NO objeto suelto)
+  - PIN/PUK: viene en GET /line?withSimsInfo=true ? simInfo.pin/puk (NO existe /line/pinpuk)
+  - SPN: PUT /line/spn ? {lineNumber, spn} ? 200 "SPN cambiado"
+  - CDRs: GET /line/cdrs?lineNumber=... ? array real
+  - GB: GET /line/gb?lineNumber=...
+  - **NO existe:** /line/info, /line/score, /line/pinpuk, /line/sim (dan 403/400)
+- **El modal de línea (abrirLineModal) ya carga en PARALELO** las llamadas a la API para que cargue rapido.
+- Si un endpoint da 403 FORBIDDEN con token directo pero la CRM de Likes lo usa, puede requerir el token del navegador (más permisos).
