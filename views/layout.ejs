@@ -478,14 +478,21 @@
     window.__UI_LIVE_THEME = <%- JSON.stringify(ui.liveTheme || {}) %>;
 
     (function applyUiEditorConfig() {
-      // Movilbro Original como predeterminado siempre
-      var movilbroOriginal = (typeof TEMAS_CRM !== 'undefined' && TEMAS_CRM[0]) ? TEMAS_CRM[0] : null;
-      var savedTheme = null;
-      // Solo usar tema guardado si tiene nombre explicito diferente de Movilbro Original
-      if (window.__UI_LIVE_THEME && window.__UI_LIVE_THEME.name && window.__UI_LIVE_THEME.name !== 'Movilbro Original') {
-        savedTheme = window.__UI_LIVE_THEME;
-      }
-      const themeToApply = savedTheme || movilbroOriginal;
+      // Movilbro Original SIEMPRE como predeterminado (ignorar temas guardados)
+      var movilbroOriginal = (typeof TEMAS_CRM !== 'undefined' && TEMAS_CRM[0]) ? TEMAS_CRM[0] : {
+        name: 'Movilbro Original',
+        sidebarBg: '#ffffff', sidebarHover: '#f8f9fa', sidebarActive: '#0050a1',
+        primary: '#0050a1', primaryLight: '#0d6efd', primaryGradient: 'linear-gradient(135deg,#0050a1,#0d6efd)',
+        topbarBg: '#ffffff', topbarBorder: '#e9ecef',
+        bgBody: '#f4f6f9', cardBg: '#ffffff',
+        textPrimary: '#212529', textSecondary: '#6c757d',
+        borderColor: '#e9ecef', tableHoverBg: '#f8f9fa',
+        tableStripe: '#f8f9fa', inputFocusShadow: '0 0 0 0.25rem rgba(0,80,161,.25)',
+        shadowSm: '0 1px 2px rgba(0,0,0,.06)', shadowMd: '0 4px 12px rgba(0,0,0,.08)',
+        cardRadius: '8px', font: "'Inter', system-ui, -apple-system, sans-serif",
+        success: '#198754', danger: '#dc3545', warning: '#ffc107', info: '#0dcaf0'
+      };
+      const themeToApply = movilbroOriginal;
       if (themeToApply && themeToApply.sidebarBg) {
         const root = document.documentElement;
         const vars = {

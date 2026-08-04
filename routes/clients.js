@@ -187,6 +187,63 @@ router.post('/nuevo', requireAuth, async (req, res) => {
   });
 });
 
+// Limpiar clientes locales sin enlace a la API (los "inventados")
+// GET /clientes/limpiar-locales -> elimina locales sin likes_customer_id y sin match con API
+router.get('/limpiar-locales', requireAuth, async (req, res) => {
+  try {
+    let apiPhones = new Set();
+    let apiDnis = new Set();
+    try {
+      const api = LikesAPI.getApiInstance();
+      const customers = await api.getCustomers();
+      (customers || []).forEach(function(c) {
+        var p = String(c.phone || c.contactInfo?.phone || '').replace(/[^\d]/g, '');
+        var d = String(c.fiscalId || c.fiscalNumber || c.fiscal_id || '').toUpperCase();
+        if (p) apiPhones.add(p);
+        if (d) apiDnis.add(d);
+      });
+    } catch(e) {
+      console.error('[Limpiar locales] Error API:', e.message);
+    }
+
+    var locales = db.prepare('SELECT id, nombre, telefono, dni_nif, likes_customer_id, created_at FROM clients').all();
+    var aBorrar = [];
+    var conservados = [];
+
+    locales.forEach(function(l) {
+      if (l.likes_customer_id) { conservados.push(l.id); return; }
+      var p = String(l.telefono || '').replace(/[^\d]/g, '');
+      var d = String(l.dni_nif || '').toUpperCase();
+      if ((d && apiDnis.has(d)) || (p && apiPhones.has(p))) { conservados.push(l.id); return; }
+      if (apiPhones.size > 0 || apiDnis.size > 0) {
+        aBorrar.push({ id: l.id, nombre: l.nombre, telefono: l.telefono, dni: l.dni_nif });
+      } else {
+        conservados.push(l.id);
+      }
+    });
+
+    const del = db.prepare('DELETE FROM clients WHERE id = ?');
+    var borrados = 0;
+    aBorrar.forEach(function(c) {
+      try {
+        del.run(c.id);
+        db.prepare('DELETE FROM activity_log WHERE client_id = ?').run(c.id);
+        borrados++;
+      } catch(e) { console.error('[Limpiar] Error borrando', c.id, e.message); }
+    });
+
+    res.json({
+      ok: true,
+      totalLocal: locales.length,
+      borrados: borrados,
+      conservados: conservados.length,
+      detalleBorrados: aBorrar
+    });
+  } catch(e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 function mapApiCustomer(customerData) {
   if (!customerData || typeof customerData !== 'object') return {};
   return {
@@ -2161,69 +2218,6 @@ router.get('/:id/line/:line/consumo', requireAuth, async (req, res) => {
     res.render('clients/consumo', { title: 'Consumo ' + lineNumber, lineNumber: lineNumber, fiscalId: fiscalId, layout: false });
   } catch(e) {
     res.status(500).send('Error: ' + e.message);
-  }
-});
-
-// Limpiar clientes locales sin enlace a la API (los "inventados")
-// GET /clientes/limpiar-locales -> elimina locales sin likes_customer_id y sin match con API
-router.get('/limpiar-locales', requireAuth, async (req, res) => {
-  try {
-    // Obtener todos los clientes de la API para conocer los válidos
-    let apiPhones = new Set();
-    let apiDnis = new Set();
-    try {
-      const api = LikesAPI.getApiInstance();
-      const customers = await api.getCustomers();
-      (customers || []).forEach(function(c) {
-        var p = String(c.phone || c.contactInfo?.phone || '').replace(/[^\d]/g, '');
-        var d = String(c.fiscalId || c.fiscalNumber || c.fiscal_id || '').toUpperCase();
-        if (p) apiPhones.add(p);
-        if (d) apiDnis.add(d);
-      });
-    } catch(e) {
-      console.error('[Limpiar locales] Error API:', e.message);
-    }
-
-    var locales = db.prepare('SELECT id, nombre, telefono, dni_nif, likes_customer_id, created_at FROM clients').all();
-    var aBorrar = [];
-    var conservados = [];
-
-    locales.forEach(function(l) {
-      // Conservar si tiene likes_customer_id (ya enlazado a API)
-      if (l.likes_customer_id) { conservados.push(l.id); return; }
-      // Conservar si su DNI o teléfono coincide con un cliente de la API
-      var p = String(l.telefono || '').replace(/[^\d]/g, '');
-      var d = String(l.dni_nif || '').toUpperCase();
-      if ((d && apiDnis.has(d)) || (p && apiPhones.has(p))) { conservados.push(l.id); return; }
-      // Si la API está disponible y NO matchea: es inventado, se borra
-      if (apiPhones.size > 0 || apiDnis.size > 0) {
-        aBorrar.push({ id: l.id, nombre: l.nombre, telefono: l.telefono, dni: l.dni_nif });
-      } else {
-        // API no disponible: conservar por seguridad
-        conservados.push(l.id);
-      }
-    });
-
-    // Borrar
-    const del = db.prepare('DELETE FROM clients WHERE id = ?');
-    var borrados = 0;
-    aBorrar.forEach(function(c) {
-      try {
-        del.run(c.id);
-        db.prepare('DELETE FROM activity_log WHERE client_id = ?').run(c.id);
-        borrados++;
-      } catch(e) { console.error('[Limpiar] Error borrando', c.id, e.message); }
-    });
-
-    res.json({
-      ok: true,
-      totalLocal: locales.length,
-      borrados: borrados,
-      conservados: conservados.length,
-      detalleBorrados: aBorrar
-    });
-  } catch(e) {
-    res.status(500).json({ ok: false, error: e.message });
   }
 });
 
