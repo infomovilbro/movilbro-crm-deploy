@@ -67,13 +67,13 @@
 
   <!-- TABS como cards independientes -->
   <div class="tab-row">
-    <button class="tab-card active" data-bs-toggle="tab" data-bs-target="#info"><i class="bi bi-info-circle"></i> Informaci&oacute;n</button>
-    <button class="tab-card" data-bs-toggle="tab" data-bs-target="#lineas"><i class="bi bi-phone"></i> L&iacute;neas / Suscripciones <% if (apiSubscriptions.length > 0 || lineas.length > 0) { %><span class="badge"><%= apiSubscriptions.length + lineas.length %></span><% } %></button>
-    <button class="tab-card" data-bs-toggle="tab" data-bs-target="#ordenes"><i class="bi bi-cart"></i> &Oacute;rdenes <% if (apiOrders.length > 0) { %><span class="badge"><%= apiOrders.length %></span><% } %></button>
-    <button class="tab-card" data-bs-toggle="tab" data-bs-target="#facturas"><i class="bi bi-receipt"></i> Facturas <% if (apiInvoices.length > 0) { %><span class="badge"><%= apiInvoices.length %></span><% } %></button>
-    <button class="tab-card" data-bs-toggle="tab" data-bs-target="#instalaciones"><i class="bi bi-wrench"></i> Instalaciones <% if (apiInstallations.length > 0) { %><span class="badge"><%= apiInstallations.length %></span><% } %></button>
-    <button class="tab-card" data-bs-toggle="tab" data-bs-target="#kyc"><i class="bi bi-file-earmark-text"></i> KYC</button>
-    <button class="tab-card" data-bs-toggle="tab" data-bs-target="#contrato"><i class="bi bi-file-text"></i> Contrato <% if (contratos.length > 0 || altasOrdenes.length > 0) { %><span class="badge"><%= contratos.length + altasOrdenes.length + contratosS3.length %></span><% } %></button>
+    <button class="tab-card active" data-target="#info"><i class="bi bi-info-circle"></i> Informaci&oacute;n</button>
+    <button class="tab-card" data-target="#lineas"><i class="bi bi-phone"></i> L&iacute;neas / Suscripciones <% if (apiSubscriptions.length > 0 || lineas.length > 0) { %><span class="badge"><%= apiSubscriptions.length + lineas.length %></span><% } %></button>
+    <button class="tab-card" data-target="#ordenes"><i class="bi bi-cart"></i> &Oacute;rdenes <% if (apiOrders.length > 0) { %><span class="badge"><%= apiOrders.length %></span><% } %></button>
+    <button class="tab-card" data-target="#facturas"><i class="bi bi-receipt"></i> Facturas <% if (apiInvoices.length > 0) { %><span class="badge"><%= apiInvoices.length %></span><% } %></button>
+    <button class="tab-card" data-target="#instalaciones"><i class="bi bi-wrench"></i> Instalaciones <% if (apiInstallations.length > 0) { %><span class="badge"><%= apiInstallations.length %></span><% } %></button>
+    <button class="tab-card" data-target="#kyc"><i class="bi bi-file-earmark-text"></i> KYC</button>
+    <button class="tab-card" data-target="#contrato"><i class="bi bi-file-text"></i> Contrato <% if (contratos.length > 0 || altasOrdenes.length > 0) { %><span class="badge"><%= contratos.length + altasOrdenes.length + contratosS3.length %></span><% } %></button>
   </div>
 
   <!-- INFO CARD compacta -->
@@ -138,13 +138,15 @@
   <div class="bp" style="margin-bottom:6px;">
     <div class="bph">
       <span style="font-weight:600;font-size:0.55rem;">📱 Líneas / Suscripciones</span>
-      <select style="font-size:0.42rem;" id="subsFilter2"><option selected>Activas</option><option>Todas</option><option>Canceladas</option></select>
+      <select style="font-size:0.42rem;" id="subsFilter2"><option value="activa" selected>Activas</option><option value="all">Todas</option><option value="cancelada">Canceladas</option></select>
       <span style="margin-left:auto;font-size:0.42rem;"><%= (apiSubscriptions||[]).length %> líneas</span>
     </div>
     <div class="pills" id="subsPills2">
       <% (apiSubscriptions||[]).forEach(function(s) { %>
         <% (s.products && s.products.length ? s.products : [{productName: s.productName, lineNumber: s.lineNumber, status: s.status}]).forEach(function(p) { %>
-          <span class="pill"><%= p.lineNumber || s.lineNumber %></span>
+          <% var _pln = String(p.lineNumber || s.lineNumber || '').replace(/'/g, ""); %>
+          <% var _pst = String(p.status || s.status || '').toLowerCase(); %>
+          <span class="pill" data-estado="<%= _pst %>" onclick="selectLine('<%= _pln %>')"><%= p.lineNumber || s.lineNumber %></span>
         <% }); %>
       <% }); %>
     </div>
@@ -180,14 +182,14 @@
         <div style="display:flex;justify-content:space-between;padding:1px 0;border-bottom:1px solid #f5f5f5;"><span style="color:#6c757d;">🚫 Bloquear</span><span><input type="checkbox" style="transform:scale(0.4);"> <span style="font-size:0.3rem;color:#0d6efd;cursor:pointer;">✏️</span></span></div>
       </div>
       <div style="display:flex;gap:3px;margin-top:4px;flex-wrap:wrap;">
-        <button class="ab pri" onclick="window.location.href='/clientes/<%= _cid %>/line/<%= _primeraLinea %>/gestion'">⚙️ Gestión</button>
-        <button class="ab" onclick="if('<%= _primeraLinea %>')mostrarPinPuk('<%= _primeraLinea %>')">🔑 PIN/PUK</button>
-        <button class="ab" onclick="if('<%= _primeraLinea %>')alert('Bloquear <%= _primeraLinea %>')">🚫 Bloquear</button>
-        <button class="ab" onclick="if('<%= _primeraLinea %>')alert('Desbloquear <%= _primeraLinea %>')">✅ Desbloquear</button>
-        <button class="ab" onclick="if('<%= _primeraLinea %>')window.location.href='/clientes/<%= _cid %>/line/<%= _primeraLinea %>/gestion'">💳 Cambiar pago</button>
-        <button class="ab" onclick="if('<%= _primeraLinea %>')window.location.href='/clientes/<%= _cid %>/line/<%= _primeraLinea %>/gestion'">📱 eSIM</button>
-        <button class="ab" onclick="if('<%= _primeraLinea %>')alert('Cambio tarifa <%= _primeraLinea %>')">📝 Cambio tarifa</button>
-        <button class="ab" onclick="if('<%= _primeraLinea %>')alert('Duplicar SIM <%= _primeraLinea %>')">📋 Duplicar SIM</button>
+        <button class="ab pri" onclick="var l=detLineSelected||'<%= _primeraLinea %>';if(l)window.location.href='/clientes/<%= _cid %>/line/'+l+'/gestion'">⚙️ Gestión</button>
+        <button class="ab" onclick="var l=detLineSelected||'<%= _primeraLinea %>';if(l)mostrarPinPuk(l)">🔑 PIN/PUK</button>
+        <button class="ab" onclick="var l=detLineSelected||'<%= _primeraLinea %>';if(l)alert('Bloquear '+l)">🚫 Bloquear</button>
+        <button class="ab" onclick="var l=detLineSelected||'<%= _primeraLinea %>';if(l)alert('Desbloquear '+l)">✅ Desbloquear</button>
+        <button class="ab" onclick="var l=detLineSelected||'<%= _primeraLinea %>';if(l)window.location.href='/clientes/<%= _cid %>/line/'+l+'/gestion'">💳 Cambiar pago</button>
+        <button class="ab" onclick="var l=detLineSelected||'<%= _primeraLinea %>';if(l)window.location.href='/clientes/<%= _cid %>/line/'+l+'/gestion'">📱 eSIM</button>
+        <button class="ab" onclick="var l=detLineSelected||'<%= _primeraLinea %>';if(l)alert('Cambio tarifa '+l)">📝 Cambio tarifa</button>
+        <button class="ab" onclick="var l=detLineSelected||'<%= _primeraLinea %>';if(l)alert('Duplicar SIM '+l)">📋 Duplicar SIM</button>
       </div>
     </div>
   </div>
@@ -1587,11 +1589,38 @@ function calcularScoring(clienteId) {
       document.getElementById('scoringResultDetails').innerHTML = '<li class="text-danger">Error de conexión: ' + err.message + '</li>';
     });
 }
+function autoCalcularScoring(clienteId) {
+  if (!clienteId) return;
+  fetch('/clientes/' + clienteId + '/calculate-scoring', { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+      if (!res.ok) return;
+      var riskBadge = 'secondary';
+      if (res.risk === 'bajo' || res.risk === 'low') riskBadge = 'success';
+      else if (res.risk === 'medio' || res.risk === 'medium') riskBadge = 'warning';
+      else if (res.risk === 'alto' || res.risk === 'high') riskBadge = 'danger';
+      var sv = document.getElementById('scoringVal');
+      if (sv) { sv.textContent = res.scoring || '-'; sv.style.color = riskBadge === 'success' ? '#198754' : riskBadge === 'warning' ? '#ffc107' : riskBadge === 'danger' ? '#dc3545' : '#6c757d'; }
+      var sr = document.getElementById('scoringRisk');
+      if (sr) { sr.textContent = res.risk || '-'; sr.style.color = riskBadge === 'success' ? '#198754' : riskBadge === 'warning' ? '#ffc107' : riskBadge === 'danger' ? '#dc3545' : '#6c757d'; }
+      var sf = document.getElementById('scoringFactores');
+      if (sf && res.detalleCompleto && res.detalleCompleto.length > 0) {
+        var html = '';
+        res.detalleCompleto.forEach(function(d) {
+          var icono = d.color === 'success' ? '✅' : d.color === 'danger' ? '❌' : '➖';
+          html += '<tr><td style="padding:1px 2px;font-size:0.38rem;">' + d.factor + '</td><td style="padding:1px 2px;font-size:0.38rem;">' + d.valor + '</td><td style="padding:1px 2px;"><span class="badge bg-' + d.color + '" style="font-size:0.35rem;">' + icono + ' ' + d.impacto + '</span></td></tr>';
+        });
+        sf.innerHTML = html;
+      }
+    })
+    .catch(function() {});
+}
 document.addEventListener('DOMContentLoaded', function() {
   var statusData = <%- JSON.stringify(linesByStatus || {}) %>;
   var linesArr = <%- JSON.stringify(lineNumbers || []) %>;
   var clientId = <%- JSON.stringify(_cid || null) %>; if(!clientId){var _fb=document.querySelector('.ver-consumo');if(_fb)clientId=_fb.dataset.client}
   if (!clientId) { var _firstBtn = document.querySelector('.ver-consumo'); if (_firstBtn) clientId = _firstBtn.dataset.client; }
+  window.clientId = clientId;
 
   function formatDate(d) {
     if (!d) return '-';
@@ -1811,17 +1840,22 @@ document.addEventListener('DOMContentLoaded', function() {
           var roaming = parseFloat(d.roamingGB || d.roaming_gb || d.roaming || 0);
           var remaining = total - used;
           if (remaining < 0) remaining = 0;
-          consPerLine.innerHTML = '<div class="d-flex justify-content-between small"><span>Usado: <strong>' + used.toFixed(2) + ' GB</strong></span><span>Total: <strong>' + total.toFixed(2) + ' GB</strong></span><span>Restante: <strong>' + remaining.toFixed(2) + ' GB</strong></span></div>';
-          if (roaming > 0) consPerLine.innerHTML += '<div class="small text-muted">Roaming: ' + roaming.toFixed(2) + ' GB</div>';
-          // Mostrar el doughnut con datos reales
-          // Chart diario se renderiza via loadCardDailyData
-        } else {
+          if (consPerLine) {
+            consPerLine.innerHTML = '<div class="d-flex justify-content-between small"><span>Usado: <strong>' + used.toFixed(2) + ' GB</strong></span><span>Total: <strong>' + total.toFixed(2) + ' GB</strong></span><span>Restante: <strong>' + remaining.toFixed(2) + ' GB</strong></span></div>';
+            if (roaming > 0) consPerLine.innerHTML += '<div class="small text-muted">Roaming: ' + roaming.toFixed(2) + ' GB</div>';
+          }
+          // Actualizar campos de la line card
+          var gbNacEl = document.getElementById('detGbNac');
+          if (gbNacEl) gbNacEl.textContent = total.toFixed(2) + ' GB';
+          var gbRoamEl = document.getElementById('detGbRoam');
+          if (gbRoamEl) gbRoamEl.textContent = roaming.toFixed(2) + ' GB';
+        } else if (consPerLine) {
           consPerLine.innerHTML = '<div class="small text-muted">Sin datos de consumo</div>';
         }
         // Re-aplicar filtro despues de cargar datos
         if (document.getElementById('estadoFilter')) filtrarLineas();
       })
-      .catch(function() { consPerLine.innerHTML = '<div class="small text-muted">Error al cargar consumo</div>'; });
+      .catch(function() { if (consPerLine) consPerLine.innerHTML = '<div class="small text-muted">Error al cargar consumo</div>'; });
     loadCardDailyData(line);
   }
 
@@ -1845,7 +1879,8 @@ document.addEventListener('DOMContentLoaded', function() {
     var ctx = document.getElementById('gbChart');
     if (!ctx) return;
     if (!_cardDailyData) {
-      document.getElementById('dailyMonthNavCard').style.display = 'none';
+      var navCard = document.getElementById('dailyMonthNavCard');
+      if (navCard) navCard.style.display = 'none';
       if (_cardChart) { _cardChart.destroy(); _cardChart = null; }
       // Mostrar mensaje en el canvas
       var parent = ctx.parentElement;
@@ -2563,6 +2598,21 @@ document.querySelectorAll('input[name="dailyChartType"]').forEach(function(rb) {
     }
   });
 
+  // ========== TABS CASEROS (fix: Bootstrap Tab falla con .tab-card) ==========
+  document.querySelectorAll('.tab-row').forEach(function(row) {
+    row.addEventListener('click', function(e) {
+      var btn = e.target.closest('.tab-card');
+      if (!btn) return;
+      var targetId = btn.getAttribute('data-target');
+      if (!targetId) return;
+      document.querySelectorAll('.tab-card').forEach(function(b) { b.classList.remove('active'); });
+      document.querySelectorAll('.tab-pane').forEach(function(p) { p.classList.remove('show', 'active'); });
+      btn.classList.add('active');
+      var pane = document.querySelector(targetId);
+      if (pane) pane.classList.add('show', 'active');
+    });
+  });
+
   // ========== INIT POPOVERS ==========
   var popoverList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
   popoverList.forEach(function(el) {
@@ -2594,10 +2644,12 @@ if(document.getElementById('globalFilter'))filtrarSubs();
 
 (function(){
   var gf=document.getElementById('globalFilter');
+  var sf=document.getElementById('subsFilter2');
   function onFilterChange() { filtrarLineas(); filtrarSubs(); }
   if(gf){gf.addEventListener('change',onFilterChange);gf.addEventListener('input',onFilterChange);gf.value='activa'}
-  setTimeout(function(){if(document.getElementById('globalFilter')){filtrarLineas();filtrarSubs()}},300);
-  setTimeout(function(){if(document.getElementById('globalFilter')){filtrarLineas();filtrarSubs()}},1000);
+  if(sf){sf.addEventListener('change',onFilterChange);sf.addEventListener('input',onFilterChange);sf.value='activa'}
+  setTimeout(function(){filtrarLineas();filtrarSubs()},300);
+  setTimeout(function(){filtrarLineas();filtrarSubs()},1000);
 })();
 
 document.addEventListener('click', function(e) {
@@ -2738,25 +2790,85 @@ function loadLineGB(line, cid) {
 }
 // ===== BOTTOM PANEL =====
 var detLineSelected = '';
+var _apiSubsData = <%- JSON.stringify(apiSubscriptions || []) %>;
 function selectLine(line) {
   detLineSelected = line;
-  document.querySelectorAll('.bot-pill').forEach(function(p) { p.classList.remove('act'); });
-  var pill = document.querySelector('.bot-pill[data-line="' + line + '"]');
-  if (pill) pill.classList.add('act');
-  document.getElementById('detProducto').textContent = line;
+  // Resaltar pill seleccionado
+  document.querySelectorAll('.pill').forEach(function(p) { p.classList.remove('act'); });
+  document.querySelectorAll('.pill').forEach(function(p) {
+    if ((p.textContent || '').trim() === line) p.classList.add('act');
+  });
+  // Actualizar header de la line card (la que contiene detProd)
+  var detProd = document.getElementById('detProd');
+  var lc = detProd ? detProd.closest('.lc') : null;
+  if (lc) {
+    var hdr = lc.querySelector('.h');
+    if (hdr) hdr.innerHTML = '<span>' + line + ' <span class="be ba">Activa</span></span>';
+    // Actualizar botones de la line card con la línea seleccionada
+    lc.querySelectorAll('.ab').forEach(function(b) {
+      var oc = b.getAttribute('onclick') || '';
+      oc = oc.replace(/'[0-9]{9}'/g, "'" + line.replace(/'/g,'') + "'");
+      b.setAttribute('onclick', oc);
+    });
+  }
+  // Poblar detalles del producto desde _apiSubsData
+  var subData = null;
+  _apiSubsData.forEach(function(s) {
+    (s.products && s.products.length ? s.products : [{productName: s.productName, lineNumber: s.lineNumber, status: s.status, icc: s.icc, startDate: s.startDate}]).forEach(function(p) {
+      if ((p.lineNumber || s.lineNumber) === line) subData = p;
+    });
+  });
+  if (subData) {
+    var eProd = document.getElementById('detProd');
+    if (eProd) eProd.textContent = subData.productName || s.productName || '-';
+    var eEst = document.getElementById('detEstado');
+    if (eEst) eEst.textContent = subData.status || s.status || '-';
+    var eIcc = document.getElementById('detIcc');
+    if (eIcc) eIcc.textContent = subData.icc || s.icc || '-';
+    var eAlta = document.getElementById('detAlta');
+    if (eAlta) eAlta.textContent = subData.startDate || s.startDate || '-';
+  }
+  // Cargar consumo real de la línea
+  var cid = window.clientId || '';
+  if (cid) {
+    fetch('/clientes/' + encodeURIComponent(cid) + '/line/' + encodeURIComponent(line) + '/consumption', { method: 'POST' })
+      .then(function(r) { return r.json(); })
+      .then(function(res) {
+        if (res.ok && res.data) {
+          var d = res.data.data || res.data;
+          var nacEl = document.getElementById('detGbNac');
+          if (nacEl) nacEl.textContent = (d.totalGB || d.total_gb || 0).toFixed(2) + ' GB';
+          var roamEl = document.getElementById('detGbRoam');
+          if (roamEl) roamEl.textContent = (d.totalRoamingGB || d.total_roaming_gb || 0).toFixed(2) + ' GB';
+        }
+      }).catch(function() {});
+  }
 }
 function gestionLinea() { if (detLineSelected) window.location.href = window.location.pathname + '?gestion=' + encodeURIComponent(detLineSelected) + '&client=' + encodeURIComponent(document.querySelector('[data-client]')?.getAttribute('data-client') || ''); }
 function pinPukLinea() { if (detLineSelected) mostrarPinPuk(detLineSelected); }
 
 function filtrarSubs(){
-  var g=document.getElementById('globalFilter');
-  if(!g)return;
-  var val=g.value;
+  var sel = document.getElementById('subsFilter2') || document.getElementById('globalFilter');
+  if(!sel)return;
+  var val = sel.value || sel.options[sel.selectedIndex].text.toLowerCase();
+  if (val === 'todas') val = 'all';
+  if (val === 'canceladas') val = 'cancelada';
+  if (val === 'activas') val = 'activa';
+  // Filtrar pills por estado
+  document.querySelectorAll('.pill[data-estado]').forEach(function(p){
+    var est = (p.getAttribute('data-estado')||'').toLowerCase();
+    var isTerm = est==='cancelada'||est==='canceled'||est==='terminada'||est==='terminated'||est==='baja'||est==='cancelled'||est==='inactive'||est==='terminated';
+    var isAct = est==='activa'||est==='active'||est==='activo'||est==='en servicio'||est==='operativa'||est==='preactiva';
+    if(val==='all') p.style.display='';
+    else if(val==='cancelada') p.style.display=isTerm?'':'none';
+    else p.style.display=isAct?'':'none';
+  });
+  // Filtrar filas de tabla lineas (si existen)
   document.querySelectorAll('#lineas tbody tr').forEach(function(row){
     var badge=row.querySelector('td:nth-child(3) .badge');
     if(!badge){row.style.display='';return}
     var est=badge.textContent.trim().toLowerCase();
-    var isTerm=est==='cancelada'||est==='canceled'||est==='terminada'||est==='terminated'||est==='baja'||est==='cancelled';
+    var isTerm=est==='cancelada'||est==='canceled'||est==='terminada'||est==='terminated'||est==='baja'||est==='cancelled'||est==='inactive';
     var isAct=est==='activa'||est==='active'||est==='activo';
     if(val==='all')row.style.display='';
     else if(val==='cancelada')row.style.display=isTerm?'':'none';
@@ -2989,8 +3101,8 @@ function escapeStr(s) {
 }
 // Auto-load per-line data
 setTimeout(function() { if (typeof initLineCharts === 'function') initLineCharts(); }, 500);
-setTimeout(function() { if (typeof calcularScoring === 'function') { var c = document.querySelector('[onclick*=\"calcularScoring\"]'); if (c) { var m = c.getAttribute('onclick').match(/'([^']+)'/); if (m) calcularScoring(m[1]); } } }, 2000);
-setTimeout(function() { if (document.querySelector('.bot-pill')) selectLine(document.querySelector('.bot-pill').getAttribute('data-line') || ''); }, 600);
+setTimeout(function() { if (typeof autoCalcularScoring === 'function') { var c = document.querySelector('[onclick*="calcularScoring"]'); if (c) { var m = c.getAttribute('onclick').match(/'([^']+)'/); if (m) autoCalcularScoring(m[1]); } } }, 1500);
+setTimeout(function() { var fp = document.querySelector('.pill'); if (fp) selectLine((fp.textContent || '').trim()); }, 600);
 </script>
 
 <!-- Modal de Línea -->
