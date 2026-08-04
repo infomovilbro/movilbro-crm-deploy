@@ -197,14 +197,18 @@
         <div style="display:flex;justify-content:space-between;padding:1px 0;border-bottom:1px solid #f5f5f5;"><span style="color:#6c757d;">🚫 Bloquear</span><span><input type="checkbox" style="transform:scale(0.4);"> <span style="font-size:0.3rem;color:#0d6efd;cursor:pointer;">✏️</span></span></div>
       </div>
       <div style="display:flex;gap:3px;margin-top:4px;flex-wrap:wrap;">
-        <button class="ab pri" onclick="var l=detLineSelected||'<%= _primeraLinea %>';if(l)window.location.href='/clientes/<%= _cid %>/line/'+l+'/gestion'">⚙️ Gestión</button>
+        <button class="ab pri" onclick="var l=detLineSelected||'<%= _primeraLinea %>';if(l)abrirLineModal(l,'<%= _cid %>')">⚙️ Gestión</button>
         <button class="ab" onclick="var l=detLineSelected||'<%= _primeraLinea %>';if(l)mostrarPinPuk(l)">🔑 PIN/PUK</button>
-        <button class="ab" onclick="var l=detLineSelected||'<%= _primeraLinea %>';if(l)alert('Bloquear '+l)">🚫 Bloquear</button>
-        <button class="ab" onclick="var l=detLineSelected||'<%= _primeraLinea %>';if(l)alert('Desbloquear '+l)">✅ Desbloquear</button>
-        <button class="ab" onclick="var l=detLineSelected||'<%= _primeraLinea %>';if(l)window.location.href='/clientes/<%= _cid %>/line/'+l+'/gestion'">💳 Cambiar pago</button>
-        <button class="ab" onclick="var l=detLineSelected||'<%= _primeraLinea %>';if(l)window.location.href='/clientes/<%= _cid %>/line/'+l+'/gestion'">📱 eSIM</button>
-        <button class="ab" onclick="var l=detLineSelected||'<%= _primeraLinea %>';if(l)alert('Cambio tarifa '+l)">📝 Cambio tarifa</button>
-        <button class="ab" onclick="var l=detLineSelected||'<%= _primeraLinea %>';if(l)alert('Duplicar SIM '+l)">📋 Duplicar SIM</button>
+        <button class="ab" onclick="var l=detLineSelected||'<%= _primeraLinea %>';if(l)toggleBlockLine(l)">🚫 Bloquear</button>
+        <button class="ab" onclick="var l=detLineSelected||'<%= _primeraLinea %>';if(l)toggleBlockLine(l,true)">✅ Desbloquear</button>
+        <button class="ab" onclick="var l=detLineSelected||'<%= _primeraLinea %>';if(l)abrirLineModal(l,'<%= _cid %>')">💳 Cambiar pago</button>
+        <button class="ab" onclick="var l=detLineSelected||'<%= _primeraLinea %>';if(l)abrirEsimModal(l)">📱 eSIM</button>
+        <button class="ab" onclick="var l=detLineSelected||'<%= _primeraLinea %>';if(l)cambiarTarifa(l)">📝 Cambio tarifa</button>
+        <button class="ab" onclick="var l=detLineSelected||'<%= _primeraLinea %>';if(l)abrirDuplicarSim(l)">📋 Duplicar SIM</button>
+        <button class="ab" onclick="var l=detLineSelected||'<%= _primeraLinea %>';if(l)abrirLimiteCredito(l)">💰 Límite crédito</button>
+        <button class="ab" onclick="var l=detLineSelected||'<%= _primeraLinea %>';if(l)abrirSvasModal(l)">📡 SVAs</button>
+        <button class="ab" onclick="var l=detLineSelected||'<%= _primeraLinea %>';if(l)abrirProductoOpcional(l)">➕ Producto opcional</button>
+        <button class="ab" onclick="var l=detLineSelected||'<%= _primeraLinea %>';if(l)modificarSPN(l)">🏢 Modificar SPN</button>
       </div>
     </div>
   </div>
@@ -1568,6 +1572,124 @@ function abrirCreditoModal() {
   .then(function(d) {
     if (d.ok) { alert('Límite de crédito actualizado'); location.reload(); }
     else { alert('Error: ' + (d.error || '')); }
+  })
+  .catch(function() { alert('Error de conexión'); });
+}
+
+function toggleBlockLine(line, desbloquear) {
+  if (!line) return;
+  var accion = desbloquear ? 'Desbloquear' : 'Bloquear';
+  if (!confirm(accion + ' la línea ' + line + '?')) return;
+  fetch('/clientes/' + '<%= _cid %>' + '/line/' + encodeURIComponent(line) + '/block', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ blocked: !desbloquear })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(res) {
+    if (res.ok) { alert('Línea ' + accion.toLowerCase() + ' correctamente'); location.reload(); }
+    else { alert('Error: ' + (res.error || 'Desconocido')); }
+  })
+  .catch(function(err) { alert('Error: ' + err.message); });
+}
+
+function cambiarTarifa(line) {
+  if (!line) return;
+  var sel = document.getElementById('tariffLine');
+  if (sel) sel.value = line;
+  var modal = new bootstrap.Modal(document.getElementById('changeTariffModal'));
+  modal.show();
+}
+
+function abrirEsimModal(line) {
+  if (!line) return;
+  abrirLineModal(line, '<%= _cid %>');
+  // Saltar al tab eSIM tras abrir
+  setTimeout(function() {
+    var tab = document.querySelector('#lineModalTabs a[data-tab="esim"]');
+    if (tab) { tab.click(); }
+    else {
+      // Fallback: buscar el panel esim
+      var esimPanel = document.getElementById('tab-esim');
+      if (esimPanel) esimPanel.style.display = '';
+    }
+  }, 1500);
+}
+
+function abrirDuplicarSim(line) {
+  if (!line) return;
+  var sel = document.getElementById('simLine');
+  if (sel) sel.value = line;
+  var modal = new bootstrap.Modal(document.getElementById('duplicateSimModal'));
+  modal.show();
+}
+
+function abrirLimiteCredito(line) {
+  if (!line) return;
+  abrirCreditoModal();
+}
+
+function abrirSvasModal(line) {
+  if (!line) return;
+  abrirLineModal(line, '<%= _cid %>');
+  // Saltar al tab Servicios tras abrir
+  setTimeout(function() {
+    var tab = document.querySelector('#lineModalTabs a[data-tab="servicios"]');
+    if (tab) tab.click();
+  }, 1500);
+}
+
+function abrirProductoOpcional(line) {
+  if (!line) return;
+  var modalEl = document.getElementById('optionalProductModal');
+  if (!modalEl) return alert('Modal productos opcionales no disponible');
+  var container = document.getElementById('optionalProductList');
+  container.innerHTML = '<div class="text-center py-3"><span class="spinner-border spinner-border-sm"></span> Cargando productos opcionales...</div>';
+  new bootstrap.Modal(modalEl).show();
+  fetch('/clientes/' + '<%= _cid %>' + '/line/' + encodeURIComponent(line) + '/compatible-optional-products', { method: 'GET' })
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+      var html = '';
+      if (res.ok && Array.isArray(res.data) && res.data.length > 0) {
+        res.data.forEach(function(p) {
+          html += '<div class="d-flex justify-content-between align-items-center p-2 border-bottom"><span>' + (p.productName || p.name || p.description || 'Producto') + '</span><button class="btn btn-sm btn-outline-primary" onclick="addOptionalProduct(\'' + line + '\',\'' + String(p.id || p.productId || '').replace(/'/g,"") + '\')">Añadir</button></div>';
+        });
+      } else {
+        html = '<div class="text-center text-muted py-3">No hay productos opcionales disponibles</div>';
+      }
+      container.innerHTML = html;
+    })
+    .catch(function() { container.innerHTML = '<div class="text-center text-muted py-3">Error al cargar productos opcionales</div>'; });
+}
+
+function addOptionalProduct(line, productId) {
+  if (!productId) { alert('ID de producto no válido'); return; }
+  fetch('/clientes/' + '<%= _cid %>' + '/line/' + encodeURIComponent(line) + '/add-optional-product', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ productId: productId, line: line })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d.ok) { alert('Producto opcional añadido'); location.reload(); }
+    else { alert('Error: ' + (d.error || '')); }
+  })
+  .catch(function() { alert('Error de conexión'); });
+}
+
+function modificarSPN(line) {
+  if (!line) return;
+  var spn = prompt('SPN para la línea ' + line + ':', 'movilbro');
+  if (spn === null) return;
+  fetch('/clientes/' + '<%= _cid %>' + '/line/' + encodeURIComponent(line) + '/svas', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ spn: spn })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d.ok) { alert('SPN actualizado'); location.reload(); }
+    else { alert('Error: ' + (d.error || 'La API no soporta SPN, consulta en Likes Telecom')); }
   })
   .catch(function() { alert('Error de conexión'); });
 }
