@@ -141,9 +141,9 @@
           <div style="margin-top:3px;display:flex;flex-wrap:wrap;gap:1px;">
             <a href="https://www.boe.es/buscar/boe.php?campo%5B%5D=NIF&dato%5B%5D=<%= encodeURIComponent(apiCustomer.fiscalId || cliente.dni_nif || '') %>&campo%5B%5D=TIT&operador%5B%5D=and&page_h_t=1&lang=es" target="_blank" style="font-size:0.3rem;padding:1px 3px;border:1px solid #dee2e6;border-radius:2px;color:#495057;text-decoration:none;">BOE</a>
             <a href="https://www.google.com/search?q=<%= encodeURIComponent((apiCustomer.fiscalId || cliente.dni_nif || '') + ' morosidad') %>" target="_blank" style="font-size:0.3rem;padding:1px 3px;border:1px solid #dee2e6;border-radius:2px;color:#495057;text-decoration:none;">Google</a>
-            <a href="#" style="font-size:0.3rem;padding:1px 3px;border:1px solid #dee2e6;border-radius:2px;color:#495057;text-decoration:none;">BORME</a>
-            <a href="#" style="font-size:0.3rem;padding:1px 3px;border:1px solid #dee2e6;border-radius:2px;color:#495057;text-decoration:none;">Catastro</a>
-            <a href="#" style="font-size:0.3rem;padding:1px 3px;border:1px solid #dee2e6;border-radius:2px;color:#495057;text-decoration:none;">Axesor</a>
+            <a href="https://www.borme.es/BormeBuscar/paginas/InformeEmpresa.aspx?cif=<%= encodeURIComponent(apiCustomer.fiscalId || cliente.dni_nif || '') %>" target="_blank" style="font-size:0.3rem;padding:1px 3px;border:1px solid #dee2e6;border-radius:2px;color:#495057;text-decoration:none;">BORME</a>
+            <a href="https://www1.sedecatastro.gob.es/OVCFrames.aspx?TIPO=CONSULTA&NUMERO=<%= encodeURIComponent(apiCustomer.fiscalId || cliente.dni_nif || '') %>" target="_blank" style="font-size:0.3rem;padding:1px 3px;border:1px solid #dee2e6;border-radius:2px;color:#495057;text-decoration:none;">Catastro</a>
+            <a href="https://www.axesor.es/buscador/?tipo=1&query=<%= encodeURIComponent(apiCustomer.fiscalId || cliente.dni_nif || '') %>" target="_blank" style="font-size:0.3rem;padding:1px 3px;border:1px solid #dee2e6;border-radius:2px;color:#495057;text-decoration:none;">Axesor</a>
           </div>
         </div>
       </div>
@@ -185,10 +185,10 @@
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px 8px;font-size:0.42rem;margin-top:2px;">
         <div style="display:flex;justify-content:space-between;padding:1px 0;border-bottom:1px solid #f5f5f5;"><span style="color:#6c757d;">Producto</span><span style="font-weight:500;" id="detProd">-</span></div>
         <div style="display:flex;justify-content:space-between;padding:1px 0;border-bottom:1px solid #f5f5f5;"><span style="color:#6c757d;">Estado</span><span style="font-weight:500;" id="detEstado">-</span></div>
-        <div style="display:flex;justify-content:space-between;padding:1px 0;border-bottom:1px solid #f5f5f5;"><span style="color:#6c757d;">ICC</span><span style="font-weight:500;" id="detIcc">- <span style="font-size:0.3rem;color:#0d6efd;cursor:pointer;">📋</span></span></div>
-        <div style="display:flex;justify-content:space-between;padding:1px 0;border-bottom:1px solid #f5f5f5;"><span style="color:#6c757d;">PIN/PUK</span><span style="font-weight:500;" id="detPinPuk">- <span style="font-size:0.3rem;color:#0d6efd;cursor:pointer;">👁️</span></span></div>
-        <div style="display:flex;justify-content:space-between;padding:1px 0;border-bottom:1px solid #f5f5f5;"><span style="color:#6c757d;">💳 Pago</span><span style="font-weight:500;" id="detPago">- <span style="font-size:0.3rem;color:#0d6efd;cursor:pointer;">✏️</span></span></div>
-        <div style="display:flex;justify-content:space-between;padding:1px 0;border-bottom:1px solid #f5f5f5;"><span style="color:#6c757d;">💰 Crédito</span><span style="font-weight:500;" id="detCredito">- <span style="font-size:0.3rem;color:#0d6efd;cursor:pointer;">✏️</span></span></div>
+        <div style="display:flex;justify-content:space-between;padding:1px 0;border-bottom:1px solid #f5f5f5;"><span style="color:#6c757d;">ICC</span><span style="font-weight:500;" id="detIcc">- <span style="font-size:0.3rem;color:#0d6efd;cursor:pointer;" onclick="copiarICC()" title="Copiar ICC">📋</span></span></div>
+        <div style="display:flex;justify-content:space-between;padding:1px 0;border-bottom:1px solid #f5f5f5;"><span style="color:#6c757d;">PIN/PUK</span><span style="font-weight:500;" id="detPinPuk">- <span style="font-size:0.3rem;color:#0d6efd;cursor:pointer;" onclick="var l=detLineSelected||'<%= _primeraLinea %>';if(l)mostrarPinPuk(l)" title="Ver PIN/PUK">👁️</span></span></div>
+        <div style="display:flex;justify-content:space-between;padding:1px 0;border-bottom:1px solid #f5f5f5;"><span style="color:#6c757d;">💳 Pago</span><span style="font-weight:500;" id="detPago">- <span style="font-size:0.3rem;color:#0d6efd;cursor:pointer;" onclick="abrirPagoModal()" title="Cambiar método de pago">✏️</span></span></div>
+        <div style="display:flex;justify-content:space-between;padding:1px 0;border-bottom:1px solid #f5f5f5;"><span style="color:#6c757d;">💰 Crédito</span><span style="font-weight:500;" id="detCredito">- <span style="font-size:0.3rem;color:#0d6efd;cursor:pointer;" onclick="abrirCreditoModal()" title="Gestionar límite de crédito">✏️</span></span></div>
         <div style="display:flex;justify-content:space-between;padding:1px 0;border-bottom:1px solid #f5f5f5;"><span style="color:#6c757d;">🏢 SPN</span><span style="font-weight:500;">Movilbro</span></div>
         <div style="display:flex;justify-content:space-between;padding:1px 0;border-bottom:1px solid #f5f5f5;"><span style="color:#6c757d;">📅 Alta</span><span style="font-weight:500;" id="detAlta">-</span></div>
         <div style="display:flex;justify-content:space-between;padding:1px 0;border-bottom:1px solid #f5f5f5;"><span style="color:#6c757d;">📊 GB Nac</span><span style="font-weight:500;" id="detGbNac">-</span></div>
@@ -421,6 +421,12 @@
               </div>
               <% }); %>
             </div>
+          <div class="mb-3 mt-2">
+            <button class="btn btn-sm btn-outline-danger" onclick="loadNubeInvoices('<%= _cid %>')">
+              <i class="bi bi-google-drive"></i> Facturas en Drive
+            </button>
+          </div>
+          <div id="nubeInvoicesContainer" class="mt-2"></div>
           <% } else { %>
           <div class="mb-3">
             <a href="/isp/facturacion/facturas?fiscal=<%= encodeURIComponent(cliente.dni_nif || '') %>" class="btn btn-sm btn-outline-primary" target="_blank">
@@ -1402,7 +1408,8 @@ function verResumenOrden(orderId, cid) {
 function openTicketModal() {
   var sel = document.getElementById('ticketLine');
   sel.innerHTML = '<option value="">Seleccionar l&iacute;nea...</option>';
-  linesArr.forEach(function(ln) {
+  var lArr = (typeof linesArr !== 'undefined') ? linesArr : (window.linesArr || []);
+  lArr.forEach(function(ln) {
     if (!ln) return;
     var opt = document.createElement('option');
     opt.value = ln;
@@ -1529,6 +1536,42 @@ function guardarIBAN(clienteId) {
   .catch(function() { alert('Error de conexión'); });
 }
 
+function copiarICC() {
+  var el = document.getElementById('detIcc');
+  if (!el) return;
+  var txt = el.textContent.replace(/📋/g, '').trim();
+  if (!txt || txt === '-') { alert('No hay ICC para copiar'); return; }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(txt).then(function() { alert('ICC copiado: ' + txt); }).catch(function() { alert('ICC: ' + txt); });
+  } else { alert('ICC: ' + txt); }
+}
+
+function abrirPagoModal() {
+  var line = detLineSelected || '';
+  if (!line) { alert('Selecciona una línea primero'); return; }
+  var metodo = prompt('Método de pago para la línea ' + line + ' (ej: domiciliacion, tarjeta):', 'domiciliacion');
+  if (metodo === null) return;
+  cambiarPagoLinea(line, metodo.trim());
+}
+
+function abrirCreditoModal() {
+  var line = detLineSelected || '';
+  if (!line) { alert('Selecciona una línea primero'); return; }
+  var limite = prompt('Límite de crédito para la línea ' + line + ' (€):', '0');
+  if (limite === null) return;
+  fetch('/clientes/' + '<%= _cid %>' + '/line/' + encodeURIComponent(line) + '/credit-limit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ credit_limit: parseFloat(limite) || 0 })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d.ok) { alert('Límite de crédito actualizado'); location.reload(); }
+    else { alert('Error: ' + (d.error || '')); }
+  })
+  .catch(function() { alert('Error de conexión'); });
+}
+
 
 
 function calcularScoring(clienteId) {
@@ -1637,6 +1680,7 @@ document.addEventListener('DOMContentLoaded', function() {
   var clientId = <%- JSON.stringify(_cid || null) %>; if(!clientId){var _fb=document.querySelector('.ver-consumo');if(_fb)clientId=_fb.dataset.client}
   if (!clientId) { var _firstBtn = document.querySelector('.ver-consumo'); if (_firstBtn) clientId = _firstBtn.dataset.client; }
   window.clientId = clientId;
+  window.linesArr = linesArr;
 
   function formatDate(d) {
     if (!d) return '-';
@@ -2553,8 +2597,10 @@ document.querySelectorAll('input[name="dailyChartType"]').forEach(function(rb) {
       var fullId = (idCell.textContent || '').trim();
       var productCell = row.querySelector('td:nth-child(3)');
       var lineCell = row.querySelector('td:nth-child(4)');
-      if (!productCell || productCell.textContent.trim() !== '-') return;
-      if (!lineCell || lineCell.textContent.trim() !== '-') return;
+      if (!productCell) return;
+      // Si la celda YA tiene datos (no es '-' y no es un spinner), saltar
+      var txt = (productCell.textContent || '').trim();
+      if (txt && txt !== '-' && !productCell.querySelector('.spinner-border')) return;
       // Try to find the full order ID from the Ver detalle button
       var detBtn = row.querySelector('button[onclick*="verResumenOrden"]');
       if (!detBtn) return;
@@ -2563,7 +2609,8 @@ document.querySelectorAll('input[name="dailyChartType"]').forEach(function(rb) {
       var orderId = matchO ? matchO[1] : fullId;
       if (!orderId) return;
       productCell.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
-      fetch('/clientes/' + clientId + '/order/' + encodeURIComponent(orderId) + '/summary')
+      var cidFetch = (typeof clientId !== 'undefined' ? clientId : '') || (window.clientId || '');
+      fetch('/clientes/' + cidFetch + '/order/' + encodeURIComponent(orderId) + '/summary')
         .then(function(r) { return r.json(); })
         .then(function(res) {
           if (res.ok && res.data) {
@@ -2626,6 +2673,15 @@ document.querySelectorAll('input[name="dailyChartType"]').forEach(function(rb) {
       btn.classList.add('active');
       var pane = document.querySelector(targetId);
       if (pane) pane.classList.add('show', 'active');
+      // Disparar listeners que antes dependian de shown.bs.tab (Bootstrap)
+      if (targetId === '#ordenes' && typeof enrichOrders === 'function') enrichOrders();
+      if (targetId === '#facturas') {
+        var container = document.getElementById('nubeInvoicesContainer');
+        if (container && container.innerHTML === '' && typeof loadNubeInvoices === 'function') {
+          var cidF = (typeof clientId !== 'undefined' ? clientId : '') || (window.clientId || '');
+          loadNubeInvoices(cidF);
+        }
+      }
     });
   });
 
@@ -2876,6 +2932,20 @@ function selectLine(line) {
         } else {
           window._chartDailyData = [];
           renderChartBars();
+        }
+      }).catch(function() {});
+    // Cargar PIN/PUK de la línea
+    fetch('/clientes/' + encodeURIComponent(cid) + '/line/' + encodeURIComponent(line) + '/pinpuk', { method: 'POST' })
+      .then(function(r) { return r.json(); })
+      .then(function(res) {
+        if (res.ok && res.data) {
+          var d = res.data.data || res.data;
+          var pin = d.pin || d.pinCode || '';
+          var puk = d.puk || d.pukCode || '';
+          var elPin = document.getElementById('detPinPuk');
+          if (elPin && (pin || puk)) {
+            elPin.innerHTML = pin + ' / ' + puk + ' <span style="font-size:0.3rem;color:#0d6efd;cursor:pointer;" onclick="var l=detLineSelected;if(l)mostrarPinPuk(l)" title="Ver PIN/PUK">👁️</span>';
+          }
         }
       }).catch(function() {});
   }
