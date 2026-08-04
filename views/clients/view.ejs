@@ -3183,10 +3183,10 @@ function renderLineModal(data, lineNumber, fiscalId) {
   var sim = data.sim || {};
   var creditLimit = data.creditLimit || {};
   var pinpuk = data.pinpuk || {};
-  var icc = lineInfo.sims && lineInfo.sims[0] ? (lineInfo.sims[0].icc || lineInfo.sims[0].iccid || '') : (pinpuk.icc || pinpuk.iccid || '');
-  var pin = lineInfo.sims && lineInfo.sims[0] ? (lineInfo.sims[0].pin || '') : (pinpuk.pin || '');
-  var puk = lineInfo.sims && lineInfo.sims[0] ? (lineInfo.sims[0].puk || '') : (pinpuk.puk || '');
-  var emailSim = lineInfo.sims && lineInfo.sims[0] ? (lineInfo.sims[0].email || '') : '';
+  var icc = lineInfo.sims && lineInfo.sims[0] ? (lineInfo.sims[0].icc || lineInfo.sims[0].iccid || '') : (lineInfo.icc || simInfo.icc || pinpuk.icc || pinpuk.iccid || '');
+  var pin = lineInfo.sims && lineInfo.sims[0] ? (lineInfo.sims[0].pin || '') : (simInfo.pin || lineInfo.simInfo?.pin || pinpuk.pin || '');
+  var puk = lineInfo.sims && lineInfo.sims[0] ? (lineInfo.sims[0].puk || '') : (simInfo.puk || lineInfo.simInfo?.puk || pinpuk.puk || '');
+  var emailSim = lineInfo.sims && lineInfo.sims[0] ? (lineInfo.sims[0].email || '') : (simInfo.email || lineInfo.simInfo?.email || '');
   var spn = lineInfo.spn || lineInfo.brand || '';
   var status = lineInfo.status || '';
 
@@ -3317,7 +3317,7 @@ function setCreditLimit(lineNumber, fiscalId, amount) {
   fetch('/clientes/' + encodeURIComponent(fiscalId) + '/line/' + encodeURIComponent(lineNumber) + '/credit-limit', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ limit: parseFloat(amount) })
+    body: JSON.stringify({ creditLimit: parseFloat(amount) })
   }).then(function(r){ return r.json() }).then(function(res){
     if (res.ok) {
       document.querySelectorAll('#tab-resumen .btn-primary').forEach(function(b){ b.className = b.className.replace('btn-primary','btn-outline-secondary'); });

@@ -387,7 +387,12 @@ class LikesAPI {
   }
 
   async updateLineSVAs(lineNumber, svasData) {
-    return this.request('PUT', '/line/svas', { lineNumber: lineNumber, ...svasData });
+    // La API espera un ARRAY completo de SVAs en el campo 'svas'
+    var body = { lineNumber: lineNumber };
+    if (Array.isArray(svasData)) body.svas = svasData;
+    else if (svasData && svasData.svas && Array.isArray(svasData.svas)) body.svas = svasData.svas;
+    else body.svas = [svasData];
+    return this.request('PUT', '/line/svas', body);
   }
 
   async getLineCreditLimit(lineNumber) {
@@ -396,8 +401,14 @@ class LikesAPI {
     } catch(e) { return null; }
   }
 
-  async setLineCreditLimit(lineNumber, limit) {
-    return this.request('PUT', '/line/credit-limit', { lineNumber: lineNumber, limit });
+  async setLineCreditLimit(lineNumber, limit, opts = {}) {
+    var body = {
+      lineNumber: lineNumber,
+      creditLimit: limit,
+      toBeBlocked: opts.toBeBlocked !== undefined ? opts.toBeBlocked : false,
+      autoUnlocking: opts.autoUnlocking !== undefined ? opts.autoUnlocking : true
+    };
+    return this.request('PUT', '/line/credit-limit', body);
   }
 
   async updateLineSPN(lineNumber, spn) {

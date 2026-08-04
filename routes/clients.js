@@ -1608,7 +1608,10 @@ router.post('/:id/line/:line/svas', requireAuth, async (req, res) => {
 router.post('/:id/line/:line/credit-limit', requireAuth, async (req, res) => {
   try {
     var api = LikesAPI.getApiInstance();
-    var result = await api.setLineCreditLimit(req.params.line, req.body.limit || req.body.amount || 0);
+    var result = await api.setLineCreditLimit(req.params.line, req.body.creditLimit || req.body.limit || req.body.amount || 0, {
+      toBeBlocked: req.body.toBeBlocked,
+      autoUnlocking: req.body.autoUnlocking
+    });
     res.json({ ok: true, data: result });
   } catch(e) {
     res.json({ ok: false, error: e.message });
