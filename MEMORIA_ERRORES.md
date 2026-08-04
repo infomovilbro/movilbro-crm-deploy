@@ -171,3 +171,27 @@ cambiarPagoLinea, guardarIBAN â€” todo muerto.
 3. **NO modificar** `pollWAStatus()` en `codeopen.ejs` â€” el frontend espera `{status: {connected, state, hasQR, error}}`.
 4. **NO asumir** que el QR funciona solo porque `hasQR: true`. Verificar en el DOM real con `page.evaluate()` que waQRImage tenga `naturalWidth > 0` y `complete: true`.
 5. **NO commitear** cÃ³digo QR sin verificar el flujo completo: endpoint â†’ frontend â†’ imagen renderizada.
+
+## [2026-08-04] Tab-panes ANIDADOS dentro de #info - bug visual invisible en test
+
+### Síntoma
+- El usuario pulsa los tabs (Instalaciones, Órdenes, etc.) y ve VACÍO, aunque el código tenga contenido.
+- Los tests con page.evaluate() (leer innerHTML) NO detectaban el problema: el HTML existía, pero estaba OCULTO visualmente.
+
+### Causa raíz
+- En iews/clients/view.ejs, el <div class="tab-pane" id="info"> NUNCA se cerraba con </div>.
+- Por eso #lineas, #ordenes, #facturas, #instalaciones, #kyc, #contrato quedaban ANIDADOS DENTRO de #info.
+- Cuando el handler de tabs quitaba ctive a #info, éste quedaba display:none, y TODOS los panes hijos se ocultaban también.
+- offsetParent === null en el pane = no visible visualmente (aunque display:block y getComputedStyle digan block).
+
+### Fix
+- Añadir el </div> que cierra #info antes de abrir #lineas.
+
+### CÓMO DETECTARLO (regla para el futuro)
+- NO basta con page.evaluate(() => el.innerHTML).
+- SIEMPRE verificar el.offsetParent !== null (visible real) Y el.getBoundingClientRect().height > 0.
+- Comprobar que cada .tab-pane es HIJO DIRECTO de .tab-content (hermanos entre sí).
+- Hacer click real (playwright click) + snapshot, no solo .click() por JS.
+
+### Verificación
+- git show 3162c30 = el fix del cierre del div.

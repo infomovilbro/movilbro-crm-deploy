@@ -668,3 +668,12 @@ ode -e con PowerShell** — escribir archivo .js y ejecutarlo.
 - **El MCP da acceso directo a la BD** — Antes de tocar cualquier ruta que lea datos, consultar la estructura real con el MCP sqlite.
 - **Ante cualquier error JS: verificar balance de llaves** antes de commitear.
 - **El config opencode.json del proyecto es LOCAL** — está en .gitignore, no se sube.
+
+### ?? REGLA CRÍTICA: Verificar VISIBILIDAD REAL, no solo existencia en DOM
+- **NUNCA dar algo por funcionando solo porque page.evaluate(() => el.innerHTML) devuelve contenido.**
+- El HTML puede existir pero estar OCULTO visualmente (ej: panes anidados dentro de un padre con display:none).
+- **SIEMPRE verificar:** el.offsetParent !== null (visible real) y el.getBoundingClientRect().height > 0.
+- **Comprobar la estructura:** los .tab-pane deben ser HERMANOS directos de .tab-content, nunca anidados entre sí.
+- **Hacer click REAL (playwright click + snapshot), no solo el.click() por JS.**
+- Si el usuario dice "lo veo vacío" y tú "ves" contenido con evaluate ? el problema es de estructura/visibilidad, no de datos.
+- Un </div> que falta en un pane anida todos los siguientes dentro de él ? crash visual masivo.
