@@ -93,24 +93,9 @@ router.get('/', requireAuth, async (req, res) => {
     }
   });
 
-  locales.forEach(l => {
-    if (!seenLocalIds.has(l.id)) {
-      merged.push({
-        origen: 'LOCAL',
-        id_local: l.id,
-        nombre: l.nombre,
-        apellidos: l.apellidos || '',
-        email: l.email || '',
-        telefono: l.telefono || '',
-        dni_nif: l.dni_nif || '',
-        direccion: l.direccion || '',
-        ciudad: l.ciudad || '',
-        tipo: l.tipo_cliente || 'particular',
-        estado: '',
-        created_at: l.created_at
-      });
-    }
-  });
+  // Los clientes locales sin coincidencia con la API NO se muestran
+  // (los clientes solo deben venir de la API de Likes Telecom)
+  const localesSinApi = locales.filter(l => !seenLocalIds.has(l.id)).length;
 
   merged.sort((a, b) => {
     const da = a.created_at || '';
@@ -142,7 +127,8 @@ router.get('/', requireAuth, async (req, res) => {
     totalFiltered,
     totalPages,
     apiCount: apiClientes.length,
-    localCount: locales.length
+    localCount: locales.length,
+    localesSinApi: localesSinApi || 0
   });
 });
 
@@ -150,17 +136,55 @@ router.get('/nuevo', requireAuth, (req, res) => {
   res.render('clients/create', { title: 'Nuevo Cliente', cliente: {}, errors: [] });
 });
 
-router.post('/nuevo', requireAuth, (req, res) => {
+router.post('/nuevo', requireAuth, async (req, res) => {
   const { nombre, apellidos, dni_nif, email, telefono, telefono2, direccion, ciudad, provincia, codigo_postal, notas, tipo_cliente } = req.body;
   if (!nombre || !telefono) {
     return res.render('clients/create', { title: 'Nuevo Cliente', cliente: req.body, errors: ['Nombre y teléfono son obligatorios'] });
   }
-  const result = db.prepare(`
-    INSERT INTO clients (nombre, apellidos, dni_nif, email, telefono, telefono2, direccion, ciudad, provincia, codigo_postal, notas, tipo_cliente)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(nombre, apellidos, dni_nif, email, telefono, telefono2, direccion, ciudad, provincia, codigo_postal, notas, tipo_cliente);
-  db.prepare('INSERT INTO activity_log (tipo, descripcion, client_id) VALUES (?, ?, ?)').run('cliente_creado', 'Cliente ' + nombre + ' ' + (apellidos || '') + ' creado', result.lastInsertRowid);
-  res.redirect('/clientes');
+  // Validar contra la API: los clientes solo deben existir si están en Likes Telecom
+  // Si el DNI o teléfono ya está en la API, NO crear duplicado local
+  let apiMatch = null;
+  try {
+    const api = LikesAPI.getApiInstance();
+    const customers = await api.getCustomers();
+    const phoneClean = String(telefono || '').replace(/[^\d]/g, '');
+    const dniClean = String(dni_nif || '').toUpperCase();
+    for (const c of (customers || [])) {
+      const cPhone = String(c.phone || c.contactInfo?.phone || '').replace(/[^\d]/g, '');
+      const cDni = String(c.fiscalId || c.fiscalNumber || c.fiscal_id || '').toUpperCase();
+      if ((dniClean && dniClean === cDni) || (phoneClean && phoneClean === cPhone)) {
+        apiMatch = c;
+        break;
+      }
+    }
+  } catch(e) {
+    console.error('[Cliente nuevo] Error validando API:', e.message);
+  }
+
+  if (apiMatch) {
+    // Ya existe en API: actualizar el local si existe, o enlazar por likes_customer_id
+    const apiId = apiMatch.id || apiMatch.customerId || '';
+    const existente = db.prepare("SELECT id FROM clients WHERE dni_nif = ? OR telefono = ? LIMIT 1").get(dni_nif || null, telefono || null);
+    if (existente) {
+      db.prepare('UPDATE clients SET likes_customer_id = ?, nombre = ?, apellidos = ?, email = ?, telefono = ?, telefono2 = ?, direccion = ?, ciudad = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+        .run(apiId || null, nombre, apellidos || '', email || '', telefono, telefono2 || '', direccion || '', ciudad || '', existente.id);
+      db.prepare('INSERT INTO activity_log (tipo, descripcion, client_id) VALUES (?, ?, ?)').run('cliente_actualizado', 'Cliente ' + nombre + ' enlazado a API (' + apiId + ')', existente.id);
+      return res.redirect('/clientes?msg=enlazado');
+    }
+    const result = db.prepare(`
+      INSERT INTO clients (likes_customer_id, nombre, apellidos, dni_nif, email, telefono, telefono2, direccion, ciudad, provincia, codigo_postal, notas, tipo_cliente)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(apiId || null, nombre, apellidos || '', dni_nif || '', email || '', telefono, telefono2 || '', direccion || '', ciudad || '', provincia || 'Málaga', codigo_postal || '29200', notas || '', tipo_cliente || 'particular');
+    db.prepare('INSERT INTO activity_log (tipo, descripcion, client_id) VALUES (?, ?, ?)').run('cliente_creado', 'Cliente ' + nombre + ' ' + (apellidos || '') + ' creado (enlazado API)', result.lastInsertRowid);
+    return res.redirect('/clientes');
+  }
+
+  // No está en la API: rechazar (los clientes solo deben venir de la API)
+  return res.render('clients/create', {
+    title: 'Nuevo Cliente',
+    cliente: req.body,
+    errors: ['El cliente "' + (nombre || '') + '" no existe en la API de Likes Telecom. Los clientes solo pueden crearse desde los datos de la API. Si crees que debería existir, sincroniza desde la API primero.']
+  });
 });
 
 function mapApiCustomer(customerData) {
@@ -2137,6 +2161,69 @@ router.get('/:id/line/:line/consumo', requireAuth, async (req, res) => {
     res.render('clients/consumo', { title: 'Consumo ' + lineNumber, lineNumber: lineNumber, fiscalId: fiscalId, layout: false });
   } catch(e) {
     res.status(500).send('Error: ' + e.message);
+  }
+});
+
+// Limpiar clientes locales sin enlace a la API (los "inventados")
+// GET /clientes/limpiar-locales -> elimina locales sin likes_customer_id y sin match con API
+router.get('/limpiar-locales', requireAuth, async (req, res) => {
+  try {
+    // Obtener todos los clientes de la API para conocer los válidos
+    let apiPhones = new Set();
+    let apiDnis = new Set();
+    try {
+      const api = LikesAPI.getApiInstance();
+      const customers = await api.getCustomers();
+      (customers || []).forEach(function(c) {
+        var p = String(c.phone || c.contactInfo?.phone || '').replace(/[^\d]/g, '');
+        var d = String(c.fiscalId || c.fiscalNumber || c.fiscal_id || '').toUpperCase();
+        if (p) apiPhones.add(p);
+        if (d) apiDnis.add(d);
+      });
+    } catch(e) {
+      console.error('[Limpiar locales] Error API:', e.message);
+    }
+
+    var locales = db.prepare('SELECT id, nombre, telefono, dni_nif, likes_customer_id, created_at FROM clients').all();
+    var aBorrar = [];
+    var conservados = [];
+
+    locales.forEach(function(l) {
+      // Conservar si tiene likes_customer_id (ya enlazado a API)
+      if (l.likes_customer_id) { conservados.push(l.id); return; }
+      // Conservar si su DNI o teléfono coincide con un cliente de la API
+      var p = String(l.telefono || '').replace(/[^\d]/g, '');
+      var d = String(l.dni_nif || '').toUpperCase();
+      if ((d && apiDnis.has(d)) || (p && apiPhones.has(p))) { conservados.push(l.id); return; }
+      // Si la API está disponible y NO matchea: es inventado, se borra
+      if (apiPhones.size > 0 || apiDnis.size > 0) {
+        aBorrar.push({ id: l.id, nombre: l.nombre, telefono: l.telefono, dni: l.dni_nif });
+      } else {
+        // API no disponible: conservar por seguridad
+        conservados.push(l.id);
+      }
+    });
+
+    // Borrar
+    const del = db.prepare('DELETE FROM clients WHERE id = ?');
+    var borrados = 0;
+    aBorrar.forEach(function(c) {
+      try {
+        del.run(c.id);
+        db.prepare('DELETE FROM activity_log WHERE client_id = ?').run(c.id);
+        borrados++;
+      } catch(e) { console.error('[Limpiar] Error borrando', c.id, e.message); }
+    });
+
+    res.json({
+      ok: true,
+      totalLocal: locales.length,
+      borrados: borrados,
+      conservados: conservados.length,
+      detalleBorrados: aBorrar
+    });
+  } catch(e) {
+    res.status(500).json({ ok: false, error: e.message });
   }
 });
 

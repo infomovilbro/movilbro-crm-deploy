@@ -82,12 +82,15 @@ router.get('/search', requireAuth, async (req, res) => {
   var offset = (page - 1) * limit;
 
   var locales = db.prepare(`
-    SELECT id, nombre, apellidos, telefono, dni_nif, email, 'LOCAL' as origen
+    SELECT id, nombre, apellidos, telefono, dni_nif, email, likes_customer_id, 'LOCAL' as origen
     FROM clients
-    WHERE nombre LIKE ? OR apellidos LIKE ? OR telefono LIKE ? OR dni_nif LIKE ? OR email LIKE ?
+    WHERE (nombre LIKE ? OR apellidos LIKE ? OR telefono LIKE ? OR dni_nif LIKE ? OR email LIKE ?)
     ORDER BY nombre ASC
     LIMIT ? OFFSET ?
   `).all(search, search, search, search, search, limit, offset);
+
+  // Solo mostrar locales enlazados a la API (likes_customer_id) — los demás son inventados
+  locales = locales.filter(function(c) { return c.likes_customer_id; });
 
   var apiResults = [];
   try {
@@ -115,14 +118,19 @@ router.get('/search', requireAuth, async (req, res) => {
   }
 
   var seenPhones = {};
+  var seenDnis = {};
   locales.forEach(function(c) {
     var p = c.telefono ? c.telefono.replace(/[^\d]/g, '') : '';
+    var d = c.dni_nif ? c.dni_nif.toUpperCase() : '';
     if (p) seenPhones[p] = true;
+    if (d) seenDnis[d] = true;
   });
   apiResults.forEach(function(c) {
     var p = c.telefono ? c.telefono.replace(/[^\d]/g, '') : '';
-    if (!seenPhones[p]) {
-      seenPhones[p] = true;
+    var d = c.fiscalId ? c.fiscalId.toUpperCase() : '';
+    if (!seenPhones[p] && !seenDnis[d]) {
+      if (p) seenPhones[p] = true;
+      if (d) seenDnis[d] = true;
       locales.push({ id: null, nombre: c.nombre, telefono: c.telefono, dni_nif: c.fiscalId, origen: 'API' });
     }
   });
