@@ -631,3 +631,40 @@ guardarIBAN â€” todo lo que dependÃ­a del inline script.
 `1e1009e` â€” `fix: _cid quoting syntax error + filtros lineas funcionales` (deployed live en Render âœ…)
 
 `70123ae` â€” `docs: update AGENTS.md + MEMORIA_ERRORES.md` (NO debÃ­ separarlo, provocÃ³ deploy innecesario)
+
+---
+
+## Sesión 2026-08-04 — Instalación de Herramientas + Nuevo Flujo de Trabajo
+
+### Herramientas instaladas (config global opencode, NO en el repo)
+| Herramienta | Qué hace | Estado |
+|---|---|---|
+| **Superpowers** (obra/superpowers) | Metodología: brainstorming ? plan ? ejecución ? revisión. Skills en ~/.config/opencode/node_modules/superpowers | ? |
+| **claude-mem** | Memoria persistente entre sesiones. Worker en 
+px claude-mem start. Plugin en ~/.config/opencode/plugins/claude-mem.js | ? |
+| **MCP crm-sqlite** | Acceso directo a movilbro.db (SQLite) via protocolo MCP | ? |
+| **MCP crm-files** | Acceso a archivos del proyecto via protocolo MCP | ? |
+
+### Config
+- opencode.json (proyecto) = plugin superpowers + 2 MCP. **NO subir a git** (rutas locales del PC).
+- ~/.config/opencode/opencode.json = plugin claude-mem.
+- La BD local movilbro.db es SQLite (mejor-sqlite3). El MCP sqlite usa --db <ruta>.
+
+### NUEVO FLUJO DE TRABAJO OBLIGATORIO (método programador)
+El admin me muestra cómo está algo. Yo sigo EXACTAMENTE este flujo:
+
+1. **VERIFICAR primero** — Con CDP (navegador depurado puerto 9222), MCP (consulta SQLite directa), lectura de código, respuestas reales de la API. NUNCA inventar.
+2. **SIMULAR antes de tocar** — Creo un HTML/archivo de simulación LOCAL (crm_sim.html, etc.) que el admin ve en su navegador. Le enseño CÓMO QUEDARÍA arreglado SIN tocar el servidor.
+3. **APROBACIÓN** — El admin ve la simulación. Solo si le gusta, paso al paso 4.
+4. **IMPLEMENTAR** — Solo entonces toco el código real del servidor (routes/, views/, etc.).
+5. **VERIFICAR post-cambio** — Comprobar que lo que ya funcionaba sigue funcionando.
+6. **Commit + push + deploy** — Al final de la sesión, UN solo commit + push a main + Manual Deploy.
+7. **Verificar en navegador real** — Confirmar en la web de Render antes de informar.
+
+### Reglas críticas del nuevo flujo
+- **NUNCA implementar directo en el servidor sin simulación previa aprobada.** Si el admin solo pidió ver algo, mostrar simulación, no tocar código.
+- **NUNCA usar 
+ode -e con PowerShell** — escribir archivo .js y ejecutarlo.
+- **El MCP da acceso directo a la BD** — Antes de tocar cualquier ruta que lea datos, consultar la estructura real con el MCP sqlite.
+- **Ante cualquier error JS: verificar balance de llaves** antes de commitear.
+- **El config opencode.json del proyecto es LOCAL** — está en .gitignore, no se sube.
