@@ -1555,14 +1555,30 @@ router.post('/:id/line/:line/full-consumption', requireAuth, async (req, res) =>
   try {
     var api = LikesAPI.getApiInstance();
     var lineNumber = req.params.line;
+    // Ejecutar todas las llamadas a la API EN PARALELO para que el modal cargue rapido
+    var [gbRes, cdrsRes, infoRes, svasRes, clRes] = await Promise.all([
+      Promise.resolve().then(function() { return api.getLineGB(lineNumber); }).catch(function() { return null; }),
+      Promise.resolve().then(function() { return api.getLineCDRs(lineNumber); }).catch(function() { return null; }),
+      Promise.resolve().then(function() { return api.getLineInfo(lineNumber); }).catch(function() { return null; }),
+      Promise.resolve().then(function() { return api.getLineSVAs(lineNumber); }).catch(function() { return []; }),
+      Promise.resolve().then(function() { return api.getLineCreditLimit(lineNumber); }).catch(function() { return null; })
+    ]);
     var results = { gb: null, pinpuk: null, lineInfo: null, svas: [], cdrs: [], sim: null, creditLimit: null };
-    try { var gb = await api.getLineGB(lineNumber); results.gb = gb && gb.data ? gb.data : gb; } catch(e) {}
-    try { var cdrs = await api.getLineCDRs(lineNumber); results.cdrs = Array.isArray(cdrs) ? cdrs : (cdrs && cdrs.data ? cdrs.data : []); } catch(e) {}
-    try { var pinpuk = await api.getLinePINPUK(lineNumber); results.pinpuk = pinpuk && pinpuk.data ? pinpuk.data : pinpuk; } catch(e) {}
-    try { var info = await api.getLineInfo(lineNumber); results.lineInfo = Array.isArray(info) ? info[0] : (info && info.data ? info.data : info); } catch(e) {}
-    try { var svas = await api.getLineSVAs(lineNumber); results.svas = Array.isArray(svas) ? svas : (svas && svas.data ? svas.data : []); } catch(e) {}
-    try { var sim = await api.request('GET', '/line/sim?lineNumber=' + encodeURIComponent(lineNumber)); results.sim = sim && sim.data ? sim.data : sim; } catch(e) {}
-    try { var cl = await api.getLineCreditLimit(lineNumber); results.creditLimit = cl && cl.data ? cl.data : cl; } catch(e) {}
+    var gb = gbRes;
+    var cdrs = cdrsRes;
+    var info = infoRes;
+    var svas = svasRes;
+    var cl = clRes;
+    results.gb = gb && gb.data ? gb.data : gb;
+    results.cdrs = Array.isArray(cdrs) ? cdrs : (cdrs && cdrs.data ? cdrs.data : []);
+    results.lineInfo = Array.isArray(info) ? info[0] : (info && info.data ? info.data : info);
+    results.svas = Array.isArray(svas) ? svas : (svas && svas.data ? svas.data : []);
+    results.creditLimit = cl && cl.data ? cl.data : cl;
+    // El PIN/PUK viene dentro de lineInfo.simInfo (endpoint /line?withSimsInfo=true)
+    // getLinePINPUK (/line/pinpuk) NO existe en la API real -> eliminado
+    if (results.lineInfo && results.lineInfo.simInfo) {
+      results.pinpuk = { pin: results.lineInfo.simInfo.pin, puk: results.lineInfo.simInfo.puk, icc: results.lineInfo.simInfo.icc || results.lineInfo.icc };
+    }
     res.json({ ok: true, data: results });
   } catch(e) {
     res.json({ ok: false, error: e.message });
