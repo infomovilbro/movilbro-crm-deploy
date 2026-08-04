@@ -322,11 +322,12 @@ Estas reglas están escritas con sangre. Si una nueva sesión las ignora, el CRM
 - **NO forzar push (`--force`) sin permiso explícito del admin.**
 - **Probar TODO localmente con `node -e` antes de commitear.**
 
-### 2b. Flujo GitHub — Push a main (deploy) SOLO
-- **Push SOLO a main (la rama que Render despliega):** `git push origin master:main`
-- **NO push a master.** Master es respaldo local, no necesita deploy.
-- **Si se quiere actualizar master, hacerlo SIN deploy:** `git push origin master:master` solo cuando no haya builds en progreso, o no hacerlo.
-- **Un solo commit + push a main = un solo deploy**
+### 2b. Flujo GitHub — UN SOLO PUSH a master, no a main
+- **Push SOLO a master:** `git push origin master:master`
+- **NO push a main.** `git push origin master:main` gasta otro deploy innecesario.
+- **Un solo commit + un solo push = un solo deploy.**
+- Si main se queda atrás, no importa — master es la rama de deploy.
+- Todo en un SOLO commit. No micro-commits. Código + docs en el mismo commit.
 
 ### 📋 REGLA CRÍTICA: Leer fix-notes COMPLETO antes de tocar código
 - **ANTES de escribir una línea, leer TODAS las notas de error pendientes en `/fix-notes` palabra por palabra.**
@@ -400,14 +401,7 @@ Estas reglas están escritas con sangre. Si una nueva sesión las ignora, el CRM
 - **NO eliminar código funcional sin dejar fallback.** Si reemplazas un componente (ej: doughnut chart → daily bar chart), el viejo debe seguir funcionando si el nuevo falla. Mantener ambos hasta verificar que el nuevo funciona en producción.
 - **Verificar formato de datos de la API antes de escribir código.** No asumir nombres de campos (ej: API devuelve `spanishName`, no `name`). Usar CDP para inspeccionar la respuesta real de la API primero.
 - **Si el usuario pide un cambio de comportamiento (ej: "modal → sub-página"), implementarlo, no anotarlo para después.** Si no se puede hacer en el momento, decirlo explícitamente y acordar cuándo se hará.
-- **No cambiar reglas de AGENTS.md sin confirmar con el admin.** Las reglas las decide él, no yo.
-- **Push SOLO a main (la rama que Render despliega).** Push a main = 1 deploy. Push a main + master = 2 deploys. Si se necesita actualizar master, hacerlo SIN deploy después.
-- **Después del push, verificar con CDP que los cambios están vivos.** El commit puede estar en GitHub pero no desplegado. Usar CDP para comprobar que el CRM tiene los cambios esperados.
-- **Leer y re-leer todas las peticiones del usuario antes de escribir código.** No empezar a codificar hasta entender CADA punto. Si algo no está claro, preguntar.
-- **Verificar la respuesta real de la API de Likes antes de escribir el frontend.** Usar CDP para ver qué campos devuelve (`spanishName`, `totalGB`, `status` booleano, no asumir nombres).
-- **Probar el filtro con datos reales del CRM.** No asumir que funciona porque la lógica es correcta. Usar CDP para ver los valores reales de `data-estado` y verificar que el filtro los oculta/muestra correctamente.
-- **Al copiar HTML de un mockup, copiar TAMBIÉN el CSS.** Las clases HTML sin sus estilos CSS no se ven. Siempre verificar que los estilos están en el archivo destino.
-- **Después de desplegar, verificar con CDP que las clases CSS existen en el DOM.** Si las clases están pero los estilos no, el layout se ve roto.
+- **No cambiar reglas de AGENTS.md (ej: "push solo a master") sin confirmar con el admin.** Las reglas las decide él, no yo.
 
 ### 5. Backup de seguridad
 - El backup del CRM está en `C:\Users\xtptx\Desktop\0707\` — copia exacta del código desplegado en Render (commit `461d14b`) + documentación actualizada

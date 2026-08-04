@@ -137,7 +137,6 @@ this.brandId = config.brandId || process.env.LIKES_BRAND_ID || '264';
 16. **NO hacer server-side skip en EJS para filtering** — `if (est === 'terminada') return;` en EJS impide que el filtro JS del cliente pueda mostrar esas líneas después.
 17. **UN SOLO COMMIT = UN SOLO DEPLOY.** No separar fix y docs. AGENTS.md + MEMORIA_ERRORES.md + código → todo en el mismo commit. Push una vez a master para un solo deploy. Si hay cambios docs después del fix, esperar al próximo batch.
 18. **NO push a ambos branches (main + master).** Push SOLO a master: `git push origin master:master`. Cada push = 1 build. Push a main + master = 2 builds = doble de minutos gastados. Master es la rama de deploy, main se queda atrás y no importa.
-19. **PENDIENTE: Buscar APIs gratuitas externas para enriquecer scoring.** El admin pide buscar en internet fuentes públicas gratuitas (BOE, Registro Mercantil, OpenCorporates, listas de morosos gratuitas, etc.) para añadir más factores de fiabilidad al scoring de clientes. Investigar en el próximo batch.
 
 ## [2026-07-14] _cid sin comillas en script — SyntaxError bloquea TODO el JS inline en clientes con DNI numérico
 **Error:** El fiscal ID (`_cid`) se renderizaba sin comillas dentro de etiquetas `<script>` en `view.ejs`.
