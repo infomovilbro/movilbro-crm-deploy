@@ -2605,7 +2605,7 @@ document.querySelectorAll('input[name="dailyChartType"]').forEach(function(rb) {
       var detBtn = row.querySelector('button[onclick*="verResumenOrden"]');
       if (!detBtn) return;
       var clickAttr = detBtn.getAttribute('onclick') || '';
-      var matchO = clickAttr.match(/verResumenOrden\('([^']+)'\)/);
+      var matchO = clickAttr.match(/verResumenOrden\('([^']+)'/);
       var orderId = matchO ? matchO[1] : fullId;
       if (!orderId) return;
       productCell.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
